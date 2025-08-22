@@ -7,12 +7,15 @@ const Navbar = () => {
     { name: "Trang chủ", href: "/" },
     { name: "Tính năng", href: "/features" },
     { name: "Dịch vụ", href: "/services" },
-    { name: "Giải pháp", href: "/solutions" },
+    { name: "Chợ Trực Tuyến", href: "/marketplace" },
     { name: "Liên hệ", href: "/order" },
   ];
   const navigate = useNavigate();
   const handleLogin = () => {
     navigate("/login");
+  };
+  const handleSignUp = () => {
+    navigate("/signup");
   };
 
   return (
@@ -20,7 +23,10 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => navigate("/")}
+          >
             <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-green-600">
               <Leaf className="h-6 w-6 text-white" />
             </div>
@@ -47,7 +53,15 @@ const Navbar = () => {
             <Button onClick={handleLogin} variant="ghost">
               Đăng nhập
             </Button>
-            <Button variant="default">Dùng thử miễn phí</Button>
+
+            <Button
+              onClick={handleSignUp}
+              variant="default"
+              className="relative overflow-hidden bg-black text-white font-semibold rounded-lg px-6 py-3 group"
+            >
+              <span className="relative z-10">Bắt Đầu Ngay</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
+            </Button>
           </div>
         </div>
       </div>
@@ -55,4 +69,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

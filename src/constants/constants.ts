@@ -3,4 +3,5 @@ export const PATH_NAMES = {
  ORDER: '/order',
  LOGIN: '/login',
  SIGNUP: '/signup',
+ MARKETPLACE: '/marketplace',
 };
