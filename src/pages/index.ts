@@ -11,3 +11,5 @@ export * from './LoginPage';
 export * from './SignUpPage';
 export * from './MarketplacePage';
 export * from './AboutPage';
+export * from './AdminPage';
+export * from './admin';
