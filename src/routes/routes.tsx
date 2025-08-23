@@ -1,7 +1,7 @@
 import { Layout } from "@/layouts";
 import { Route, Routes as RRDRoutes } from "react-router";
 import { allRoutes } from "./all-routes";
-import { LoginPage, SignUpPage } from "@/pages";
+import { AdminPage, LoginPage, SignUpPage } from "@/pages";
 
 
 export const Routes = () => {
@@ -9,6 +9,8 @@ export const Routes = () => {
     <RRDRoutes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/admin" element={<AdminPage />} />
+      
       <Route element={<Layout />}>
         {allRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.component} />
