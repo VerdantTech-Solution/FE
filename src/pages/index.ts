@@ -6,7 +6,8 @@ export * from './AgricultureSolutions';
 
 // Pages
 export * from './HomePage';
-export * from './OrderPage';
+
 export * from './LoginPage';
 export * from './SignUpPage';
 export * from './MarketplacePage';
+export * from './AboutPage';

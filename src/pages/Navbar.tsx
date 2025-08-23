@@ -9,9 +9,9 @@ const Navbar = () => {
   
   const navigation = [
     { name: "Trang chủ", href: "/" },
-    { name: "Tính năng", href: "/features" },
     { name: "Dịch vụ", href: "/services" },
     { name: "Chợ Trực Tuyến", href: "/marketplace" },
+    { name: "Về chúng tôi", href: "/about" },
     { name: "Liên hệ", href: "/order" },
   ];
   
@@ -40,7 +40,7 @@ const Navbar = () => {
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => navigate("/")}
           >
-            <div className="w-[150px] h-[80px]  flex items-center justify-center overflow-hidden p-2">
+            <div className="w-[100px] h-[80px]  flex items-center justify-center overflow-hidden p-2">
               <img 
                 src={logo2}
                 alt="VerdantTech Logo" 
