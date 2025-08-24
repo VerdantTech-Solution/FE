@@ -10,7 +10,7 @@ import { signUpUser } from "@/api/auth";
 import type { SignUpRequest } from "@/api/auth";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+import { useAuthRedirect } from "@/hooks";
 
 export const SignUpPage = () => {
   const navigate = useNavigate();
@@ -22,9 +22,10 @@ export const SignUpPage = () => {
   const [formData, setFormData] = useState<SignUpRequest & { confirmPassword: string }>({
     fullName: "",
     email: "",
-    phone: "",
+    phoneNumber: "", // Thay đổi từ phone thành phoneNumber
     password: "",
     confirmPassword: "",
+    role: "customer" // Thêm role mặc định
   });
 
   // Nếu đang loading hoặc đã đăng nhập, hiển thị loading
@@ -51,17 +52,34 @@ export const SignUpPage = () => {
     setIsLoading(true);
     
     try {
+      console.log('🚀 Submitting signup form with:', formData);
+      
       const response = await signUpUser(formData);
-      toast.success("Đăng ký thành công!");
-      console.log("Sign up successful:", response);
+      console.log("✅ Signup API response:", response);
       
-      // Cập nhật auth context
-      login(response.user);
+      // Validate response before calling login
+      if (!response || !response.user || !response.token) {
+        throw new Error('Invalid response from signup API');
+      }
       
-      // Chuyển hướng sau khi đăng ký thành công
-      navigate("/");
+      console.log("🔐 Calling login context with:", { user: response.user, token: response.token });
+      
+      // Cập nhật auth context với user và token
+      login(response.user, response.token);
+      
+      // Kiểm tra nếu là temporary token
+      if (response.token.startsWith('temp_token_')) {
+        toast.success("Đăng ký thành công!");
+        console.log("📝 Signup successful with temporary token, redirecting to login");
+        navigate("/login");
+      } else {
+        toast.success("Đăng ký thành công!");
+        console.log("🎉 Sign up successful, redirecting to home");
+        navigate("/login");
+      }
+      
     } catch (error: unknown) {
-      console.error("Sign up error:", error);
+      console.error("💥 Sign up error:", error);
       const errorMessage = error && typeof error === 'object' && 'message' in error 
         ? String(error.message) 
         : "Đăng ký thất bại. Vui lòng thử lại.";
@@ -140,17 +158,17 @@ export const SignUpPage = () => {
                 </div>
               </div>
 
-              {/* Phone Field */}
+              {/* Phone Number Field - Cập nhật tên field */}
               <div className="space-y-2">
-                <Label htmlFor="phone">Số điện thoại</Label>
+                <Label htmlFor="phoneNumber">Số điện thoại</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="phone"
-                    name="phone"
+                    id="phoneNumber"
+                    name="phoneNumber"
                     type="tel"
                     placeholder="Nhập số điện thoại"
-                    value={formData.phone}
+                    value={formData.phoneNumber}
                     onChange={handleInputChange}
                     className="pl-10"
                     required
@@ -201,11 +219,11 @@ export const SignUpPage = () => {
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Nhập lại mật khẩu"
-                                         value={formData.confirmPassword}
-                     onChange={handleInputChange}
-                     disabled={isLoading}
-                     className="pl-10 pr-10"
-                     required
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                    className="pl-10 pr-10"
+                    required
                   />
                   <Button
                     type="button"
