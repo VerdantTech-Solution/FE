@@ -1,20 +1,21 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { isAuthenticated, getCurrentUser, logoutUser } from '@/api/auth';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 
 interface User {
   id: string;
   fullName: string;
   email: string;
-  phone: string;
+  phoneNumber: string; 
   role: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (user: User) => void;
+  login: (user: User, token: string) => void;
   logout: () => void;
   loading: boolean;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,23 +39,93 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Kiểm tra xem user đã đăng nhập chưa khi component mount
     const checkAuth = () => {
-      if (isAuthenticated()) {
-        const currentUser = getCurrentUser();
-        setUser(currentUser);
+      try {
+        const token = localStorage.getItem('authToken');
+        const userData = localStorage.getItem('user');
+        
+        console.log('Checking auth - Token:', token ? 'exists' : 'missing');
+        console.log('Checking auth - User data:', userData);
+        
+        if (token && userData && userData !== 'undefined') {
+          const parsedUser = JSON.parse(userData);
+          console.log('Parsed user:', parsedUser);
+          
+          // Validate user data structure
+          if (parsedUser && 
+              typeof parsedUser === 'object' && 
+              parsedUser.id && 
+              parsedUser.fullName && 
+              parsedUser.email) {
+            setUser(parsedUser);
+          } else {
+            console.error('Invalid user data structure:', parsedUser);
+            // Xóa dữ liệu không hợp lệ
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+          }
+        } else {
+          console.log('No valid auth data found');
+        }
+      } catch (error) {
+        console.error('Error parsing user data from localStorage:', error);
+        // Xóa dữ liệu không hợp lệ
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
+  const login = (userData: User, token: string) => {
+    console.log('Login called with:', { userData, token });
+    
+    // Validate input data
+    if (!userData || !token) {
+      console.error('Invalid login data:', { userData, token });
+      return;
+    }
+    
+    if (!userData.id || !userData.fullName || !userData.email) {
+      console.error('Invalid user data structure:', userData);
+      return;
+    }
+    
+    try {
+      // Lưu vào localStorage
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      console.log('Data saved to localStorage');
+      console.log('Token saved:', !!localStorage.getItem('authToken'));
+      console.log('User saved:', !!localStorage.getItem('user'));
+      
+      // Cập nhật state
+      setUser(userData);
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
   };
 
   const logout = () => {
-    logoutUser();
+    console.log('Logout called');
+    
+    // Xóa khỏi localStorage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    
+    // Cập nhật state
     setUser(null);
+  };
+
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    }
   };
 
   const value: AuthContextType = {
@@ -63,6 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     loading,
+    updateUser,
   };
 
   return (
@@ -71,3 +143,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+// Thêm default export
+export default AuthProvider;

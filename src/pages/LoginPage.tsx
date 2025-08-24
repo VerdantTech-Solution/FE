@@ -11,7 +11,7 @@ import { loginUser } from "@/api/auth";
 import type { LoginRequest } from "@/api/auth";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+import { useAuthRedirect } from "@/hooks";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -45,12 +45,23 @@ export const LoginPage = () => {
     setIsLoading(true);
     
     try {
-      const response = await loginUser(formData);
-      toast.success("Đăng nhập thành công!");
-      console.log("Login successful:", response);
+      console.log('Submitting login form with:', formData);
       
-      // Cập nhật auth context
-      login(response.user);
+      const response = await loginUser(formData);
+      console.log("Login API response:", response);
+      
+      // Validate response before calling login
+      if (!response || !response.user || !response.token) {
+        throw new Error('Invalid response from login API');
+      }
+      
+      console.log("Calling login context with:", { user: response.user, token: response.token });
+      
+      // Cập nhật auth context với user và token
+      login(response.user, response.token);
+      
+      toast.success("Đăng nhập thành công!");
+      console.log("Login successful, redirecting to home");
       
       // Chuyển hướng sau khi đăng nhập thành công
       navigate("/");

@@ -5,4 +5,5 @@ export const PATH_NAMES = {
  MARKETPLACE: '/marketplace',
  ABOUT: '/about',
  ADMIN: '/admin',
+ PROFILE: '/profile',
 };

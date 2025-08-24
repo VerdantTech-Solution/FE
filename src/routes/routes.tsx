@@ -11,6 +11,7 @@ export const Routes = () => {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/admin" element={<AdminPage />} />
       
+      
       <Route element={<Layout />}>
         {allRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.component} />
