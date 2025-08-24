@@ -1,12 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut, Settings, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import logo2 from "@/assets/logo2.jpg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
+  const userDropdownRef = useRef<HTMLDivElement>(null);
   
   const navigation = [
     { name: "Trang chủ", href: "/" },
@@ -28,9 +32,41 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+    setIsMobileMenuOpen(false);
+    setIsUserDropdownOpen(false);
+  };
+
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  const toggleUserDropdown = () => {
+    setIsUserDropdownOpen(!isUserDropdownOpen);
+  };
+
+  const closeUserDropdown = () => {
+    setIsUserDropdownOpen(false);
+  };
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+
+    if (isUserDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserDropdownOpen]);
 
   // Animation variants
   const logoVariants = {
@@ -177,33 +213,118 @@ const Navbar = () => {
             animate="visible"
             transition={{ delay: 0.6 }}
           >
-            <motion.div
-              whileHover="hover"
-              whileTap="tap"
-            >
-              <Button onClick={handleLogin} variant="ghost">
-                Đăng nhập
-              </Button>
-            </motion.div>
+            {isAuthenticated ? (
+              <>
+                <motion.div
+                  ref={userDropdownRef}
+                  className="relative"
+                  whileHover="hover"
+                  whileTap="tap"
+                >
+                  <Button 
+                    variant="ghost" 
+                    className="cursor-pointer flex items-center gap-2"
+                    onClick={toggleUserDropdown}
+                  >
+                    <User className="h-5 w-5" />
+                    {user?.fullName}
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                  
+                  {/* User Dropdown Menu */}
+                  <AnimatePresence>
+                    {isUserDropdownOpen && (
+                      <>
+                        {/* Backdrop */}
+                        <motion.div
+                          className="fixed inset-0 z-40"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={closeUserDropdown}
+                        />
+                        <motion.div
+                          className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                        {/* User Info Section */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
+                          <div className="text-sm text-gray-500">{user?.email}</div>
+                        </div>
+                        
+                        {/* Navigation Links */}
+                        <div className="py-1">
+                          <button
+                            className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
+                            onClick={() => {
+                              navigate("/profile");
+                              closeUserDropdown();
+                            }}
+                          >
+                            <User className="h-4 w-4" />
+                            Profile
+                          </button>
+                          
+                          <button
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                            onClick={() => {
+                              navigate("/dashboard");
+                              closeUserDropdown();
+                            }}
+                          >
+                            <Settings className="h-4 w-4" />
+                            Dashboard
+                          </button>
+                          
+                          <button
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                            onClick={handleLogout}
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Log out
+                          </button>
+                        </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </>
+            ) : (
+              <>
+                <motion.div
+                  whileHover="hover"
+                  whileTap="tap"
+                >
+                  <Button onClick={handleLogin} variant="ghost">
+                    Đăng nhập
+                  </Button>
+                </motion.div>
 
-            <motion.div
-              whileHover="hover"
-              whileTap="tap"
-            >
-              <Button
-                onClick={handleSignUp}
-                variant="default"
-                className="relative overflow-hidden bg-black text-white font-semibold rounded-lg px-6 py-3 group"
-              >
-                <span className="relative z-10">Bắt Đầu Ngay</span>
-                <motion.div 
-                  className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600"
-                  initial={{ x: "-100%" }}
-                  whileHover={{ x: 0 }}
-                  transition={{ duration: 0.5, ease: "easeOut" as const }}
-                />
-              </Button>
-            </motion.div>
+                <motion.div
+                  whileHover="hover"
+                  whileTap="tap"
+                >
+                  <Button
+                    onClick={handleSignUp}
+                    variant="default"
+                    className="relative overflow-hidden bg-black text-white font-semibold rounded-lg px-6 py-3 group"
+                  >
+                    <span className="relative z-10">Bắt Đầu Ngay</span>
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600"
+                      initial={{ x: "-100%" }}
+                      whileHover={{ x: 0 }}
+                      transition={{ duration: 0.5, ease: "easeOut" as const }}
+                    />
+                  </Button>
+                </motion.div>
+              </>
+            )}
           </motion.div>
 
           {/* Mobile menu button */}
@@ -270,24 +391,98 @@ const Navbar = () => {
                   </motion.a>
                 ))}
                 <div className="pt-4 space-y-2">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, duration: 0.3 }}
-                  >
-                    <Button onClick={handleLogin} variant="ghost" className="w-full">
-                      Đăng nhập
-                    </Button>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.3 }}
-                  >
-                    <Button onClick={handleSignUp} variant="default" className="w-full">
-                      Bắt Đầu Ngay
-                    </Button>
-                  </motion.div>
+                  {isAuthenticated ? (
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.3 }}
+                      >
+                        <Button 
+                          variant="ghost" 
+                          className="w-full cursor-pointer flex items-center justify-between"
+                          onClick={toggleUserDropdown}
+                        >
+                          <div className="flex items-center gap-2">
+                            <User className="h-5 w-5" />
+                            {user?.fullName}
+                          </div>
+                          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                        
+                        {/* Mobile User Dropdown */}
+                        <AnimatePresence>
+                          {isUserDropdownOpen && (
+                            <motion.div
+                              className="ml-4 mt-2 bg-gray-50 rounded-lg py-2 space-y-1"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <div className="px-4 py-2 border-b border-gray-200">
+                                <div className="font-medium text-gray-900">{user?.fullName}</div>
+                                <div className="text-sm text-gray-500">{user?.email}</div>
+                              </div>
+                              
+                              <button
+                                className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
+                                onClick={() => {
+                                  navigate("/profile");
+                                  closeUserDropdown();
+                                  setIsMobileMenuOpen(false);
+                                }}
+                              >
+                                <User className="h-4 w-4" />
+                                Profile
+                              </button>
+                              
+                              <button
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                                onClick={() => {
+                                  navigate("/dashboard");
+                                  closeUserDropdown();
+                                  setIsMobileMenuOpen(false);
+                                }}
+                              >
+                                <Settings className="h-4 w-4" />
+                                Dashboard
+                              </button>
+                              
+                              <button
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                                onClick={handleLogout}
+                              >
+                                <LogOut className="h-4 w-4" />
+                                Log out
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.3 }}
+                      >
+                        <Button onClick={handleLogin} variant="ghost" className="w-full">
+                          Đăng nhập
+                        </Button>
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4, duration: 0.3 }}
+                      >
+                        <Button onClick={handleSignUp} variant="default" className="w-full">
+                          Bắt Đầu Ngay
+                        </Button>
+                      </motion.div>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

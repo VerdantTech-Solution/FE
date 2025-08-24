@@ -4,14 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, Leaf, Mail, Lock, User, Phone } from "lucide-react";
+import { Eye, EyeOff, Leaf, Mail, Lock, User, Phone, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { signUpUser } from "@/api/auth";
+import type { SignUpRequest } from "@/api/auth";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 
 export const SignUpPage = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const { loading: authLoading } = useAuthRedirect('/');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState<SignUpRequest & { confirmPassword: string }>({
     fullName: "",
     email: "",
     phone: "",
@@ -19,10 +27,48 @@ export const SignUpPage = () => {
     confirmPassword: "",
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // Nếu đang loading hoặc đã đăng nhập, hiển thị loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-green-600" />
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Sign up attempt:", formData);
-    // Handle sign up logic here
+    
+    // Kiểm tra mật khẩu xác nhận
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp!");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const response = await signUpUser(formData);
+      toast.success("Đăng ký thành công!");
+      console.log("Sign up successful:", response);
+      
+      // Cập nhật auth context
+      login(response.user);
+      
+      // Chuyển hướng sau khi đăng ký thành công
+      navigate("/");
+    } catch (error: unknown) {
+      console.error("Sign up error:", error);
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message) 
+        : "Đăng ký thất bại. Vui lòng thử lại.";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,6 +116,7 @@ export const SignUpPage = () => {
                     onChange={handleInputChange}
                     className="pl-10"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -88,6 +135,7 @@ export const SignUpPage = () => {
                     onChange={handleInputChange}
                     className="pl-10"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -106,6 +154,7 @@ export const SignUpPage = () => {
                     onChange={handleInputChange}
                     className="pl-10"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -124,6 +173,7 @@ export const SignUpPage = () => {
                     onChange={handleInputChange}
                     className="pl-10 pr-10"
                     required
+                    disabled={isLoading}
                   />
                   <Button
                     type="button"
@@ -151,10 +201,11 @@ export const SignUpPage = () => {
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Nhập lại mật khẩu"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className="pl-10 pr-10"
-                    required
+                                         value={formData.confirmPassword}
+                     onChange={handleInputChange}
+                     disabled={isLoading}
+                     className="pl-10 pr-10"
+                     required
                   />
                   <Button
                     type="button"
@@ -173,8 +224,12 @@ export const SignUpPage = () => {
               </div>
 
               {/* Submit Button */}
-              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
-                Đăng ký
+              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Đăng ký"
+                )}
               </Button>
             </form>
 

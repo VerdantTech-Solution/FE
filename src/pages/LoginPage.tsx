@@ -4,25 +4,65 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import logo from "@/assets/logo.png";
-import { Mail, Lock, Eye, EyeOff, Leaf } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Leaf, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { loginUser } from "@/api/auth";
+import type { LoginRequest } from "@/api/auth";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
-  const handleSignUp = () => {
-    navigate("/signup");
-  };
+  const { login } = useAuth();
+  const { loading: authLoading } = useAuthRedirect('/');
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState<LoginRequest>({
     email: "",
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // Nếu đang loading hoặc đã đăng nhập, hiển thị loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-green-600" />
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSignUp = () => {
+    navigate("/signup");
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Login attempt:", formData);
-    // Handle login logic here
+    setIsLoading(true);
+    
+    try {
+      const response = await loginUser(formData);
+      toast.success("Đăng nhập thành công!");
+      console.log("Login successful:", response);
+      
+      // Cập nhật auth context
+      login(response.user);
+      
+      // Chuyển hướng sau khi đăng nhập thành công
+      navigate("/");
+    } catch (error: unknown) {
+      console.error("Login error:", error);
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message) 
+        : "Đăng nhập thất bại. Vui lòng thử lại.";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,6 +169,7 @@ export const LoginPage = () => {
                       onChange={handleInputChange}
                       className="pl-8 py-2 text-sm h-10"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -147,6 +188,7 @@ export const LoginPage = () => {
                       onChange={handleInputChange}
                       className="pl-8 pr-8 py-2 text-sm h-10"
                       required
+                      disabled={isLoading}
                     />
                     <Button
                       type="button"
@@ -154,6 +196,7 @@ export const LoginPage = () => {
                       size="sm"
                       className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      disabled={isLoading}
                     >
                       {showPassword ? (
                         <EyeOff className="h-3 w-3 text-muted-foreground" />
@@ -172,8 +215,8 @@ export const LoginPage = () => {
                 </div>
 
                 {/* Submit Button */}
-                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 py-2 text-sm font-semibold h-10">
-                  Đăng nhập
+                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 py-2 text-sm font-semibold h-10" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Đăng nhập"}
                 </Button>
               </form>
 
