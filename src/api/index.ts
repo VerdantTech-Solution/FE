@@ -1,1 +1,2 @@
-export * from './apiClient'
+export { apiClient } from './apiClient';
+export * from './auth';
