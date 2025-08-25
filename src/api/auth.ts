@@ -145,30 +145,14 @@ export const logoutUser = async (): Promise<void> => {
   }
 };
 
-// API lấy profile user
-export const getUserProfile = async () => {
-  const response = await apiClient.get('/api/Auth/profile');
-  return response;
-};
+// // API lấy profile user
+// export const getUserProfile = async () => {
+//   const response = await apiClient.get('/api/Auth/profile');
+//   return response;
+// };
 
 // API refresh token
 export const refreshToken = async () => {
   const response = await apiClient.post('/api/Auth/refresh-token');
   return response;
-};
-
-// Kiểm tra xem user đã đăng nhập chưa
-export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem('authToken');
-};
-
-// Lấy thông tin user hiện tại
-export const getCurrentUser = () => {
-  const user = localStorage.getItem('user');
-  return user ? JSON.parse(user) : null;
-};
-
-// Lấy token hiện tại
-export const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
 };
