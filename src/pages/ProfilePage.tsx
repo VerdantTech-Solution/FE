@@ -28,9 +28,15 @@ export const ProfilePage = () => {
     return null;
   }
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Vẫn chuyển hướng về trang login ngay cả khi logout thất bại
+      navigate("/login");
+    }
   };
 
   const handleEditProfile = () => {

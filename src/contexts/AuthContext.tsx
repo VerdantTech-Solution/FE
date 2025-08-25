@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { logoutUser } from '@/api/auth';
 
 interface User {
   id: string;
@@ -13,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (user: User, token: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -109,15 +110,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async (): Promise<void> => {
     console.log('Logout called');
     
-    // Xóa khỏi localStorage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    
-    // Cập nhật state
-    setUser(null);
+    try {
+      // Gọi API logout trước
+      await logoutUser();
+      
+      // Cập nhật state
+      setUser(null);
+      console.log('Logout completed successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Ngay cả khi có lỗi, vẫn xóa dữ liệu local để đảm bảo user được logout
+      setUser(null);
+    }
   };
 
   const updateUser = (userData: Partial<User>) => {

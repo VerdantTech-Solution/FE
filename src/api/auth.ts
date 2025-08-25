@@ -128,10 +128,21 @@ export const signUpUser = async (userData: SignUpRequest): Promise<AuthResponse>
   }
 };
 
-// API đăng xuất
-export const logoutUser = (): void => {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('user');
+// API đăng xuất - gọi endpoint logout trước, sau đó mới xóa token trong localStorage
+export const logoutUser = async (): Promise<void> => {
+  try {
+    // Gọi đến endpoint này để logout trước
+    await apiClient.post('/api/Auth/logout');
+    console.log('Logout API called successfully');
+  } catch (error) {
+    console.error('Logout API error:', error);
+    // Vẫn tiếp tục xóa dữ liệu local ngay cả khi API gọi thất bại
+  } finally {
+    // Sau đó mới xóa token trong localStorage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    console.log('Local data cleared');
+  }
 };
 
 // API lấy profile user

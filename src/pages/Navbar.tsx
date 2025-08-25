@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { User, LogOut, Settings, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,7 +7,6 @@ import logo2 from "@/assets/logo2.jpg";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -24,23 +23,16 @@ const Navbar = () => {
   
   const handleLogin = () => {
     navigate("/login");
-    setIsMobileMenuOpen(false);
   };
   
   const handleSignUp = () => {
     navigate("/signup");
-    setIsMobileMenuOpen(false);
   };
 
   const handleLogout = () => {
     logout();
     navigate("/");
-    setIsMobileMenuOpen(false);
     setIsUserDropdownOpen(false);
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   const toggleUserDropdown = () => {
@@ -117,32 +109,6 @@ const Navbar = () => {
     }
   };
 
-  const mobileMenuVariants = {
-    hidden: { 
-      opacity: 0,
-      height: 0,
-      y: -20
-    },
-    visible: { 
-      opacity: 1,
-      height: "auto",
-      y: 0,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut" as const
-      }
-    },
-    exit: { 
-      opacity: 0,
-      height: 0,
-      y: -20,
-      transition: {
-        duration: 0.2,
-        ease: "easeIn" as const
-      }
-    }
-  };
-
   return (
     <motion.nav 
       className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-border"
@@ -169,20 +135,16 @@ const Navbar = () => {
               <img 
                 src={logo2}
                 alt="VerdantTech Logo" 
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover rounded-lg"
               />
             </motion.div>
-            <motion.span 
-              className="text-2xl font-bold text-green-600"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-            >
-              VerdantTech
-            </motion.span>
+            <div className="hidden sm:block">
+              <h1 className="text-2xl font-bold text-green-600">VerdantTech</h1>
+              <p className="text-sm text-gray-600">Nông nghiệp bền vững</p>
+            </div>
           </motion.div>
 
-          {/* Desktop Navigation - Hidden on mobile */}
+          {/* Navigation Links - Hidden on mobile, visible on md+ */}
           <motion.div 
             className="hidden md:flex items-center space-x-8"
             variants={navVariants}
@@ -194,8 +156,8 @@ const Navbar = () => {
               <motion.a
                 key={item.name}
                 href={item.href}
-                className="text-foreground hover:text-primary transition-colors font-medium"
-                initial={{ opacity: 0, y: -10 }}
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+                initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 + index * 0.1, duration: 0.5 }}
                 whileHover={{ y: -2 }}
@@ -205,7 +167,7 @@ const Navbar = () => {
             ))}
           </motion.div>
 
-          {/* Desktop CTA Buttons - Hidden on mobile */}
+          {/* CTA Buttons - Hidden on mobile, visible on md+ */}
           <motion.div 
             className="hidden md:flex items-center gap-4"
             variants={buttonVariants}
@@ -327,167 +289,106 @@ const Navbar = () => {
             )}
           </motion.div>
 
-          {/* Mobile menu button */}
-          <motion.div 
-            className="md:hidden"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              onClick={toggleMobileMenu}
-              variant="ghost"
-              size="sm"
-              className="p-2"
-            >
-              <AnimatePresence mode="wait">
-                {isMobileMenuOpen ? (
-                  <motion.div
-                    key="close"
-                    initial={{ rotate: -90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: 90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <X className="h-6 w-6" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="menu"
-                    initial={{ rotate: 90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: -90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Menu className="h-6 w-6" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Button>
-          </motion.div>
+          {/* Mobile Navigation - Visible on mobile, hidden on md+ */}
+          <div className="md:hidden flex items-center gap-4">
+            {/* Mobile CTA Buttons */}
+            {isAuthenticated ? (
+              <motion.div
+                ref={userDropdownRef}
+                className="relative"
+                whileHover="hover"
+                whileTap="tap"
+              >
+                <Button 
+                  variant="ghost" 
+                  className="cursor-pointer flex items-center gap-2"
+                  onClick={toggleUserDropdown}
+                >
+                  <User className="h-5 w-5" />
+                  <span className="hidden sm:inline">{user?.fullName}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                </Button>
+                
+                {/* Mobile User Dropdown */}
+                <AnimatePresence>
+                  {isUserDropdownOpen && (
+                    <motion.div
+                      className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                    {/* User Info Section */}
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
+                      <div className="text-sm text-gray-500">{user?.email}</div>
+                    </div>
+                    
+                    {/* Navigation Links */}
+                    <div className="py-1">
+                      <button
+                        className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
+                        onClick={() => {
+                          navigate("/profile");
+                          closeUserDropdown();
+                        }}
+                      >
+                        <User className="h-4 w-4" />
+                        Profile
+                      </button>
+                      
+                      <button
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                        onClick={() => {
+                          navigate("/dashboard");
+                          closeUserDropdown();
+                        }}
+                      >
+                        <Settings className="h-4 w-4" />
+                        Dashboard
+                      </button>
+                      
+                      <button
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Log out
+                      </button>
+                    </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              <>
+                <Button onClick={handleLogin} variant="ghost" size="sm">
+                  Đăng nhập
+                </Button>
+                <Button onClick={handleSignUp} variant="default" size="sm">
+                  Bắt đầu
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Mobile Navigation */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              className="md:hidden"
-              variants={mobileMenuVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
+        {/* Mobile Navigation Links - Always visible on mobile, hidden on md+ */}
+        <div className="md:hidden py-4 space-y-2 border-t border-border">
+          {navigation.map((item, index) => (
+            <motion.a
+              key={item.name}
+              href={item.href}
+              className="block px-4 py-2 text-foreground hover:text-primary hover:bg-accent/50 rounded-lg transition-colors"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1, duration: 0.3 }}
             >
-              <div className="py-4 space-y-2 border-t border-border">
-                {navigation.map((item, index) => (
-                  <motion.a
-                    key={item.name}
-                    href={item.href}
-                    className="block px-4 py-2 text-foreground hover:text-primary hover:bg-accent/50 rounded-lg transition-colors"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </motion.a>
-                ))}
-                <div className="pt-4 space-y-2">
-                  {isAuthenticated ? (
-                    <>
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.3 }}
-                      >
-                        <Button 
-                          variant="ghost" 
-                          className="w-full cursor-pointer flex items-center justify-between"
-                          onClick={toggleUserDropdown}
-                        >
-                          <div className="flex items-center gap-2">
-                            <User className="h-5 w-5" />
-                            {user?.fullName}
-                          </div>
-                          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
-                        </Button>
-                        
-                        {/* Mobile User Dropdown */}
-                        <AnimatePresence>
-                          {isUserDropdownOpen && (
-                            <motion.div
-                              className="ml-4 mt-2 bg-gray-50 rounded-lg py-2 space-y-1"
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <div className="px-4 py-2 border-b border-gray-200">
-                                <div className="font-medium text-gray-900">{user?.fullName}</div>
-                                <div className="text-sm text-gray-500">{user?.email}</div>
-                              </div>
-                              
-                              <button
-                                className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
-                                onClick={() => {
-                                  navigate("/profile");
-                                  closeUserDropdown();
-                                  setIsMobileMenuOpen(false);
-                                }}
-                              >
-                                <User className="h-4 w-4" />
-                                Profile
-                              </button>
-                              
-                              <button
-                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
-                                onClick={() => {
-                                  navigate("/dashboard");
-                                  closeUserDropdown();
-                                  setIsMobileMenuOpen(false);
-                                }}
-                              >
-                                <Settings className="h-4 w-4" />
-                                Dashboard
-                              </button>
-                              
-                              <button
-                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
-                                onClick={handleLogout}
-                              >
-                                <LogOut className="h-4 w-4" />
-                                Log out
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    </>
-                  ) : (
-                    <>
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.3 }}
-                      >
-                        <Button onClick={handleLogin} variant="ghost" className="w-full">
-                          Đăng nhập
-                        </Button>
-                      </motion.div>
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4, duration: 0.3 }}
-                      >
-                        <Button onClick={handleSignUp} variant="default" className="w-full">
-                          Bắt Đầu Ngay
-                        </Button>
-                      </motion.div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {item.name}
+            </motion.a>
+          ))}
+        </div>
       </div>
     </motion.nav>
   );
