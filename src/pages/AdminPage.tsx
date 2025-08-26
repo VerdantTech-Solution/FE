@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import logo2 from "@/assets/logo2.jpg";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, Users } from "lucide-react";
 import { 
   Sidebar, 
   SidebarHeader, 
@@ -35,7 +35,9 @@ import {
   AnalyticsPage, 
   EquipmentPage, 
   MonitoringPage, 
-  SettingsPage 
+  SettingsPage, 
+  UserManamentPage
+
 } from "./admin";
 
 export const AdminPage = () => {
@@ -138,6 +140,18 @@ export const AdminPage = () => {
                   Tổng quan
                 </SidebarNavItem>
               </motion.div>
+              <motion.div
+                whileHover={{ x: 5 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SidebarNavItem
+                  active={selectedView === 'usermanament'}
+                  onClick={() => setSelectedView('usermanament')}
+                  icon={<Users className="w-5 h-5" />}
+                >
+                  Quản Lý Người Dùng
+                </SidebarNavItem>
+              </motion.div>
               
               <motion.div
                 whileHover={{ x: 5 }}
@@ -237,6 +251,7 @@ export const AdminPage = () => {
                 transition={{ delay: 0.7, duration: 0.5 }}
               >
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}
+                {selectedView === 'usermanament' && 'Quản lý người dùng'}
                 {selectedView === 'analytics' && 'Phân tích dữ liệu'}
                 {selectedView === 'equipment' && 'Quản lý thiết bị'}
                 {selectedView === 'monitoring' && 'Giám sát hệ thống'}
@@ -315,6 +330,17 @@ export const AdminPage = () => {
           key={selectedView}
         >
           <AnimatePresence mode="wait">
+               {selectedView === 'usermanament' && (
+              <motion.div
+                key="usermanament"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <UserManamentPage />
+              </motion.div>
+            )}
             {selectedView === 'overview' && (
               <motion.div
                 key="overview"

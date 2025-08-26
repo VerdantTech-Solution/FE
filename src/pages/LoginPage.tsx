@@ -1,36 +1,73 @@
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import logo from "@/assets/logo.png";
-import { Mail, Lock, Eye, EyeOff, Leaf, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { loginUser } from "@/api/auth";
-import type { LoginRequest } from "@/api/auth";
-import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthRedirect } from "@/hooks";
+import { useNavigate } from "react-router";
+import logo from "@/assets/logo.png";
+import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
+import { loginUser } from "@/api/auth";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 export const LoginPage = () => {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const { loading: authLoading } = useAuthRedirect('/');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<LoginRequest>({
-    email: "",
-    password: "",
-  });
+  const [pageLoading, setPageLoading] = useState(true);
+  
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  // Nếu đang loading hoặc đã đăng nhập, hiển thị loading
-  if (authLoading) {
+  useEffect(() => {
+    // Simulate loading time for better UX
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Page loading screen
+  if (pageLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-green-600" />
-          <p className="text-gray-600">Đang tải...</p>
+          {/* Logo và branding */}
+          <div className="mb-8">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center">
+              <LogIn className="w-14 h-14 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">VerdantTech</h1>
+            <p className="text-gray-600">Đăng nhập</p>
+          </div>
+
+          {/* Spinner chính */}
+          <div className=" flex justify-center mb-6">
+            <Spinner 
+              variant="circle-filled" 
+              size={60} 
+              className="text-green-600 mx-auto"
+            />
+          </div>
+          
+          {/* Tiêu đề */}
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">
+            Đang tải trang đăng nhập
+          </h2>
+          
+          {/* Mô tả */}
+          <p className="text-gray-600 mb-6">
+            Chuẩn bị giao diện đăng nhập...
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
         </div>
       </div>
     );
@@ -45,9 +82,9 @@ export const LoginPage = () => {
     setIsLoading(true);
     
     try {
-      console.log('Submitting login form with:', formData);
+      console.log('Submitting login form with:', { email, password });
       
-      const response = await loginUser(formData);
+      const response = await loginUser({ email, password });
       console.log("Login API response:", response);
       
       // Validate response before calling login
@@ -60,27 +97,22 @@ export const LoginPage = () => {
       // Cập nhật auth context với user và token
       login(response.user, response.token);
       
-      toast.success("Đăng nhập thành công!");
+      // toast.success("Đăng nhập thành công!"); // Removed toast as per new_code
       console.log("Login successful, redirecting to home");
       
       // Chuyển hướng sau khi đăng nhập thành công
       navigate("/");
     } catch (error: unknown) {
       console.error("Login error:", error);
-      const errorMessage = error && typeof error === 'object' && 'message' in error 
-        ? String(error.message) 
-        : "Đăng nhập thất bại. Vui lòng thử lại.";
-      toast.error(errorMessage);
+      // Xử lý lỗi đăng nhập
+      console.log("Login failed, please try again");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setEmail(e.target.value);
   };
 
   return (
@@ -149,7 +181,7 @@ export const LoginPage = () => {
           {/* Logo and Header */}
           <div className="text-center mb-6">
             <div className="inline-flex items-center gap-2 text-xl font-bold text-green-600 mb-2">
-              <Leaf className="h-6 w-6" />
+              {/* <Leaf className="h-6 w-6" /> */}
               VerdantTech
             </div>
             <p className="text-sm text-gray-600">Chào mừng bạn trở lại với nông nghiệp bền vững</p>
@@ -176,7 +208,7 @@ export const LoginPage = () => {
                       name="email"
                       type="email"
                       placeholder="Nhập email của bạn"
-                      value={formData.email}
+                      value={email}
                       onChange={handleInputChange}
                       className="pl-8 py-2 text-sm h-10"
                       required
@@ -195,8 +227,8 @@ export const LoginPage = () => {
                       name="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Nhập mật khẩu"
-                      value={formData.password}
-                      onChange={handleInputChange}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="pl-8 pr-8 py-2 text-sm h-10"
                       required
                       disabled={isLoading}
@@ -227,17 +259,17 @@ export const LoginPage = () => {
 
                 {/* Submit Button */}
                 <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 py-2 text-sm font-semibold h-10" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Đăng nhập"}
+                  {isLoading ? <Spinner className="mr-2 h-4 w-4 animate-spin" /> : "Đăng nhập"}
                 </Button>
               </form>
 
           {/* Divider */}
                <div className="flex items-center gap-3 py-4">
-                 <Separator className="flex-1" />
+                 {/* <Separator className="flex-1" /> */}
                  <span className="text-xs text-muted-foreground font-medium px-2">
                    Hoặc tiếp tục với
                  </span>
-                 <Separator className="flex-1" />
+                 {/* <Separator className="flex-1" /> */}
                </div>
 
               {/* Social Login */}

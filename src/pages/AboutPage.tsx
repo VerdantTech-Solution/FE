@@ -1,4 +1,5 @@
 
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -16,8 +17,56 @@ import {
   Mail,
   Clock
 } from "lucide-react";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 export const AboutPage = () => {
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading time for better UX
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Page loading screen
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
+        <div className="text-center">
+     
+          {/* Spinner chính */}
+          <div className=" flex justify-center mb-6">
+            <Spinner 
+              variant="circle-filled" 
+              size={60} 
+              className="text-green-600 mx-auto"
+            />
+          </div>
+          
+          {/* Tiêu đề */}
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">
+            Đang tải trang giới thiệu
+          </h2>
+          
+          {/* Mô tả */}
+          <p className="text-gray-600 mb-6">
+            Chuẩn bị thông tin về công ty...
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const stats = [
     { number: "50,000+", label: "Nông dân được hỗ trợ", icon: Users },
     { number: "100,000+", label: "Ha đất được canh tác", icon: Target },

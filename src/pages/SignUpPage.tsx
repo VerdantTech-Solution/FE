@@ -1,39 +1,98 @@
-import { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, Leaf, Mail, Lock, User, Phone, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { signUpUser } from "@/api/auth";
-import type { SignUpRequest } from "@/api/auth";
-import { toast } from "sonner";
+import { useNavigate } from "react-router";
+import { User, Mail, Phone, Lock, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthRedirect } from "@/hooks";
+import { toast } from "sonner";
 
 export const SignUpPage = () => {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const { loading: authLoading } = useAuthRedirect('/');
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+    confirmPassword: '',
+    role: 'customer'
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<SignUpRequest & { confirmPassword: string }>({
-    fullName: "",
-    email: "",
-    phoneNumber: "", // Thay đổi từ phone thành phoneNumber
-    password: "",
-    confirmPassword: "",
-    role: "customer" // Thêm role mặc định
-  });
+  const [pageLoading, setPageLoading] = useState(true);
+  
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const { loading: authLoading } = useAuthRedirect('/');
+
+  useEffect(() => {
+    // Simulate loading time for better UX
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Page loading screen
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
+        <div className="text-center">
+          {/* Logo và branding */}
+          <div className="mb-8">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center">
+              <UserPlus className="w-14 h-14 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">VerdantTech</h1>
+            <p className="text-gray-600">Đăng ký</p>
+          </div>
+
+          {/* Spinner chính */}
+          <div className="mb-6">
+            <Spinner 
+              variant="circle-filled" 
+              size={60} 
+              className="text-green-600 mx-auto"
+            />
+          </div>
+          
+          {/* Tiêu đề */}
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">
+            Đang tải trang đăng ký
+          </h2>
+          
+          {/* Mô tả */}
+          <p className="text-gray-600 mb-6">
+            Chuẩn bị giao diện đăng ký...
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Nếu đang loading hoặc đã đăng nhập, hiển thị loading
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-green-600" />
+          <Spinner 
+            variant="circle-filled" 
+            size={60} 
+            className="text-green-600 mx-auto mb-4"
+          />
           <p className="text-gray-600">Đang tải...</p>
         </div>
       </div>
@@ -106,7 +165,7 @@ export const SignUpPage = () => {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-2xl font-bold text-green-600 mb-2">
-            <Leaf className="h-[50px] w-[50px]" />
+            <UserPlus className="h-[50px] w-[50px]" />
             VerdantTech
           </div>
           <p className="text-muted-foreground mt-2">Tham gia cùng chúng tôi xây dựng tương lai nông nghiệp bền vững</p>
@@ -244,7 +303,7 @@ export const SignUpPage = () => {
               {/* Submit Button */}
               <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
                 {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Spinner className="mr-2 h-4 w-4" />
                 ) : (
                   "Đăng ký"
                 )}
