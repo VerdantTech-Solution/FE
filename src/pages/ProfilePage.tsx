@@ -8,12 +8,14 @@ import { useRequireAuth } from "@/hooks";
 import { useState, useEffect } from "react";
 import { getUserById } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 export const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
-  const { loading } = useRequireAuth();
+  const { loading: authLoading } = useRequireAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
@@ -21,6 +23,15 @@ export const ProfilePage = () => {
       fetchLatestUserData();
     }
   }, [user?.id]);
+
+  // Simulate loading time for better UX
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const fetchLatestUserData = async () => {
     if (!user) return;
@@ -41,13 +52,37 @@ export const ProfilePage = () => {
     }
   };
 
-  // Hiển thị loading nếu đang kiểm tra authentication
-  if (loading) {
+  // Hiển thị loading nếu đang kiểm tra authentication hoặc đang loading
+  if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Đang tải...</p>
+        
+          {/* Spinner chính */}
+          <div className=" flex justify-center mb-6">
+            <Spinner 
+              variant="circle-filled" 
+              size={60} 
+              className="text-emerald-600 mx-auto"
+            />
+          </div>
+          
+          {/* Tiêu đề */}
+          <h2 className="text-xl font-bold text-gray-800 mb-3">
+            {authLoading ? 'Đang kiểm tra quyền truy cập...' : 'Đang tải thông tin cá nhân...'}
+          </h2>
+          
+          {/* Mô tả */}
+          <p className="text-gray-600 mb-6">
+            {authLoading ? 'Xác thực người dùng...' : 'Tải dữ liệu hồ sơ...'}
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
         </div>
       </div>
     );
