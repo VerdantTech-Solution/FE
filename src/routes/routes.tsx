@@ -10,9 +10,11 @@ export const Routes = () => {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/admin" element={<AdminPage />} />
       
+      {/* Route chính - SimpleRoleRedirect không có Layout (không có Navbar) */}
+      <Route path="/" element={<SimpleRoleRedirect />} />
       
+      {/* Các routes khác sử dụng Layout */}
       <Route element={<Layout />}>
-       <Route path="/" element={<SimpleRoleRedirect />} />
         {allRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.component} />
         ))}
