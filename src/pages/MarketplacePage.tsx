@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck } from "lucide-react";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 // Animation variants
 const containerVariants = {
@@ -66,6 +67,60 @@ const searchVariants = {
 export const MarketplacePage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading time for better UX
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Page loading screen
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
+        <div className="text-center">
+          {/* Logo và branding */}
+          <div className="mb-8">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center">
+              <ShoppingCart className="w-14 h-14 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">VerdantTech</h1>
+            <p className="text-gray-600">Chợ trực tuyến</p>
+          </div>
+
+          {/* Spinner chính */}
+          <div className="mb-6">
+            <Spinner 
+              variant="circle-filled" 
+              size={60} 
+              className="text-green-600 mx-auto"
+            />
+          </div>
+          
+          {/* Tiêu đề */}
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">
+            Đang tải chợ trực tuyến
+          </h2>
+          
+          {/* Mô tả */}
+          <p className="text-gray-600 mb-6">
+            Chuẩn bị sản phẩm nông nghiệp...
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const categories = [
     { id: 'all', name: 'Tất cả', icon: '🚜' },

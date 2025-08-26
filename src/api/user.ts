@@ -72,7 +72,25 @@ export const getAllUsers = async (): Promise<UserResponse[]> => {
   try {
     const response = await apiClient.get('/api/User');
     console.log('Get all users response:', response.data);
-    return response.data;
+    
+    // Các key có thể chứa array users
+    const possibleKeys = ['data', 'users', 'items'];
+    
+    // Kiểm tra response.data có phải array không
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // Tìm array users trong các key có thể
+    for (const key of possibleKeys) {
+      if (response.data?.[key] && Array.isArray(response.data[key])) {
+        return response.data[key];
+      }
+    }
+    
+    // Nếu không tìm thấy, log warning và trả về array rỗng
+    console.warn('Unexpected response structure:', response.data);
+    return [];
   } catch (error) {
     console.error('Get all users error:', error);
     throw error;
