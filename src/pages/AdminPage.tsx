@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import logo2 from "@/assets/logo2.jpg";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router";
+import { LogOut } from "lucide-react";
 import { 
   Sidebar, 
   SidebarHeader, 
@@ -38,6 +41,13 @@ import {
 export const AdminPage = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedView, setSelectedView] = useState('overview');
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   // Animation variants
   const sidebarVariants = {
@@ -273,6 +283,23 @@ export const AdminPage = () => {
                 <Button className="bg-green-600 hover:bg-green-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Thêm mới
+                </Button>
+              </motion.div>
+              
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 1.1, duration: 0.3 }}
+              >
+                <Button 
+                  variant="outline" 
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Đăng xuất
                 </Button>
               </motion.div>
             </div>

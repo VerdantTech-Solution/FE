@@ -14,3 +14,6 @@ export * from './MarketplacePage';
 export * from './AboutPage';
 export * from './AdminPage';
 export * from './admin';
+
+// Role-based components
+export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';
