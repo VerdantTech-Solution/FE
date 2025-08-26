@@ -114,15 +114,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('Logout called');
     
     try {
-      // Gọi API logout trước
-      await logoutUser();
+      // Xóa dữ liệu local ngay lập tức để tránh xung đột
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
       
-      // Cập nhật state
+      // Cập nhật state ngay lập tức
       setUser(null);
+      
+      // Gọi API logout sau (không cần đợi)
+      logoutUser().catch(error => {
+        console.error('Logout API error:', error);
+        // Không cần xử lý lỗi API vì đã logout local rồi
+      });
+      
       console.log('Logout completed successfully');
     } catch (error) {
       console.error('Logout error:', error);
-      // Ngay cả khi có lỗi, vẫn xóa dữ liệu local để đảm bảo user được logout
+      // Đảm bảo user được logout ngay cả khi có lỗi
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
       setUser(null);
     }
   };
