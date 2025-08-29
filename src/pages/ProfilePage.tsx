@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { getUserById } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 export const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
@@ -16,6 +17,7 @@ export const ProfilePage = () => {
   const { loading: authLoading } = useRequireAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
@@ -23,6 +25,13 @@ export const ProfilePage = () => {
       fetchLatestUserData();
     }
   }, [user?.id]);
+
+  // Cập nhật avatarUrl khi user thay đổi
+  useEffect(() => {
+    if (user?.avatarUrl !== undefined) {
+      setAvatarUrl(user.avatarUrl || "");
+    }
+  }, [user?.avatarUrl]);
 
   // Simulate loading time for better UX
   useEffect(() => {
@@ -45,7 +54,13 @@ export const ProfilePage = () => {
         updateUser({
           fullName: userData.fullName || user.fullName,
           phoneNumber: userData.phoneNumber || user.phoneNumber,
+          avatarUrl: userData.avatarUrl || user.avatarUrl,
         });
+        
+        // Cập nhật avatarUrl state từ database
+        if (userData.avatarUrl !== undefined) {
+          setAvatarUrl(userData.avatarUrl || "");
+        }
       }
     } catch (error) {
       console.error('Failed to fetch latest user data:', error);
@@ -108,17 +123,33 @@ export const ProfilePage = () => {
     setIsEditing(true);
   };
 
-  const handleSaveProfile = (updatedUser: { fullName: string; phoneNumber: string }) => {
+  const handleSaveProfile = (updatedUser: { fullName: string; phoneNumber: string; avatarUrl?: string }) => {
     // Cập nhật local state
     updateUser(updatedUser);
     setIsEditing(false);
     
-    // Lấy dữ liệu mới nhất từ API
+    // Cập nhật avatar nếu có
+    if (updatedUser.avatarUrl !== undefined) {
+      setAvatarUrl(updatedUser.avatarUrl || "");
+    }
+    
+    // Lấy dữ liệu mới nhất từ API để đảm bảo đồng bộ
     fetchLatestUserData();
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+  };
+
+  const handleAvatarChange = (newAvatarUrl: string | null) => {
+    setAvatarUrl(newAvatarUrl || "");
+    // Cập nhật user context với avatar mới
+    updateUser({ avatarUrl: newAvatarUrl || undefined });
+    
+    // Lấy dữ liệu mới nhất từ database để đảm bảo đồng bộ
+    setTimeout(() => {
+      fetchLatestUserData();
+    }, 500);
   };
 
   return (
@@ -144,9 +175,18 @@ export const ProfilePage = () => {
 
         {/* Profile Display */}
         {!isEditing && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Avatar Section */}
+            <div className="flex justify-center">
+              <AvatarUpload
+                currentAvatarUrl={avatarUrl}
+                onAvatarChange={handleAvatarChange}
+                userId={user.id}
+              />
+            </div>
+
             {/* Profile Card */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
               <Card className="shadow-lg">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -218,42 +258,44 @@ export const ProfilePage = () => {
               </Card>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Account Actions */}
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg">Tài khoản</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button onClick={handleEditProfile} className="w-full" variant="outline">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Chỉnh sửa profile
-                  </Button>
-                  <Button onClick={handleLogout} className="w-full" variant="destructive">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Đăng xuất
-                  </Button>
-                </CardContent>
-              </Card>
+                         {/* Sidebar */}
+             <div className="space-y-6">
+               {/* Account Actions */}
+               <Card className="shadow-lg">
+                 <CardHeader>
+                   <CardTitle className="text-lg">Tài khoản</CardTitle>
+                 </CardHeader>
+                 <CardContent className="space-y-4">
+                   <Button onClick={handleEditProfile} className="w-full" variant="outline">
+                     <Edit className="h-4 w-4 mr-2" />
+                     Chỉnh sửa profile
+                   </Button>
+                   <Button onClick={handleLogout} className="w-full" variant="destructive">
+                     <LogOut className="h-4 w-4 mr-2" />
+                     Đăng xuất
+                   </Button>
+                 </CardContent>
+               </Card>
 
-              {/* Account Info */}
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg">Thông tin tài khoản</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Trạng thái:</span>
-                    <span className="text-sm font-medium text-green-600">Hoạt động</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Ngày tham gia:</span>
-                    <span className="text-sm font-medium text-gray-900">Hôm nay</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+               
+
+               {/* Account Info */}
+               <Card className="shadow-lg">
+                 <CardHeader>
+                   <CardTitle className="text-lg">Thông tin tài khoản</CardTitle>
+                 </CardHeader>
+                 <CardContent className="space-y-3">
+                   <div className="flex justify-between">
+                     <span className="text-sm text-gray-500">Trạng thái:</span>
+                     <span className="text-sm font-medium text-green-600">Hoạt động</span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="text-sm text-gray-500">Ngày tham gia:</span>
+                     <span className="text-sm font-medium text-gray-900">Hôm nay</span>
+                   </div>
+                 </CardContent>
+               </Card>
+             </div>
           </div>
         )}
       </div>

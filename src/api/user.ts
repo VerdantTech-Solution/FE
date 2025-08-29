@@ -16,7 +16,7 @@ export interface UserResponse {
 export interface UpdateUserRequest {
   fullName?: string;
   phoneNumber?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   status?: string;
 }
 
