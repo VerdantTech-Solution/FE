@@ -251,7 +251,7 @@ export const LoginPage = () => {
                 </div>
 
                 {/* Forgot Password */}
-                <div className="flex justify-end pt-1">
+                <div className="flex justify-end items-center pt-1">
                   <a href="#" className="text-xs text-green-600 hover:text-green-700 hover:underline font-medium">
                     Quên mật khẩu?
                   </a>

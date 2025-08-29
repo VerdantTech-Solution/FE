@@ -15,8 +15,9 @@ interface EditProfileFormProps {
     email: string;
     phoneNumber?: string;
     role: string;
+    avatarUrl?: string;
   };
-  onSave: (updatedUser: { fullName: string; phoneNumber: string }) => void;
+  onSave: (updatedUser: { fullName: string; phoneNumber: string; avatarUrl?: string }) => void;
   onCancel: () => void;
   isOpen: boolean;
 }

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { signUpUser } from "@/api/auth";
+import { signUpUser, sendVerificationEmail } from "@/api/auth";
 import { useNavigate } from "react-router";
 import { User, Mail, Phone, Lock, Eye, EyeOff, UserPlus } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthRedirect } from "@/hooks";
 import { toast } from "sonner";
+
 
 export const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -25,6 +26,7 @@ export const SignUpPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+
   
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -54,7 +56,7 @@ export const SignUpPage = () => {
           </div>
 
           {/* Spinner chính */}
-          <div className="mb-6">
+          <div className=" flex justify-center  mb-6">
             <Spinner 
               variant="circle-filled" 
               size={60} 
@@ -123,18 +125,27 @@ export const SignUpPage = () => {
       
       console.log("🔐 Calling login context with:", { user: response.user, token: response.token });
       
-      // Cập nhật auth context với user và token
-      login(response.user, response.token);
-      
       // Kiểm tra nếu là temporary token
       if (response.token.startsWith('temp_token_')) {
-        toast.success("Đăng ký thành công!");
-        console.log("📝 Signup successful with temporary token, redirecting to login");
-        navigate("/login");
+        // Tự động gửi email xác thực
+        try {
+          await sendVerificationEmail(formData.email);
+          toast.success("Đăng ký thành công! Email xác thực đã được gửi.");
+          console.log("📧 Verification email sent automatically");
+        } catch (error) {
+          console.error("Failed to send verification email:", error);
+          toast.error("Đăng ký thành công nhưng không thể gửi email xác thực. Vui lòng thử lại.");
+        }
+        
+        console.log("📝 Signup successful with temporary token, redirecting to email verification");
+        // Chuyển đến trang verify email với email parameter
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
       } else {
+        // Nếu có token thật, đăng nhập và chuyển đến home
+        login(response.user, response.token);
         toast.success("Đăng ký thành công!");
         console.log("🎉 Sign up successful, redirecting to home");
-        navigate("/login");
+        navigate("/");
       }
       
     } catch (error: unknown) {
@@ -142,6 +153,7 @@ export const SignUpPage = () => {
       const errorMessage = error && typeof error === 'object' && 'message' in error 
         ? String(error.message) 
         : "Đăng ký thất bại. Vui lòng thử lại.";
+      
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);

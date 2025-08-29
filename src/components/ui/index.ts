@@ -11,3 +11,4 @@ export * from './select';
 export * from './tabs';
 export * from './progress';
 export * from './sidebar';
+export * from './simple-otp-input';

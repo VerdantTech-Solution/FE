@@ -96,7 +96,7 @@ export const signUpUser = async (userData: SignUpRequest): Promise<AuthResponse>
     
     // Kiểm tra lỗi từ server
     if (responseData?.status === false) {
-      const errorMsg = responseData.errors?.[0] || responseData.message || 'Signup failed';
+      const errorMsg = responseData.errors?.[0] || responseData.message || 'Đăng ký thất bại';
       throw new Error(errorMsg);
     }
     
@@ -124,7 +124,51 @@ export const signUpUser = async (userData: SignUpRequest): Promise<AuthResponse>
     
   } catch (error: unknown) {
     console.error('💥 Signup API error:', error);
-    throw error;
+    
+    // Xử lý các loại lỗi khác nhau
+    if (error && typeof error === 'object') {
+      // Lỗi từ Axios (network error, server error)
+      if ('response' in error && error.response) {
+        const response = error.response as { status: number; data?: { errors?: string[]; message?: string } };
+        
+        if (response.status === 500) {
+          throw new Error('Lỗi máy chủ. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.');
+        } else if (response.status === 400) {
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Dữ liệu đăng ký không hợp lệ';
+          throw new Error(errorMsg);
+        } else if (response.status === 409) {
+          throw new Error('Email đã tồn tại trong hệ thống. Vui lòng sử dụng email khác.');
+        } else if (response.status >= 500) {
+          throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
+        } else {
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Đăng ký thất bại';
+          throw new Error(errorMsg);
+        }
+      }
+      
+      // Lỗi từ server response
+      if ('status' in error && (error as { status: boolean }).status === false) {
+        const errorData = error as { errors?: string[]; message?: string };
+        const errorMsg = errorData.errors?.[0] || errorData.message || 'Đăng ký thất bại';
+        throw new Error(errorMsg);
+      }
+      
+      // Lỗi network
+      if ('message' in error && error.message === 'Network Error') {
+        throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối internet và thử lại.');
+      }
+      
+      // Lỗi timeout
+      if ('code' in error && (error as { code: string }).code === 'ECONNABORTED') {
+        throw new Error('Kết nối bị timeout. Vui lòng thử lại.');
+      }
+    }
+    
+    // Lỗi mặc định
+    const errorMessage = error && typeof error === 'object' && 'message' in error 
+      ? String(error.message) 
+      : "Đăng ký thất bại. Vui lòng thử lại.";
+    throw new Error(errorMessage);
   }
 };
 
@@ -140,14 +184,30 @@ export const logoutUser = async (): Promise<void> => {
   }
 };
 
-// // API lấy profile user
-// export const getUserProfile = async () => {
-//   const response = await apiClient.get('/api/Auth/profile');
-//   return response;
-// };
-
 // API refresh token
 export const refreshToken = async () => {
   const response = await apiClient.post('/api/Auth/refresh-token');
   return response;
+};
+
+// API gửi email verification
+export const sendVerificationEmail = async (email: string): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/api/Auth/send-verification', { email });
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Send verification email error:', error);
+    throw error;
+  }
+};
+
+// API verify email
+export const verifyEmail = async (email: string, code: string): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/api/Auth/verify-email', { email, code });
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Verify email error:', error);
+    throw error;
+  }
 };
