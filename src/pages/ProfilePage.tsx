@@ -28,8 +28,11 @@ export const ProfilePage = () => {
 
   // Cập nhật avatarUrl khi user thay đổi
   useEffect(() => {
+    console.log('ProfilePage useEffect - user.avatarUrl changed to:', user?.avatarUrl);
     if (user?.avatarUrl !== undefined) {
-      setAvatarUrl(user.avatarUrl || "");
+      const newAvatarUrl = user.avatarUrl || "";
+      setAvatarUrl(newAvatarUrl);
+      console.log('ProfilePage useEffect - avatarUrl state updated to:', newAvatarUrl);
     }
   }, [user?.avatarUrl]);
 
@@ -142,9 +145,16 @@ export const ProfilePage = () => {
   };
 
   const handleAvatarChange = (newAvatarUrl: string | null) => {
+    console.log('ProfilePage handleAvatarChange called with:', newAvatarUrl);
+    
+    // Cập nhật local state trước
     setAvatarUrl(newAvatarUrl || "");
+    
     // Cập nhật user context với avatar mới
     updateUser({ avatarUrl: newAvatarUrl || undefined });
+    
+    console.log('ProfilePage - Avatar state updated to:', newAvatarUrl || "");
+    console.log('ProfilePage - User context updated with avatarUrl:', newAvatarUrl || undefined);
     
     // Lấy dữ liệu mới nhất từ database để đảm bảo đồng bộ
     setTimeout(() => {
@@ -175,9 +185,9 @@ export const ProfilePage = () => {
 
         {/* Profile Display */}
         {!isEditing && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Avatar Section */}
-            <div className="flex justify-center">
+            <div className="lg:col-span-2 flex justify-center">
               <AvatarUpload
                 currentAvatarUrl={avatarUrl}
                 onAvatarChange={handleAvatarChange}
@@ -186,7 +196,7 @@ export const ProfilePage = () => {
             </div>
 
             {/* Profile Card */}
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-6">
               <Card className="shadow-lg">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -258,44 +268,42 @@ export const ProfilePage = () => {
               </Card>
             </div>
 
-                         {/* Sidebar */}
-             <div className="space-y-6">
-               {/* Account Actions */}
-               <Card className="shadow-lg">
-                 <CardHeader>
-                   <CardTitle className="text-lg">Tài khoản</CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-4">
-                   <Button onClick={handleEditProfile} className="w-full" variant="outline">
-                     <Edit className="h-4 w-4 mr-2" />
-                     Chỉnh sửa profile
-                   </Button>
-                   <Button onClick={handleLogout} className="w-full" variant="destructive">
-                     <LogOut className="h-4 w-4 mr-2" />
-                     Đăng xuất
-                   </Button>
-                 </CardContent>
-               </Card>
+            {/* Sidebar */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Account Actions */}
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg">Tài khoản</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button onClick={handleEditProfile} className="w-full" variant="outline">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Chỉnh sửa profile
+                  </Button>
+                  <Button onClick={handleLogout} className="w-full" variant="destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Đăng xuất
+                  </Button>
+                </CardContent>
+              </Card>
 
-               
-
-               {/* Account Info */}
-               <Card className="shadow-lg">
-                 <CardHeader>
-                   <CardTitle className="text-lg">Thông tin tài khoản</CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-3">
-                   <div className="flex justify-between">
-                     <span className="text-sm text-gray-500">Trạng thái:</span>
-                     <span className="text-sm font-medium text-green-600">Hoạt động</span>
-                   </div>
-                   <div className="flex justify-between">
-                     <span className="text-sm text-gray-500">Ngày tham gia:</span>
-                     <span className="text-sm font-medium text-gray-900">Hôm nay</span>
-                   </div>
-                 </CardContent>
-               </Card>
-             </div>
+              {/* Account Info */}
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg">Thông tin tài khoản</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Trạng thái:</span>
+                    <span className="text-sm font-medium text-green-600">Hoạt động</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Ngày tham gia:</span>
+                    <span className="text-sm font-medium text-gray-900">Hôm nay</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </div>

@@ -8,7 +8,7 @@ import { Mail, CheckCircle, ArrowLeft } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { toast } from "sonner";
 
-import { useAuth } from "@/contexts/AuthContext";
+
 
 interface EmailVerificationProps {
   email: string;
@@ -21,7 +21,6 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
   onVerificationSuccess,
   onBack
 }) => {
-  const { login } = useAuth();
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -45,19 +44,8 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
     try {
       const response = await verifyEmail(email, verificationCode);
       
-      // Sau khi verify thành công, đăng nhập user tự động
-      const mockUser = {
-        id: 'temp_id_' + Date.now(),
-        fullName: email.split('@')[0], // Tạm thời lấy tên từ email
-        email: email,
-        phoneNumber: '',
-        role: 'customer'
-      };
-      
-      // Đăng nhập với temporary token (sẽ được refresh khi user đăng nhập thật)
-      const mockToken = 'verified_token_' + Date.now();
-      login(mockUser, mockToken);
-      
+      // Sau khi verify thành công, chỉ gọi callback thành công
+      // Không tự động đăng nhập user
       toast.success(response.message || "Xác thực email thành công!");
       onVerificationSuccess();
     } catch (error: unknown) {

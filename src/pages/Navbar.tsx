@@ -188,7 +188,17 @@ const Navbar = () => {
                     className="cursor-pointer flex items-center gap-2"
                     onClick={toggleUserDropdown}
                   >
-                    <User className="h-5 w-5" />
+                    {user?.avatarUrl ? (
+                      <img 
+                        src={user.avatarUrl} 
+                        alt="Avatar" 
+                        className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                        {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
                     {user?.fullName}
                     <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
                   </Button>
@@ -214,8 +224,23 @@ const Navbar = () => {
                         >
                         {/* User Info Section */}
                         <div className="px-4 py-3 border-b border-gray-100">
-                          <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
-                          <div className="text-sm text-gray-500">{user?.email}</div>
+                          <div className="flex items-center gap-3 mb-2">
+                            {user?.avatarUrl ? (
+                              <img 
+                                src={user.avatarUrl} 
+                                alt="Avatar" 
+                                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg">
+                                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
+                              <div className="text-sm text-gray-500">{user?.email}</div>
+                            </div>
+                          </div>
                         </div>
                         
                         {/* Navigation Links */}
@@ -304,7 +329,17 @@ const Navbar = () => {
                   className="cursor-pointer flex items-center gap-2"
                   onClick={toggleUserDropdown}
                 >
-                  <User className="h-5 w-5" />
+                  {user?.avatarUrl ? (
+                    <img 
+                      src={user.avatarUrl} 
+                      alt="Avatar" 
+                      className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                      {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
                   <span className="hidden sm:inline">{user?.fullName}</span>
                   <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
                 </Button>
@@ -321,8 +356,23 @@ const Navbar = () => {
                     >
                     {/* User Info Section */}
                     <div className="px-4 py-3 border-b border-gray-100">
-                      <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
-                      <div className="text-sm text-gray-500">{user?.email}</div>
+                      <div className="flex items-center gap-3 mb-2">
+                        {user?.avatarUrl ? (
+                          <img 
+                            src={user.avatarUrl} 
+                            alt="Avatar" 
+                            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg">
+                            {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
+                          <div className="text-sm text-gray-500">{user?.email}</div>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Navigation Links */}
