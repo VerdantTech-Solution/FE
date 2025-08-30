@@ -400,9 +400,17 @@ export const UserManamentPage = () => {
                     >
                       <td className="py-4 px-4">
                         <div className="flex items-center">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                            {user.fullName.charAt(0).toUpperCase()}
-                          </div>
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={`Avatar của ${user.fullName}`}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                              {user.fullName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <div className="ml-4">
                             <p className="font-semibold text-gray-900">{user.fullName}</p>
                             <p className="text-sm text-gray-500">ID: {user.id}</p>

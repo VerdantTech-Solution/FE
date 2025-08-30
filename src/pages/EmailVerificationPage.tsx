@@ -63,8 +63,8 @@ export const EmailVerificationPage: React.FC = () => {
     <EmailVerification
       email={email}
       onVerificationSuccess={() => {
-        toast.success("Email đã được xác thực thành công! Chào mừng bạn đến với VerdantTech!");
-        navigate('/');
+        toast.success("Email đã được xác thực thành công! Vui lòng đăng nhập để tiếp tục.");
+        navigate('/login');
       }}
       onBack={() => navigate('/signup')}
     />
