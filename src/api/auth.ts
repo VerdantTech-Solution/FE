@@ -237,3 +237,18 @@ export const resetPassword = async (email: string, code: string, newPassword: st
     throw error;
   }
 };
+
+// API change password
+export const changePassword = async (email: string, oldPassword: string, newPassword: string): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/api/Auth/change-password', { 
+      email, 
+      oldPassword, 
+      newPassword 
+    });
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Change password error:', error);
+    throw error;
+  }
+};

@@ -10,5 +10,6 @@ export { EmailVerification } from './EmailVerification';
 export { SendVerificationEmail } from './SendVerificationEmail';
 export { ForgotPassword } from './ForgotPassword';
 export { ResetPassword } from './ResetPassword';
+export { ChangePassword } from './ChangePassword';
 
 

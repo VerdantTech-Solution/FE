@@ -18,6 +18,7 @@ export * from './EmailVerificationPage';
 export * from './SendVerificationPage';
 export * from './ForgotPasswordPage';
 export * from './ResetPasswordPage';
+export * from './ChangePasswordPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';

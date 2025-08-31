@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Shield, LogOut, Edit} from "lucide-react";
+import { User, Mail, Phone, Shield, LogOut, Edit, Key} from "lucide-react";
 import { useNavigate } from "react-router";
 import { useRequireAuth } from "@/hooks";
 import { useState, useEffect } from "react";
@@ -10,6 +10,7 @@ import { getUserById } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
+
 
 export const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
@@ -144,6 +145,10 @@ export const ProfilePage = () => {
     setIsEditing(false);
   };
 
+  const handleChangePassword = () => {
+    navigate("/change-password");
+  };
+
   const handleAvatarChange = (newAvatarUrl: string | null) => {
     console.log('ProfilePage handleAvatarChange called with:', newAvatarUrl);
     
@@ -182,6 +187,8 @@ export const ProfilePage = () => {
             />
           </div>
         )}
+
+
 
         {/* Profile Display */}
         {!isEditing && (
@@ -279,6 +286,10 @@ export const ProfilePage = () => {
                   <Button onClick={handleEditProfile} className="w-full" variant="outline">
                     <Edit className="h-4 w-4 mr-2" />
                     Chỉnh sửa profile
+                  </Button>
+                  <Button onClick={handleChangePassword} className="w-full" variant="outline">
+                    <Key className="h-4 w-4 mr-2" />
+                    Đổi mật khẩu
                   </Button>
                   <Button onClick={handleLogout} className="w-full" variant="destructive">
                     <LogOut className="h-4 w-4 mr-2" />
