@@ -252,9 +252,12 @@ export const LoginPage = () => {
 
                 {/* Forgot Password */}
                 <div className="flex justify-end items-center pt-1">
-                  <a href="#" className="text-xs text-green-600 hover:text-green-700 hover:underline font-medium">
+                  <button 
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-xs text-green-600 hover:text-green-700 hover:underline font-medium"
+                  >
                     Quên mật khẩu?
-                  </a>
+                  </button>
                 </div>
 
                 {/* Submit Button */}
