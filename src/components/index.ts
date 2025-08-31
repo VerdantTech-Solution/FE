@@ -8,5 +8,7 @@ export { EditProfileForm } from './EditProfileForm';
 export { SimpleRoleRedirect } from './SimpleRoleRedirect';
 export { EmailVerification } from './EmailVerification';
 export { SendVerificationEmail } from './SendVerificationEmail';
+export { ForgotPassword } from './ForgotPassword';
+export { ResetPassword } from './ResetPassword';
 
 

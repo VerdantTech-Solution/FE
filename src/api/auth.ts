@@ -211,3 +211,29 @@ export const verifyEmail = async (email: string, code: string): Promise<{ messag
     throw error;
   }
 };
+
+// API forgot password
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/api/Auth/forgot-password', { email });
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Forgot password error:', error);
+    throw error;
+  }
+};
+
+// API reset password
+export const resetPassword = async (email: string, code: string, newPassword: string): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.post('/api/Auth/reset-password', { 
+      email, 
+      code, 
+      newPassword 
+    });
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Reset password error:', error);
+    throw error;
+  }
+};
