@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { User, LogOut, ChevronDown, LayoutDashboard } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -216,7 +216,7 @@ const Navbar = () => {
                           onClick={closeUserDropdown}
                         />
                         <motion.div
-                          className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                          className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 py-3 z-50"
                           initial={{ opacity: 0, y: -10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -263,7 +263,7 @@ const Navbar = () => {
                               closeUserDropdown();
                             }}
                           >
-                            <Settings className="h-4 w-4" />
+                            <LayoutDashboard className="h-4 w-4" />
                             Dashboard
                           </button>
                           
@@ -395,7 +395,7 @@ const Navbar = () => {
                           closeUserDropdown();
                         }}
                       >
-                        <Settings className="h-4 w-4" />
+                        <LayoutDashboard className="h-4 w-4" />
                         Dashboard
                       </button>
                       
