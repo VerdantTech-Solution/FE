@@ -2,6 +2,7 @@ import { Layout } from "@/layouts";
 import { Route, Routes as RRDRoutes } from "react-router";
 import { allRoutes } from "./all-routes";
 import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage } from "@/pages";
+import { AdminProtectedRoute } from "@/components";
 
 export const Routes = () => {
   return (
@@ -13,7 +14,11 @@ export const Routes = () => {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-password" element={<ChangePasswordPage />} />
-      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/admin" element={
+        <AdminProtectedRoute>
+          <AdminPage />
+        </AdminProtectedRoute>
+      } />
       
       {/* Route chính - SimpleRoleRedirect không có Layout (không có Navbar) */}
       <Route path="/" element={<SimpleRoleRedirect />} />
