@@ -1,14 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { User, LogOut, ChevronDown, LayoutDashboard } from "lucide-react";
+import { User, LogOut, ChevronDown, LayoutDashboard, Shield } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import logo2 from "@/assets/logo2.jpg";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const Navbar = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const { isAdmin } = useAdminAuth();
   const userDropdownRef = useRef<HTMLDivElement>(null);
   
   const navigation = [
@@ -267,6 +269,19 @@ const Navbar = () => {
                             Dashboard
                           </button>
                           
+                          {isAdmin && (
+                            <button
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                              onClick={() => {
+                                navigate("/admin");
+                                closeUserDropdown();
+                              }}
+                            >
+                              <Shield className="h-4 w-4" />
+                              Admin Panel
+                            </button>
+                          )}
+                          
                           <button
                             className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
                             onClick={handleLogout}
@@ -398,6 +413,19 @@ const Navbar = () => {
                         <LayoutDashboard className="h-4 w-4" />
                         Dashboard
                       </button>
+                      
+                      {isAdmin && (
+                        <button
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                          onClick={() => {
+                            navigate("/admin");
+                            closeUserDropdown();
+                          }}
+                        >
+                          <Shield className="h-4 w-4" />
+                          Admin Panel
+                        </button>
+                      )}
                       
                       <button
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
