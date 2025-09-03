@@ -118,22 +118,38 @@ export const LoginPage = () => {
   };
 
   const handleGoogleLogin = async (credentialResponse: any) => {
+    setIsLoading(true);
     try {
+      console.log('Google login initiated with credential:', credentialResponse);
       const idToken = credentialResponse.credential;
-      const data = await googleLogin(idToken);
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        // Nếu có refreshToken thì lưu luôn
-        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
-        // Lưu user nếu muốn
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-        // Redirect hoặc update UI
-        navigate("/");
-      } else {
-        alert("Đăng nhập Google thất bại");
+      
+      if (!idToken) {
+        throw new Error('No ID token received from Google');
       }
-    } catch (error) {
-      alert("Đăng nhập Google thất bại");
+      
+      const data = await googleLogin(idToken);
+      console.log("Google login API response:", data);
+      
+      // Validate response before calling login
+      if (!data || !data.user || !data.token) {
+        throw new Error('Invalid response from Google login API');
+      }
+      
+      console.log("Calling login context with Google data:", { user: data.user, token: data.token });
+      
+      // Use AuthContext login method (consistent with regular login)
+      login(data.user, data.token);
+      
+      console.log("Google login successful, redirecting to home");
+      navigate("/");
+    } catch (error: unknown) {
+      console.error("Google login error:", error);
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message) 
+        : "Đăng nhập Google thất bại. Vui lòng thử lại.";
+      alert(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -255,11 +255,34 @@ export const changePassword = async (email: string, oldPassword: string, newPass
 };
 
 export const googleLogin = async (idToken: string): Promise<AuthResponse> => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/Auth/google-login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
-  });
-  if (!response.ok) throw new Error("Google login failed");
-  return await response.json();
+  try {
+    const response = await apiClient.post('/api/Auth/google-login', { 
+      IdToken: idToken  // Fix: Use capital I to match backend DTO
+    });
+    console.log('Google login API response:', response);
+    
+    const responseData = response.data;
+    console.log('Google login response data:', responseData);
+    
+    // Validate response structure
+    if (!responseData || typeof responseData !== 'object') {
+      throw new Error('Invalid response format from Google login API');
+    }
+    
+    if (!responseData.token || !responseData.user) {
+      console.error('Missing token or user in Google login response:', responseData);
+      throw new Error('Response missing required fields: token or user');
+    }
+    
+    if (!responseData.user.id || !responseData.user.fullName || !responseData.user.email) {
+      console.error('Invalid user data structure in Google login:', responseData.user);
+      throw new Error('Invalid user data structure in response');
+    }
+    
+    console.log('Validated Google login response:', responseData);
+    return responseData as AuthResponse;
+  } catch (error: unknown) {
+    console.error('Google login API error:', error);
+    throw error;
+  }
 };
