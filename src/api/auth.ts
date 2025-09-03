@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+// import { AuthResponse } from "./auth"; // nếu đã có
 
 // Interface cho request đăng nhập
 export interface LoginRequest {
@@ -251,4 +252,14 @@ export const changePassword = async (email: string, oldPassword: string, newPass
     console.error('Change password error:', error);
     throw error;
   }
+};
+
+export const googleLogin = async (idToken: string): Promise<AuthResponse> => {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/Auth/google-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  if (!response.ok) throw new Error("Google login failed");
+  return await response.json();
 };
