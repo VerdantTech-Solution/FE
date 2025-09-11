@@ -3,7 +3,6 @@ import { User, LogOut, ChevronDown, LayoutDashboard, Shield } from "lucide-react
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import logo2 from "@/assets/logo2.jpg";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
@@ -15,10 +14,12 @@ const Navbar = () => {
   
   const navigation = [
     { name: "Trang chủ", href: "/" },
-    { name: "Dịch vụ", href: "/services" },
-    { name: "Chợ Trực Tuyến", href: "/marketplace" },
     { name: "Về chúng tôi", href: "/about" },
-    { name: "Liên hệ", href: "/order" },
+    { name: "Dịch vụ", href: "/services" },
+     { name: "Chợ", href: "/marketplace" },
+    { name: "Dự án", href: "/projects" },
+    { name: "Bài viết", href: "/articles" },
+   
   ];
   
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const Navbar = () => {
   const closeUserDropdown = () => {
     setIsUserDropdownOpen(false);
   };
+
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -113,7 +115,7 @@ const Navbar = () => {
 
   return (
     <motion.nav 
-      className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-border"
+      className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-md shadow-lg"
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" as const }}
@@ -129,20 +131,17 @@ const Navbar = () => {
             animate="visible"
             whileHover="hover"
           >
-            <motion.div 
-              className="w-[100px] h-[80px] flex items-center justify-center overflow-hidden p-2"
-              whileHover={{ rotate: [0, -5, 5, 0] }}
-              transition={{ duration: 0.6 }}
-            >
-              <img 
-                src={logo2}
-                alt="VerdantTech Logo" 
-                className="w-full h-full object-cover rounded-lg"
-              />
-            </motion.div>
+          
             <div className="hidden sm:block">
-              <h1 className="text-2xl font-bold text-green-600">VerdantTech</h1>
-              <p className="text-sm text-gray-600">Nông nghiệp bền vững</p>
+              <h1 
+                className="text-2xl font-bold text-gray-900"
+                style={{ fontFamily: 'Playfair Display, serif' }}
+              >
+                VerdantTech
+              </h1>
+              <p className="text-sm text-gray-600">
+                Nông nghiệp thông minh
+              </p>
             </div>
           </motion.div>
 
@@ -155,14 +154,15 @@ const Navbar = () => {
             transition={{ delay: 0.2 }}
           >
             {navigation.map((item, index) => (
-              <motion.a
+                <motion.a
                 key={item.name}
                 href={item.href}
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+                className="text-gray-700 hover:text-green-600 transition-colors duration-300 font-medium"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 + index * 0.1, duration: 0.5 }}
                 whileHover={{ y: -2 }}
+                style={{ fontFamily: 'Playfair Display, serif' }}
               >
                 {item.name}
               </motion.a>
@@ -187,7 +187,7 @@ const Navbar = () => {
                 >
                   <Button 
                     variant="ghost" 
-                    className="cursor-pointer flex items-center gap-2"
+                    className="cursor-pointer flex items-center gap-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-300"
                     onClick={toggleUserDropdown}
                   >
                     {user?.avatarUrl ? (
@@ -201,7 +201,9 @@ const Navbar = () => {
                         {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                       </div>
                     )}
-                    {user?.fullName}
+                    <span className="font-medium" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      {user?.fullName}
+                    </span>
                     <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
                   </Button>
                   
@@ -302,7 +304,12 @@ const Navbar = () => {
                   whileHover="hover"
                   whileTap="tap"
                 >
-                  <Button onClick={handleLogin} variant="ghost">
+                  <Button 
+                    onClick={handleLogin}
+                    variant="ghost"
+                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium rounded-lg px-4 py-2 transition-all duration-300"
+                    style={{ fontFamily: 'Playfair Display, serif' }}
+                  >
                     Đăng nhập
                   </Button>
                 </motion.div>
@@ -311,18 +318,12 @@ const Navbar = () => {
                   whileHover="hover"
                   whileTap="tap"
                 >
-                  <Button
+                  <Button 
                     onClick={handleSignUp}
-                    variant="default"
-                    className="relative overflow-hidden bg-black text-white font-semibold rounded-lg px-6 py-3 group"
+                    className="bg-green-400 hover:bg-green-500 text-white font-semibold rounded-lg px-6 py-3 transition-all duration-300"
+                    style={{ fontFamily: 'Playfair Display, serif' }}
                   >
-                    <span className="relative z-10">Bắt Đầu Ngay</span>
-                    <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600"
-                      initial={{ x: "-100%" }}
-                      whileHover={{ x: 0 }}
-                      transition={{ duration: 0.5, ease: "easeOut" as const }}
-                    />
+                    Đăng ký
                   </Button>
                 </motion.div>
               </>
@@ -341,7 +342,7 @@ const Navbar = () => {
               >
                 <Button 
                   variant="ghost" 
-                  className="cursor-pointer flex items-center gap-2"
+                  className="cursor-pointer flex items-center gap-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-300"
                   onClick={toggleUserDropdown}
                 >
                   {user?.avatarUrl ? (
@@ -355,7 +356,9 @@ const Navbar = () => {
                       {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                     </div>
                   )}
-                  <span className="hidden sm:inline">{user?.fullName}</span>
+                  <span className="hidden sm:inline font-medium" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    {user?.fullName}
+                  </span>
                   <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
                 </Button>
                 
@@ -441,11 +444,22 @@ const Navbar = () => {
               </motion.div>
             ) : (
               <>
-                <Button onClick={handleLogin} variant="ghost" size="sm">
+                <Button 
+                  onClick={handleLogin} 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium transition-all duration-300"
+                  style={{ fontFamily: 'Playfair Display, serif' }}
+                >
                   Đăng nhập
                 </Button>
-                <Button onClick={handleSignUp} variant="default" size="sm">
-                  Bắt đầu
+                <Button 
+                  onClick={handleSignUp} 
+                  size="sm"
+                  className="bg-green-400 hover:bg-green-500 text-white font-semibold transition-all duration-300"
+                  style={{ fontFamily: 'Playfair Display, serif' }}
+                >
+                  Đăng ký
                 </Button>
               </>
             )}
@@ -453,15 +467,16 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Navigation Links - Always visible on mobile, hidden on md+ */}
-        <div className="md:hidden py-4 space-y-2 border-t border-border">
+        <div className="md:hidden py-4 space-y-2 border-t border-gray-200">
           {navigation.map((item, index) => (
             <motion.a
               key={item.name}
               href={item.href}
-              className="block px-4 py-2 text-foreground hover:text-primary hover:bg-accent/50 rounded-lg transition-colors"
+              className="block px-4 py-2 rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1, duration: 0.3 }}
+              style={{ fontFamily: 'Playfair Display, serif' }}
             >
               {item.name}
             </motion.a>

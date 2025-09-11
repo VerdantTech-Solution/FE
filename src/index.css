@@ -110,11 +110,39 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Global Font Application - Force Playfair Display font */
+* {
+  font-family: 'Playfair Display', serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+}
+
+html {
+  font-family: 'Playfair Display', serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+}
+
+body {
+  font-family: 'Playfair Display', serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Font Family Configuration */
+@theme inline {
+  --font-family-playfair: 'Playfair Display', serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.font-playfair {
+  font-family: var(--font-family-playfair);
 }
