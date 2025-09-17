@@ -22,6 +22,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -115,26 +116,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('Logout called');
     
     try {
-      // Xóa dữ liệu local ngay lập tức để tránh xung đột
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      
-      // Cập nhật state ngay lập tức
-      setUser(null);
-      
-      // Gọi API logout sau (không cần đợi)
-      logoutUser().catch(error => {
-        console.error('Logout API error:', error);
-        // Không cần xử lý lỗi API vì đã logout local rồi
-      });
-      
-      console.log('Logout completed successfully');
+      // Gọi API logout TRƯỚC để request vẫn mang Authorization
+      // (interceptor sẽ lấy token từ localStorage)
+      await logoutUser();
     } catch (error) {
       console.error('Logout error:', error);
-      // Đảm bảo user được logout ngay cả khi có lỗi
+      // Bỏ qua lỗi từ API, vẫn tiến hành xóa local
+    } finally {
+      // Đảm bảo xóa dữ liệu local và cập nhật state dù thành công hay lỗi
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       setUser(null);
+      console.log('Logout completed (local cleared)');
     }
   };
 

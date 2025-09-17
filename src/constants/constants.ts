@@ -6,4 +6,6 @@ export const PATH_NAMES = {
  ABOUT: '/about',
  ADMIN: '/admin',
  PROFILE: '/profile',
+  CART: '/cart',
+  FARMLIST: '/farmlist',
 };

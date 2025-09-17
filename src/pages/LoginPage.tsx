@@ -10,6 +10,7 @@ import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
 import { loginUser } from "@/api/auth";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { GoogleLogin } from '@react-oauth/google';
+import type { CredentialResponse } from '@react-oauth/google';
 import { googleLogin } from "@/api/auth";
 
 export const LoginPage = () => {
@@ -117,7 +118,7 @@ export const LoginPage = () => {
     setEmail(e.target.value);
   };
 
-  const handleGoogleLogin = async (credentialResponse: any) => {
+  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
     setIsLoading(true);
     try {
       console.log('Google login initiated with credential:', credentialResponse);

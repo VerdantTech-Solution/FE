@@ -10,6 +10,7 @@ import { getUserById } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { motion } from "framer-motion";
 
 
 export const ProfilePage = () => {
@@ -17,7 +18,6 @@ export const ProfilePage = () => {
   const navigate = useNavigate();
   const { loading: authLoading } = useRequireAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
 
   // Lấy thông tin user mới nhất từ API khi component mount
@@ -37,14 +37,7 @@ export const ProfilePage = () => {
     }
   }, [user?.avatarUrl]);
 
-  // Simulate loading time for better UX
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, []);
+  // Bỏ giả lập loading
 
   const fetchLatestUserData = async () => {
     if (!user) return;
@@ -71,8 +64,8 @@ export const ProfilePage = () => {
     }
   };
 
-  // Hiển thị loading nếu đang kiểm tra authentication hoặc đang loading
-  if (authLoading || isLoading) {
+  // Hiển thị loading nếu đang kiểm tra authentication
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
         <div className="text-center">
@@ -87,14 +80,10 @@ export const ProfilePage = () => {
           </div>
           
           {/* Tiêu đề */}
-          <h2 className="text-xl font-bold text-gray-800 mb-3">
-            {authLoading ? 'Đang kiểm tra quyền truy cập...' : 'Đang tải thông tin cá nhân...'}
-          </h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-3">Đang kiểm tra quyền truy cập...</h2>
           
           {/* Mô tả */}
-          <p className="text-gray-600 mb-6">
-            {authLoading ? 'Xác thực người dùng...' : 'Tải dữ liệu hồ sơ...'}
-          </p>
+          <p className="text-gray-600 mb-6">Xác thực người dùng...</p>
           
           {/* Progress indicator */}
           <div className="flex items-center justify-center space-x-2">
@@ -168,42 +157,42 @@ export const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 mt-[100px]">
+    <motion.div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 mt-[100px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
+        <motion.div className="text-center mb-8" initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ cá nhân</h1>
           <p className="text-gray-600">Quản lý thông tin tài khoản của bạn</p>
-        </div>
+        </motion.div>
 
         {/* Edit Profile Form */}
         {isEditing && (
-          <div className="mb-6">
+          <motion.div className="mb-6" initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3 }}>
             <EditProfileForm
               user={user}
               onSave={handleSaveProfile}
               onCancel={handleCancelEdit}
               isOpen={isEditing}
             />
-          </div>
+          </motion.div>
         )}
 
 
 
         {/* Profile Display */}
         {!isEditing && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <motion.div className="grid grid-cols-1 lg:grid-cols-12 gap-6" initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } }}>
             {/* Avatar Section */}
-            <div className="lg:col-span-2 flex justify-center">
+            <motion.div className="lg:col-span-2 flex justify-center" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
               <AvatarUpload
                 currentAvatarUrl={avatarUrl}
                 onAvatarChange={handleAvatarChange}
                 userId={user.id}
               />
-            </div>
+            </motion.div>
 
             {/* Profile Card */}
-            <div className="lg:col-span-6">
+            <motion.div className="lg:col-span-6" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
               <Card className="shadow-lg">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -213,15 +202,17 @@ export const ProfilePage = () => {
                         Cập nhật thông tin cá nhân của bạn
                       </CardDescription>
                     </div>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button onClick={handleEditProfile} variant="outline" size="sm">
                       <Edit className="h-4 w-4 mr-2" />
                       Chỉnh sửa
                     </Button>
+                    </motion.div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Full Name */}
-                  <div className="flex items-center space-x-4">
+                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                       <User className="h-5 w-5 text-green-600" />
                     </div>
@@ -229,12 +220,12 @@ export const ProfilePage = () => {
                       <p className="text-sm font-medium text-gray-500">Họ và tên</p>
                       <p className="text-lg font-semibold text-gray-900">{user.fullName}</p>
                     </div>
-                  </div>
+                  </motion.div>
 
                   <Separator />
 
                   {/* Email */}
-                  <div className="flex items-center space-x-4">
+                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                       <Mail className="h-5 w-5 text-blue-600" />
                     </div>
@@ -242,12 +233,12 @@ export const ProfilePage = () => {
                       <p className="text-sm font-medium text-gray-500">Email</p>
                       <p className="text-lg font-semibold text-gray-900">{user.email}</p>
                     </div>
-                  </div>
+                  </motion.div>
 
                   <Separator />
 
                   {/* Phone */}
-                  <div className="flex items-center space-x-4">
+                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                     <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                       <Phone className="h-5 w-5 text-purple-600" />
                     </div>
@@ -257,12 +248,12 @@ export const ProfilePage = () => {
                         {user.phoneNumber || 'Chưa cập nhật'}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
 
                   <Separator />
 
                   {/* Role */}
-                  <div className="flex items-center space-x-4">
+                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                     <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
                       <Shield className="h-5 w-5 text-orange-600" />
                     </div>
@@ -270,31 +261,37 @@ export const ProfilePage = () => {
                       <p className="text-sm font-medium text-gray-500">Vai trò</p>
                       <p className="text-lg font-semibold text-gray-900 capitalize">{user.role}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 </CardContent>
               </Card>
-            </div>
+            </motion.div>
 
             {/* Sidebar */}
-            <div className="lg:col-span-4 space-y-6">
+            <motion.div className="lg:col-span-4 space-y-6" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
               {/* Account Actions */}
               <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-lg">Tài khoản</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
                   <Button onClick={handleEditProfile} className="w-full" variant="outline">
                     <Edit className="h-4 w-4 mr-2" />
                     Chỉnh sửa profile
                   </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
                   <Button onClick={handleChangePassword} className="w-full" variant="outline">
                     <Key className="h-4 w-4 mr-2" />
                     Đổi mật khẩu
                   </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
                   <Button onClick={handleLogout} className="w-full" variant="destructive">
                     <LogOut className="h-4 w-4 mr-2" />
                     Đăng xuất
                   </Button>
+                  </motion.div>
                 </CardContent>
               </Card>
 
@@ -314,10 +311,10 @@ export const ProfilePage = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
