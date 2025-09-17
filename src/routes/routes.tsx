@@ -1,7 +1,7 @@
 import { Layout } from "@/layouts";
 import { Route, Routes as RRDRoutes } from "react-router";
 import { allRoutes } from "./all-routes";
-import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage } from "@/pages";
+import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage, CartPage } from "@/pages";
 import { AdminProtectedRoute } from "@/components";
 
 export const Routes = () => {
@@ -13,7 +13,8 @@ export const Routes = () => {
       <Route path="/send-verification" element={<SendVerificationPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/change-password" element={<ChangePasswordPage />} />
+      <Route path="/change-password" element={<ChangePasswordPage />} />\
+      <Route path="/cart" element={<CartPage />} />
       <Route path="/admin" element={
         <AdminProtectedRoute>
           <AdminPage />

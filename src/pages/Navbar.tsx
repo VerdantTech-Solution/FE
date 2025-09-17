@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { User, LogOut, ChevronDown, LayoutDashboard, Shield } from "lucide-react";
+import { User, LogOut, ChevronDown, Shield, Leaf, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import logo from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const Navbar = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [cartCount, setCartCount] = useState<number>(0);
   const { user, isAuthenticated, logout } = useAuth();
   const { isAdmin } = useAdminAuth();
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -63,6 +65,30 @@ const Navbar = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isUserDropdownOpen]);
+
+  // Load cart count and subscribe to updates
+  useEffect(() => {
+    const computeCount = () => {
+      try {
+        const raw = localStorage.getItem('cartItems');
+        if (!raw) { setCartCount(0); return; }
+        const items = JSON.parse(raw) as { quantity?: number }[];
+        const total = items.reduce((s, it) => s + (it.quantity || 0), 0);
+        setCartCount(total);
+      } catch { setCartCount(0); }
+    };
+    computeCount();
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'cartItems') computeCount();
+    };
+    const handleCustom = () => computeCount();
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('cart:updated', handleCustom as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('cart:updated', handleCustom as EventListener);
+    };
+  }, []);
 
   // Animation variants
   const logoVariants = {
@@ -130,11 +156,16 @@ const Navbar = () => {
             initial="hidden"
             animate="visible"
             whileHover="hover"
+            
           >
-          
+            <img
+              src={logo}
+              alt="VerdantTech logo"
+              className="w-10 h-10 border rounded-[3px] object-cover  transition-transform duration-200 hover:scale-105"
+            />
             <div className="hidden sm:block">
               <h1 
-                className="text-2xl font-bold text-gray-900"
+                className="text-2xl font-bold text-green-600 hover:text-green-700 transition-colors"
                 style={{ fontFamily: 'Playfair Display, serif' }}
               >
                 VerdantTech
@@ -179,6 +210,22 @@ const Navbar = () => {
           >
             {isAuthenticated ? (
               <>
+                {/* Cart icon - desktop */}
+                <Button
+                  variant="ghost"
+                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg p-2 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
+                  onClick={() => navigate('/cart')}
+                  aria-label="Giỏ hàng"
+                >
+                  <div className="relative">
+                    <ShoppingCart className="h-6 w-6" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-4 h-4 px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </div>
+                </Button>
                 <motion.div
                   ref={userDropdownRef}
                   className="relative"
@@ -250,42 +297,29 @@ const Navbar = () => {
                         {/* Navigation Links */}
                         <div className="py-1">
                           <button
-                            className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
+                            className="group w-full px-4 py-2 text-left text-sm text-gray-700 rounded-md flex items-center gap-3 transition-all duration-200 ease-out hover:bg-green-500 hover:text-white hover:shadow-md hover:-translate-y-0.5"
                             onClick={() => {
                               navigate("/profile");
                               closeUserDropdown();
                             }}
                           >
                             <User className="h-4 w-4" />
-                            Profile
+                            Thông Tin Cá Nhân
                           </button>
                           
                           <button
-                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                            className="group w-full px-4 py-2 text-left text-sm text-gray-700 rounded-md flex items-center gap-3 transition-all duration-200 ease-out hover:bg-green-500 hover:text-white hover:shadow-md hover:-translate-y-0.5"
                             onClick={() => {
-                              navigate("/dashboard");
+                              navigate("/farmlist");
                               closeUserDropdown();
                             }}
                           >
-                            <LayoutDashboard className="h-4 w-4" />
-                            Dashboard
+                            <Leaf className="h-4 w-4" />
+                            Thông Tin Trang Trại
                           </button>
                           
-                          {isAdmin && (
-                            <button
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
-                              onClick={() => {
-                                navigate("/admin");
-                                closeUserDropdown();
-                              }}
-                            >
-                              <Shield className="h-4 w-4" />
-                              Admin Panel
-                            </button>
-                          )}
-                          
                           <button
-                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 rounded-md transition-all duration-200 ease-out hover:text-white hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 flex items-center gap-3"
                             onClick={handleLogout}
                           >
                             <LogOut className="h-4 w-4" />
@@ -304,10 +338,10 @@ const Navbar = () => {
                   whileHover="hover"
                   whileTap="tap"
                 >
-                  <Button 
-                    onClick={handleLogin}
-                    variant="ghost"
-                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium rounded-lg px-4 py-2 transition-all duration-300"
+                <Button 
+                  onClick={handleLogin}
+                  variant="ghost"
+                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium rounded-lg px-4 py-2 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
                     style={{ fontFamily: 'Playfair Display, serif' }}
                   >
                     Đăng nhập
@@ -318,9 +352,9 @@ const Navbar = () => {
                   whileHover="hover"
                   whileTap="tap"
                 >
-                  <Button 
-                    onClick={handleSignUp}
-                    className="bg-green-400 hover:bg-green-500 text-white font-semibold rounded-lg px-6 py-3 transition-all duration-300"
+                <Button 
+                  onClick={handleSignUp}
+                  className="bg-green-400 hover:bg-green-500 text-white font-semibold rounded-lg px-6 py-3 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
                     style={{ fontFamily: 'Playfair Display, serif' }}
                   >
                     Đăng ký
@@ -340,6 +374,22 @@ const Navbar = () => {
                 whileHover="hover"
                 whileTap="tap"
               >
+                {/* Cart icon - mobile */}
+                <Button
+                  variant="ghost"
+                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg p-2 transition-all duration-200 ease-out"
+                  onClick={() => navigate('/cart')}
+                  aria-label="Giỏ hàng"
+                >
+                  <div className="relative">
+                    <ShoppingCart className="h-6 w-6" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-4 h-4 px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </div>
+                </Button>
                 <Button 
                   variant="ghost" 
                   className="cursor-pointer flex items-center gap-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-300"
@@ -395,7 +445,7 @@ const Navbar = () => {
                     
                     {/* Navigation Links */}
                     <div className="py-1">
-                      <button
+                      {/* <button
                         className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
                         onClick={() => {
                           navigate("/profile");
@@ -415,7 +465,7 @@ const Navbar = () => {
                       >
                         <LayoutDashboard className="h-4 w-4" />
                         Dashboard
-                      </button>
+                      </button> */}
                       
                       {isAdmin && (
                         <button
@@ -448,7 +498,7 @@ const Navbar = () => {
                   onClick={handleLogin} 
                   variant="ghost" 
                   size="sm"
-                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium transition-all duration-300"
+                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
                   Đăng nhập
@@ -456,7 +506,7 @@ const Navbar = () => {
                 <Button 
                   onClick={handleSignUp} 
                   size="sm"
-                  className="bg-green-400 hover:bg-green-500 text-white font-semibold transition-all duration-300"
+                  className="bg-green-400 hover:bg-green-500 text-white font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
                   Đăng ký
