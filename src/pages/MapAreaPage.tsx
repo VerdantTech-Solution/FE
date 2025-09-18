@@ -6,6 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type LatLng = { lat: number; lng: number };
 
@@ -24,6 +33,87 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 // Earth radius (meters)
 const EARTH_RADIUS_M = 6378137;
+
+// ===== Validation helpers for placing points =====
+function arePointsNearlyEqual(a: LatLng, b: LatLng, eps = 1e-6): boolean {
+  return Math.abs(a.lat - b.lat) < eps && Math.abs(a.lng - b.lng) < eps;
+}
+
+function triangleDoubleArea(a: LatLng, b: LatLng, c: LatLng): number {
+  // Shoelace component for three points; double-signed area in degrees space (good for collinearity check)
+  return (
+    (b.lng - a.lng) * (c.lat - a.lat) -
+    (b.lat - a.lat) * (c.lng - a.lng)
+  );
+}
+
+function isCollinear(a: LatLng, b: LatLng, c: LatLng, eps = 1e-10): boolean {
+  return Math.abs(triangleDoubleArea(a, b, c)) < eps;
+}
+
+// Line segment intersection check for geographic coords treated as planar for small spans
+type Point2D = { x: number; y: number };
+function toPoint2D(p: LatLng): Point2D { return { x: p.lng, y: p.lat }; }
+
+function orientation(p: Point2D, q: Point2D, r: Point2D): number {
+  const val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+  if (Math.abs(val) < 1e-12) return 0; // collinear
+  return val > 0 ? 1 : 2; // 1: clockwise, 2: counterclockwise
+}
+
+function onSegment(p: Point2D, q: Point2D, r: Point2D): boolean {
+  return (
+    Math.min(p.x, r.x) - 1e-12 <= q.x && q.x <= Math.max(p.x, r.x) + 1e-12 &&
+    Math.min(p.y, r.y) - 1e-12 <= q.y && q.y <= Math.max(p.y, r.y) + 1e-12
+  );
+}
+
+function segmentsIntersect(p1: LatLng, q1: LatLng, p2: LatLng, q2: LatLng): boolean {
+  const P1 = toPoint2D(p1), Q1 = toPoint2D(q1), P2 = toPoint2D(p2), Q2 = toPoint2D(q2);
+  const o1 = orientation(P1, Q1, P2);
+  const o2 = orientation(P1, Q1, Q2);
+  const o3 = orientation(P2, Q2, P1);
+  const o4 = orientation(P2, Q2, Q1);
+
+  if (o1 !== o2 && o3 !== o4) return true;
+  if (o1 === 0 && onSegment(P1, P2, Q1)) return true;
+  if (o2 === 0 && onSegment(P1, Q2, Q1)) return true;
+  if (o3 === 0 && onSegment(P2, P1, Q2)) return true;
+  if (o4 === 0 && onSegment(P2, Q1, Q2)) return true;
+  return false;
+}
+
+function isValidNextPoint(existing: LatLng[], candidate: LatLng): { ok: boolean; message?: string } {
+  // Disallow duplicates or extremely close points
+  if (existing.some((p) => arePointsNearlyEqual(p, candidate))) {
+    return { ok: false, message: "Điểm mới trùng với điểm đã có. Vui lòng chọn lại." };
+  }
+
+  if (existing.length === 2) {
+    // Third point must not be collinear with the first two
+    if (isCollinear(existing[0], existing[1], candidate)) {
+      return { ok: false, message: "Điểm thứ 3 không hợp lệ (thẳng hàng với 2 điểm đầu). Vui lòng chọn lại." };
+    }
+  }
+
+  if (existing.length === 3) {
+    // Validate quadrilateral is simple (no self-intersection) and not degenerate
+    const [p1, p2, p3] = existing;
+    const p4 = candidate;
+
+    // No three consecutive points should be collinear
+    if (isCollinear(p1, p2, p3) || isCollinear(p2, p3, p4) || isCollinear(p3, p4, p1) || isCollinear(p4, p1, p2)) {
+      return { ok: false, message: "Hình tứ giác bị suy biến (3 điểm thẳng hàng). Vui lòng chọn lại." };
+    }
+
+    // Check non-adjacent edge intersections: (p1-p2) with (p3-p4) and (p2-p3) with (p4-p1)
+    if (segmentsIntersect(p1, p2, p3, p4) || segmentsIntersect(p2, p3, p4, p1)) {
+      return { ok: false, message: "Vui lòng đặt lại hoặc làm lại từ đầu vì điểm cuối cùng của bạn nhập không hợp lệ" };
+    }
+  }
+
+  return { ok: true };
+}
 
 // Tính diện tích polygon chính xác hơn sử dụng công thức Haversine
 function computePolygonAreaSquareMeters(points: LatLng[]): number {
@@ -80,9 +170,32 @@ export const MapAreaPage = () => {
   const [mapCenter, setMapCenter] = useState<LatLng>({ lat: 21.0278, lng: 105.8342 });
   const [mapZoom, setMapZoom] = useState(12);
 
-  const addPoint = useCallback((p: LatLng) => {
-    setPoints((prev) => (prev.length >= 4 ? prev : [...prev, p]));
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertTitle, setAlertTitle] = useState<string>("Thong báo");
+  const [alertMessage, setAlertMessage] = useState<string>("");
+
+  const showAlert = useCallback((title: string, message: string) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertOpen(true);
   }, []);
+
+  const addPoint = useCallback((p: LatLng) => {
+    setPoints((prev) => {
+      if (prev.length >= 4) {
+        showAlert("Giới hạn điểm", "Đã đạt tối đa 4 điểm. Vui lòng xóa bớt điểm để thêm mới.");
+        return prev;
+      }
+
+      const check = isValidNextPoint(prev, p);
+      if (!check.ok) {
+        if (check.message) showAlert("Điểm không hợp lệ", check.message);
+        return prev;
+      }
+
+      return [...prev, p];
+    });
+  }, [showAlert]);
 
   const clearPoints = () => {
     setPoints([]);
@@ -99,7 +212,7 @@ export const MapAreaPage = () => {
   // Lấy vị trí hiện tại
   const getCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      alert("Trình duyệt không hỗ trợ định vị địa lý");
+      showAlert("Không hỗ trợ định vị", "Trình duyệt không hỗ trợ định vị địa lý.");
       return;
     }
 
@@ -116,10 +229,10 @@ export const MapAreaPage = () => {
       },
       (error) => {
         console.error("Lỗi khi lấy vị trí:", error);
-        alert("Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền truy cập vị trí.");
+        showAlert("Không thể lấy vị trí", "Vui lòng kiểm tra quyền truy cập vị trí và thử lại.");
       }
     );
-  }, []);
+  }, [showAlert]);
 
   // Tìm kiếm địa điểm bằng tên với độ chính xác cao hơn
   const searchLocation = useCallback(async () => {
@@ -157,15 +270,15 @@ export const MapAreaPage = () => {
         // Hiển thị thông tin chi tiết
         console.log('Tìm thấy:', bestResult.display_name);
       } else {
-        alert("Không tìm thấy địa điểm. Vui lòng thử lại với từ khóa khác.");
+        showAlert("Không tìm thấy", "Không tìm thấy địa điểm. Vui lòng thử lại với từ khóa khác.");
       }
     } catch (error) {
       console.error("Lỗi khi tìm kiếm:", error);
-      alert("Có lỗi xảy ra khi tìm kiếm địa điểm.");
+      showAlert("Lỗi tìm kiếm", "Có lỗi xảy ra khi tìm kiếm địa điểm. Vui lòng thử lại.");
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, showAlert]);
 
   const areaSqm = useMemo(() => computePolygonAreaSquareMeters(points), [points]);
   const areaHectare = areaSqm / 10000;
@@ -179,6 +292,19 @@ export const MapAreaPage = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>Đã hiểu</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <motion.div 
