@@ -1,5 +1,5 @@
 import { PATH_NAMES } from "@/constants";
-import { HomePage, LoginPage, MarketplacePage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList } from "@/pages";
+import { HomePage, LoginPage, MarketplacePage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage } from "@/pages";
 
 export const allRoutes = [
   { path: PATH_NAMES.HOME, component: <HomePage /> },
@@ -11,4 +11,5 @@ export const allRoutes = [
   { path: PATH_NAMES.PROFILE, component: <ProfilePage /> },
   { path: PATH_NAMES.CART, component: <CartPage /> },
   { path: PATH_NAMES.FARMLIST, component: <FarmList /> },
+  { path: PATH_NAMES.MAP_AREA, component: <MapAreaPage /> },
 ];
