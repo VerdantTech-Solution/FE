@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, MoreHorizontal, MapPin, CheckCircle2 } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { apiClient } from "@/api";
@@ -125,16 +125,6 @@ export const FarmList = () => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
   };
 
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Trình duyệt không hỗ trợ định vị địa lý");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setForm((f) => ({ ...f, latitude: String(pos.coords.latitude), longitude: String(pos.coords.longitude) })),
-      () => alert("Không thể lấy vị trí hiện tại")
-    );
-  };
 
   const submitForm = async (e: React.FormEvent) => {
     e.preventDefault();
