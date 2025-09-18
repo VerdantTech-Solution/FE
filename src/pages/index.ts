@@ -21,6 +21,7 @@ export * from './ResetPasswordPage';
 export * from './ChangePasswordPage';
 export * from './CartPage';
 export * from './FarmList';
+export * from './MapAreaPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';
