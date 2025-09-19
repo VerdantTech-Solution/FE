@@ -14,6 +14,7 @@ export * from './MarketplacePage';
 export * from './AboutPage';
 export * from './AdminPage';
 export * from './admin';
+export * from './StaffPage';
 export * from './EmailVerificationPage';
 export * from './SendVerificationPage';
 export * from './ForgotPasswordPage';

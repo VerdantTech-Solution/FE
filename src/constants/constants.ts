@@ -9,4 +9,5 @@ export const PATH_NAMES = {
   CART: '/cart',
   FARMLIST: '/farmlist',
   MAP_AREA: '/map-area',
+  STAFF: '/staff',
 };

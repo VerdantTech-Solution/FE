@@ -12,5 +12,6 @@ export { SendVerificationEmail } from './SendVerificationEmail';
 export { ForgotPassword } from './ForgotPassword';
 export { ResetPassword } from './ResetPassword';
 export { ChangePassword } from './ChangePassword';
+export { StaffProtectedRoute } from './StaffProtectedRoute';
 
 
