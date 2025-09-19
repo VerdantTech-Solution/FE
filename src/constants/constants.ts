@@ -10,4 +10,5 @@ export const PATH_NAMES = {
   FARMLIST: '/farmlist',
   MAP_AREA: '/map-area',
   STAFF: '/staff',
+  CREATE_FARM: '/create-farm',
 };

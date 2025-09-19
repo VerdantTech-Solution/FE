@@ -23,6 +23,7 @@ export * from './ChangePasswordPage';
 export * from './CartPage';
 export * from './FarmList';
 export * from './MapAreaPage';
+export * from './CreateFarmPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';
