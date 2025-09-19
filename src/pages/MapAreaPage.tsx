@@ -140,7 +140,7 @@ function computePolygonAreaSquareMeters(points: LatLng[]): number {
   return area;
 }
 
-const ClickHandler: React.FC<{ onAdd: (p: LatLng) => void }> = ({ onAdd }) => {
+const ClickHandler = ({ onAdd }: { onAdd: (p: LatLng) => void }) => {
   useMapEvents({
     click(e) {
       onAdd({ lat: e.latlng.lat, lng: e.latlng.lng });
@@ -150,7 +150,7 @@ const ClickHandler: React.FC<{ onAdd: (p: LatLng) => void }> = ({ onAdd }) => {
 };
 
 // Component để tự động di chuyển bản đồ
-const MapController: React.FC<{ center: LatLng; zoom: number }> = ({ center, zoom }) => {
+const MapController = ({ center, zoom }: { center: LatLng; zoom: number }) => {
   const map = useMapEvents({});
   
   React.useEffect(() => {
@@ -162,13 +162,25 @@ const MapController: React.FC<{ center: LatLng; zoom: number }> = ({ center, zoo
   return null;
 };
 
-export const MapAreaPage = () => {
+interface MapAreaPageProps {
+  onCoordinatesChange?: (lat: number, lng: number) => void;
+  onAreaChange?: (areaHectares: number) => void;
+}
+
+export const MapAreaPage = ({ 
+  onCoordinatesChange, 
+  onAreaChange 
+}: MapAreaPageProps) => {
   const [points, setPoints] = useState<LatLng[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLng>({ lat: 21.0278, lng: 105.8342 });
   const [mapZoom, setMapZoom] = useState(12);
+  
+  // Ref để tránh gọi callback nhiều lần
+  const lastSentCoordinates = React.useRef<{lat: number, lng: number} | null>(null);
+  const lastSentArea = React.useRef<number | null>(null);
 
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertTitle, setAlertTitle] = useState<string>("Thong báo");
@@ -283,6 +295,37 @@ export const MapAreaPage = () => {
   const areaSqm = useMemo(() => computePolygonAreaSquareMeters(points), [points]);
   const areaHectare = areaSqm / 10000;
 
+  // Tự động gửi tọa độ điểm đầu tiên
+  React.useEffect(() => {
+    if (onCoordinatesChange && points.length === 1) {
+      const firstPoint = points[0];
+      // Kiểm tra xem đã gửi tọa độ này chưa
+      if (!lastSentCoordinates.current || 
+          lastSentCoordinates.current.lat !== firstPoint.lat || 
+          lastSentCoordinates.current.lng !== firstPoint.lng) {
+        lastSentCoordinates.current = { lat: firstPoint.lat, lng: firstPoint.lng };
+        // Sử dụng setTimeout để tránh gọi trong quá trình render
+        setTimeout(() => {
+          onCoordinatesChange(firstPoint.lat, firstPoint.lng);
+        }, 0);
+      }
+    }
+  }, [points, onCoordinatesChange]);
+
+  // Tự động gửi diện tích khi có đủ điểm để tạo polygon
+  React.useEffect(() => {
+    if (onAreaChange && areaHectare > 0 && points.length >= 3) {
+      // Kiểm tra xem đã gửi diện tích này chưa
+      if (lastSentArea.current !== areaHectare) {
+        lastSentArea.current = areaHectare;
+        // Sử dụng setTimeout để tránh gọi trong quá trình render
+        setTimeout(() => {
+          onAreaChange(areaHectare);
+        }, 0);
+      }
+    }
+  }, [areaHectare, onAreaChange, points.length]);
+
   const polygon = points.length >= 3 ? points.map((p) => [p.lat, p.lng]) as [number, number][] : undefined;
 
   return (
@@ -383,27 +426,56 @@ export const MapAreaPage = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.8 }}
                 >
-                  <div className="flex flex-wrap gap-3">
-                    <motion.div
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Button 
-                        onClick={getCurrentLocation} 
-                        variant="outline"
-                        className="border-green-500 text-green-700 hover:bg-green-50"
-                      >
-                        📍 Lấy vị trí hiện tại
-                      </Button>
-                    </motion.div>
+                  <div className="space-y-3">
+               
                     
-                    <motion.div
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                    </motion.div>
+                    <div className="flex flex-wrap gap-2">
+                      <motion.div
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Button 
+                          onClick={() => {
+                            if (points.length > 0 && onCoordinatesChange) {
+                              // Lấy tọa độ điểm đầu tiên (hoặc có thể random)
+                              const selectedPoint = points[0];
+                              onCoordinatesChange(selectedPoint.lat, selectedPoint.lng);
+                              showAlert("Đã cập nhật tọa độ", `Tọa độ điểm đã chọn: ${selectedPoint.lat.toFixed(5)}, ${selectedPoint.lng.toFixed(5)}`);
+                            } else {
+                              showAlert("Chưa có điểm", "Vui lòng chọn ít nhất 1 điểm trên bản đồ trước.");
+                            }
+                          }}
+                          disabled={points.length === 0}
+                          variant="outline"
+                          className="border-blue-500 text-blue-700 hover:bg-blue-50"
+                        >
+                          📍 Lấy tọa độ từ điểm đã chọn
+                        </Button>
+                      </motion.div>
+                      
+                      <motion.div
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Button 
+                          onClick={() => {
+                            if (points.length >= 3 && onAreaChange && areaHectare > 0) {
+                              onAreaChange(areaHectare);
+                              showAlert("Đã cập nhật diện tích", `Diện tích: ${areaHectare.toFixed(4)} ha`);
+                            } else {
+                              showAlert("Chưa đủ điểm", "Vui lòng chọn ít nhất 3 điểm để đo diện tích.");
+                            }
+                          }}
+                          disabled={points.length < 3}
+                          variant="outline"
+                          className="border-green-500 text-green-700 hover:bg-green-50"
+                        >
+                          📏 Lấy diện tích đã đo
+                        </Button>
+                      </motion.div>
+                    </div>
                   </div>
                   
                   {/* Delete Controls */}
@@ -610,6 +682,11 @@ export const MapAreaPage = () => {
                   >
                     ≈ {areaHectare > 0 ? areaHectare.toFixed(4) : 0} ha
                   </motion.div>
+                  {areaHectare > 0 && (
+                    <div className="mt-2 text-xs text-emerald-700 bg-emerald-100 px-2 py-1 rounded">
+                      💡 Click "Lấy diện tích đã đo" để điền vào form
+                    </div>
+                  )}
                 </motion.div>
 
                 <AnimatePresence>
