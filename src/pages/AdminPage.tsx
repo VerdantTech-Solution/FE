@@ -25,7 +25,6 @@ import {
   BarChart,
   Target,
   Activity,
-  Download,
   Plus
 } from "lucide-react";
 
@@ -218,10 +217,6 @@ export const AdminPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Button className="w-full">
-                <Download className="w-4 h-4 mr-2" />
-                Xuất báo cáo
-              </Button>
             </motion.div>
           </SidebarFooter>
         </Sidebar>

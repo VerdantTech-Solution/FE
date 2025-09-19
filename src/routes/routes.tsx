@@ -1,8 +1,8 @@
 import { Layout } from "@/layouts";
 import { Route, Routes as RRDRoutes } from "react-router";
 import { allRoutes } from "./all-routes";
-import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage, CartPage } from "@/pages";
-import { AdminProtectedRoute } from "@/components";
+import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage, CartPage, StaffPage } from "@/pages";
+import { AdminProtectedRoute, StaffProtectedRoute } from "@/components";
 
 export const Routes = () => {
   return (
@@ -20,6 +20,12 @@ export const Routes = () => {
           <AdminPage />
         </AdminProtectedRoute>
       } />
+       <Route path="/staff" element={
+        <StaffProtectedRoute>
+          <StaffPage />
+        </StaffProtectedRoute>
+      } />
+     
       
       {/* Route chính - SimpleRoleRedirect không có Layout (không có Navbar) */}
       <Route path="/" element={<SimpleRoleRedirect />} />
