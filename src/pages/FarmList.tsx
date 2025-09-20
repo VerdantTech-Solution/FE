@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,11 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Eye, MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
+import { getFarmProfilesByUserId, type FarmProfile } from "@/api/farm";
+import { useAuth } from "@/contexts/AuthContext";
 
-type FarmStatus = "active" | "maintenance" | "inactive";
+type FarmStatus = "Active" | "Maintenance" | "Deleted";
 
 interface FarmItem {
-  id: string;
+  id: number;
   name: string;
   location: string;
   areaHectare: number;
@@ -21,67 +23,47 @@ interface FarmItem {
   imageUrl: string;
 }
 
-const initialFarms: FarmItem[] = [
-  {
-    id: "f1",
-    name: "Trang trại rau sạch Đông Anh",
-    location: "Đông Anh, Hà Nội",
-    areaHectare: 2.5,
-    type: "Rau củ quả",
-    establishedYear: 2020,
-    productivityPercent: 85,
-    status: "active",
+// Helper function to convert FarmProfile to FarmItem
+const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
+  const location = farm.address 
+    ? `${farm.address.commune}, ${farm.address.district}, ${farm.address.province}`
+    : 'Chưa có địa chỉ';
+  
+  const establishedYear = farm.createdAt 
+    ? new Date(farm.createdAt).getFullYear()
+    : new Date().getFullYear();
+  
+  // Generate a random productivity percentage for demo purposes
+  const productivityPercent = Math.floor(Math.random() * 30) + 70; // 70-100%
+  
+  return {
+    id: farm.id || 0,
+    name: farm.farmName,
+    location,
+    areaHectare: farm.farmSizeHectares,
+    type: farm.primaryCrops || 'Chưa xác định',
+    establishedYear,
+    productivityPercent,
+    status: farm.status || 'Active',
     imageUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    id: "f2",
-    name: "Nông trại lúa hữu cơ Mỹ Đức",
-    location: "Mỹ Đức, Hà Nội",
-    areaHectare: 8.2,
-    type: "Lúa gạo",
-    establishedYear: 2018,
-    productivityPercent: 92,
-    status: "active",
-    imageUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    id: "f3",
-    name: "Vườn cây ăn quả Vĩnh Phúc",
-    location: "Vĩnh Phúc",
-    areaHectare: 4.7,
-    type: "Cây ăn quả",
-    establishedYear: 2019,
-    productivityPercent: 78,
-    status: "maintenance",
-    imageUrl: "https://images.unsplash.com/photo-1464226184884-fa280b87c399?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    id: "f4",
-    name: "Trang trại chăn nuôi Sóc Sơn",
-    location: "Sóc Sơn, Hà Nội",
-    areaHectare: 6.3,
-    type: "Chăn nuôi",
-    establishedYear: 2017,
-    productivityPercent: 88,
-    status: "active",
-    imageUrl: "https://images.unsplash.com/photo-1550156490-7a0b3a2d8d8e?q=80&w=1200&auto=format&fit=crop",
-  },
-];
+  };
+};
+
 
 const formatHectare = (v: number) => `${v.toFixed(1)} ha`;
 
 const StatusPill = ({ status }: { status: FarmStatus }) => {
   const map = {
-    active: {
+    Active: {
       label: "Hoạt động",
       cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
     },
-    maintenance: {
+    Maintenance: {
       label: "Bảo trì",
       cls: "bg-amber-50 text-amber-700 border-amber-200",
     },
-    inactive: {
-      label: "Tạm ngừng",
+    Deleted: {
+      label: "Đã xóa",
       cls: "bg-gray-100 text-gray-700 border-gray-200",
     },
   } as const;
@@ -95,9 +77,58 @@ const StatusPill = ({ status }: { status: FarmStatus }) => {
 
 export const FarmList = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
-  const [farms] = useState<FarmItem[]>(initialFarms);
+  const [farms, setFarms] = useState<FarmItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch farms data
+  useEffect(() => {
+    const fetchFarms = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await getFarmProfilesByUserId(Number(user.id));
+        console.log('API Response:', response);
+        console.log('Response type:', typeof response);
+        console.log('Is Array:', Array.isArray(response));
+        
+        // Kiểm tra và xử lý dữ liệu trả về
+        let farmProfiles: FarmProfile[] = [];
+        if (Array.isArray(response)) {
+          farmProfiles = response;
+        } else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)) {
+          farmProfiles = (response as any).data;
+        } else if (response && typeof response === 'object') {
+          // Nếu trả về một object duy nhất, chuyển thành array
+          farmProfiles = [response as FarmProfile];
+        } else {
+          console.warn('Unexpected API response format:', response);
+          farmProfiles = [];
+        }
+        
+        console.log('Processed farmProfiles:', farmProfiles);
+        
+        const farmItems = farmProfiles.map(convertFarmProfileToFarmItem);
+        setFarms(farmItems);
+      } catch (err) {
+        console.error('Error fetching farms:', err);
+        setError('Không thể tải danh sách trang trại');
+        setFarms([]); // Đặt farms thành array rỗng khi có lỗi
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFarms();
+  }, [user?.id]);
 
 
   const filtered = useMemo(() => {
@@ -116,10 +147,38 @@ export const FarmList = () => {
 
   const stats = useMemo(() => {
     const total = farms.length;
-    const active = farms.filter((f) => f.status === "active").length;
+    const active = farms.filter((f) => f.status === "Active").length;
     const area = farms.reduce((s, f) => s + f.areaHectare, 0);
     return { total, active, area };
   }, [farms]);
+
+  if (loading) {
+    return (
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-[80px]">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Đang tải danh sách trang trại...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-[80px]">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Thử lại
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -192,9 +251,9 @@ export const FarmList = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả</SelectItem>
-                  <SelectItem value="active">Hoạt động</SelectItem>
-                  <SelectItem value="maintenance">Bảo trì</SelectItem>
-                  <SelectItem value="inactive">Tạm ngừng</SelectItem>
+                  <SelectItem value="Active">Hoạt động</SelectItem>
+                  <SelectItem value="Maintenance">Bảo trì</SelectItem>
+                  <SelectItem value="Deleted">Đã xóa</SelectItem>
                 </SelectContent>
               </Select>
             </div>

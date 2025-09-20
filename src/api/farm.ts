@@ -1,16 +1,22 @@
 import { apiClient } from './apiClient';
 
+// Interface cho Address theo API schema
+export interface Address {
+  id: number;
+  locationAddress: string;
+  province: string;
+  district: string;
+  commune: string;
+  latitude: number;
+  longitude: number;
+}
+
 // Interface cho Farm Profile theo API schema
 export interface FarmProfile {
   id?: number;
   farmName: string;
   farmSizeHectares: number;
-  locationAddress?: string;
-  province?: string;
-  district?: string;
-  commune?: string;
-  latitude?: number;
-  longitude?: number;
+  address?: Address;
   primaryCrops?: string;
   status?: 'Active' | 'Maintenance' | 'Deleted';
   createdAt?: string;
@@ -124,6 +130,20 @@ export const updateFarmProfileStatus = async (id: number, status: 'Active' | 'Ma
     return response as unknown as FarmProfile;
   } catch (error) {
     console.error('Error updating farm profile status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lấy danh sách farm profiles của user theo userId
+ * API endpoint: GET /api/FarmProfile/User/{userId}
+ */
+export const getFarmProfilesByUserId = async (userId: number): Promise<FarmProfile[]> => {
+  try {
+    const response = await apiClient.get(`/api/FarmProfile/User/${userId}`);
+    return response as unknown as FarmProfile[];
+  } catch (error) {
+    console.error('Error fetching farm profiles by userId:', error);
     throw error;
   }
 };
