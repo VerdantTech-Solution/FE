@@ -2,19 +2,31 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MapPin,CheckCircle2, ArrowLeft, ArrowRight, Map } from "lucide-react";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createFarmProfile, type CreateFarmProfileRequest } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
 import MapAreaPage from "./MapAreaPage";
 import StepIndicator from "@/components/StepIndicator";
+import AddressSelector from "@/components/AddressSelector";
 
 export const CreateFarmPage = () => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  // const [message, setMessage] = useState<string | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successData, setSuccessData] = useState<{farmName: string, farmSize: string} | null>(null);
 
   // Ẩn loading sau khi component mount
   useEffect(() => {
@@ -32,8 +44,8 @@ export const CreateFarmPage = () => {
     province: "",
     district: "",
     commune: "",
-    latitude: "90",
-    longitude: "180",
+    latitude: "",
+    longitude: "",
     primaryCrops: "",
   });
 
@@ -47,48 +59,16 @@ export const CreateFarmPage = () => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
   };
 
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setMessage('Trình duyệt không hỗ trợ định vị');
-      return;
-    }
+  // Handle address selection from AddressSelector
+  const handleAddressChange = useCallback((address: { province: string; district: string; ward: string }) => {
+    setForm((f) => ({
+      ...f,
+      province: address.province,
+      district: address.district,
+      commune: address.ward,
+    }));
+  }, []);
 
-    setMessage('Đang lấy vị trí...');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setForm((f) => ({
-          ...f,
-          latitude: latitude.toString(),
-          longitude: longitude.toString(),
-        }));
-        setMessage('Đã lấy tọa độ thành công');
-        setTimeout(() => setMessage(null), 2000);
-      },
-      (error) => {
-        console.error('Error getting location:', error);
-        let errorMessage = 'Không thể lấy vị trí';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Bị từ chối quyền truy cập vị trí';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Vị trí không khả dụng';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Hết thời gian chờ lấy vị trí';
-            break;
-        }
-        setMessage(errorMessage);
-        setTimeout(() => setMessage(null), 3000);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      }
-    );
-  };
 
 
 
@@ -99,8 +79,7 @@ export const CreateFarmPage = () => {
       latitude: lat.toString(),
       longitude: lng.toString(),
     }));
-    setMessage(`Đã cập nhật tọa độ từ bản đồ: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-    setTimeout(() => setMessage(null), 3000);
+    // Coordinates updated from map
   }, []);
 
   // Callback để nhận diện tích từ MapAreaPage
@@ -109,8 +88,7 @@ export const CreateFarmPage = () => {
       ...f,
       farmSizeHectares: areaHectares.toFixed(4),
     }));
-    setMessage(`Đã cập nhật diện tích từ bản đồ: ${areaHectares.toFixed(4)} ha`);
-    setTimeout(() => setMessage(null), 3000);
+    // Area updated from map
   }, []);
 
   const nextStep = () => {
@@ -149,12 +127,11 @@ export const CreateFarmPage = () => {
 
   const submitForm = async () => {
     if (!user) {
-      setMessage('Vui lòng đăng nhập để tạo trang trại');
+      alert('Vui lòng đăng nhập để tạo trang trại');
       return;
     }
 
     setSubmitting(true);
-    setMessage(null);
     
     try {
       const payload: CreateFarmProfileRequest = {
@@ -169,8 +146,14 @@ export const CreateFarmPage = () => {
         primaryCrops: form.primaryCrops || undefined,
       };
 
-      const response = await createFarmProfile(payload);
-      setMessage(`Tạo trang trại thành công (ID: ${response.id})`);
+      await createFarmProfile(payload);
+      
+      // Set success data and show alert
+      setSuccessData({
+        farmName: form.farmName,
+        farmSize: form.farmSizeHectares
+      });
+      setShowSuccessAlert(true);
       
       // Reset form
       setForm({
@@ -180,20 +163,16 @@ export const CreateFarmPage = () => {
         province: "",
         district: "",
         commune: "",
-        latitude: "90",
-        longitude: "180",
+        latitude: "",
+        longitude: "",
         primaryCrops: "",
       });
       
-      setTimeout(() => {
-        setCurrentStep(1);
-        setMessage(null);
-      }, 2000);
+      // Reset to first step
+      setCurrentStep(1);
     } catch (error) {
       console.error('Error creating farm profile:', error);
-      const errObj = error as { message?: string };
-      const msg = errObj?.message ?? 'Tạo trang trại thất bại';
-      setMessage(msg);
+      // You can add error handling here if needed
     } finally {
       setSubmitting(false);
     }
@@ -211,9 +190,14 @@ export const CreateFarmPage = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Chọn vị trí & Diện tích</h3>
-              <p className="text-sm text-gray-600 mb-6">Chọn điểm trên bản đồ để xác định vị trí và đo diện tích trang trại</p>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl mb-4 shadow-lg">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Chọn vị trí & Diện tích</h3>
+              <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                Chọn điểm trên bản đồ để xác định vị trí và đo diện tích trang trại một cách chính xác
+              </p>
             </div>
 
             {/* Bản đồ */}
@@ -356,15 +340,25 @@ export const CreateFarmPage = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Thông tin trang trại</h3>
-              <p className="text-sm text-gray-600 mb-6">Nhập thông tin chi tiết về trang trại của bạn</p>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl mb-4 shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Thông tin trang trại</h3>
+              <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                Nhập thông tin chi tiết về trang trại của bạn để hoàn thiện hồ sơ
+              </p>
             </div>
 
             {/* Thông tin cơ bản */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-gray-800">Thông tin cơ bản</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-800">Thông tin cơ bản</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tên trang trại <span className="text-red-500">*</span>
@@ -394,56 +388,54 @@ export const CreateFarmPage = () => {
             </div>
 
             {/* Địa chỉ hành chính */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-gray-800">Địa chỉ hành chính</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Địa chỉ chi tiết
-                  </label>
-                  <Input 
-                    value={form.locationAddress} 
-                    onChange={handleChange('locationAddress')} 
-                    placeholder="Số nhà, đường..." 
-                  />
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tỉnh/Thành
-                  </label>
-                  <Input 
-                    value={form.province} 
-                    onChange={handleChange('province')} 
-                    placeholder="VD: Hà Nội" 
-                  />
+                <h4 className="text-lg font-semibold text-gray-800">Địa chỉ hành chính</h4>
+              </div>
+              
+              {/* Detailed Address */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Địa chỉ chi tiết
+                </label>
+                <Input 
+                  value={form.locationAddress} 
+                  onChange={handleChange('locationAddress')} 
+                  placeholder="Số nhà, đường, tên đường..." 
+                  className="w-full"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Nhập địa chỉ chi tiết như số nhà, tên đường, tên khu phố...
+                </p>
+              </div>
+
+              {/* Administrative Address Selectors */}
+              <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-6 rounded-xl border border-blue-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                    <MapPin className="w-3 h-3 text-white" />
+                  </div>
+                  <h5 className="font-semibold text-gray-800">Chọn địa chỉ hành chính</h5>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quận/Huyện
-                  </label>
-                  <Input 
-                    value={form.district} 
-                    onChange={handleChange('district')} 
-                    placeholder="VD: Đông Anh" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Xã/Phường
-                  </label>
-                  <Input 
-                    value={form.commune} 
-                    onChange={handleChange('commune')} 
-                    placeholder="VD: Kim Chung" 
-                  />
-                </div>
+                <AddressSelector onAddressChange={handleAddressChange} />
+                <p className="mt-3 text-xs text-gray-600">
+                  💡 Chọn tỉnh/thành trước, sau đó quận/huyện, cuối cùng là xã/phường
+                </p>
               </div>
             </div>
 
             {/* Hiển thị thông tin từ bước 1 */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-gray-800">Thông tin vị trí (từ bước 1)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                  <Map className="w-4 h-4 text-blue-600" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-800">Thông tin vị trí (từ bước 1)</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Vĩ độ (latitude)
@@ -497,21 +489,28 @@ export const CreateFarmPage = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Xác nhận & Tạo trang trại</h3>
-              <p className="text-sm text-gray-600 mb-6">Kiểm tra lại toàn bộ thông tin trước khi tạo trang trại</p>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl mb-4 shadow-lg">
+                <CheckCircle2 className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Xác nhận & Tạo trang trại</h3>
+              <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                Kiểm tra lại toàn bộ thông tin trước khi tạo trang trại
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Thông tin vị trí từ bước 1 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
+              <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                      <MapPin className="h-4 w-4 text-white" />
+                    </div>
                     Vị trí & Diện tích (Bước 1)
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Tọa độ GPS</label>
                     <p className="text-sm text-gray-900 font-mono">
@@ -535,11 +534,16 @@ export const CreateFarmPage = () => {
               </Card>
 
               {/* Thông tin trang trại từ bước 2 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Thông tin trang trại (Bước 2)</CardTitle>
+              <Card className="shadow-lg border-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                      <FileText className="h-4 w-4 text-white" />
+                    </div>
+                    Thông tin trang trại (Bước 2)
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Tên trang trại</label>
                     <p className="text-sm text-gray-900 font-semibold">
@@ -566,9 +570,14 @@ export const CreateFarmPage = () => {
 
             {/* Thông tin chủ trang trại */}
             {user && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Chủ trang trại</CardTitle>
+              <Card className="shadow-lg border-0 bg-gradient-to-br from-gray-50 to-gray-100">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-white" />
+                    </div>
+                    Chủ trang trại
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-3">
@@ -587,13 +596,30 @@ export const CreateFarmPage = () => {
             )}
 
             {/* Tóm tắt cuối cùng */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">Tóm tắt</h4>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p>• <strong>Vị trí:</strong> {form.latitude && form.longitude ? 'Đã xác định' : 'Chưa xác định'}</p>
-                <p>• <strong>Diện tích:</strong> {form.farmSizeHectares ? `${form.farmSizeHectares} ha` : 'Chưa đo'}</p>
-                <p>• <strong>Tên trang trại:</strong> {form.farmName ? 'Đã nhập' : 'Chưa nhập'}</p>
-                <p>• <strong>Chủ sở hữu:</strong> {user ? 'Đã xác định' : 'Chưa đăng nhập'}</p>
+            <div className="p-6 bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200 rounded-2xl shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900">Tóm tắt</h4>
+              </div>
+              <div className="text-sm text-gray-700 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${form.latitude && form.longitude ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                  <span><strong>Vị trí:</strong> {form.latitude && form.longitude ? 'Đã xác định' : 'Chưa xác định'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${form.farmSizeHectares ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                  <span><strong>Diện tích:</strong> {form.farmSizeHectares ? `${form.farmSizeHectares} ha` : 'Chưa đo'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${form.farmName ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                  <span><strong>Tên trang trại:</strong> {form.farmName ? 'Đã nhập' : 'Chưa nhập'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${user ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                  <span><strong>Chủ sở hữu:</strong> {user ? 'Đã xác định' : 'Chưa đăng nhập'}</span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -606,55 +632,86 @@ export const CreateFarmPage = () => {
 
   return (
     <motion.div
-      className="min-h-screen bg-gray-50 py-8"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 py-8 "
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Tạo trang trại mới</h1>
-          <p className="text-gray-600">Thiết lập trang trại của bạn trong 3 bước đơn giản</p>
-        </div>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8  ">
+        {/* Header with enhanced styling */}
+        <motion.div 
+          className="text-center mb-12 mt-[80px]"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+         
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-emerald-700 bg-clip-text text-transparent mb-4">
+            Tạo trang trại mới
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Thiết lập trang trại của bạn trong 3 bước đơn giản với công nghệ bản đồ hiện đại
+          </p>
+        </motion.div>
 
-        {/* Step Indicator */}
-        <div className="mb-8">
-          <StepIndicator
-            currentStep={currentStep}
-            totalSteps={steps.length}
-            steps={steps}
-            onStepClick={goToStep}
-          />
-        </div>
+        {/* Step Indicator with enhanced container */}
+        <motion.div 
+          className="mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20">
+            <StepIndicator
+              currentStep={currentStep}
+              totalSteps={steps.length}
+              steps={steps}
+              onStepClick={goToStep}
+            />
+          </div>
+        </motion.div>
 
-        {/* Main Content */}
-        <Card className="mb-8">
-          <CardContent className="p-8">
-            <AnimatePresence mode="wait">
-              {renderStepContent()}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
+        {/* Main Content with enhanced styling */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card className="mb-8 shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-r from-blue-500 to-emerald-500 h-2 rounded-t-lg"></div>
+              <div className="p-8">
+                <AnimatePresence mode="wait">
+                  {renderStepContent()}
+                </AnimatePresence>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
+        {/* Enhanced Navigation */}
+        <motion.div 
+          className="flex justify-between items-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
           <Button
             variant="outline"
             onClick={prevStep}
             disabled={currentStep === 1}
-            className="gap-2"
+            className="gap-2 px-6 py-3 rounded-xl border-2 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50"
           >
             <ArrowLeft className="h-4 w-4" />
             Quay lại
           </Button>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {currentStep < steps.length ? (
               <Button
                 onClick={nextStep}
                 disabled={!validateStep(currentStep)}
-                className="gap-2"
+                className="gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Tiếp theo
                 <ArrowRight className="h-4 w-4" />
@@ -663,10 +720,13 @@ export const CreateFarmPage = () => {
               <Button
                 onClick={submitForm}
                 disabled={submitting || !validateStep(1) || !validateStep(2)}
-                className="gap-2 bg-green-600 hover:bg-green-700"
+                className="gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
-                  "Đang tạo..."
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Đang tạo...
+                  </div>
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4" />
@@ -676,19 +736,57 @@ export const CreateFarmPage = () => {
               </Button>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Message */}
-        {message && (
+        {/* Enhanced Message */}
+        {/* {message && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200 rounded-2xl shadow-lg backdrop-blur-sm"
           >
-            <p className="text-sm text-blue-700">{message}</p>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-medium text-gray-800">{message}</p>
+            </div>
           </motion.div>
-        )}
+        )} */}
       </div>
+
+      {/* Success Alert Dialog */}
+      <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-white" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-bold text-emerald-700">
+              🎉 Tạo trang trại thành công!
+            </AlertDialogTitle>
+            <div className="text-gray-600 space-y-2">
+              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                <div className="font-semibold text-emerald-800 mb-2">Thông tin trang trại:</div>
+                <div><strong>Tên trang trại:</strong> {successData?.farmName}</div>
+                <div><strong>Diện tích:</strong> {successData?.farmSize} ha</div>
+              </div>
+              <div className="text-sm">
+                Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-center">
+            <AlertDialogAction 
+              onClick={() => setShowSuccessAlert(false)}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-2 rounded-lg"
+            >
+              Tuyệt vời!
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

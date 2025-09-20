@@ -6,7 +6,7 @@ import { User, Mail, Phone, Shield, LogOut, Edit, Key} from "lucide-react";
 import { useNavigate } from "react-router";
 import { useRequireAuth } from "@/hooks";
 import { useState, useEffect } from "react";
-import { getUserById } from "@/api/user";
+import { getUserProfile } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
@@ -43,7 +43,7 @@ export const ProfilePage = () => {
     if (!user) return;
     
     try {
-      const userData = await getUserById(user.id);
+      const userData = await getUserProfile();
       console.log('Latest user data from API:', userData);
       
       // Cập nhật local state với dữ liệu mới nhất
