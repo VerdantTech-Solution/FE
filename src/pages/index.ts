@@ -24,6 +24,7 @@ export * from './CartPage';
 export * from './FarmList';
 export * from './MapAreaPage';
 export * from './CreateFarmPage';
+export * from './UpdateFarmPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';

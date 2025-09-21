@@ -6,7 +6,6 @@ import {
   AlertDialog, 
   AlertDialogAction, 
   AlertDialogContent, 
-  AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
   AlertDialogTitle 
@@ -60,13 +59,16 @@ export const CreateFarmPage = () => {
   };
 
   // Handle address selection from AddressSelector
-  const handleAddressChange = useCallback((address: { province: string; district: string; ward: string }) => {
-    setForm((f) => ({
-      ...f,
-      province: address.province,
-      district: address.district,
-      commune: address.ward,
-    }));
+  const handleProvinceChange = useCallback((province: string) => {
+    setForm((f) => ({ ...f, province }));
+  }, []);
+
+  const handleDistrictChange = useCallback((district: string) => {
+    setForm((f) => ({ ...f, district }));
+  }, []);
+
+  const handleWardChange = useCallback((ward: string) => {
+    setForm((f) => ({ ...f, commune: ward }));
   }, []);
 
 
@@ -420,7 +422,14 @@ export const CreateFarmPage = () => {
                   </div>
                   <h5 className="font-semibold text-gray-800">Chọn địa chỉ hành chính</h5>
                 </div>
-                <AddressSelector onAddressChange={handleAddressChange} />
+                <AddressSelector
+                  selectedProvince={form.province}
+                  selectedDistrict={form.district}
+                  selectedWard={form.commune}
+                  onProvinceChange={handleProvinceChange}
+                  onDistrictChange={handleDistrictChange}
+                  onWardChange={handleWardChange}
+                />
                 <p className="mt-3 text-xs text-gray-600">
                   💡 Chọn tỉnh/thành trước, sau đó quận/huyện, cuối cùng là xã/phường
                 </p>

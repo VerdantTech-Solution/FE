@@ -14,3 +14,4 @@ export { ResetPassword } from './ResetPassword';
 export { ChangePassword } from './ChangePassword';
 export { StaffProtectedRoute } from './StaffProtectedRoute';
 export { default as StepIndicator } from './StepIndicator';
+export { default as AddressSelector } from './AddressSelector';
