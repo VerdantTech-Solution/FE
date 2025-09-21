@@ -217,7 +217,7 @@ const UpdateFarmPage = () => {
   }
 
   return (
-    <div className=" bg-gray-50 py-8 mt-[80px]">
+    <div className=" bg-gray-50 py-8 my-[100px]">
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -252,55 +252,6 @@ const UpdateFarmPage = () => {
             </CardHeader>
             
             <CardContent className="p-6">
-              {/* Current Data Display */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                <h4 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
-                  <Crop className="h-4 w-4" />
-                  Thông tin trang trại hiện tại
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-blue-100">
-                      <span className="font-medium text-blue-700">Tên trang trại:</span>
-                      <span className="text-blue-900 font-semibold">{farmData?.farmName || (farmData as any)?.name || (farmData as any)?.farm_name || 'Chưa load'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-blue-100">
-                      <span className="font-medium text-blue-700">Diện tích:</span>
-                      <span className="text-blue-900 font-semibold">{farmData?.farmSizeHectares || (farmData as any)?.farm_size_hectares || (farmData as any)?.size || 0} ha</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-blue-100">
-                      <span className="font-medium text-blue-700">Loại cây:</span>
-                      <span className="text-blue-900 font-semibold">{farmData?.primaryCrops || (farmData as any)?.primary_crops || (farmData as any)?.crops || 'Chưa có'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2">
-                      <span className="font-medium text-blue-700">Trạng thái:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        farmData?.status === 'Active' ? 'bg-green-100 text-green-800' :
-                        farmData?.status === 'Maintenance' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {farmData?.status === 'Active' ? 'Hoạt động' :
-                         farmData?.status === 'Maintenance' ? 'Bảo trì' :
-                         farmData?.status === 'Deleted' ? 'Đóng cửa' : 'Chưa load'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="py-2 border-b border-blue-100">
-                      <span className="font-medium text-blue-700 block mb-1">Địa chỉ:</span>
-                      <span className="text-blue-900 text-xs">{farmData?.address?.locationAddress || (farmData as any)?.address?.location_address || (farmData as any)?.location_address || 'Chưa có'}</span>
-                    </div>
-                    <div className="py-2 border-b border-blue-100">
-                      <span className="font-medium text-blue-700 block mb-1">Vị trí:</span>
-                      <span className="text-blue-900 text-xs">{farmData?.address?.province || (farmData as any)?.province || 'Chưa có'}, {farmData?.address?.district || (farmData as any)?.district || 'Chưa có'}, {farmData?.address?.commune || (farmData as any)?.commune || (farmData as any)?.ward || 'Chưa có'}</span>
-                    </div>
-                    <div className="py-2">
-                      <span className="font-medium text-blue-700 block mb-1">Tọa độ:</span>
-                      <span className="text-blue-900 text-xs font-mono">{farmData?.address?.latitude || (farmData as any)?.latitude || (farmData as any)?.lat || 0}, {farmData?.address?.longitude || (farmData as any)?.longitude || (farmData as any)?.lng || 0}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Basic Information Section */}
@@ -358,7 +309,7 @@ const UpdateFarmPage = () => {
                         <SelectContent>
                           <SelectItem value="Active">Hoạt động</SelectItem>
                           <SelectItem value="Maintenance">Bảo trì</SelectItem>
-                          <SelectItem value="Deleted">Đóng cửa</SelectItem>
+                          <SelectItem value="Deleted">Xóa</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -526,31 +477,8 @@ const UpdateFarmPage = () => {
             </CardHeader>
             
             <CardContent className="p-0">
-              {/* Map Instructions */}
-              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
-                <div className="text-sm text-green-800">
-                  <p className="font-semibold mb-3 flex items-center gap-2">
-                    💡 Hướng dẫn cập nhật vị trí
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <div className="space-y-1">
-                      <p>• <strong>Tìm kiếm:</strong> Nhập địa điểm để di chuyển bản đồ</p>
-                      <p>• <strong>Chọn điểm:</strong> Click trên bản đồ để chọn tối đa 4 điểm</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p>• <strong>Cập nhật tọa độ:</strong> Click "Lấy tọa độ từ điểm đã chọn"</p>
-                      <p>• <strong>Cập nhật diện tích:</strong> Click "Lấy diện tích đã đo" (cần ít nhất 3 điểm)</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 p-2 bg-green-100 rounded border border-green-200">
-                    <p className="text-xs font-medium text-green-800">
-                      ℹ️ Thông tin hiện tại sẽ được cập nhật tự động khi bạn chọn vị trí mới
-                    </p>
-                  </div>
-                </div>
-              </div>
               
-              <div className="h-[700px] relative overflow-hidden">
+              <div className="h-full relative overflow-hidden">
                 <div className="w-full h-full bg-white">
                   <div className="w-full h-full [&>div]:!min-h-0 [&>div]:!pt-0 [&>div]:!bg-white">
                     <MapAreaPage 
