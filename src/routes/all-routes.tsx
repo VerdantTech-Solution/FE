@@ -1,5 +1,6 @@
 import { PATH_NAMES } from "@/constants";
 import { HomePage, LoginPage, MarketplacePage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage } from "@/pages";
+import UpdateFarmPage from "@/pages/UpdateFarmPage";
 
 export const allRoutes = [
   { path: PATH_NAMES.HOME, component: <HomePage /> },
@@ -14,4 +15,5 @@ export const allRoutes = [
   { path: PATH_NAMES.MAP_AREA, component: <MapAreaPage /> },
   { path: PATH_NAMES.STAFF, component: <StaffPage /> },
   { path: PATH_NAMES.CREATE_FARM, component: <CreateFarmPage /> },
+  { path: `${PATH_NAMES.UPDATE_FARM}/:id`, component: <UpdateFarmPage /> },
 ];

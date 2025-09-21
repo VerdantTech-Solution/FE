@@ -1,152 +1,182 @@
-import React from 'react';
+import { useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useAddress } from '@/hooks/useAddress';
 
 interface AddressSelectorProps {
-  onAddressChange: (address: {
-    province: string;
-    district: string;
-    ward: string;
-  }) => void;
-  className?: string;
+  selectedProvince: string;
+  selectedDistrict: string;
+  selectedWard: string;
+  onProvinceChange: (value: string) => void;
+  onDistrictChange: (value: string) => void;
+  onWardChange: (value: string) => void;
+  initialProvince?: string;
+  initialDistrict?: string;
+  initialWard?: string;
 }
 
-export const AddressSelector = ({
-  onAddressChange,
-  className = ''
+const AddressSelector = ({
+  selectedProvince,
+  selectedDistrict,
+  selectedWard,
+  onProvinceChange,
+  onDistrictChange,
+  onWardChange,
+  initialProvince,
+  initialDistrict,
+  initialWard,
 }: AddressSelectorProps) => {
   const {
     provinces,
     districts,
     wards,
+    selectedProvince: currentProvince,
+    selectedDistrict: currentDistrict,
+    selectedWard: currentWard,
     loading,
-    selectedAddress,
-    handleProvinceChange,
-    handleDistrictChange,
-    handleWardChange,
+    selectProvince,
+    selectDistrict,
+    selectWard,
+    setInitialAddress,
   } = useAddress();
 
-  // Notify parent component when address changes
-  React.useEffect(() => {
-    if (selectedAddress.province && selectedAddress.district && selectedAddress.ward) {
-      onAddressChange({
-        province: selectedAddress.province.province_name,
-        district: selectedAddress.district.district_name,
-        ward: selectedAddress.ward.ward_name,
-      });
+  // Set initial values when component mounts or when initial values change
+  useEffect(() => {
+    if (initialProvince && initialDistrict && initialWard && provinces.length > 0) {
+      setInitialAddress(initialProvince, initialDistrict, initialWard);
     }
-  }, [selectedAddress.province?.province_id, selectedAddress.district?.district_id, selectedAddress.ward?.ward_id, onAddressChange]);
+  }, [initialProvince, initialDistrict, initialWard, provinces.length, setInitialAddress]);
+
+  const handleProvinceChange = (provinceId: string) => {
+    const province = provinces.find(p => p.province_id === provinceId);
+    if (province) {
+      selectProvince(province);
+      onProvinceChange(province.province_name);
+      onDistrictChange('');
+      onWardChange('');
+    }
+  };
+
+  const handleDistrictChange = (districtId: string) => {
+    const district = districts.find(d => d.district_id === districtId);
+    if (district) {
+      selectDistrict(district);
+      onDistrictChange(district.district_name);
+      onWardChange('');
+    }
+  };
+
+  const handleWardChange = (wardId: string) => {
+    const ward = wards.find(w => w.ward_id === wardId);
+    if (ward) {
+      selectWard(ward);
+      onWardChange(ward.ward_name);
+    }
+  };
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${className}`}>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Province Selector */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <Label htmlFor="province" className="text-sm font-medium text-gray-700">
           Tỉnh/Thành <span className="text-red-500">*</span>
-        </label>
+        </Label>
         <Select
-          value={selectedAddress.province?.province_id || ''}
+          value={currentProvince?.province_id || ''}
           onValueChange={handleProvinceChange}
           disabled={loading.provinces}
         >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Chọn tỉnh/thành" />
+          <SelectTrigger className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+            <SelectValue placeholder={loading.provinces ? "Đang tải..." : "Chọn tỉnh/thành"} />
           </SelectTrigger>
           <SelectContent>
-            {loading.provinces ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span className="text-sm text-gray-500">Đang tải...</span>
-              </div>
-            ) : (
-              provinces.map((province) => (
-                <SelectItem key={province.province_id} value={province.province_id}>
-                  {province.province_name}
-                </SelectItem>
-              ))
-            )}
+            {provinces.map((province) => (
+              <SelectItem key={province.province_id} value={province.province_id}>
+                {province.province_name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        {loading.provinces && (
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Đang tải danh sách tỉnh/thành...
+          </div>
+        )}
       </div>
 
       {/* District Selector */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <Label htmlFor="district" className="text-sm font-medium text-gray-700">
           Quận/Huyện <span className="text-red-500">*</span>
-        </label>
+        </Label>
         <Select
-          value={selectedAddress.district?.district_id || ''}
+          value={currentDistrict?.district_id || ''}
           onValueChange={handleDistrictChange}
-          disabled={!selectedAddress.province || loading.districts}
+          disabled={!currentProvince || loading.districts}
         >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Chọn quận/huyện" />
+          <SelectTrigger className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+            <SelectValue 
+              placeholder={
+                !currentProvince 
+                  ? "Chọn tỉnh/thành trước" 
+                  : loading.districts 
+                    ? "Đang tải..." 
+                    : "Chọn quận/huyện"
+              } 
+            />
           </SelectTrigger>
           <SelectContent>
-            {loading.districts ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span className="text-sm text-gray-500">Đang tải...</span>
-              </div>
-            ) : (
-              districts.map((district) => (
-                <SelectItem key={district.district_id} value={district.district_id}>
-                  {district.district_name}
-                </SelectItem>
-              ))
-            )}
+            {districts.map((district) => (
+              <SelectItem key={district.district_id} value={district.district_id}>
+                {district.district_name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        {loading.districts && (
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Đang tải danh sách quận/huyện...
+          </div>
+        )}
       </div>
 
       {/* Ward Selector */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <Label htmlFor="ward" className="text-sm font-medium text-gray-700">
           Xã/Phường <span className="text-red-500">*</span>
-        </label>
+        </Label>
         <Select
-          value={selectedAddress.ward?.ward_id || ''}
+          value={currentWard?.ward_id || ''}
           onValueChange={handleWardChange}
-          disabled={!selectedAddress.district || loading.wards}
+          disabled={!currentDistrict || loading.wards}
         >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={
-              !selectedAddress.district 
-                ? "Chọn quận/huyện trước" 
-                : loading.wards 
-                  ? "Đang tải..." 
-                  : "Chọn xã/phường"
-            } />
+          <SelectTrigger className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+            <SelectValue 
+              placeholder={
+                !currentDistrict 
+                  ? "Chọn quận/huyện trước" 
+                  : loading.wards 
+                    ? "Đang tải..." 
+                    : "Chọn xã/phường"
+              } 
+            />
           </SelectTrigger>
           <SelectContent>
-            {loading.wards ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span className="text-sm text-gray-500">Đang tải danh sách phường/xã...</span>
-              </div>
-            ) : wards.length === 0 ? (
-              <div className="flex items-center justify-center p-4">
-                <span className="text-sm text-gray-500">Không có phường/xã nào</span>
-              </div>
-            ) : (
-              wards.map((ward) => (
-                <SelectItem key={ward.ward_id} value={ward.ward_id}>
-                  {ward.ward_name}
-                </SelectItem>
-              ))
-            )}
+            {wards.map((ward) => (
+              <SelectItem key={ward.ward_id} value={ward.ward_id}>
+                {ward.ward_name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        {!selectedAddress.district && (
-          <p className="text-xs text-amber-600">
-            ⚠️ Vui lòng chọn quận/huyện trước
-          </p>
-        )}
-        {selectedAddress.district && wards.length === 0 && !loading.wards && (
-          <p className="text-xs text-red-600">
-            ❌ Không tìm thấy phường/xã nào cho quận/huyện này
-          </p>
+        {loading.wards && (
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Đang tải danh sách xã/phường...
+          </div>
         )}
       </div>
     </div>

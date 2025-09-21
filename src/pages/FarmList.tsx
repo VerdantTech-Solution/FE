@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, Edit } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { getFarmProfilesByUserId, type FarmProfile } from "@/api/farm";
@@ -25,9 +25,29 @@ interface FarmItem {
 
 // Helper function to convert FarmProfile to FarmItem
 const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
-  const location = farm.address 
-    ? `${farm.address.commune}, ${farm.address.district}, ${farm.address.province}`
-    : 'Chưa có địa chỉ';
+  // Build location string with locationAddress if available
+  let location = 'Chưa có địa chỉ';
+  if (farm.address) {
+    const addressParts = [];
+    
+    // Add locationAddress if available
+    if (farm.address.locationAddress) {
+      addressParts.push(farm.address.locationAddress);
+    }
+    
+    // Add administrative divisions
+    if (farm.address.commune) {
+      addressParts.push(farm.address.commune);
+    }
+    if (farm.address.district) {
+      addressParts.push(farm.address.district);
+    }
+    if (farm.address.province) {
+      addressParts.push(farm.address.province);
+    }
+    
+    location = addressParts.join(', ');
+  }
   
   const establishedYear = farm.createdAt 
     ? new Date(farm.createdAt).getFullYear()
@@ -63,13 +83,13 @@ const StatusPill = ({ status }: { status: FarmStatus }) => {
       cls: "bg-amber-50 text-amber-700 border-amber-200",
     },
     Deleted: {
-      label: "Đã xóa",
-      cls: "bg-gray-100 text-gray-700 border-gray-200",
+      label: "Đóng cửa",
+      cls: "bg-red-50 text-red-700 border-red-200",
     },
   } as const;
   const { label, cls } = map[status as keyof typeof map];
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-medium whitespace-nowrap ${cls}`}>
       {label}
     </span>
   );
@@ -131,6 +151,7 @@ export const FarmList = () => {
   }, [user?.id]);
 
 
+
   const filtered = useMemo(() => {
     let list = farms;
     if (filter !== "all") {
@@ -142,7 +163,15 @@ export const FarmList = () => {
         (f) => f.name.toLowerCase().includes(q) || f.location.toLowerCase().includes(q)
       );
     }
-    return list;
+    
+    // Sắp xếp: Active và Maintenance trước, Deleted cuối cùng
+    return list.sort((a, b) => {
+      if (a.status === 'Deleted' && b.status !== 'Deleted') return 1;
+      if (a.status !== 'Deleted' && b.status === 'Deleted') return -1;
+      
+      // Nếu cùng trạng thái, sắp xếp theo tên
+      return a.name.localeCompare(b.name);
+    });
   }, [farms, filter, query]);
 
   const stats = useMemo(() => {
@@ -253,72 +282,96 @@ export const FarmList = () => {
                   <SelectItem value="all">Tất cả</SelectItem>
                   <SelectItem value="Active">Hoạt động</SelectItem>
                   <SelectItem value="Maintenance">Bảo trì</SelectItem>
-                  <SelectItem value="Deleted">Đã xóa</SelectItem>
+                  <SelectItem value="Deleted">Đóng cửa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </motion.div>
 
-          <div className="mt-4 overflow-hidden rounded-lg border">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Hình ảnh</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Tên trang trại</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Loại</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Địa điểm</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Diện tích</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Trạng thái</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Năm thành lập</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Năng suất</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {filtered.map((farm, idx) => (
-                  <motion.tr key={farm.id} initial={{ y: 12, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: idx * 0.03 }} whileHover={{ backgroundColor: "#f9fafb" }} className="">
-                    <td className="px-4 py-3">
-                      <motion.img
-                        src={farm.imageUrl}
-                        alt={farm.name}
-                        className="w-14 h-14 object-cover rounded-md border"
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <motion.div className="font-medium text-gray-900" whileHover={{ x: 2 }}>{farm.name}</motion.div>
-                      <div className="text-xs text-gray-500">Sản xuất {farm.type.toLowerCase()}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-block text-xs px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        {farm.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">{farm.location}</td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">{formatHectare(farm.areaHectare)}</td>
-                    <td className="px-4 py-3"><StatusPill status={farm.status} /></td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{farm.establishedYear}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{farm.productivityPercent}%</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Eye className="h-3.5 w-3.5" /> Xem
-                        </Button>
-                        </motion.div>
-                        <motion.div whileHover={{ rotate: 90 }} whileTap={{ rotate: 0 }}>
-                        <Button variant="ghost" size="icon" aria-label="Hành động">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                        </motion.div>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+           <div className="mt-4 overflow-x-auto rounded-lg border">
+             <table className="min-w-full divide-y divide-gray-200">
+               <thead className="bg-gray-50">
+                 <tr>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-12">Hình</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 min-w-[200px]">Tên trang trại</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-20">Loại</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 min-w-[180px]">Địa điểm</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-16">Diện tích</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-20">Trạng thái</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-16">Năm</th>
+                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-16">Năng suất</th>
+                   <th className="px-2 py-3 w-28" />
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-gray-100 bg-white">
+                 {filtered.map((farm, idx) => (
+                   <motion.tr key={farm.id} initial={{ y: 12, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: idx * 0.03 }} whileHover={{ backgroundColor: "#f9fafb" }} className="">
+                     <td className="px-2 py-3">
+                       <motion.img
+                         src={farm.imageUrl}
+                         alt={farm.name}
+                         className="w-10 h-10 object-cover rounded-md border"
+                         whileHover={{ scale: 1.05 }}
+                         transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                       />
+                     </td>
+                     <td className="px-2 py-3">
+                       <div className="font-medium text-gray-900 text-sm whitespace-nowrap overflow-hidden text-ellipsis" title={farm.name}>
+                         {farm.name}
+                       </div>
+                       <div className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                         Sản xuất {farm.type.toLowerCase()}
+                       </div>
+                     </td>
+                     <td className="px-2 py-3">
+                       <span className="inline-block text-xs px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                         {farm.type}
+                       </span>
+                     </td>
+                     <td className="px-2 py-3 text-gray-700 text-sm whitespace-nowrap overflow-hidden text-ellipsis" title={farm.location}>
+                       {farm.location}
+                     </td>
+                     <td className="px-2 py-3 text-gray-700 text-sm whitespace-nowrap">
+                       {formatHectare(farm.areaHectare)}
+                     </td>
+                     <td className="px-2 py-3">
+                       <StatusPill status={farm.status} />
+                     </td>
+                     <td className="px-2 py-3 text-sm text-gray-700 whitespace-nowrap">
+                       {farm.establishedYear}
+                     </td>
+                     <td className="px-2 py-3 text-sm text-gray-700 whitespace-nowrap">
+                       {farm.productivityPercent}%
+                     </td>
+                     <td className="px-2 py-3 text-right">
+                       <div className="inline-flex items-center gap-1">
+                         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                           <Button variant="outline" size="sm" className="gap-1 text-xs px-1.5 py-1 h-6">
+                             <Eye className="h-3 w-3" />
+                           </Button>
+                         </motion.div>
+                         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                           <Button 
+                             variant="default" 
+                             size="sm" 
+                             className="gap-1 text-xs px-1.5 py-1 h-6 bg-blue-600 hover:bg-blue-700 text-white"
+                             onClick={() => navigate(`/update-farm/${farm.id}`)}
+                           >
+                             <Edit className="h-3 w-3" />
+                           </Button>
+                         </motion.div>
+                         <motion.div whileHover={{ rotate: 90 }} whileTap={{ rotate: 0 }}>
+                           <Button variant="ghost" size="icon" aria-label="Hành động" className="h-6 w-6">
+                             <MoreHorizontal className="h-3 w-3" />
+                           </Button>
+                         </motion.div>
+                       </div>
+                     </td>
+                   </motion.tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
 
           <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
             <span>Hiển thị {filtered.length} / {farms.length} trang trại</span>

@@ -11,4 +11,5 @@ export const PATH_NAMES = {
   MAP_AREA: '/map-area',
   STAFF: '/staff',
   CREATE_FARM: '/create-farm',
+  UPDATE_FARM: '/update-farm',
 };
