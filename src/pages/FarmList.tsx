@@ -83,7 +83,7 @@ const StatusPill = ({ status }: { status: FarmStatus }) => {
       cls: "bg-amber-50 text-amber-700 border-amber-200",
     },
     Deleted: {
-      label: "Đóng cửa",
+      label: "Xóa",
       cls: "bg-red-50 text-red-700 border-red-200",
     },
   } as const;
@@ -282,7 +282,7 @@ export const FarmList = () => {
                   <SelectItem value="all">Tất cả</SelectItem>
                   <SelectItem value="Active">Hoạt động</SelectItem>
                   <SelectItem value="Maintenance">Bảo trì</SelectItem>
-                  <SelectItem value="Deleted">Đóng cửa</SelectItem>
+                  <SelectItem value="Deleted">Xóa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
