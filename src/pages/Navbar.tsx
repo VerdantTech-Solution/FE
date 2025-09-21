@@ -14,6 +14,11 @@ const Navbar = () => {
   const { isAdmin } = useAdminAuth();
   const userDropdownRef = useRef<HTMLDivElement>(null);
   
+  // Debug: Log khi user avatar thay đổi
+  useEffect(() => {
+    console.log('Navbar - User avatar changed to:', user?.avatarUrl);
+  }, [user?.avatarUrl]);
+  
   const navigation = [
     { name: "Trang chủ", href: "/" },
     { name: "Về chúng tôi", href: "/about" },

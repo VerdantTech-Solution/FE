@@ -79,6 +79,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       console.log('Database update success:', dbResponse);
       
       // Bước 3: Cập nhật UI và thông báo thành công
+      console.log('AvatarUpload - Calling onAvatarChange with:', newAvatarUrl);
       onAvatarChange(newAvatarUrl);
       toast.success('Avatar đã được cập nhật thành công!');
       
@@ -114,6 +115,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       
       // Cập nhật UI
       setImageUrl("");
+      console.log('AvatarUpload - Calling onAvatarChange with null (removing avatar)');
       onAvatarChange(null);
       toast.success('Avatar đã được xóa thành công!');
       
