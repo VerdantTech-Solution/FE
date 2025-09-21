@@ -134,8 +134,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUser = (userData: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...userData };
+      console.log('AuthContext updateUser - updating user with:', userData);
+      console.log('AuthContext updateUser - new user object:', updatedUser);
+      
+      // Cập nhật localStorage trước
       localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      // Cập nhật state
       setUser(updatedUser);
+      
+      console.log('AuthContext updateUser - localStorage updated, state updated');
     }
   };
 

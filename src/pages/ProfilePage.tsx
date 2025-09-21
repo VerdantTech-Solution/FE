@@ -117,17 +117,17 @@ export const ProfilePage = () => {
   };
 
   const handleSaveProfile = (updatedUser: { fullName: string; phoneNumber: string; avatarUrl?: string }) => {
-    // Cập nhật local state
+    // Cập nhật user context trước
     updateUser(updatedUser);
     setIsEditing(false);
     
-    // Cập nhật avatar nếu có
+    // Cập nhật avatar local state nếu có
     if (updatedUser.avatarUrl !== undefined) {
       setAvatarUrl(updatedUser.avatarUrl || "");
     }
     
-    // Lấy dữ liệu mới nhất từ API để đảm bảo đồng bộ
-    fetchLatestUserData();
+    // Không cần fetchLatestUserData nữa vì đã cập nhật context trực tiếp
+    // fetchLatestUserData();
   };
 
   const handleCancelEdit = () => {
@@ -144,16 +144,17 @@ export const ProfilePage = () => {
     // Cập nhật local state trước
     setAvatarUrl(newAvatarUrl || "");
     
-    // Cập nhật user context với avatar mới
+    // Cập nhật user context với avatar mới ngay lập tức
     updateUser({ avatarUrl: newAvatarUrl || undefined });
     
     console.log('ProfilePage - Avatar state updated to:', newAvatarUrl || "");
     console.log('ProfilePage - User context updated with avatarUrl:', newAvatarUrl || undefined);
     
-    // Lấy dữ liệu mới nhất từ database để đảm bảo đồng bộ
-    setTimeout(() => {
-      fetchLatestUserData();
-    }, 500);
+    // Không cần fetchLatestUserData nữa vì đã cập nhật context trực tiếp
+    // Chỉ fetch nếu cần đồng bộ với database (optional)
+    // setTimeout(() => {
+    //   fetchLatestUserData();
+    // }, 500);
   };
 
   return (
