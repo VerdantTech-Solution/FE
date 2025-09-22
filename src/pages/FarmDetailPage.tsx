@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit } from "lucide-react";
 import { FarmWeather } from "@/components/FarmWeather";
+import { CurrentFarmWeather } from "@/components";
 import { FarmAISuggestions } from "@/components/FarmAISuggestions";
 import { getFarmProfileById, type FarmProfile } from "@/api/farm";
 
@@ -69,68 +70,66 @@ const FarmDetailPage = () => {
       </Tabs>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        <Card className="lg:col-span-2">
+      <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Thời Tiết Nông Trại</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-base text-gray-700">
+            {id ? <CurrentFarmWeather farmId={Number(id)} /> : null}
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base">{farm?.farmName || "Trang trại"}</CardTitle>
-                <p className="text-xs text-gray-500 mt-1">Thông tin chi tiết về trang trại</p>
+                <p className="text-[12px] text-gray-500 mt-1">Thông tin chi tiết về trang trại</p>
               </div>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                disabled={!farm}
+                onClick={() => {
+                  if (farm) navigate(`/update-farm/${farm.id}`)
+                }}
+              >
                 <Edit className="h-3 w-3" />
                 Chỉnh sửa
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Diện tích</div>
-                <div className="text-lg font-semibold text-gray-900">{farm?.farmSizeHectares ?? '-'} hecta</div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="text-sm text-gray-600 font-semibold">Diện tích</div>
+                <div className="text-sm font-medium text-gray-900">{farm?.farmSizeHectares ?? '-'} hecta</div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="text-sm text-gray-600">Trạng thái</div>
-                <div className="inline-flex items-center px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm">
+                <div className="inline-flex items-center px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
                   {farm?.status === 'Active' ? 'Đang hoạt động' : farm?.status === 'Maintenance' ? 'Bảo trì' : farm?.status === 'Deleted' ? 'Đã xóa' : 'Không xác định'}
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Ngày cập nhật gần nhất</div>
-                <div className="text-sm text-gray-900">{farm?.updatedAt ? new Date(farm.updatedAt).toLocaleDateString('vi-VN') : '-'}</div>
+              <div className="space-y-1">
+                <div className="text-sm text-gray-600 font-semibold">Ngày cập nhật gần nhất</div>
+                <div className="text-[12px] text-gray-900">{farm?.updatedAt ? new Date(farm.updatedAt).toLocaleDateString('vi-VN') : '-'}</div>
               </div>
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Địa chỉ</div>
-                <div className="text-sm text-gray-900">{addressText}</div>
+              <div className="space-y-1">
+                <div className="text-sm text-gray-600 font-semibold">Địa chỉ</div>
+                <div className="text-[12px] text-gray-900 leading-relaxed">{addressText}</div>
               </div>
             </div>
             <Separator />
             <div className="space-y-2">
-              <div className="text-sm text-gray-600">Cây trồng chính</div>
+              <div className="text-sm text-gray-600 font-semibold">Cây trồng chính</div>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm">{farm?.primaryCrops || 'Chưa xác định'}</span>
+                <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">{farm?.primaryCrops || 'Chưa xác định'}</span>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Thống kê trang trại</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-gray-700">
-            <div className="flex items-center justify-between">
-              <span>Quy mô</span>
-              <span className="font-medium">Vừa</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Đã đăng ký công</span>
-              <span className="font-medium">{farm?.createdAt ? `${Math.max(1, Math.ceil((Date.now() - new Date(farm.createdAt).getTime()) / (1000*60*60*24*30)))} tháng` : '-'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Trạng thái</span>
-              <span className="text-emerald-600 font-medium">{farm?.status === 'Active' ? 'Hoạt động' : farm?.status === 'Maintenance' ? 'Bảo trì' : farm?.status === 'Deleted' ? 'Đã xóa' : 'Không xác định'}</span>
-            </div>
-          </CardContent>
-        </Card>
+      
       </div>
     </div>
   );
