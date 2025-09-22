@@ -12,4 +12,5 @@ export const PATH_NAMES = {
   STAFF: '/staff',
   CREATE_FARM: '/create-farm',
   UPDATE_FARM: '/update-farm',
+  FARM_DETAIL: '/farm-detail',
 };

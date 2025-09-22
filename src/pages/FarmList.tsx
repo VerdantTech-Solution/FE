@@ -17,8 +17,7 @@ interface FarmItem {
   location: string;
   areaHectare: number;
   type: string;
-  establishedYear: number;
-  productivityPercent: number; // 0..100
+  createdAt: string; // Ngày tạo trang trại
   status: FarmStatus;
   imageUrl: string;
 }
@@ -49,12 +48,7 @@ const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
     location = addressParts.join(', ');
   }
   
-  const establishedYear = farm.createdAt 
-    ? new Date(farm.createdAt).getFullYear()
-    : new Date().getFullYear();
-  
-  // Generate a random productivity percentage for demo purposes
-  const productivityPercent = Math.floor(Math.random() * 30) + 70; // 70-100%
+  const createdAt = farm.createdAt || new Date().toISOString();
   
   return {
     id: farm.id || 0,
@@ -62,8 +56,7 @@ const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
     location,
     areaHectare: farm.farmSizeHectares,
     type: farm.primaryCrops || 'Chưa xác định',
-    establishedYear,
-    productivityPercent,
+    createdAt,
     status: farm.status || 'Active',
     imageUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1200&auto=format&fit=crop",
   };
@@ -103,6 +96,8 @@ export const FarmList = () => {
   const [farms, setFarms] = useState<FarmItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
 
   // Fetch farms data
   useEffect(() => {
@@ -154,6 +149,10 @@ export const FarmList = () => {
 
   const filtered = useMemo(() => {
     let list = farms;
+    
+    // Loại bỏ các trang trại có status "Deleted"
+    list = list.filter((f) => f.status !== "Deleted");
+    
     if (filter !== "all") {
       list = list.filter((f) => f.status === (filter as FarmStatus));
     }
@@ -164,14 +163,8 @@ export const FarmList = () => {
       );
     }
     
-    // Sắp xếp: Active và Maintenance trước, Deleted cuối cùng
-    return list.sort((a, b) => {
-      if (a.status === 'Deleted' && b.status !== 'Deleted') return 1;
-      if (a.status !== 'Deleted' && b.status === 'Deleted') return -1;
-      
-      // Nếu cùng trạng thái, sắp xếp theo tên
-      return a.name.localeCompare(b.name);
-    });
+    // Sắp xếp theo tên
+    return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [farms, filter, query]);
 
   const stats = useMemo(() => {
@@ -180,6 +173,20 @@ export const FarmList = () => {
     const area = farms.reduce((s, f) => s + f.areaHectare, 0);
     return { total, active, area };
   }, [farms]);
+
+  // Phân trang
+  const paginatedFarms = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  // Reset về trang 1 khi filter hoặc query thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, query]);
 
   if (loading) {
     return (
@@ -211,7 +218,7 @@ export const FarmList = () => {
 
   return (
     <motion.div
-      className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-[80px]"
+      className="relative max-w-[100%] mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-[80px]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
@@ -258,7 +265,7 @@ export const FarmList = () => {
         ))}
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6 ">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Danh sách</CardTitle>
         </CardHeader>
@@ -288,65 +295,66 @@ export const FarmList = () => {
             </div>
           </motion.div>
 
-           <div className="mt-4 overflow-x-auto rounded-lg border">
-             <table className="min-w-full divide-y divide-gray-200">
+           <div className="mt-4 rounded-lg border">
+             <table className="w-full divide-y divide-gray-200">
                <thead className="bg-gray-50">
                  <tr>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-12">Hình</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 min-w-[200px]">Tên trang trại</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-20">Loại</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 min-w-[180px]">Địa điểm</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-16">Diện tích</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-20">Trạng thái</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-16">Năm</th>
-                   <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 w-16">Năng suất</th>
-                   <th className="px-2 py-3 w-28" />
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-16">Hình</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/4">Tên trang trại</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Loại</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/3">Địa điểm</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-24">Diện tích</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-28">Trạng thái</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Ngày tạo</th>
+                   <th className="px-3 py-3 w-32" />
                  </tr>
                </thead>
                <tbody className="divide-y divide-gray-100 bg-white">
-                 {filtered.map((farm, idx) => (
+                 {paginatedFarms.map((farm, idx) => (
                    <motion.tr key={farm.id} initial={{ y: 12, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: idx * 0.03 }} whileHover={{ backgroundColor: "#f9fafb" }} className="">
-                     <td className="px-2 py-3">
+                     <td className="px-3 py-3">
                        <motion.img
                          src={farm.imageUrl}
                          alt={farm.name}
-                         className="w-10 h-10 object-cover rounded-md border"
+                         className="w-12 h-12 object-cover rounded-md border"
                          whileHover={{ scale: 1.05 }}
                          transition={{ type: "spring", stiffness: 260, damping: 18 }}
                        />
                      </td>
-                     <td className="px-2 py-3">
-                       <div className="font-medium text-gray-900 text-sm whitespace-nowrap overflow-hidden text-ellipsis" title={farm.name}>
+                     <td className="px-3 py-3">
+                       <div className="font-medium text-gray-900 text-sm" title={farm.name}>
                          {farm.name}
                        </div>
-                       <div className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                       <div className="text-xs text-gray-500">
                          Sản xuất {farm.type.toLowerCase()}
                        </div>
                      </td>
-                     <td className="px-2 py-3">
-                       <span className="inline-block text-xs px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                     <td className="px-3 py-3">
+                       <span className="inline-block text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                          {farm.type}
                        </span>
                      </td>
-                     <td className="px-2 py-3 text-gray-700 text-sm whitespace-nowrap overflow-hidden text-ellipsis" title={farm.location}>
+                     <td className="px-3 py-3 text-gray-700 text-sm" title={farm.location}>
                        {farm.location}
                      </td>
-                     <td className="px-2 py-3 text-gray-700 text-sm whitespace-nowrap">
+                     <td className="px-3 py-3 text-gray-700 text-sm">
                        {formatHectare(farm.areaHectare)}
                      </td>
-                     <td className="px-2 py-3">
+                     <td className="px-3 py-3">
                        <StatusPill status={farm.status} />
                      </td>
-                     <td className="px-2 py-3 text-sm text-gray-700 whitespace-nowrap">
-                       {farm.establishedYear}
+                     <td className="px-3 py-3 text-sm text-gray-700">
+                       {new Date(farm.createdAt).toLocaleDateString('vi-VN')}
                      </td>
-                     <td className="px-2 py-3 text-sm text-gray-700 whitespace-nowrap">
-                       {farm.productivityPercent}%
-                     </td>
-                     <td className="px-2 py-3 text-right">
+                     <td className="px-3 py-3 text-right">
                        <div className="inline-flex items-center gap-1">
                          <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-                           <Button variant="outline" size="sm" className="gap-1 text-xs px-1.5 py-1 h-6">
+                           <Button 
+                             variant="outline" 
+                             size="sm" 
+                             className="gap-1 text-xs px-2 py-1 h-7"
+                             onClick={() => navigate(`/farm-detail/${farm.id}`)}
+                           >
                              <Eye className="h-3 w-3" />
                            </Button>
                          </motion.div>
@@ -354,14 +362,14 @@ export const FarmList = () => {
                            <Button 
                              variant="default" 
                              size="sm" 
-                             className="gap-1 text-xs px-1.5 py-1 h-6 bg-blue-600 hover:bg-blue-700 text-white"
+                             className="gap-1 text-xs px-2 py-1 h-7 bg-blue-600 hover:bg-blue-700 text-white"
                              onClick={() => navigate(`/update-farm/${farm.id}`)}
                            >
                              <Edit className="h-3 w-3" />
                            </Button>
                          </motion.div>
                          <motion.div whileHover={{ rotate: 90 }} whileTap={{ rotate: 0 }}>
-                           <Button variant="ghost" size="icon" aria-label="Hành động" className="h-6 w-6">
+                           <Button variant="ghost" size="icon" aria-label="Hành động" className="h-7 w-7">
                              <MoreHorizontal className="h-3 w-3" />
                            </Button>
                          </motion.div>
@@ -374,11 +382,33 @@ export const FarmList = () => {
            </div>
 
           <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <span>Hiển thị {filtered.length} / {farms.length} trang trại</span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">Trước</Button>
-              <Button variant="outline" size="sm">Sau</Button>
-            </div>
+            <span>
+              Hiển thị {paginatedFarms.length} / {filtered.length} trang trại 
+              {totalPages > 1 && ` (Trang ${currentPage}/${totalPages})`}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Trước
+                </Button>
+                <span className="px-2 py-1 text-xs bg-gray-100 rounded">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Sau
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
