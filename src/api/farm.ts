@@ -85,43 +85,12 @@ export const getFarmProfiles = async (): Promise<FarmProfile[]> => {
  */
 export const getFarmProfileById = async (id: number): Promise<FarmProfile> => {
   try {
-    console.log('API: Fetching farm profile for ID:', id);
     const response = await apiClient.get(`/api/FarmProfile/${id}`);
-    console.log('API: Raw response:', response);
-    console.log('API: Response data:', response.data);
-    
-    // Handle different response structures
-    const farmData = response.data || response;
-    console.log('API: Processed farm data:', farmData);
-    
+    const farmData = (response as any).data ?? response;
     return farmData as FarmProfile;
   } catch (error) {
     console.error('Error fetching farm profile by ID:', error);
-    console.error('Error details:', error);
-    
-    // Return mock data for testing if API fails
-    console.log('API: Returning mock data for testing');
-    const mockFarm: FarmProfile = {
-      id: id,
-      farmName: `Trang trại test ${id}`,
-      farmSizeHectares: 2.5,
-      address: {
-        id: 1,
-        locationAddress: "123 Đường ABC, Phường 1",
-        province: "TP. Hồ Chí Minh",
-        district: "Quận 1",
-        commune: "Phường Bến Nghé",
-        latitude: 10.123456,
-        longitude: 106.123456
-      },
-      primaryCrops: "Lúa",
-      status: "Active",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    console.log('API: Mock data created:', mockFarm);
-    return mockFarm;
+    throw error;
   }
 };
 
