@@ -1,15 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CloudRain, ThermometerSun, Sun, Cloud, CloudRain as Rain, Wind, Gauge, GaugeCircle, Sunrise, CloudSun } from "lucide-react";
+import { CloudRain, ThermometerSun, Sun, Cloud, Wind, Gauge, GaugeCircle, Sunrise, CloudSun } from "lucide-react";
 import { getDailyWeather, type DailyForecastItem } from "@/api";
+import { HourlyFarmWeather } from "./HourlyFarmWeather";
 
-type HourlyWeather = {
-  hour: string;
-  temp: string;
-  icon: React.ReactNode;
-  rain: string;
-  wind: string;
-};
 
 type DailyWeather = {
   day: string;
@@ -56,19 +50,6 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
     fetchDaily();
   }, [farmId]);
 
-  const hourly: HourlyWeather[] = [
-    { hour: "Bây giờ", temp: "32°", icon: <Sun className="h-6 w-6 text-yellow-500" />, rain: "10%", wind: "8km/h" },
-    { hour: "14:00", temp: "33°", icon: <Sun className="h-6 w-6 text-yellow-500" />, rain: "5%", wind: "10km/h" },
-    { hour: "15:00", temp: "34°", icon: <Cloud className="h-6 w-6 text-indigo-400" />, rain: "8%", wind: "12km/h" },
-    { hour: "16:00", temp: "33°", icon: <Cloud className="h-6 w-6 text-indigo-400" />, rain: "20%", wind: "15km/h" },
-    { hour: "17:00", temp: "31°", icon: <Cloud className="h-6 w-6 text-indigo-400" />, rain: "25%", wind: "18km/h" },
-    { hour: "18:00", temp: "29°", icon: <Cloud className="h-6 w-6 text-indigo-400" />, rain: "30%", wind: "16km/h" },
-    { hour: "19:00", temp: "28°", icon: <Rain className="h-6 w-6 text-blue-500" />, rain: "60%", wind: "20km/h" },
-    { hour: "20:00", temp: "27°", icon: <Rain className="h-6 w-6 text-blue-500" />, rain: "70%", wind: "22km/h" },
-    { hour: "21:00", temp: "26°", icon: <Rain className="h-6 w-6 text-blue-500" />, rain: "65%", wind: "18km/h" },
-    { hour: "22:00", temp: "25°", icon: <Cloud className="h-6 w-6 text-indigo-400" />, rain: "40%", wind: "14km/h" },
-    { hour: "23:00", temp: "24°", icon: <Cloud className="h-6 w-6 text-indigo-400" />, rain: "25%", wind: "10km/h" },
-  ];
   const daily: DailyWeather[] = useMemo(() => {
     if (!dailyFromApi || dailyFromApi.length === 0) return [];
     const dayNameVi = (dateStr: string) => {
@@ -112,8 +93,6 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
 
 
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const itemBaseClasses = "flex flex-col items-center px-5 py-4 rounded-xl border bg-white min-w-[88px]";
-  const selectedClasses = "bg-blue-50 border-blue-200 shadow-sm";
 
   return (
     <Card className="mt-4">
@@ -149,30 +128,13 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
              </button>
           ))}
         </div>
-          {/* Hourly weather – matches provided design */}
+          {/* Hourly weather – using API component */}
           <div className="space-y-3">
-          <div className="text-xl font-semibold text-gray-900">Dự báo theo giờ</div>
-          <div className="rounded-2xl border bg-white p-4 overflow-x-auto">
-            <div className="flex gap-4 min-w-max">
-              {hourly.map((h, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setSelectedIndex(i)}
-                  className={`${itemBaseClasses} ${i === selectedIndex ? selectedClasses : ""}`}
-                >
-                  <div className="text-sm text-gray-600">{h.hour}</div>
-                  <div className="mt-2">{h.icon}</div>
-                  <div className="mt-2 text-2xl font-bold text-gray-900">{h.temp}</div>
-                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                    <span className="inline-flex items-center gap-1"><CloudRain className="h-3.5 w-3.5 text-indigo-500" />{h.rain}</span>
-                    <span className="inline-flex items-center gap-1"><Wind className="h-3.5 w-3.5 text-slate-500" />{h.wind}</span>
-                  </div>
-                </button>
-              ))}
+            <div className="text-xl font-semibold text-gray-900">Dự báo theo giờ</div>
+            <div className="rounded-2xl border bg-white p-4">
+              <HourlyFarmWeather farmId={farmId} />
             </div>
           </div>
-        </div>
 
         <div className="rounded-xl border p-4 bg-white">
           <div className="text-sm font-medium text-gray-900">

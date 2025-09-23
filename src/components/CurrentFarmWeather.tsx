@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ThermometerSun, Droplets, Wind, Gauge, CloudRain, Sun, Sunrise, GaugeCircle } from "lucide-react";
-import { getDailyWeather, type DailyForecastItem } from "@/api";
+import { getCurrentWeather, type CurrentWeatherData } from "@/api";
 
 type StatCardProps = {
   title: string;
@@ -9,36 +9,46 @@ type StatCardProps = {
   icon: React.ReactNode;
 };
 
-const StatCard = ({ title, value, subtitle, icon }: StatCardProps) => (
-  <div className="rounded-xl border border-slate-800 bg-[#0c0f14] text-slate-100 p-4">
-    <div className="flex items-center justify-between">
-      <div className="text-sm text-slate-300">{title}</div>
-      <div className="text-emerald-400">{icon}</div>
+const StatCard = ({ title, value, subtitle, icon }: StatCardProps) => {
+  // Debug: Log StatCard props
+  console.log(`StatCard ${title}:`, { value, subtitle });
+  
+  return (
+    <div className="rounded-xl border border-slate-800 bg-[#0c0f14] text-slate-100 p-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-slate-300">{title}</div>
+        <div className="text-emerald-400">{icon}</div>
+      </div>
+      <div className="mt-3 text-3xl font-semibold tracking-tight">{value}</div>
+      {subtitle && <div className="mt-1 text-xs text-slate-400">{subtitle}</div>}
     </div>
-    <div className="mt-3 text-3xl font-semibold tracking-tight">{value}</div>
-    {subtitle && <div className="mt-1 text-xs text-slate-400">{subtitle}</div>}
-  </div>
-);
+  );
+};
 
 export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
-  const [daily, setDaily] = useState<DailyForecastItem[] | null>(null);
+  const [currentWeather, setCurrentWeather] = useState<CurrentWeatherData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
       if (!farmId) return;
       try {
         setLoading(true);
-        const res = await getDailyWeather(farmId);
-        setDaily(res);
+        setError(null);
+        console.log(`CurrentFarmWeather: Fetching data for farm ID: ${farmId}`);
+        const res = await getCurrentWeather(farmId);
+        console.log('CurrentFarmWeather: Received data:', res);
+        setCurrentWeather(res);
+      } catch (err) {
+        console.error('CurrentFarmWeather: Error:', err);
+        setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu thời tiết');
       } finally {
         setLoading(false);
       }
     };
     run();
   }, [farmId]);
-
-  const today = useMemo(() => daily?.[0], [daily]);
 
   const uvLevel = (uv?: number) => {
     if (uv === undefined) return "-";
@@ -59,61 +69,80 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-500 bg-red-900/20 text-red-100 p-4">
+        <div className="text-lg font-semibold mb-2">Lỗi tải dữ liệu thời tiết</div>
+        <div className="text-sm">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
+  // Debug: Log current weather data
+  console.log('CurrentFarmWeather render - currentWeather:', currentWeather);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-slate-300">
-        {today?.date && (
-          <div className="text-xs">{new Date(today.date).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+        {currentWeather?.time && (
+          <div className="text-xs">{new Date(currentWeather.time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Nhiệt Độ"
-          value={`${today?.temperatureMax ?? '-'}°C`}
-          subtitle={today?.apparentTemperatureMax !== undefined ? `Cảm nhận: ${today.apparentTemperatureMax}°C` : undefined}
+          value={`${currentWeather?.temperature ?? '-'}°C`}
+          subtitle={currentWeather?.apparentTemperature !== undefined ? `Cảm nhận: ${currentWeather.apparentTemperature}°C` : undefined}
           icon={<ThermometerSun className="h-4 w-4" />}
         />
         <StatCard
           title="Độ Ẩm Không Khí"
-          value={`${today?.humidity ?? '-'}%`}
+          value={`${currentWeather?.humidity ?? '-'}%`}
           subtitle="Độ ẩm tương đối"
           icon={<Droplets className="h-4 w-4" />}
         />
         <StatCard
           title="Tốc Độ Gió"
-          value={`${today?.windSpeedMax ?? '-'} km/h`}
-          subtitle={today?.windGustsMax !== undefined ? `Gió giật: ${today.windGustsMax} km/h` : undefined}
+          value={`${currentWeather?.windSpeed ?? '-'} km/h`}
+          subtitle={currentWeather?.windGusts !== undefined ? `Gió giật: ${currentWeather.windGusts} km/h` : undefined}
           icon={<Wind className="h-4 w-4" />}
         />
         <StatCard
           title="Chỉ Số UV"
-          value={`${today?.uvIndexMax ?? '-'}`}
-          subtitle={`Mức độ: ${uvLevel(today?.uvIndexMax)}`}
+          value={`${currentWeather?.uvIndex ?? '-'}`}
+          subtitle={`Mức độ: ${uvLevel(currentWeather?.uvIndex)}`}
           icon={<Gauge className="h-4 w-4" />}
         />
 
         <StatCard
           title="Lượng Mưa"
-          value={`${today?.precipitationSum ?? 0} mm`}
-          subtitle="Tổng mưa trong ngày"
+          value={`${currentWeather?.precipitation ?? 0} mm`}
+          subtitle="Lượng mưa hiện tại"
           icon={<CloudRain className="h-4 w-4" />}
         />
         <StatCard
           title="Nhiệt Độ Đất"
-          value={`${today?.temperatureMin ?? '-'}°C`}
-          subtitle="Ước lượng bề mặt đất"
+          value={`${currentWeather?.soilTemperature ?? '-'}°C`}
+          subtitle="Nhiệt độ bề mặt đất"
           icon={<GaugeCircle className="h-4 w-4" />}
         />
         <StatCard
-          title="Thời Gian Nắng"
-          value={`${Math.round(((today?.sunshineDurationSeconds ?? 0) / 3600))} h`}
-          subtitle="Trong ngày"
+          title="Khoảng Thời Gian"
+          value={`${currentWeather?.interval ?? '-'} phút`}
+          subtitle="Cập nhật dữ liệu"
           icon={<Sun className="h-4 w-4" />}
         />
         <StatCard
-          title="Mọc / Lặn"
-          value={`${today?.sunrise ? new Date(today.sunrise).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '-'} / ${today?.sunset ? new Date(today.sunset).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '-'}`}
+          title="Thời Gian"
+          value={currentWeather?.time ? new Date(currentWeather.time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '-'}
+          subtitle="Thời điểm đo"
           icon={<Sunrise className="h-4 w-4" />}
         />
       </div>
@@ -122,11 +151,9 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
       <div className="rounded-xl border border-slate-800 bg-[#0c0f14] text-slate-100 p-5">
         <div className="text-lg font-semibold mb-4">Thông Tin Độ Ẩm Đất</div>
         {(() => {
-          const humidity = today?.humidity ?? 0; // %
-          const rainPct = today?.precipitationPercent ?? (today?.precipitationSum ? Math.min(100, Math.round(today.precipitationSum * 10)) : 0);
-          // Ước lượng đơn giản: 0-1cm chịu ảnh hưởng mưa nhiều hơn; 3-9cm chậm hơn
-          const topSoil = Math.max(0, Math.min(100, Math.round(humidity * 0.5 + rainPct * 0.5)));
-          const deepSoil = Math.max(0, Math.min(100, Math.round(humidity * 0.6 + rainPct * 0.3)));
+          // Sử dụng dữ liệu thực từ API (đã được chuyển đổi từ 0-1 thành %)
+          const topSoil = currentWeather?.soilMoistureTop ? Math.round(currentWeather.soilMoistureTop * 100) : 0;
+          const deepSoil = currentWeather?.soilMoistureDeep ? Math.round(currentWeather.soilMoistureDeep * 100) : 0;
 
           const tip = topSoil < 25
             ? 'Độ ẩm đất thấp, nên tưới bổ sung để tránh khô hạn.'

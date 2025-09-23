@@ -31,6 +31,121 @@ export interface DailyForecastItem {
   sunset?: string; // ISO
 }
 
+// Type definitions cho Current Weather API response
+export interface CurrentWeatherApiResponse {
+  status: boolean;
+  statusCode: number;
+  data: {
+    latitude: string;
+    longitude: string;
+    generationTimeMs: string;
+    utcOffsetSeconds: string;
+    timezone: string;
+    timezoneAbbreviation: string;
+    elevation: string;
+    current_Units: {
+      time: string;
+      interval: string;
+      temperature_2m: string;
+      apparent_Temperature: string;
+      relative_Humidity_2m: string;
+      precipitation: string;
+      wind_Speed_10m: string;
+      wind_Gusts_10m: string;
+      uv_Index: string;
+      soil_Moisture_0_to_1cm: string;
+      soil_Moisture_3_to_9cm: string;
+      soil_Temperature_0cm: string;
+    };
+    current: {
+      time: string;
+      interval: string;
+      temperature_2m: string;
+      apparent_Temperature: string;
+      relative_Humidity_2m: string;
+      precipitation: string;
+      wind_Speed_10m: string;
+      wind_Gusts_10m: string;
+      uv_Index: string;
+      soil_Moisture_0_to_1cm: string;
+      soil_Moisture_3_to_9cm: string;
+      soil_Temperature_0cm: string;
+    };
+  };
+  errors: any[];
+}
+
+export interface CurrentWeatherData {
+  time: string;
+  interval: number;
+  temperature: number;
+  apparentTemperature: number;
+  humidity: number;
+  precipitation: number;
+  windSpeed: number;
+  windGusts: number;
+  uvIndex: number;
+  soilMoistureTop: number; // 0-1cm
+  soilMoistureDeep: number; // 3-9cm
+  soilTemperature: number;
+}
+
+// Type definitions cho Hourly Weather API response
+export interface HourlyWeatherApiResponse {
+  status: boolean;
+  statusCode: number;
+  data: {
+    latitude: string;
+    longitude: string;
+    generationTimeMs: string;
+    utcOffsetSeconds: string;
+    timezone: string;
+    timezoneAbbreviation: string;
+    elevation: string;
+    hourly_Units: {
+      time: string;
+      temperature_2m: string;
+      apparent_Temperature: string;
+      relative_Humidity_2m: string;
+      precipitation: string;
+      wind_Speed_10m: string;
+      wind_Gusts_10m: string;
+      uv_Index: string;
+      soil_Moisture_0_to_1cm: string;
+      soil_Moisture_3_to_9cm: string;
+      soil_Temperature_0cm: string;
+    };
+    hourly: Array<{
+      time: string;
+      temperature_2m: string;
+      apparent_Temperature: string;
+      relative_Humidity_2m: string;
+      precipitation: string;
+      wind_Speed_10m: string;
+      wind_Gusts_10m: string;
+      uv_Index: string;
+      soil_Moisture_0_to_1cm: string;
+      soil_Moisture_3_to_9cm: string;
+      soil_Temperature_0cm: string;
+    }>;
+  };
+  errors: any[];
+}
+
+export interface HourlyWeatherItem {
+  time: string;
+  temperature: number;
+  apparentTemperature: number;
+  humidity: number;
+  precipitation: number;
+  windSpeed: number;
+  windGusts: number;
+  uvIndex: number;
+  soilMoistureTop: number; // 0-1cm
+  soilMoistureDeep: number; // 3-9cm
+  soilTemperature: number;
+}
+
 export const getDailyWeather = async (farmId: number): Promise<DailyForecastItem[]> => {
   const res = (await apiClient.get(`/api/Weather/daily/${farmId}`)) as unknown as DailyWeatherApiResponse | { data: DailyWeatherApiResponse };
 
@@ -240,6 +355,107 @@ export const getDailyWeather = async (farmId: number): Promise<DailyForecastItem
     });
   }
   return items;
+};
+
+// Function để lấy thông tin thời tiết hiện tại
+export const getCurrentWeather = async (farmId: number): Promise<CurrentWeatherData> => {
+  try {
+    const res = await apiClient.get(`/api/Weather/current/${farmId}`);
+    // Kiểm tra cấu trúc response
+    const payload = res.data || res;
+
+    // Kiểm tra các cấu trúc response có thể có
+    let currentData;
+    
+    if (payload && payload.data && payload.data.current) {
+      // Cấu trúc: { data: { current: {...} } }
+      currentData = payload.data.current;
+    } else if (payload && payload.current) {
+      // Cấu trúc: { current: {...} }
+      currentData = payload.current;
+    } else if (payload && payload.data && typeof payload.data === 'object' && payload.data.time) {
+      // Cấu trúc: { data: { time: ..., temperature_2m: ... } }
+      currentData = payload.data;
+    } else if (payload && payload.time) {
+      // Cấu trúc: { time: ..., temperature_2m: ... }
+      currentData = payload;
+    } else {
+      throw new Error('Invalid response structure');
+    }
+
+    // Chuyển đổi từ string sang number và format dữ liệu với fallback
+    const result = {
+      time: currentData.time || '',
+      interval: Number(currentData.interval) || 0,
+      temperature: Number(currentData.temperature_2m) || 0,
+      apparentTemperature: Number(currentData.apparent_Temperature) || 0,
+      humidity: Number(currentData.relative_Humidity_2m) || 0,
+      precipitation: Number(currentData.precipitation) || 0,
+      windSpeed: Number(currentData.wind_Speed_10m) || 0,
+      windGusts: Number(currentData.wind_Gusts_10m) || 0,
+      uvIndex: Number(currentData.uv_Index) || 0,
+      soilMoistureTop: Number(currentData.soil_Moisture_0_to_1cm) || 0,
+      soilMoistureDeep: Number(currentData.soil_Moisture_3_to_9cm) || 0,
+      soilTemperature: Number(currentData.soil_Temperature_0cm) || 0,
+    };
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Function để lấy thông tin thời tiết theo giờ
+export const getHourlyWeather = async (farmId: number): Promise<HourlyWeatherItem[]> => {
+  try {
+    const res = await apiClient.get(`/api/Weather/hourly/${farmId}`);
+
+    // Kiểm tra cấu trúc response
+    const payload = res.data || res;
+
+    // Kiểm tra các cấu trúc response có thể có
+    let hourlyData;
+    
+    
+    if (payload && payload.data && payload.data.hourly && Array.isArray(payload.data.hourly)) {
+      // Cấu trúc: { data: { hourly: [...] } }
+      hourlyData = payload.data.hourly;
+    } else if (payload && payload.hourly && Array.isArray(payload.hourly)) {
+      // Cấu trúc: { hourly: [...] }
+      hourlyData = payload.hourly;
+    } else if (payload && payload.data && Array.isArray(payload.data)) {
+      // Cấu trúc: { data: [...] }
+  
+      hourlyData = payload.data;
+    } else if (Array.isArray(payload)) {
+      // Cấu trúc: [...] (trực tiếp là array)
+    
+      hourlyData = payload;
+    } else {
+
+      throw new Error('Invalid hourly response structure');
+    }
+
+
+    // Chuyển đổi từ string sang number và format dữ liệu
+    const result = hourlyData.map((item: any) => ({
+      time: item.time || '',
+      temperature: Number(item.temperature_2m) || 0,
+      apparentTemperature: Number(item.apparent_Temperature) || 0,
+      humidity: Number(item.relative_Humidity_2m) || 0,
+      precipitation: Number(item.precipitation) || 0,
+      windSpeed: Number(item.wind_Speed_10m) || 0,
+      windGusts: Number(item.wind_Gusts_10m) || 0,
+      uvIndex: Number(item.uv_Index) || 0,
+      soilMoistureTop: Number(item.soil_Moisture_0_to_1cm) || 0,
+      soilMoistureDeep: Number(item.soil_Moisture_3_to_9cm) || 0,
+      soilTemperature: Number(item.soil_Temperature_0cm) || 0,
+    }));
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
 };
 
 
