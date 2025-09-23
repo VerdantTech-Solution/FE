@@ -153,7 +153,7 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
               <StatItem label="UV cao nhất" value={`${dailyFromApi[selectedIndex]?.uvIndexMax ?? '-'}`} icon={<Gauge className="h-4 w-4"/>} />
               <StatItem label="Gió cao nhất" value={`${dailyFromApi[selectedIndex]?.windSpeedMax ?? '-'} km/h`} icon={<Wind className="h-4 w-4"/>} />
               <StatItem label="Gió giật mạnh nhất" value={`${dailyFromApi[selectedIndex]?.windGustsMax ?? '-'} km/h`} icon={<Wind className="h-4 w-4"/>} />
-              <StatItem label="FAO ET0" value={`${dailyFromApi[selectedIndex]?.et0FaoEvapotranspiration ?? '-'} mm`} icon={<GaugeCircle className="h-4 w-4"/>} />
+              <StatItem label="FAO ET0 (khả năng thoát hơi nước)" value={`${dailyFromApi[selectedIndex]?.et0FaoEvapotranspiration ?? '-'} mm`} icon={<GaugeCircle className="h-4 w-4"/>} />
               <StatItem label="Mọc / Lặn" value={`${dailyFromApi[selectedIndex]?.sunrise ? new Date(dailyFromApi[selectedIndex].sunrise).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) : '-'} / ${dailyFromApi[selectedIndex]?.sunset ? new Date(dailyFromApi[selectedIndex].sunset).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) : '-'}`} icon={<Sunrise className="h-4 w-4"/>} />
             </div>
           )}
