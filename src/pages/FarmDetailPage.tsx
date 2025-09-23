@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit } from "lucide-react";
 import { FarmWeather } from "@/components/FarmWeather";
-import { CurrentFarmWeather } from "@/components";
+import { CurrentFarmWeather, HourlyFarmWeather } from "@/components";
 import { FarmAISuggestions } from "@/components/FarmAISuggestions";
 import { getFarmProfileById, type FarmProfile } from "@/api/farm";
 
@@ -51,7 +51,6 @@ const FarmDetailPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate(-1)} className="gap-2"><ArrowLeft className="h-4 w-4"/>Quay lại</Button>
-          <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700"><Edit className="h-4 w-4"/>Chỉnh sửa</Button>
         </div>
       </div>
 
@@ -70,14 +69,16 @@ const FarmDetailPage = () => {
       </Tabs>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-      <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Thời Tiết Nông Trại</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-base text-gray-700">
-            {id ? <CurrentFarmWeather farmId={Number(id)} /> : null}
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Thời Tiết Hiện Tại</CardTitle>
+            </CardHeader>
+            <CardContent className="text-base text-gray-700">
+              {id ? <CurrentFarmWeather farmId={Number(id)} /> : null}
+            </CardContent>
+          </Card>
+        </div>
         <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
