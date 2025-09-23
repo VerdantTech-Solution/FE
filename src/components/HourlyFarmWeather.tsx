@@ -242,7 +242,7 @@ export const HourlyFarmWeather = ({ farmId }: { farmId: number }) => {
               <div className="text-sm font-semibold mb-2">{new Date(upcomingHourlyData[hoverIndex].time).toLocaleString('vi-VN')}</div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                 <div className="flex items-center justify-between"><span>Nhiệt độ</span><span className="font-medium">{Math.round(upcomingHourlyData[hoverIndex].temperature)}°C</span></div>
-                <div className="flex items-center justify-between"><span>Ẩm độ</span><span className="font-medium">{Math.round(upcomingHourlyData[hoverIndex].humidity)}%</span></div>
+                <div className="flex items-center justify-between"><span>Độ ẩm</span><span className="font-medium">{Math.round(upcomingHourlyData[hoverIndex].humidity)}%</span></div>
                 <div className="flex items-center justify-between"><span>Gió</span><span className="font-medium">{Math.round(upcomingHourlyData[hoverIndex].windSpeed)} km/h</span></div>
                 <div className="flex items-center justify-between"><span>Lượng mưa</span><span className="font-medium">{upcomingHourlyData[hoverIndex].precipitation.toFixed(1)} mm</span></div>
                 <div className="flex items-center justify-between"><span>UV</span><span className="font-medium">{upcomingHourlyData[hoverIndex].uvIndex.toFixed(1)}</span></div>
