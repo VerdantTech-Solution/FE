@@ -6,11 +6,69 @@ import { User, Mail, Phone, Shield, LogOut, Edit, Key} from "lucide-react";
 import { useNavigate } from "react-router";
 import { useRequireAuth } from "@/hooks";
 import { useState, useEffect } from "react";
-import { getUserProfile } from "@/api/user";
+import { getUserProfile, createUserAddress, type UserAddress } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import StepIndicator from "@/components/StepIndicator";
+import AddressSelector from "@/components/AddressSelector";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+const defaultLeafletIcon = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+function ClickToSet({ onPick }: { onPick: (p: { lat: number; lng: number }) => void }) {
+  useMapEvents({
+    click(e) {
+      onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
+}
+
+function SearchAddress({ value, onChange, onPick }: { value: string; onChange: (v: string) => void; onPick: (lat: number, lng: number, label?: string) => void }) {
+  const [isSearching, setIsSearching] = useState(false);
+  const [query, setQuery] = useState(value || "");
+
+  const doSearch = async () => {
+    if (!query.trim()) return;
+    setIsSearching(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=vn&addressdetails=1` , {
+        headers: { 'User-Agent': 'VerdantTech-AddressSearch/1.0' }
+      });
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const best = data[0];
+        const lat = parseFloat(best.lat);
+        const lng = parseFloat(best.lon);
+        onPick(lat, lng, best.display_name);
+      }
+    } catch {}
+    finally { setIsSearching(false); }
+  };
+
+  return (
+    <div className="grid gap-2">
+      <Label>Địa chỉ hiện tại (tìm kiếm)</Label>
+      <div className="flex gap-2">
+        <Input value={query} onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); }} placeholder="Nhập địa chỉ để tìm" onKeyDown={(e) => { if (e.key === 'Enter') doSearch(); }} />
+        <Button type="button" className="bg-blue-600 hover:bg-blue-700" disabled={isSearching || !query.trim()} onClick={doSearch}>{isSearching ? 'Đang tìm...' : 'Tìm'}</Button>
+      </div>
+    </div>
+  );
+}
 
 
 export const ProfilePage = () => {
@@ -19,6 +77,19 @@ export const ProfilePage = () => {
   const { loading: authLoading } = useRequireAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
+  const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
+  const [isAddressLoading, setIsAddressLoading] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [addressStep, setAddressStep] = useState<1 | 2>(1);
+  const [addressForm, setAddressForm] = useState({
+    locationAddress: "1",
+    province: "1",
+    district: "1",
+    commune: "",
+    latitude: 0,
+    longitude: 0,
+    isDeleted: false,
+  });
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
@@ -43,6 +114,7 @@ export const ProfilePage = () => {
     if (!user) return;
     
     try {
+      setIsAddressLoading(true);
       const userData = await getUserProfile();
       console.log('Latest user data from API:', userData);
       
@@ -58,10 +130,48 @@ export const ProfilePage = () => {
         if (userData.avatarUrl !== undefined) {
           setAvatarUrl(userData.avatarUrl || "");
         }
+
       }
     } catch (error) {
       console.error('Failed to fetch latest user data:', error);
+    } finally {
+      setIsAddressLoading(false);
     }
+  };
+
+  const handleMapSelect = (lat: number, lng: number) => {
+    setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+    setAddressStep(2);
+  };
+
+  const handleCreateAddress = async () => {
+    try {
+      if (!user) return;
+      const created = await createUserAddress(user.id, addressForm);
+      // Sau khi tạo mới, refetch profile để đồng bộ danh sách địa chỉ với server
+      setUserAddresses((prev) => [created, ...prev]);
+      try {
+      } catch {}
+      setIsDialogOpen(false);
+    } catch (error) {
+      // consider toast later
+    }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+      },
+      () => {
+        // ignore errors silently here
+      }
+    );
   };
 
   // Hiển thị loading nếu đang kiểm tra authentication
@@ -248,6 +358,122 @@ export const ProfilePage = () => {
                       <p className="text-lg font-semibold text-gray-900">
                         {user.phoneNumber || 'Chưa cập nhật'}
                       </p>
+                    </div>
+                  </motion.div>
+                  {/* Address */}
+                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Phone className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-500">Địa chỉ</p>
+                      {isAddressLoading ? (
+                        <p className="text-sm text-gray-500">Đang tải...</p>
+                      ) : (userAddresses && userAddresses.length > 0) ? (
+                        <div className="space-y-3">
+                          {userAddresses.map((addr, idx) => (
+                            <div key={addr.id ?? idx} className="text-sm text-gray-900 border rounded p-3">
+                              <p className="text-lg font-semibold">
+                                {addr.locationAddress && addr.locationAddress.trim() !== "" 
+                                  ? addr.locationAddress 
+                                  : [addr.commune, addr.district, addr.province].filter(Boolean).join(', ') || 'Chưa cập nhật'}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {[addr.commune, addr.district, addr.province].filter(Boolean).join(', ')}
+                              </p>
+                              <p className="text-xs text-gray-500">Vĩ độ: {addr.latitude ? addr.latitude : '-'} - Kinh độ: {addr.longitude ? addr.longitude : '-'}</p>
+                            </div>
+                          ))}
+                          <Button size="sm" variant="outline" onClick={() => { setAddressStep(1); setIsDialogOpen(true); }}>Thêm địa chỉ</Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => { setAddressStep(1); setIsDialogOpen(true); }}>Thêm địa chỉ</Button>
+                          <Dialog open={isDialogOpen} onOpenChange={(open: boolean) => { setIsDialogOpen(open); if (!open) { setAddressStep(1); } }}>
+                            <DialogContent className="sm:max-w-[600px]">
+                              <DialogHeader>
+                                <DialogTitle>Thêm địa chỉ</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <StepIndicator steps={["Chọn vị trí", "Điền thông tin"]} currentStep={addressStep} />
+
+                                {addressStep === 1 && (
+                                  <div className="space-y-3">
+                                    <SearchAddress
+                                      value={addressForm.locationAddress}
+                                      onChange={(v) => setAddressForm({ ...addressForm, locationAddress: v })}
+                                      onPick={(lat, lng, label) => {
+                                        setAddressForm((prev) => ({ ...prev, locationAddress: label || prev.locationAddress, latitude: lat, longitude: lng }));
+                                      }}
+                                    />
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="grid gap-2">
+                                        <Label>Vĩ độ</Label>
+                                        <Input value={addressForm.latitude} onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
+                                      </div>
+                                      <div className="grid gap-2">
+                                        <Label>Kinh độ</Label>
+                                        <Input value={addressForm.longitude} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
+                                      </div>
+                                    </div>
+                                    <div className="h-[300px] rounded border overflow-hidden">
+                                      <MapContainer center={[addressForm.latitude || 21.0278, addressForm.longitude || 105.8342]} zoom={addressForm.latitude && addressForm.longitude ? 15 : 12} style={{ height: '100%', width: '100%' }}>
+                                        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                        <ClickToSet onPick={(p) => handleMapSelect(p.lat, p.lng)} />
+                                        {(addressForm.latitude || 0) !== 0 && (addressForm.longitude || 0) !== 0 && (
+                                          <Marker position={[addressForm.latitude, addressForm.longitude]} icon={defaultLeafletIcon} />
+                                        )}
+                                      </MapContainer>
+                                    </div>
+                                    <div className="flex items-center gap-2 justify-between">
+                                      <Button type="button" variant="outline" onClick={handleUseCurrentLocation}>Lấy vị trí hiện tại</Button>
+                                      <Button type="button" onClick={() => setAddressStep(2)} disabled={!addressForm.latitude || !addressForm.longitude}>Tiếp tục</Button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {addressStep === 2 && (
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="grid gap-2">
+                                        <Label>Vĩ độ</Label>
+                                        <Input value={addressForm.latitude} onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
+                                      </div>
+                                      <div className="grid gap-2">
+                                        <Label>Kinh độ</Label>
+                                        <Input value={addressForm.longitude} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
+                                      </div>
+                                    </div>
+                                    <div className="grid gap-2">
+                                      <Label>Địa chỉ cụ thể</Label>
+                                      <Input value={addressForm.locationAddress} onChange={(e) => setAddressForm({ ...addressForm, locationAddress: e.target.value })} placeholder="Số nhà, đường..." />
+                                    </div>
+                                    <div className="grid gap-2">
+                                      <Label>Chọn Tỉnh/Thành - Quận/Huyện - Xã/Phường</Label>
+                                      <AddressSelector
+                                        selectedProvince={addressForm.province}
+                                        selectedDistrict={addressForm.district}
+                                        selectedWard={addressForm.commune}
+                                        onProvinceChange={(value) => setAddressForm((prev) => ({ ...prev, province: value }))}
+                                        onDistrictChange={(value) => setAddressForm((prev) => ({ ...prev, district: value }))}
+                                        onWardChange={(value) => setAddressForm((prev) => ({ ...prev, commune: value }))}
+                                        initialProvince={addressForm.province}
+                                        initialDistrict={addressForm.district}
+                                        initialWard={addressForm.commune}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2 justify-between">
+                                      <Button type="button" variant="outline" onClick={() => { setAddressStep(1); }}>Quay lại</Button>
+                                      <Button type="button" onClick={handleCreateAddress}>Lưu địa chỉ</Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <DialogFooter />
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      )}
                     </div>
                   </motion.div>
 

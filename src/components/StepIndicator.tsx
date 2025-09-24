@@ -7,6 +7,7 @@ interface StepIndicatorProps {
   totalSteps: number;
   steps: string[];
   onStepClick?: (step: number) => void;
+  canClickStep?: (step: number) => boolean;
 }
 
 const stepIcons = [MapPin, FileText, CheckCircle2];
@@ -15,7 +16,8 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
   currentStep,
   totalSteps,
   steps,
-  onStepClick
+  onStepClick,
+  canClickStep
 }) => {
   return (
     <div className="w-full">
@@ -39,6 +41,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
             const isCompleted = stepNumber < currentStep;
             const isCurrent = stepNumber === currentStep;
             const isUpcoming = stepNumber > currentStep;
+            const isClickable = canClickStep ? canClickStep(stepNumber) : !!onStepClick;
             const IconComponent = stepIcons[index] || Check;
 
             return (
@@ -47,18 +50,21 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
                 <motion.div
                   className={`
                     relative w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold
-                    transition-all duration-500 cursor-pointer shadow-lg
+                    transition-all duration-500 ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed'} shadow-lg
                     ${isCompleted 
                       ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-emerald-200' 
                       : isCurrent 
                         ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-blue-200 ring-4 ring-blue-100' 
                         : 'bg-white text-gray-400 border-2 border-gray-200 shadow-gray-100'
                     }
-                    ${onStepClick ? 'hover:scale-110' : ''}
+                    ${isClickable ? 'hover:scale-110' : ''}
                   `}
-                  whileHover={onStepClick ? { scale: 1.1, y: -2 } : {}}
-                  whileTap={onStepClick ? { scale: 0.95 } : {}}
-                  onClick={() => onStepClick && onStepClick(stepNumber)}
+                  whileHover={isClickable ? { scale: 1.1, y: -2 } : {}}
+                  whileTap={isClickable ? { scale: 0.95 } : {}}
+                  onClick={() => {
+                    if (!isClickable) return;
+                    if (onStepClick) onStepClick(stepNumber);
+                  }}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ 

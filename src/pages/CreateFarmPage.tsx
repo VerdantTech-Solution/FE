@@ -106,20 +106,40 @@ export const CreateFarmPage = () => {
   };
 
   const goToStep = (step: number) => {
-    setCurrentStep(step);
+    // Only allow navigating to the next steps if all prior steps are valid
+    if (step === 1) {
+      setCurrentStep(1);
+      return;
+    }
+    if (step === 2 && validateStep(1)) {
+      setCurrentStep(2);
+      return;
+    }
+    if (step === 3 && validateStep(1) && validateStep(2)) {
+      setCurrentStep(3);
+      return;
+    }
+    // otherwise ignore click
   };
 
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
-        // Bước 1: Phải có tọa độ và diện tích từ bản đồ
+        // Bước 1: Bắt buộc có tọa độ và diện tích hợp lệ từ bản đồ
         return !!(form.latitude && form.longitude && form.farmSizeHectares &&
-                 Number(form.latitude) >= -90 && Number(form.latitude) <= 90 &&
-                 Number(form.longitude) >= -180 && Number(form.longitude) <= 180 &&
-                 Number(form.farmSizeHectares) > 0);
+                 !Number.isNaN(Number(form.latitude)) && Number(form.latitude) >= -90 && Number(form.latitude) <= 90 &&
+                 !Number.isNaN(Number(form.longitude)) && Number(form.longitude) >= -180 && Number(form.longitude) <= 180 &&
+                 !Number.isNaN(Number(form.farmSizeHectares)) && Number(form.farmSizeHectares) > 0);
       case 2:
-        // Bước 2: Phải có tên trang trại
-        return !!(form.farmName.trim());
+        // Bước 2: Bắt buộc nhập đầy đủ các trường thông tin
+        return !!(
+          form.farmName.trim() &&
+          form.primaryCrops.trim() &&
+          form.locationAddress.trim() &&
+          form.province.trim() &&
+          form.district.trim() &&
+          form.commune.trim()
+        );
       case 3:
         return true;
       default:
@@ -375,12 +395,13 @@ export const CreateFarmPage = () => {
                 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cây trồng chính
+                    Cây trồng chính <span className="text-red-500">*</span>
                   </label>
                   <Input 
                     value={form.primaryCrops} 
                     onChange={handleChange('primaryCrops')} 
                     placeholder="Lúa, ngô, sắn..." 
+                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     Nhập nhiều loại, phân tách bằng dấu phẩy
@@ -401,13 +422,14 @@ export const CreateFarmPage = () => {
               {/* Detailed Address */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Địa chỉ chi tiết
+                  Địa chỉ chi tiết <span className="text-red-500">*</span>
                 </label>
                 <Input 
                   value={form.locationAddress} 
                   onChange={handleChange('locationAddress')} 
                   placeholder="Số nhà, đường, tên đường..." 
                   className="w-full"
+                  required
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Nhập địa chỉ chi tiết như số nhà, tên đường, tên khu phố...
@@ -676,6 +698,12 @@ export const CreateFarmPage = () => {
               totalSteps={steps.length}
               steps={steps}
               onStepClick={goToStep}
+              canClickStep={(step: number) => {
+                if (step === 1) return true;
+                if (step === 2) return validateStep(1);
+                if (step === 3) return validateStep(1) && validateStep(2);
+                return false;
+              }}
             />
           </div>
         </motion.div>
