@@ -9,6 +9,7 @@ export interface UserResponse {
   role: string;
   avatarUrl?: string;
   status?: string;
+  addresses?: UserAddress[];
   [key: string]: unknown;
 }
 
@@ -18,6 +19,31 @@ export interface UpdateUserRequest {
   phoneNumber?: string;
   avatarUrl?: string | null;
   status?: string;
+}
+
+// Interface cho địa chỉ người dùng
+export interface UserAddress {
+  id?: number;
+  locationAddress: string;
+  province: string;
+  district: string;
+  commune: string;
+  latitude: number;
+  longitude: number;
+  isDeleted: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Interface cho request update address
+export interface UpdateAddressRequest {
+  locationAddress: string;
+  province: string;
+  district: string;
+  commune: string;
+  latitude: number;
+  longitude: number;
+  isDeleted: boolean;
 }
 
 // API lấy thông tin user theo ID
@@ -96,3 +122,30 @@ export const getAllUsers = async (): Promise<UserResponse[]> => {
     throw error;
   }
 };
+
+
+// API cập nhật địa chỉ của user
+export const updateUserAddress = async (addressId: number, addressData: UpdateAddressRequest): Promise<UserAddress> => {
+  try {
+    const response = await apiClient.put(`/api/User/address/${addressId}`, addressData);
+    console.log('Update user address response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Update user address error:', error);
+    throw error;
+  }
+};
+
+// API tạo địa chỉ mới cho user
+export const createUserAddress = async (userId: string, addressData: UpdateAddressRequest): Promise<UserAddress> => {
+  try {
+    const response = await apiClient.post(`/api/User/${userId}/address`, addressData);
+    console.log('Create user address response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Create user address error:', error);
+    throw error;
+  }
+};
+
+

@@ -6,6 +6,7 @@ export { ProtectedRoute } from './ProtectedRoute';
 export { AdminProtectedRoute } from './AdminProtectedRoute';
 export { UserInfo } from './UserInfo';
 export { EditProfileForm } from './EditProfileForm';
+export { MapUserArea } from './MapUserArea';
 export { SimpleRoleRedirect } from './SimpleRoleRedirect';
 export { EmailVerification } from './EmailVerification';
 export { SendVerificationEmail } from './SendVerificationEmail';
