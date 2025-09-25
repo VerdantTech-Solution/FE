@@ -290,10 +290,6 @@ export const AdminPage = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 1.0, duration: 0.3 }}
               >
-                <Button className="bg-green-600 hover:bg-green-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Thêm mới
-                </Button>
               </motion.div>
               
               <motion.div
