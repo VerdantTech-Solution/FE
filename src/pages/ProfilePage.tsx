@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Shield, LogOut, Edit, Key} from "lucide-react";
+import { User, Mail, Phone, Shield, LogOut, Edit, Key, MapPin} from "lucide-react";
 import { useNavigate } from "react-router";
 import { useRequireAuth } from "@/hooks";
 import { useState, useEffect } from "react";
@@ -409,12 +409,16 @@ export const ProfilePage = () => {
                     </div>
                   </motion.div>
                   {/* Address */}
-                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Phone className="h-5 w-5 text-purple-600" />
+                  <motion.div className="space-y-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <MapPin className="h-5 w-5 text-orange-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-500">Địa chỉ</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-500">Địa chỉ</p>
+                    <div className="ml-14">
                       {isAddressLoading ? (
                         <p className="text-sm text-gray-500">Đang tải...</p>
                       ) : (userAddresses && userAddresses.length > 0) ? (
@@ -430,7 +434,7 @@ export const ProfilePage = () => {
                                 {[addr.commune, addr.district, addr.province].filter(Boolean).join(', ') || ((addr.latitude && addr.longitude) ? `${addr.latitude}, ${addr.longitude}` : '')}
                               </p>
                               <div className="mt-2">
-                                <Button size="sm" variant="outline" onClick={() => openEditAddress(addr)}>Cập nhật</Button>
+                                <Button className="bg-green-400 hover:bg-green-500 text-white hover:text-white" variant="outline" onClick={() => openEditAddress(addr)}>Cập nhật</Button>
                               </div>
                             </div>
                           ))}
