@@ -447,9 +447,6 @@ export const UserManamentPage = () => {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center space-x-2">
-                          <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700">
-                            <Eye className="w-4 h-4" />
-                          </Button>
                           <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700">
                             <Edit className="w-4 h-4" />
                           </Button>

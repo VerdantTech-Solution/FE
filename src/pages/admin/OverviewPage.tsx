@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +9,6 @@ import {
   Package, 
   Search,
   Filter,
-  Eye,
-  Edit,
   Trash,
   ArrowUp,
   ArrowDown
@@ -38,6 +35,12 @@ interface OverviewPageProps {
 }
 
 export const OverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPageProps) => {
+  const viewOrder = (orderId: string) => {
+    // Navigate to order detail page
+    console.log(`Navigate to order detail: ${orderId}`);
+    // You can replace this with actual navigation logic
+    // For example: navigate(`/admin/orders/${orderId}`) or window.location.href = `/admin/orders/${orderId}`
+  };
   // Mock data for charts
   const revenueData = [
     { month: 'T1', revenue: 12500000, growth: 12, orders: 45, customers: 23 },
@@ -252,7 +255,7 @@ export const OverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPage
                     dataKey="value"
                     paddingAngle={2}
                   >
-                    {productCategories.map((entry, index) => (
+                    {productCategories.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -331,8 +334,8 @@ export const OverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPage
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <Package className="w-6 h-6 text-green-600" />
                   </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{order.id}</div>
+                  <div className="cursor-pointer hover:bg-gray-100 p-2 rounded-md transition-colors" onClick={() => viewOrder(order.id)}>
+                    <div className="font-medium text-gray-900 hover:text-blue-600">{order.id}</div>
                     <div className="text-sm text-gray-500">{order.customer}</div>
                   </div>
                 </div>
@@ -354,12 +357,6 @@ export const OverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPage
                   <Progress value={order.progress} className="h-2" />
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="p-2">
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="p-2">
-                    <Edit className="w-4 h-4" />
-                  </Button>
                   <Button variant="ghost" size="sm" className="p-2 text-red-600">
                     <Trash className="w-4 h-4" />
                   </Button>

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Search, Trash2, Plus, Download, Upload, Eye, Edit2, Ban } from "lucide-react";
+import { Search, Trash2, Plus, Download, Upload, Edit2, Ban } from "lucide-react";
 
 type Role = "staff" | "admin" | "user" | "all";
 
@@ -48,6 +48,13 @@ export const UserManagementPanel: React.FC = () => {
 
   const remove = (id: string) => {
     setRows((prev) => prev.filter((u) => u.id !== id));
+  };
+
+  const viewUser = (id: string) => {
+    // Navigate to user detail page
+    console.log(`Navigate to user detail: ${id}`);
+    // You can replace this with actual navigation logic
+    // For example: navigate(`/staff/users/${id}`) or window.location.href = `/staff/users/${id}`
   };
 
   return (
@@ -143,8 +150,8 @@ export const UserManagementPanel: React.FC = () => {
               <div className="h-9 w-9 rounded-full bg-gray-200 text-gray-600 grid place-items-center font-semibold">
                 {u.name.split(" ").slice(-1)[0].slice(0,1)}
               </div>
-              <div>
-                <div className="font-medium text-gray-900">{u.name}</div>
+              <div className="cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors" onClick={() => viewUser(u.id)}>
+                <div className="font-medium text-gray-900 hover:text-blue-600">{u.name}</div>
                 <div className="text-xs text-gray-500">ID: USR{String(u.id).padStart(3,'0')}</div>
               </div>
             </div>
@@ -163,7 +170,6 @@ export const UserManagementPanel: React.FC = () => {
             </div>
             <div className="col-span-2 text-right">
               <div className="inline-flex items-center gap-2">
-                <Button size="icon" variant="ghost" className="h-8 w-8" title="Xem"><Eye className="w-4 h-4" /></Button>
                 <Button size="icon" variant="ghost" className="h-8 w-8" title="Chỉnh sửa" onClick={() => promote(u.id)}><Edit2 className="w-4 h-4" /></Button>
                 <Button size="icon" variant="ghost" className="h-8 w-8" title={u.status === "active" ? "Chặn" : "Bỏ chặn"} onClick={() => banToggle(u.id)}><Ban className="w-4 h-4" /></Button>
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" title="Xóa" onClick={() => remove(u.id)}><Trash2 className="w-4 h-4" /></Button>
