@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
   Eye,
   User,
   Mail,
@@ -17,9 +17,12 @@ import {
   Shield,
   Activity,
   MoreHorizontal,
-  RefreshCw
+  RefreshCw,
+  UserPlus
 } from "lucide-react";
 import { getAllUsers } from "@/api/user";
+import { signUpUser } from "@/api/auth";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { UserResponse } from "@/api/user";
 
 export const UserManamentPage = () => {
@@ -32,67 +35,147 @@ export const UserManamentPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(3);
 
-  // Fetch users from API
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const usersData = await getAllUsers();
-        
-        // Debug log để kiểm tra dữ liệu
-        console.log('Users data received:', usersData);
-        console.log('Type of usersData:', typeof usersData);
-        console.log('Is Array:', Array.isArray(usersData));
-        
-        if (Array.isArray(usersData)) {
-          setUsers(usersData);
-        } else {
-          console.error('Expected array but got:', typeof usersData, usersData);
-          
-          // Fallback: sử dụng dữ liệu mẫu nếu API trả về sai định dạng
-          const fallbackUsers: UserResponse[] = [
-            {
-              id: "1",
-              fullName: "Nguyễn Văn A",
-              email: "nguyenvana@example.com",
-              phoneNumber: "0123456789",
-              role: "Admin",
-              status: "active"
-            },
-            {
-              id: "2", 
-              fullName: "Trần Thị B",
-              email: "tranthib@example.com",
-              phoneNumber: "0987654321",
-              role: "customer",
-              status: "active"
-            }
-          ];
-          
-          setUsers(fallbackUsers);
-          console.warn('Using fallback data due to unexpected API response format');
-        }
-              } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
-          setError(`Không thể tải danh sách người dùng: ${errorMessage}. Vui lòng thử lại sau.`);
-          console.error('Error fetching users:', err);
-        } finally {
-        setLoading(false);
-      }
-    };
+  // Create user dialog states
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [newFullName, setNewFullName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newRole, setNewRole] = useState<'customer' | 'staff' | 'vendor' | 'admin'>('customer');
 
-    fetchUsers();
+  // Edit user dialog states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'inactive' | 'suspended' | 'deleted'>('active');
+
+  // Fetch users from API
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const usersData = await getAllUsers();
+
+      // Debug log để kiểm tra dữ liệu
+      console.log('Users data received:', usersData);
+      console.log('Type of usersData:', typeof usersData);
+      console.log('Is Array:', Array.isArray(usersData));
+
+      if (Array.isArray(usersData)) {
+        setUsers(usersData);
+      } else {
+        console.error('Expected array but got:', typeof usersData, usersData);
+
+        // Fallback: sử dụng dữ liệu mẫu nếu API trả về sai định dạng
+        const fallbackUsers: UserResponse[] = [
+          {
+            id: "1",
+            fullName: "Nguyễn Văn A",
+            email: "nguyenvana@example.com",
+            phoneNumber: "0123456789",
+            role: "Admin",
+            status: "active"
+          },
+          {
+            id: "2",
+            fullName: "Trần Thị B",
+            email: "tranthib@example.com",
+            phoneNumber: "0987654321",
+            role: "customer",
+            status: "active"
+          }
+        ];
+
+        setUsers(fallbackUsers);
+        console.warn('Using fallback data due to unexpected API response format');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
+      setError(`Không thể tải danh sách người dùng: ${errorMessage}. Vui lòng thử lại sau.`);
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleCreateUser = async () => {
+    try {
+      setCreateError(null);
+      setCreateLoading(true);
+      await signUpUser({
+        email: newEmail,
+        password: newPassword,
+        fullName: newFullName,
+        phoneNumber: newPhone,
+        role: newRole
+      });
+      setIsCreateOpen(false);
+      setNewEmail('');
+      setNewPassword('');
+      setNewFullName('');
+      setNewPhone('');
+      setNewRole('customer');
+      await fetchUsers();
+      window.alert('Tạo người dùng thành công');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Tạo người dùng thất bại';
+      setCreateError(message);
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const openEditDialog = (user: UserResponse) => {
+    setEditError(null);
+    setEditUserId(user.id);
+    setEditFullName(user.fullName || '');
+    setEditPhone(user.phoneNumber || '');
+    setEditAvatarUrl((user.avatarUrl as string) || '');
+    setEditStatus((user.status?.toLowerCase() as 'active' | 'inactive' | 'suspended' | 'deleted') || 'active');
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editUserId) return;
+    try {
+      setEditError(null);
+      setEditLoading(true);
+      const { updateUser } = await import('@/api/user');
+      await updateUser(editUserId, {
+        fullName: editFullName,
+        phoneNumber: editPhone,
+        avatarUrl: editAvatarUrl || null,
+        status: editStatus
+      });
+      setIsEditOpen(false);
+      await fetchUsers();
+      window.alert('Cập nhật người dùng thành công');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Cập nhật người dùng thất bại';
+      setEditError(message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   // Lọc users
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (user.phoneNumber && user.phoneNumber.includes(searchTerm));
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.phoneNumber && user.phoneNumber.includes(searchTerm));
     const matchesRole = selectedRole === 'all' || user.role === selectedRole;
     const matchesStatus = selectedStatus === 'all' || (user.status && user.status === selectedStatus);
-    
+
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -125,13 +208,15 @@ export const UserManamentPage = () => {
 
   const getStatusColor = (status: string) => {
     if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
-    
+
     switch (status.toLowerCase()) {
       case 'active':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'inactive':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'suspended':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'deleted':
         return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -140,13 +225,15 @@ export const UserManamentPage = () => {
 
   const getStatusIcon = (status: string) => {
     if (!status) return '⚪';
-    
+
     switch (status.toLowerCase()) {
       case 'active':
         return '🟢';
       case 'inactive':
-        return '⚪';
+        return '🟠';
       case 'suspended':
+        return '🟡';
+      case 'deleted':
         return '🔴';
       default:
         return '⚪';
@@ -173,8 +260,8 @@ export const UserManamentPage = () => {
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h3 className="text-xl font-medium text-gray-900 mb-2">Đã xảy ra lỗi</h3>
           <p className="text-gray-500 mb-6">{error}</p>
-          <Button 
-            onClick={() => window.location.reload()} 
+          <Button
+            onClick={() => window.location.reload()}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Thử lại
@@ -197,17 +284,73 @@ export const UserManamentPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý người dùng</h1>
           <p className="text-gray-600 mt-1">Quản lý tài khoản và quyền truy cập của người dùng</p>
         </div>
-        <Button 
-          onClick={() => {
-            setCurrentPage(1);
-            window.location.reload();
-          }}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Làm mới
-        </Button>
+        <div className="flex items-center gap-2">
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Thêm người dùng
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Thêm người dùng mới</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Họ và tên</label>
+                  <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Email</label>
+                  <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="user@example.com" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Mật khẩu</label>
+                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Số điện thoại</label>
+                  <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+84540170197" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Vai trò</label>
+                  <Select value={newRole} onValueChange={(v) => setNewRole(v as 'customer' | 'staff' | 'vendor' | 'admin')}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn vai trò" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customer">customer</SelectItem>
+                      <SelectItem value="staff">staff</SelectItem>
+                      <SelectItem value="vendor">vendor</SelectItem>
+                      <SelectItem value="admin">admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {createError && (
+                <p className="text-sm text-red-600">{createError}</p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={createLoading}>Hủy</Button>
+                <Button onClick={handleCreateUser} disabled={createLoading || !newEmail || !newPassword || !newFullName}>
+                  {createLoading ? 'Đang tạo...' : 'Tạo mới'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button
+            onClick={() => {
+              setCurrentPage(1);
+              window.location.reload();
+            }}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Làm mới
+          </Button>
+        </div>
       </motion.div>
 
       {/* Stats Cards */}
@@ -333,14 +476,14 @@ export const UserManamentPage = () => {
                     <SelectItem value="all">Tất cả trạng thái</SelectItem>
                     <SelectItem value="active">Hoạt động</SelectItem>
                     <SelectItem value="inactive">Không hoạt động</SelectItem>
-                    <SelectItem value="suspended">Tạm khóa</SelectItem>
+
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex items-end">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setSearchTerm('');
                     setSelectedRole('all');
@@ -447,7 +590,7 @@ export const UserManamentPage = () => {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center space-x-2">
-                          <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700">
+                          <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={() => openEditDialog(user)}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
@@ -470,8 +613,8 @@ export const UserManamentPage = () => {
                 <Users className="w-20 h-20 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-medium text-gray-900 mb-2">Không tìm thấy người dùng</h3>
                 <p className="text-gray-500 mb-6">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setSearchTerm('');
                     setSelectedRole('all');
@@ -498,7 +641,7 @@ export const UserManamentPage = () => {
                   >
                     Trước
                   </Button>
-                  
+
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <Button
                       key={page}
@@ -510,7 +653,7 @@ export const UserManamentPage = () => {
                       {page}
                     </Button>
                   ))}
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -525,6 +668,52 @@ export const UserManamentPage = () => {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cập nhật người dùng</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Họ và tên</label>
+              <Input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Số điện thoại</label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="0123456789" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Avatar URL</label>
+              <Input value={editAvatarUrl} onChange={(e) => setEditAvatarUrl(e.target.value)} placeholder="https://..." />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Trạng thái</label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as 'active' | 'inactive' | 'suspended' | 'deleted')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="deleted">Deleted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {editError && (
+            <p className="text-sm text-red-600">{editError}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={editLoading}>Hủy</Button>
+            <Button onClick={handleUpdateUser} disabled={editLoading || !editUserId || !editFullName}>
+              {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
