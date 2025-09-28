@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit } from "lucide-react";
 import { FarmWeather } from "@/components/FarmWeather";
-import { CurrentFarmWeather, HourlyFarmWeather } from "@/components";
+import { CurrentFarmWeather } from "@/components";
 import { FarmAISuggestions } from "@/components/FarmAISuggestions";
+import CO2Info from "@/components/CO2Info";
 import { getFarmProfileById, type FarmProfile } from "@/api/farm";
 
 // UI phần thời tiết và gợi ý AI đã được tách sang components riêng
@@ -16,8 +17,8 @@ const FarmDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [farm, setFarm] = useState<FarmProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setLoading] = useState<boolean>(true);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,6 +59,7 @@ const FarmDetailPage = () => {
         <TabsList>
           <TabsTrigger value="weather">Dự báo thời tiết</TabsTrigger>
           <TabsTrigger value="ai">AI Gợi ý</TabsTrigger>
+          <TabsTrigger value="CO2">Thông Tin CO2</TabsTrigger>
         </TabsList>
         <TabsContent value="weather">
           {id ? <FarmWeather farmId={Number(id)} /> : null}
@@ -65,6 +67,10 @@ const FarmDetailPage = () => {
 
         <TabsContent value="ai">
           <FarmAISuggestions />
+        </TabsContent>
+
+        <TabsContent value="CO2">
+          <CO2Info />
         </TabsContent>
       </Tabs>
 

@@ -13,4 +13,10 @@ export const PATH_NAMES = {
   CREATE_FARM: '/create-farm',
   UPDATE_FARM: '/update-farm',
   FARM_DETAIL: '/farm-detail',
+  // Vendor routes
+  VENDOR_DASHBOARD: '/vendor/dashboard',
+  VENDOR_PRODUCTS: '/vendor/products',
+  VENDOR_REGISTRATIONS: '/vendor/registrations',
+  VENDOR_WALLET: '/vendor/wallet',
+  VENDOR_INFO: '/vendor/info',
 };

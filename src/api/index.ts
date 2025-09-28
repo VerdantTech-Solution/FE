@@ -13,5 +13,8 @@ export * from './address';
 // Export weather API
 export * from './weather';
 
+// Export product API
+export * from './product';
+
 // Export apiClient
 export { apiClient } from './apiClient';

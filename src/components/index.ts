@@ -18,3 +18,4 @@ export { default as StepIndicator } from './StepIndicator';
 export { default as AddressSelector } from './AddressSelector';
 export { default as CurrentFarmWeather } from './CurrentFarmWeather';
 export { default as HourlyFarmWeather } from './HourlyFarmWeather';
+export { default as CreateProductForm } from './CreateProductForm';
