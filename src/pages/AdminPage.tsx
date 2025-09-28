@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,8 +24,7 @@ import {
   Settings,
   BarChart,
   Target,
-  Activity,
-  Plus
+  Activity
 } from "lucide-react";
 
 // Import admin pages
@@ -33,10 +32,9 @@ import {
   OverviewPage, 
   AnalyticsPage, 
   EquipmentPage, 
-  MonitoringPage, 
+  MonitoringPageAdmin, 
   SettingsPage, 
   UserManamentPage
-
 } from "./admin";
 
 export const AdminPage = () => {
@@ -376,7 +374,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <MonitoringPage />
+                <MonitoringPageAdmin />
               </motion.div>
             )}
             {selectedView === 'settings' && (

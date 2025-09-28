@@ -1,6 +1,6 @@
 export * from './OverviewPage';
 export * from './AnalyticsPage';
 export * from './EquipmentPage';
-export * from './MonitoringPage';
+export { default as MonitoringPageAdmin } from './MonitoringPageAdmin';
 export * from './SettingsPage';
 export * from './UserManamentPage';
