@@ -26,6 +26,7 @@ export * from './MapAreaPage';
 export * from './CreateFarmPage';
 export * from './UpdateFarmPage';
 export * from './FarmDetailPage';
+export * from './vendor';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';

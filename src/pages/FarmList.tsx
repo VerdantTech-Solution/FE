@@ -300,7 +300,7 @@ export const FarmList = () => {
                <thead className="bg-gray-50">
                  <tr>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-16">Hình</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/4">Tên trang trại</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/8">Tên trang trại</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Loại</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/3">Địa điểm</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-24">Diện tích</th>
@@ -355,7 +355,7 @@ export const FarmList = () => {
                              className="gap-1 text-xs px-2 py-1 h-7"
                              onClick={() => navigate(`/farm-detail/${farm.id}`)}
                            >
-                             <Eye className="h-3 w-3" />
+                           <p>Thời tiết & AI</p>
                            </Button>
                          </motion.div>
                          <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
