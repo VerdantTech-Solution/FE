@@ -7,6 +7,17 @@ export interface CreateProductCategoryRequest {
   iconUrl: string | null;
 }
 
+export interface UpdateProductCategoryRequest extends CreateProductCategoryRequest {
+  isActive: boolean;
+}
+
+export interface ResponseWrapper<T> {
+  status: boolean;
+  statusCode: number;
+  data: T;
+  errors?: string[];
+}
+
 export interface ProductCategory {
   id: number;
   name: string;
@@ -55,7 +66,10 @@ export const getProductCategoryById = async (id: number): Promise<ProductCategor
 };
 
 // API cập nhật danh mục sản phẩm
-export const updateProductCategory = async (id: number, data: Partial<CreateProductCategoryRequest>): Promise<ProductCategory> => {
+export const updateProductCategory = async (
+  id: number,
+  data: Partial<UpdateProductCategoryRequest>
+): Promise<ResponseWrapper<ProductCategory>> => {
   try {
     const response = await apiClient.put(`/api/ProductCategory/${id}`, data);
     console.log('Update product category response:', response.data);
