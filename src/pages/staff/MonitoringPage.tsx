@@ -1,240 +1,461 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Activity, Server, Database, HardDrive, Wifi, Shield, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, X, Search, Edit, Eye, Trash2, Bell } from "lucide-react";
+import { getProductCategories, createProductCategory, updateProductCategory } from "@/api/product";
+import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
 
-export const MonitoringPage = () => {
-  const systemMetrics = [
-    { name: 'CPU Usage', value: 65, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    { name: 'Memory', value: 78, color: 'text-purple-600', bgColor: 'bg-purple-50' },
-    { name: 'Storage', value: 45, color: 'text-green-600', bgColor: 'bg-green-50' },
-    { name: 'Network', value: 32, color: 'text-orange-600', bgColor: 'bg-orange-50' },
-  ];
+export const MonitoringPage: React.FC = () => {
+  const [monitoringItems, setMonitoringItems] = useState<ProductCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const serviceStatus = [
-    { name: 'Database', status: 'online', icon: Database, color: 'text-green-600' },
-    { name: 'API Server', status: 'online', icon: Server, color: 'text-green-600' },
-    { name: 'File Storage', status: 'warning', icon: HardDrive, color: 'text-yellow-600' },
-    { name: 'Web Server', status: 'online', icon: Wifi, color: 'text-green-600' },
-    { name: 'Security Service', status: 'online', icon: Shield, color: 'text-green-600' },
-  ];
+  // Create form states
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+  const [isCreateLoading, setIsCreateLoading] = useState(false);
+  const [parentCategories, setParentCategories] = useState<ProductCategory[]>([]);
+  const [formData, setFormData] = useState<CreateProductCategoryRequest>({
+    name: '',
+    parentId: null,
+    description: '',
+    iconUrl: ''
+  });
 
-  const alerts = [
-    { type: 'warning', message: 'File storage đang gần đầy (85%)', time: '2 phút trước' },
-    { type: 'info', message: 'Backup database hoàn thành', time: '15 phút trước' },
-    { type: 'success', message: 'Cập nhật hệ thống thành công', time: '1 giờ trước' },
-  ];
+  // Edit form states
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [isEditLoading, setIsEditLoading] = useState(false);
+  const [editItemId, setEditItemId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<UpdateProductCategoryRequest>({
+    name: '',
+    parentId: null,
+    description: '',
+    iconUrl: '',
+    isActive: true,
+  });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'bg-green-500';
-      case 'warning':
-        return 'bg-yellow-500';
-      case 'offline':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
+  const fetchMonitoringItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getProductCategories();
+      setMonitoringItems(data);
+    } catch (err: any) {
+      setError(err?.message || 'Có lỗi xảy ra khi tải danh sách thiết bị giám sát');
+      console.error('Error fetching monitoring items:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getAlertColor = (type: string) => {
-    switch (type) {
-      case 'warning':
-        return 'border-yellow-200 bg-yellow-50';
-      case 'info':
-        return 'border-blue-200 bg-blue-50';
-      case 'success':
-        return 'border-green-200 bg-green-50';
-      case 'error':
-        return 'border-red-200 bg-red-50';
-      default:
-        return 'border-gray-200 bg-gray-50';
+  const handleMonitoringCreated = () => {
+    fetchMonitoringItems();
+    setCurrentPage(1);
+  };
+
+  const handleDeactivateAndRemove = async (id: number, name: string) => {
+    if (deletingId != null) return;
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa danh mục "${name}"?\nHành động này sẽ đặt trạng thái thành không hoạt động và ẩn khỏi danh sách.`);
+    if (!confirmed) return;
+    setDeletingId(id);
+    // Optimistic remove: xóa khỏi UI ngay lập tức
+    const previousItems = monitoringItems;
+    setMonitoringItems(prev => prev.filter(item => item.id !== id));
+    try {
+      await updateProductCategory(id, { isActive: false });
+      // Tùy chọn: đồng bộ lại danh sách ở nền (không chặn UI)
+      fetchMonitoringItems().catch(() => {});
+    } catch (err: any) {
+      // Rollback nếu lỗi
+      setMonitoringItems(previousItems);
+      const errorMessage = err?.response?.data?.errors?.join(', ') || err?.message || 'Có lỗi xảy ra khi xóa danh mục';
+      alert(`Lỗi: ${errorMessage}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
-      case 'info':
-        return <Activity className="w-5 h-5 text-blue-600" />;
-      case 'success':
-        return <Activity className="w-5 h-5 text-green-600" />;
-      case 'error':
-        return <AlertTriangle className="w-5 h-5 text-red-600" />;
-      default:
-        return <Activity className="w-5 h-5 text-gray-600" />;
+  const handleInputChange = (field: keyof CreateProductCategoryRequest, value: string | number | null) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) { alert('Vui lòng nhập tên thiết bị giám sát'); return; }
+    if (!formData.description.trim()) { alert('Vui lòng nhập mô tả thiết bị'); return; }
+    setIsCreateLoading(true);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        parentId: formData.parentId,
+        description: formData.description.trim(),
+        iconUrl: formData.iconUrl?.trim() || null
+      };
+      const result = await createProductCategory(payload);
+      alert(`Tạo thiết bị giám sát "${result.name}" thành công!`);
+      setFormData({ name: '', parentId: null, description: '', iconUrl: '' });
+      setIsCreateFormOpen(false);
+      handleMonitoringCreated();
+    } catch (error: any) {
+      console.error('Lỗi khi tạo thiết bị giám sát:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi tạo thiết bị giám sát';
+      alert(`Lỗi: ${errorMessage}`);
+    } finally {
+      setIsCreateLoading(false);
     }
   };
+
+  const openEditDialog = async (item: ProductCategory) => {
+    setEditItemId(item.id);
+    setEditData({
+      name: item.name,
+      parentId: item.parent?.id ?? null,
+      description: item.description,
+      iconUrl: item.iconUrl || '',
+      isActive: item.isActive,
+    });
+    try { const categories = await getProductCategories(); setParentCategories(categories); } catch {}
+    setIsEditFormOpen(true);
+  };
+
+  const handleEditInputChange = (field: keyof UpdateProductCategoryRequest, value: string | number | boolean | null) => {
+    setEditData(prev => ({ ...prev, [field]: value as never }));
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editItemId == null) return;
+    if (!editData.name.trim()) { alert('Vui lòng nhập tên danh mục'); return; }
+    if (!editData.description.trim()) { alert('Vui lòng nhập mô tả'); return; }
+    setIsEditLoading(true);
+    try {
+      const payload: Partial<UpdateProductCategoryRequest> = {
+        name: editData.name.trim(),
+        parentId: editData.parentId,
+        description: editData.description.trim(),
+        iconUrl: editData.iconUrl?.trim() || null,
+        isActive: editData.isActive,
+      };
+      const res: ResponseWrapper<ProductCategory> = await updateProductCategory(editItemId, payload);
+      if (!res.status) { throw new Error(res.errors?.join(', ') || 'Cập nhật thất bại'); }
+      alert(`Cập nhật danh mục "${res.data.name}" thành công!`);
+      setIsEditFormOpen(false);
+      setEditItemId(null);
+      await fetchMonitoringItems();
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.errors?.join(', ') || err?.message || 'Có lỗi xảy ra khi cập nhật danh mục';
+      alert(`Lỗi: ${errorMessage}`);
+    } finally {
+      setIsEditLoading(false);
+    }
+  };
+
+  // pagination
+  const totalPages = Math.ceil(monitoringItems.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = monitoringItems.slice(startIndex, endIndex);
+  const handlePageChange = (page: number) => setCurrentPage(page);
+
+  useEffect(() => { fetchMonitoringItems(); }, []);
+  useEffect(() => {
+    const fetchParentCategories = async () => {
+      try { const categories = await getProductCategories(); setParentCategories(categories); } catch (error) { console.error('Error fetching parent categories:', error); }
+    };
+    if (isCreateFormOpen) { fetchParentCategories(); }
+  }, [isCreateFormOpen]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Giám sát hệ thống</h2>
-        <p className="text-gray-600">Theo dõi hiệu suất và trạng thái hệ thống VerdantTech</p>
-      </div>
-
-      {/* System Performance */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Hiệu suất hệ thống</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="font-medium text-gray-900">Tài nguyên hệ thống</h3>
-              <div className="space-y-3">
-                {systemMetrics.map((metric, index) => (
-                  <div key={index}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{metric.name}</span>
-                      <span className="font-medium">{metric.value}%</span>
-                    </div>
-                    <Progress value={metric.value} className="h-2" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Giám sát</h1>
+          <p className="text-gray-600">Quản lý thiết bị giám sát hệ thống</p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Dialog open={isCreateFormOpen} onOpenChange={setIsCreateFormOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus size={20} className="mr-2" />
+                Thêm thiết bị giám sát
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-semibold">Tạo thiết bị giám sát mới</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-sm font-medium">Tên thiết bị <span className="text-red-500">*</span></Label>
+                    <Input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Nhập tên thiết bị giám sát" required disabled={isCreateLoading} />
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-4">
-              <h3 className="font-medium text-gray-900">Trạng thái dịch vụ</h3>
-              <div className="space-y-3">
-                {serviceStatus.map((service, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${getStatusColor(service.status)}`}></div>
-                    <service.icon className={`w-5 h-5 ${service.color}`} />
-                    <span className="text-sm">{service.name}</span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      service.status === 'online' ? 'bg-green-100 text-green-800' :
-                      service.status === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {service.status === 'online' ? 'Hoạt động' :
-                       service.status === 'warning' ? 'Cảnh báo' :
-                       'Không hoạt động'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Real-time Monitoring */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Giám sát thời gian thực</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Thời gian hoạt động</span>
-                <span className="font-medium text-green-600">99.8%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Phản hồi trung bình</span>
-                <span className="font-medium text-blue-600">45ms</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Yêu cầu/giây</span>
-                <span className="font-medium text-purple-600">1,234</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Lỗi/giờ</span>
-                <span className="font-medium text-orange-600">0.2</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Bảo mật hệ thống</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Firewall</span>
-                <span className="text-green-600">✓ Hoạt động</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">SSL Certificate</span>
-                <span className="text-green-600">✓ Hợp lệ</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Backup</span>
-                <span className="text-green-600">✓ Hoàn thành</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Virus Scan</span>
-                <span className="text-green-600">✓ Sạch</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* System Alerts */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Cảnh báo hệ thống</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {alerts.map((alert, index) => (
-              <div key={index} className={`p-4 rounded-lg border ${getAlertColor(alert.type)}`}>
-                <div className="flex items-center gap-3">
-                  {getAlertIcon(alert.type)}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{alert.message}</p>
-                    <p className="text-xs text-gray-500">{alert.time}</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="parentId" className="text-sm font-medium">Danh mục cha</Label>
+                    <Select value={formData.parentId?.toString() || 'null'} onValueChange={(value) => handleInputChange('parentId', value === 'null' ? null : parseInt(value))} disabled={isCreateLoading}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn danh mục cha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="null">Không có danh mục cha</SelectItem>
+                        {parentCategories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-medium">Mô tả <span className="text-red-500">*</span></Label>
+                  <Textarea id="description" value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} placeholder="Nhập mô tả chi tiết về thiết bị giám sát" rows={4} required disabled={isCreateLoading} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="iconUrl" className="text-sm font-medium">URL Icon</Label>
+                  <Input id="iconUrl" type="url" value={formData.iconUrl || ''} onChange={(e) => handleInputChange('iconUrl', e.target.value)} placeholder="https://example.com/icon.png" disabled={isCreateLoading} />
+                  <p className="text-xs text-gray-500">Đường dẫn đến hình ảnh icon cho thiết bị giám sát</p>
+                </div>
+                {formData.iconUrl && formData.iconUrl.trim() && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Xem trước Icon</Label>
+                    <div className="w-16 h-16 border border-gray-200 rounded-lg overflow-hidden">
+                      <img src={formData.iconUrl} alt="Icon preview" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <Button type="button" variant="outline" onClick={() => setIsCreateFormOpen(false)} disabled={isCreateLoading}><X size={16} className="mr-2" />Hủy</Button>
+                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isCreateLoading}>{isCreateLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Đang tạo...</>) : (<><Plus size={16} className="mr-2" />Tạo thiết bị</>)}</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+          <Button variant="ghost" size="sm" className="p-2"><Bell size={20} /></Button>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600">{error}</p>
+          <Button onClick={fetchMonitoringItems} className="mt-2 bg-red-600 hover:bg-red-700" size="sm">Thử lại</Button>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[{ label: "Tổng thiết bị", value: monitoringItems.length.toString(), icon: "📡", color: "bg-blue-50 text-blue-600" }, { label: "Đang hoạt động", value: monitoringItems.filter(item => item.isActive).length.toString(), icon: "✓", color: "bg-green-50 text-green-600" }, { label: "Không hoạt động", value: monitoringItems.filter(item => !item.isActive).length.toString(), icon: "✗", color: "bg-red-50 text-red-600" }, { label: "Có danh mục cha", value: monitoringItems.filter(item => item.parent).length.toString(), icon: "🔗", color: "bg-purple-50 text-purple-600" }].map((stat, index) => (
+          <Card key={index} className="border border-gray-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-lg ${stat.color} flex items-center justify-center`}>
+                  <span className="text-xl">{stat.icon}</span>
+                </div>
               </div>
-            ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Select>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Tất cả trạng thái" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả trạng thái</SelectItem>
+            <SelectItem value="active">Hoạt động</SelectItem>
+            <SelectItem value="inactive">Không hoạt động</SelectItem>
+            <SelectItem value="maintenance">Bảo trì</SelectItem>
+            <SelectItem value="error">Có lỗi</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Tất cả loại thiết bị" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả loại</SelectItem>
+            <SelectItem value="sensor">Cảm biến</SelectItem>
+            <SelectItem value="camera">Camera</SelectItem>
+            <SelectItem value="weather">Thời tiết</SelectItem>
+            <SelectItem value="irrigation">Tưới tiêu</SelectItem>
+            <SelectItem value="security">An ninh</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex-1 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Input placeholder="Tìm kiếm thiết bị..." className="pl-10" />
           </div>
+          <Button className="px-6"><Search size={20} /></Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Danh sách thiết bị giám sát</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-2 text-gray-600">Đang tải...</span>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Tên thiết bị</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Slug</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Danh mục cha</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Trạng thái</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Ngày tạo</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentItems.map((item) => (
+                      <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-3">
+                            {item.iconUrl && (
+                              <img src={item.iconUrl} alt={item.name} className="w-8 h-8 rounded object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            )}
+                            <div>
+                              <p className="font-medium text-gray-900">{item.name}</p>
+                              <p className="text-sm text-gray-500">{item.description}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600">{item.slug}</td>
+                        <td className="py-4 px-4 text-gray-600">{item.parent ? (<span className="text-blue-600">{item.parent.name}</span>) : (<span className="text-gray-400">Không có</span>)}</td>
+                        <td className="py-4 px-4">
+                          <Badge className={`${item.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} border-0`}>
+                            <span className="mr-1">{item.isActive ? '✓' : '✗'}</span>
+                            {item.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-2">
+                            <Button variant="ghost" size="sm" className="p-2" onClick={() => openEditDialog(item)}><Edit size={16} /></Button>
+                            <Button variant="ghost" size="sm" className="p-2" disabled={deletingId === item.id}><Eye size={16} /></Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="p-2 text-red-600 hover:text-red-700"
+                              disabled={deletingId === item.id}
+                              onClick={() => handleDeactivateAndRemove(item.id, item.name)}
+                            >
+                              {deletingId === item.id ? (
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 size={16} />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600">Hiển thị {monitoringItems.length > 0 ? `${startIndex + 1}-${Math.min(endIndex, monitoringItems.length)}` : '0'} trong tổng số {monitoringItems.length} thiết bị giám sát</p>
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>Trước</Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button key={page} variant={currentPage === page ? "default" : "outline"} size="sm" onClick={() => handlePageChange(page)} className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : ""}>{page}</Button>
+                    ))}
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>Sau</Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Network Status */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Trạng thái mạng</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Wifi className="w-8 h-8 text-green-600" />
+      {/* Edit Dialog */}
+      <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Cập nhật danh mục</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name" className="text-sm font-medium">Tên danh mục <span className="text-red-500">*</span></Label>
+                <Input id="edit-name" value={editData.name} onChange={(e) => handleEditInputChange('name', e.target.value)} disabled={isEditLoading} required />
               </div>
-              <h3 className="font-medium text-gray-900">Kết nối mạng</h3>
-              <p className="text-sm text-gray-600">Ổn định</p>
-              <p className="text-lg font-bold text-green-600">100%</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Server className="w-8 h-8 text-blue-600" />
+              <div className="space-y-2">
+                <Label htmlFor="edit-parent" className="text-sm font-medium">Danh mục cha</Label>
+                <Select value={editData.parentId == null ? 'null' : String(editData.parentId)} onValueChange={(v) => handleEditInputChange('parentId', v === 'null' ? null : parseInt(v))} disabled={isEditLoading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn danh mục cha" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="null">Không có danh mục cha</SelectItem>
+                    {parentCategories.map((category) => (
+                      <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <h3 className="font-medium text-gray-900">Server</h3>
-              <p className="text-sm text-gray-600">Hoạt động</p>
-              <p className="text-lg font-bold text-blue-600">99.9%</p>
             </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Database className="w-8 h-8 text-purple-600" />
+            <div className="space-y-2">
+              <Label htmlFor="edit-description" className="text-sm font-medium">Mô tả <span className="text-red-500">*</span></Label>
+              <Textarea id="edit-description" value={editData.description} onChange={(e) => handleEditInputChange('description', e.target.value)} rows={4} disabled={isEditLoading} required />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-icon" className="text-sm font-medium">URL Icon</Label>
+                <Input id="edit-icon" type="url" value={editData.iconUrl || ''} onChange={(e) => handleEditInputChange('iconUrl', e.target.value)} placeholder="https://example.com/icon.png" disabled={isEditLoading} />
               </div>
-              <h3 className="font-medium text-gray-900">Database</h3>
-              <p className="text-sm text-gray-600">Bình thường</p>
-              <p className="text-lg font-bold text-purple-600">98.5%</p>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Trạng thái</Label>
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant={editData.isActive ? 'default' : 'outline'} onClick={() => handleEditInputChange('isActive', true)} disabled={isEditLoading} className={editData.isActive ? 'bg-green-600 hover:bg-green-700' : ''}>Hoạt động</Button>
+                  <Button type="button" variant={!editData.isActive ? 'default' : 'outline'} onClick={() => handleEditInputChange('isActive', false)} disabled={isEditLoading} className={!editData.isActive ? 'bg-gray-600 hover:bg-gray-700' : ''}>Không hoạt động</Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            {editData.iconUrl && editData.iconUrl.trim() && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Xem trước Icon</Label>
+                <div className="w-16 h-16 border border-gray-200 rounded-lg overflow-hidden">
+                  <img src={editData.iconUrl} alt="Icon preview" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <Button type="button" variant="outline" onClick={() => setIsEditFormOpen(false)} disabled={isEditLoading}><X size={16} className="mr-2" />Hủy</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isEditLoading}>{isEditLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Đang cập nhật...</>) : (<><Edit size={16} className="mr-2" />Cập nhật</>)}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
