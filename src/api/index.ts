@@ -18,3 +18,6 @@ export * from './product';
 
 // Export apiClient
 export { apiClient } from './apiClient';
+
+// Export CO2 API
+export * from './co2';
