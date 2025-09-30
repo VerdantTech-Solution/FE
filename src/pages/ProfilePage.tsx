@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { User, Mail, Phone, Shield, LogOut, Edit, Key} from "lucide-react";
 import { useNavigate } from "react-router";
-import { useRequireAuth } from "@/hooks";
 import { useState, useEffect } from "react";
 import { getUserProfile, createUserAddress, updateUserAddress, type UserAddress } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
@@ -57,9 +56,10 @@ function SearchAddress({ value, onChange, onPick }: { value: string; onChange: (
 
 
 export const ProfilePage = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
-  const { loading: authLoading } = useRequireAuth();
+  
+  console.log('ProfilePage render:', { user: !!user, isAuthenticated, loading });
   const [isEditing, setIsEditing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
   const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
@@ -222,7 +222,7 @@ export const ProfilePage = () => {
   };
 
   // Hiển thị loading nếu đang kiểm tra authentication
-  if (authLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
         <div className="text-center">
@@ -253,8 +253,10 @@ export const ProfilePage = () => {
     );
   }
 
-  // Nếu không có user, component sẽ tự động redirect về login
-  if (!user) {
+  // Nếu không có user hoặc chưa authenticated, redirect về login
+  if (!user || !isAuthenticated) {
+    console.log('ProfilePage: No user or not authenticated, redirecting to login');
+    navigate('/login', { replace: true });
     return null;
   }
 
