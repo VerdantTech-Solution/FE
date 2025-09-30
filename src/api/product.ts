@@ -182,7 +182,8 @@ export const getProductById = async (id: number): Promise<Product> => {
   try {
     const response = await apiClient.get(`/api/Product/${id}`);
     console.log('Get product by ID response:', response.data);
-    return response.data;
+    // API trả về cấu trúc { status, statusCode, data, errors }
+    return response.data.data;
   } catch (error) {
     console.error('Get product by ID error:', error);
     throw error;

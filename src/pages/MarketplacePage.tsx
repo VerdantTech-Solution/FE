@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +66,8 @@ const searchVariants = {
   }
 };
 
-const MarketplacePage = () => {
+export const MarketplacePage = () => {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageLoading, setPageLoading] = useState(true);
@@ -320,7 +322,10 @@ const MarketplacePage = () => {
                   whileHover="hover"
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
+                  <Card 
+                    className="group hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
+                    onClick={() => navigate(`/product/${product.id}`)}
+                  >
                     <div className="relative">
                       <motion.img
                         src={product.image}
@@ -480,4 +485,3 @@ const MarketplacePage = () => {
   );
 };
 
-export default MarketplacePage;
