@@ -1,7 +1,7 @@
 import axios, { AxiosError, type AxiosResponse } from "axios"
 
 export const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || "https://sep490.onrender.com",
+    baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
     headers: {
         "Content-Type": "application/json",
     },
@@ -18,7 +18,7 @@ apiClient.interceptors.request.use(config => {
 
 // Interceptor để xử lý response
 apiClient.interceptors.response.use(
-    (response: AxiosResponse) => response?.data, 
+    (response: AxiosResponse) => response, 
     (error: AxiosError) => {
         if (error.response?.status === 401) {
             // Token hết hạn, xóa token và chuyển về trang login
