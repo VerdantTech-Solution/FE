@@ -14,7 +14,7 @@ import {
   SidebarSectionTitle,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut } from "lucide-react";
+import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User } from "lucide-react";
 import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
@@ -22,15 +22,16 @@ import { UserManagementPanel } from "./staff/UserManagementPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
 import { MonitoringPage } from "./staff/MonitoringPage";
+import { StaffProfile } from "./staff/StaffProfile";
 
-type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "settings";
+type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "settings" | "profile";
 
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
   const [collapsed, setCollapsed] = useState(false);
   const [, setStats] = useState<WarehouseStats>({ total: 0, pending: 0, approved: 0, rejected: 0 });
   
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
 
   const sidebarVariants = {
@@ -68,6 +69,7 @@ export const StaffPage: React.FC = () => {
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Hệ thống</SidebarSectionTitle>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "profile"} onClick={() => setSelectedMenu("profile")} icon={<User className="w-5 h-5" />}>Hồ sơ</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "settings"} onClick={() => setSelectedMenu("settings")} icon={<Settings className="w-5 h-5" />}>Cài đặt</SidebarNavItem>
             </SidebarSection>
           </SidebarNav>
@@ -86,15 +88,23 @@ export const StaffPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Staff Dashboard</h1>
-              <p className="text-sm text-gray-500">Quản lý khu vực dành cho nhân viên</p>
+              <p className="text-sm text-gray-500">
+                Xin chào, <span className="font-medium text-gray-700">{user?.fullName || 'Staff'}</span>
+              </p>
             </div>
-            <Button 
-              variant="outline" 
-              className="border-red-300 text-red-600 hover:bg-red-50 gap-2"
-              onClick={async () => { await logout(); navigate("/login"); }}
-            >
-              <LogOut className="w-4 h-4" /> Đăng xuất
-            </Button>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">{user?.fullName || 'Staff'}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="border-red-300 text-red-600 hover:bg-red-50 gap-2"
+                onClick={async () => { await logout(); navigate("/login"); }}
+              >
+                <LogOut className="w-4 h-4" /> Đăng xuất
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -109,7 +119,9 @@ export const StaffPage: React.FC = () => {
           {selectedMenu === "monitoring" && (
             <MonitoringPage/>
           )}
-       
+          {selectedMenu === "profile" && (
+            <StaffProfile/>
+          )}
         </div>
       </div>
     </div>
