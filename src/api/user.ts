@@ -148,4 +148,23 @@ export const createUserAddress = async (userId: string, addressData: UpdateAddre
   }
 };
 
+// Interface cho request tạo staff
+export interface CreateStaffRequest {
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+}
+
+// API tạo tài khoản staff mới
+export const createStaff = async (staffData: CreateStaffRequest): Promise<{ status: boolean; statusCode: number; data: string; errors: string[] }> => {
+  try {
+    const response = await apiClient.post('/api/User/staff', staffData);
+    console.log('Create staff response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Create staff error:', error);
+    throw error;
+  }
+};
+
 

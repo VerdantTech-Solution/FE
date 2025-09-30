@@ -9,7 +9,6 @@ import { User, Mail, Phone, Lock, Eye, EyeOff, UserPlus } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthRedirect } from "@/hooks";
 import { toast } from "sonner";
 
 
@@ -30,7 +29,6 @@ export const SignUpPage = () => {
   
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { loading: authLoading } = useAuthRedirect('/');
 
   useEffect(() => {
     // Simulate loading time for better UX
@@ -85,8 +83,8 @@ export const SignUpPage = () => {
     );
   }
 
-  // Nếu đang loading hoặc đã đăng nhập, hiển thị loading
-  if (authLoading) {
+  // Nếu đang loading, hiển thị loading
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

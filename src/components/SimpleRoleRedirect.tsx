@@ -12,15 +12,21 @@ export const SimpleRoleRedirect = () => {
   const [showSpinner, setShowSpinner] = useState(false);
 
   useEffect(() => {
+    console.log('SimpleRoleRedirect useEffect:', { loading, isAuthenticated, user: user?.role });
+    
     // Chỉ xử lý khi không còn loading và đã xác thực
     if (!loading && isAuthenticated && user) {
       const role = user.role;
       const target = role === 'Admin' ? '/admin' : role === 'Staff' ? '/staff' : null;
+      console.log('SimpleRoleRedirect: role =', role, 'target =', target);
+      
       if (target) {
+        console.log('SimpleRoleRedirect: Setting spinner and redirecting to', target);
         setShowSpinner(true);
         const timer = setTimeout(() => {
-          navigate(target);
-        }, 2000);
+          console.log('SimpleRoleRedirect: Executing navigation to', target);
+          navigate(target, { replace: true });
+        }, 1000); // Giảm thời gian từ 2s xuống 1s
         return () => clearTimeout(timer);
       }
     }

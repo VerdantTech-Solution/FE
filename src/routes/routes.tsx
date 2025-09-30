@@ -13,7 +13,7 @@ export const Routes = () => {
       <Route path="/send-verification" element={<SendVerificationPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/change-password" element={<ChangePasswordPage />} />\
+      <Route path="/change-password" element={<ChangePasswordPage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/admin" element={
         <AdminProtectedRoute>
