@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Separator } from "@/components/ui/separator";
 import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { getAllProducts, type Product } from '@/api/product';
 
 // Animation variants
 const containerVariants = {
@@ -64,18 +65,36 @@ const searchVariants = {
   }
 };
 
-export const MarketplacePage = () => {
+const MarketplacePage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageLoading, setPageLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProducts = async () => {
+    try {
+      console.log('Starting to fetch products...');
+      console.log('Auth token:', localStorage.getItem('authToken'));
+      setLoading(true);
+      setError(null);
+      const productsData = await getAllProducts();
+      console.log('Products fetched successfully:', productsData);
+      setProducts(productsData);
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
+      setError(errorMessage);
+      setProducts([]); // Set empty array instead of fallback data
+    } finally {
+      setLoading(false);
+      setPageLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulate loading time for better UX
-    const timer = setTimeout(() => {
-      setPageLoading(false);
-    }, 800);
-
-    return () => clearTimeout(timer);
+    fetchProducts();
   }, []);
 
   // Page loading screen
@@ -132,132 +151,9 @@ export const MarketplacePage = () => {
     { id: 'irrigation', name: 'Hệ thống tưới tiêu', icon: '💧' },
   ];
 
-  const products = [
-    {
-      id: 1,
-      name: 'Drone DJI Agras T30 Phun thuốc nông nghiệp',
-      category: 'drones',
-      price: '85.000.000',
-      unit: 'chiếc',
-      rating: 4.9,
-      reviews: 89,
-      location: 'TP. HCM',
-      delivery: '3-5 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 10,
-      originalPrice: '95.000.000',
-      description: 'Drone phun thuốc chuyên nghiệp, tải trọng 30kg, phun 16-20ha/giờ'
-    },
-    {
-      id: 2,
-      name: 'Máy cày mini Kubota B2420R',
-      category: 'machines',
-      price: '45.000.000',
-      unit: 'chiếc',
-      rating: 4.8,
-      reviews: 156,
-      location: 'Hà Nội',
-      delivery: '7-10 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 0,
-      originalPrice: '45.000.000',
-      description: 'Máy cày mini 24HP, phù hợp ruộng nhỏ, tiết kiệm nhiên liệu'
-    },
-    {
-      id: 3,
-      name: 'Bộ dụng cụ làm vườn chuyên nghiệp',
-      category: 'tools',
-      price: '850.000',
-      unit: 'bộ',
-      rating: 4.7,
-      reviews: 234,
-      location: 'Đà Nẵng',
-      delivery: '2-3 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 15,
-      originalPrice: '1.000.000',
-      description: 'Bộ 15 dụng cụ: cuốc, xẻng, kéo cắt, bình tưới, găng tay...'
-    },
-    {
-      id: 4,
-      name: 'Phân bón hữu cơ vi sinh cao cấp',
-      category: 'fertilizers',
-      price: '180.000',
-      unit: 'kg',
-      rating: 4.6,
-      reviews: 67,
-      location: 'Cần Thơ',
-      delivery: '1-2 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 0,
-      originalPrice: '180.000',
-      description: 'Phân bón hữu cơ 100%, tăng năng suất, an toàn cho môi trường'
-    },
-    {
-      id: 5,
-      name: 'Hệ thống tưới phun sương tự động',
-      category: 'irrigation',
-      price: '2.500.000',
-      unit: 'bộ',
-      rating: 4.8,
-      reviews: 45,
-      location: 'TP. HCM',
-      delivery: '5-7 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 20,
-      originalPrice: '3.125.000',
-      description: 'Hệ thống tưới thông minh, điều khiển qua app, tiết kiệm nước'
-    },
-    {
-      id: 6,
-      name: 'Hạt giống rau sạch F1 cao sản',
-      category: 'seeds',
-      price: '25.000',
-      unit: 'gói',
-      rating: 4.5,
-      reviews: 23,
-      location: 'Hà Nội',
-      delivery: '1 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 0,
-      originalPrice: '25.000',
-      description: 'Hạt giống rau F1, tỷ lệ nảy mầm 95%, năng suất cao'
-    },
-    {
-      id: 7,
-      name: 'Máy gặt đập liên hợp Kubota DC70',
-      category: 'machines',
-      price: '180.000.000',
-      unit: 'chiếc',
-      rating: 4.9,
-      reviews: 78,
-      location: 'An Giang',
-      delivery: '10-15 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 5,
-      originalPrice: '189.000.000',
-      description: 'Máy gặt đập liên hợp 70HP, năng suất 0.8-1.2ha/giờ'
-    },
-    {
-      id: 8,
-      name: 'Drone mapping DJI Phantom 4 RTK',
-      category: 'drones',
-      price: '45.000.000',
-      unit: 'chiếc',
-      rating: 4.8,
-      reviews: 34,
-      location: 'TP. HCM',
-      delivery: '5-7 ngày',
-      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop',
-      discount: 0,
-      originalPrice: '45.000.000',
-      description: 'Drone mapping chuyên nghiệp, độ chính xác cm, phù hợp khảo sát nông nghiệp'
-    }
-  ];
-
   const filteredProducts = products.filter(product => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
     return matchesCategory && matchesSearch;
   });
 
@@ -365,12 +261,56 @@ export const MarketplacePage = () => {
             </div>
           </div>
 
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            variants={containerVariants}
-          >
-            <AnimatePresence mode="wait">
-              {filteredProducts.map((product, index) => (
+          {/* Error State */}
+          {error && (
+            <motion.div 
+              className="text-center py-16"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="text-6xl mb-4">⚠️</div>
+              <h3 className="text-xl font-semibold text-red-600 mb-2">Lỗi tải dữ liệu</h3>
+              <p className="text-gray-500 mb-4">{error}</p>
+              <Button 
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  fetchProducts();
+                }}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Thử lại
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Loading State */}
+          {loading && !error && (
+            <motion.div 
+              className="text-center py-16"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Spinner 
+                variant="circle-filled" 
+                size={60} 
+                className="text-green-600 mx-auto mb-4"
+              />
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">Đang tải sản phẩm...</h3>
+              <p className="text-gray-500">Vui lòng chờ trong giây lát</p>
+            </motion.div>
+          )}
+
+          {/* Products Grid - Only show when not loading and no error */}
+          {!loading && !error && (
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              variants={containerVariants}
+            >
+              <AnimatePresence mode="wait">
+                {filteredProducts.map((product, index) => (
                 <motion.div
                   key={product.id}
                   variants={cardVariants}
@@ -389,7 +329,7 @@ export const MarketplacePage = () => {
                         whileHover={{ scale: 1.05 }}
                         transition={{ duration: 0.3 }}
                       />
-                      {product.discount > 0 && (
+                      {product.discount && product.discount > 0 && (
                         <motion.div 
                           className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-bold"
                           initial={{ scale: 0 }}
@@ -397,6 +337,17 @@ export const MarketplacePage = () => {
                           transition={{ delay: 0.5 + index * 0.1 }}
                         >
                           -{product.discount}%
+                        </motion.div>
+                      )}
+                      {/* Energy Efficiency Badge */}
+                      {product.energyEfficiencyRating && (
+                        <motion.div 
+                          className="absolute top-2 right-12 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.6 + index * 0.1 }}
+                        >
+                          {product.energyEfficiencyRating}
                         </motion.div>
                       )}
                       <motion.div
@@ -430,6 +381,11 @@ export const MarketplacePage = () => {
                             <Truck className="w-4 h-4" />
                             Giao hàng: {product.delivery}
                           </div>
+                          {/* Stock info */}
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            Còn lại: {product.stockQuantity || 0} sản phẩm
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
@@ -450,18 +406,18 @@ export const MarketplacePage = () => {
                       <div className="w-full">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            {product.discount > 0 ? (
+                            {product.discount && product.discount > 0 ? (
                               <>
                                 <span className="text-2xl font-bold text-green-600">
-                                  {product.price}đ
+                                  {product.price?.toLocaleString('vi-VN')}đ
                                 </span>
                                 <span className="text-lg text-gray-400 line-through">
-                                  {product.originalPrice}đ
+                                  {product.originalPrice?.toLocaleString('vi-VN')}đ
                                 </span>
                               </>
                             ) : (
                               <span className="text-2xl font-bold text-green-600">
-                                {product.price}đ
+                                {product.price?.toLocaleString('vi-VN')}đ
                               </span>
                             )}
                             <span className="text-gray-500">/{product.unit}</span>
@@ -492,13 +448,13 @@ export const MarketplacePage = () => {
                   </Card>
                 </motion.div>
               ))}
-            </AnimatePresence>
-          </motion.div>
-        </motion.div>
+              </AnimatePresence>
+            </motion.div>
+          )}
 
-        {/* Empty State */}
-        <AnimatePresence>
-          {filteredProducts.length === 0 && (
+          {/* Empty State */}
+          <AnimatePresence>
+            {!loading && !error && filteredProducts.length === 0 && (
             <motion.div 
               className="text-center py-16"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -518,7 +474,10 @@ export const MarketplacePage = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        </motion.div>
       </div>
     </motion.div>
   );
 };
+
+export default MarketplacePage;
