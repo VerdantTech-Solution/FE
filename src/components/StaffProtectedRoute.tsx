@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useStaffAuth } from '@/hooks/useStaffAuth';
 import { Loader2, ShieldX } from 'lucide-react';
 
@@ -9,6 +9,7 @@ interface StaffProtectedRouteProps {
 
 export const StaffProtectedRoute: React.FC<StaffProtectedRouteProps> = ({ children }) => {
   const { canAccessStaff, user, loading } = useStaffAuth();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -48,7 +49,7 @@ export const StaffProtectedRoute: React.FC<StaffProtectedRouteProps> = ({ childr
           </div>
           <div className="mt-8">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors mr-3"
             >
               Quay lại

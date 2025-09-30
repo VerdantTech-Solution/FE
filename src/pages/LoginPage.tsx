@@ -103,8 +103,8 @@ export const LoginPage = () => {
       // toast.success("Đăng nhập thành công!"); // Removed toast as per new_code
       console.log("Login successful, redirecting to home");
       
-      // Chuyển hướng sau khi đăng nhập thành công
-      navigate("/");
+      // Chuyển hướng sau khi đăng nhập thành công với replace để tránh history issues
+      navigate("/", { replace: true });
     } catch (error: unknown) {
       console.error("Login error:", error);
       // Xử lý lỗi đăng nhập

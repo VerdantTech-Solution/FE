@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import {
   Filter,
   Edit,
   Trash2,
-  Eye,
   User,
   Mail,
   Phone,
@@ -20,8 +19,7 @@ import {
   RefreshCw,
   UserPlus
 } from "lucide-react";
-import { getAllUsers } from "@/api/user";
-import { signUpUser } from "@/api/auth";
+import { getAllUsers, createStaff } from "@/api/user";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { UserResponse } from "@/api/user";
 
@@ -41,9 +39,8 @@ export const UserManamentPage = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newRole, setNewRole] = useState<'customer' | 'staff' | 'vendor' | 'admin'>('customer');
+  // Luôn tạo staff, không cần state cho role
 
   // Edit user dialog states
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -112,23 +109,22 @@ export const UserManamentPage = () => {
     try {
       setCreateError(null);
       setCreateLoading(true);
-      await signUpUser({
+      
+      // Luôn tạo staff với API mới (không cần password)
+      await createStaff({
         email: newEmail,
-        password: newPassword,
         fullName: newFullName,
-        phoneNumber: newPhone,
-        role: newRole
+        phoneNumber: newPhone
       });
+      window.alert('Tạo tài khoản nhân viên thành công. Mật khẩu đã được gửi qua email.');
+      
       setIsCreateOpen(false);
       setNewEmail('');
-      setNewPassword('');
       setNewFullName('');
       setNewPhone('');
-      setNewRole('customer');
       await fetchUsers();
-      window.alert('Tạo người dùng thành công');
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Tạo người dùng thất bại';
+      const message = e instanceof Error ? e.message : 'Tạo nhân viên thất bại';
       setCreateError(message);
     } finally {
       setCreateLoading(false);
@@ -289,12 +285,15 @@ export const UserManamentPage = () => {
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <UserPlus className="w-4 h-4" />
-                Thêm người dùng
+                Thêm nhân viên
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Thêm người dùng mới</DialogTitle>
+                <DialogTitle>Thêm nhân viên mới</DialogTitle>
+                <p className="text-sm text-blue-600 mt-2">
+                  💡 Mật khẩu sẽ được tự động tạo và gửi qua email
+                </p>
               </DialogHeader>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
                 <div className="md:col-span-2">
@@ -306,26 +305,8 @@ export const UserManamentPage = () => {
                   <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="user@example.com" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Mật khẩu</label>
-                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
-                </div>
-                <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">Số điện thoại</label>
                   <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+84540170197" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Vai trò</label>
-                  <Select value={newRole} onValueChange={(v) => setNewRole(v as 'customer' | 'staff' | 'vendor' | 'admin')}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn vai trò" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="customer">customer</SelectItem>
-                      <SelectItem value="staff">staff</SelectItem>
-                      <SelectItem value="vendor">vendor</SelectItem>
-                      <SelectItem value="admin">admin</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               {createError && (
@@ -333,8 +314,8 @@ export const UserManamentPage = () => {
               )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={createLoading}>Hủy</Button>
-                <Button onClick={handleCreateUser} disabled={createLoading || !newEmail || !newPassword || !newFullName}>
-                  {createLoading ? 'Đang tạo...' : 'Tạo mới'}
+                <Button onClick={handleCreateUser} disabled={createLoading || !newEmail || !newFullName}>
+                  {createLoading ? 'Đang tạo...' : 'Tạo nhân viên'}
                 </Button>
               </DialogFooter>
             </DialogContent>
