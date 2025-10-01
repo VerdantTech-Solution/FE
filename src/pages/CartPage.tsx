@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Trash2,
   Plus,
@@ -15,64 +15,72 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import logo from "@/assets/logo.png";
 import { Footer } from "./Footer";
 import { motion } from "framer-motion";
+import { getCart, type CartItem } from '@/api/cart';
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  imageUrl: string;
-  quantity: number;
-}
-
-const initialItems: CartItem[] = [
-  {
-    id: "1",
-    name: "Hạt giống lúa chất lượng cao",
-    price: 120000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?q=80&w=1200&auto=format&fit=crop",
-    quantity: 2,
-  },
-  {
-    id: "2",
-    name: "Phân bón hữu cơ Verdant",
-    price: 185000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1593253787226-567eda4ad32d?q=80&w=1200&auto=format&fit=crop",
-    quantity: 1,
-  },
-  {
-    id: "3",
-    name: "Thuốc trừ sâu sinh học",
-    price: 99000,
-    imageUrl:
-      "https://images.unsplash.com/photo-1524594154908-edd2033fd40b?q=80&w=1200&auto=format&fit=crop",
-    quantity: 3,
-  },
-];
+// Sử dụng CartItem từ API thay vì định nghĩa local
 
 const currency = (v: number) =>
   v.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
 
 export const CartPage = () => {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    try {
-      const raw = localStorage.getItem("cartItems");
-      if (raw) return JSON.parse(raw) as CartItem[];
-    } catch {
-      // ignore parse errors and fallback to defaults
-    }
-    return initialItems;
-  });
-
+  const [cartResponse, setCartResponse] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [coupon, setCoupon] = useState<string>("");
   const [appliedCoupon, setAppliedCoupon] = useState<string>("");
 
+  // Fetch cart data from API
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Starting API call...');
+      console.log('Auth token:', localStorage.getItem('authToken'));
+      
+      const cartData = await getCart();
+      console.log('Cart data received:', cartData);
+      console.log('Cart items:', cartData?.cartItems);
+      
+      // Accept any response that has data
+      if (cartData) {
+        setCartResponse(cartData);
+        console.log('Cart data set successfully');
+        setError(null); // Clear any previous errors
+      } else {
+        console.warn('No cart data received');
+        setError('Không nhận được dữ liệu giỏ hàng');
+      }
+    } catch (err: any) {
+      console.error('Error fetching cart:', err);
+      console.error('Error details:', {
+        message: err?.message,
+        status: err?.status,
+        data: err?.data
+      });
+      setError(err?.message || 'Không thể tải giỏ hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  // Extract items from API response - handle actual response structure
+  const items = cartResponse?.cartItems || [];
+  
+  // Debug logging
+  console.log('Cart response:', cartResponse);
+  console.log('Cart items:', items);
+  console.log('Items length:', items.length);
+  
   const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [items]
   );
   const shipping = subtotal > 500000 ? 0 : 30000;
@@ -87,16 +95,14 @@ export const CartPage = () => {
 
   const total = Math.max(0, subtotal - discount) + shipping + vat;
 
-  const updateQty = (id: string, delta: number) => {
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
-      )
-    );
+  const updateQty = (id: number, delta: number) => {
+    // TODO: Implement API call to update quantity
+    console.log('Update quantity for item:', id, 'delta:', delta);
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeItem = (id: number) => {
+    // TODO: Implement API call to remove item
+    console.log('Remove item:', id);
   };
 
 
@@ -109,15 +115,37 @@ export const CartPage = () => {
     setCoupon("");
   };
 
-  // Persist and notify other components (e.g., Navbar) when cart changes
-  React.useEffect(() => {
-    try {
-      localStorage.setItem("cartItems", JSON.stringify(items));
-    } catch {
-      // ignore quota or storage errors
-    }
-    window.dispatchEvent(new CustomEvent("cart:updated"));
-  }, [items]);
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 mt-[20px] flex items-center justify-center">
+        <div className="text-center">
+          <Spinner variant="circle-filled" size={60} className="text-green-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">Đang tải giỏ hàng...</h3>
+          <p className="text-gray-500">Vui lòng chờ trong giây lát</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show error if we have no data at all
+  if (error && !cartResponse && items.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 mt-[20px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-semibold text-red-600 mb-2">Lỗi tải giỏ hàng</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <Button 
+            onClick={fetchCart}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 mt-[20px]">
@@ -194,7 +222,7 @@ export const CartPage = () => {
             ) : (
               items.map((item) => (
                 <motion.div
-                  key={item.id}
+                  key={item.productId}
                   initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.35, ease: "easeOut" }}
@@ -203,31 +231,38 @@ export const CartPage = () => {
                   <CardContent className="p-6">
                     <div className="flex gap-6">
                       <img
-                        src={item.imageUrl}
-                        alt={item.name}
+                        src={item.images ? `https://sep490.onrender.com/images/${item.images.split(',')[0]}` : '/placeholder-product.jpg'}
+                        alt={item.productName}
                         className="w-32 h-32 object-cover rounded-xl shadow-sm"
                       />
                       <div className="flex-1">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <h3 className="font-semibold text-gray-900 text-lg leading-tight">
-                              {item.name}
+                              {item.productName}
                             </h3>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                              {item.description}
+                            </p>
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-green-700 font-semibold text-lg">
-                                {currency(item.price)}
+                                {currency(item.unitPrice)}
                               </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-yellow-500">★</span>
+                                <span className="text-sm text-gray-500">{item.ratingAverage}</span>
+                              </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-white hover:bg-red-500 rounded-full p-2 transition-all duration-200"
-                            onClick={() => removeItem(item.id)}
-                            aria-label="Xóa sản phẩm"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-white hover:bg-red-500 rounded-full p-2 transition-all duration-200"
+                              onClick={() => removeItem(item.productId)}
+                              aria-label="Xóa sản phẩm"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </Button>
                         </div>
 
                         <div className="mt-6 flex items-center justify-between">
@@ -236,7 +271,7 @@ export const CartPage = () => {
                               variant="outline"
                               size="sm"
                               className="w-10 h-10 rounded-full border-2 hover:bg-gray-50"
-                              onClick={() => updateQty(item.id, -1)}
+                              onClick={() => updateQty(item.productId, -1)}
                               aria-label="Giảm số lượng"
                             >
                               <Minus className="h-4 w-4" />
@@ -248,16 +283,16 @@ export const CartPage = () => {
                               variant="outline"
                               size="sm"
                               className="w-10 h-10 rounded-full border-2 hover:bg-gray-50"
-                              onClick={() => updateQty(item.id, 1)}
+                              onClick={() => updateQty(item.productId, 1)}
                               aria-label="Tăng số lượng"
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
-                          <div className="text-right">
+                            <div className="text-right">
                             <div className="text-sm text-gray-500 mb-1">Tạm tính</div>
                             <div className="font-bold text-gray-900 text-xl">
-                              {currency(item.price * item.quantity)}
+                              {currency(item.unitPrice * item.quantity)}
                             </div>
                           </div>
                         </div>

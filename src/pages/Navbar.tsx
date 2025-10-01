@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useCart } from "@/contexts/CartContext";
 
 const Navbar = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const [cartCount, setCartCount] = useState<number>(0);
   const { user, isAuthenticated, logout } = useAuth();
   const { isAdmin } = useAdminAuth();
+  const { cartCount } = useCart();
   const userDropdownRef = useRef<HTMLDivElement>(null);
   
   // Debug: Log khi user avatar thay đổi
@@ -71,29 +72,6 @@ const Navbar = () => {
     };
   }, [isUserDropdownOpen]);
 
-  // Load cart count and subscribe to updates
-  useEffect(() => {
-    const computeCount = () => {
-      try {
-        const raw = localStorage.getItem('cartItems');
-        if (!raw) { setCartCount(0); return; }
-        const items = JSON.parse(raw) as { quantity?: number }[];
-        const total = items.reduce((s, it) => s + (it.quantity || 0), 0);
-        setCartCount(total);
-      } catch { setCartCount(0); }
-    };
-    computeCount();
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'cartItems') computeCount();
-    };
-    const handleCustom = () => computeCount();
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('cart:updated', handleCustom as EventListener);
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('cart:updated', handleCustom as EventListener);
-    };
-  }, []);
 
   // Animation variants
   const logoVariants = {

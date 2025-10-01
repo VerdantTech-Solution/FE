@@ -11,13 +11,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'https://sep490.onrender.com',
-        changeOrigin: true,
-        secure: true,
-      }
-    }
-  }
 })
