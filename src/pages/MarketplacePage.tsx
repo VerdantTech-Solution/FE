@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getAllProducts, type Product } from '@/api/product';
+import { addToCart } from '@/api/cart';
 
 // Animation variants
 const containerVariants = {
@@ -74,6 +75,7 @@ export const MarketplacePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addingToCart, setAddingToCart] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -98,6 +100,22 @@ export const MarketplacePage = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleAddToCart = async (productId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Ngăn chặn click vào card
+    try {
+      setAddingToCart(productId);
+      await addToCart({ productId, quantity: 1 });
+      // Dispatch event to update cart count in Navbar
+      window.dispatchEvent(new CustomEvent('cart:updated'));
+      console.log('Product added to cart successfully');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      // Có thể thêm toast error ở đây
+    } finally {
+      setAddingToCart(null);
+    }
+  };
 
   // Page loading screen
   if (pageLoading) {
@@ -321,16 +339,18 @@ export const MarketplacePage = () => {
                   exit="hidden"
                   whileHover="hover"
                   transition={{ delay: index * 0.1 }}
+                  className="h-full"
                 >
                   <Card 
-                    className="group hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
+                    className="group hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer h-full flex flex-col"
                     onClick={() => navigate(`/product/${product.id}`)}
                   >
-                    <div className="relative">
+                    {/* Image Section - Fixed height */}
+                    <div className="relative h-48">
                       <motion.img
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-48 object-cover"
+                        className="w-full h-full object-cover"
                         whileHover={{ scale: 1.05 }}
                         transition={{ duration: 0.3 }}
                       />
@@ -369,87 +389,103 @@ export const MarketplacePage = () => {
                       </motion.div>
                     </div>
 
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
-                            {product.name}
-                          </CardTitle>
-                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                            {product.description}
-                          </p>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                            <MapPin className="w-4 h-4" />
-                            {product.location}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Truck className="w-4 h-4" />
-                            Giao hàng: {product.delivery}
-                          </div>
-                          {/* Stock info */}
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            Còn lại: {product.stockQuantity || 0} sản phẩm
+                    {/* Content Section - Flexible height */}
+                    <div className="flex-1 flex flex-col">
+                      <CardHeader className="pb-3 flex-1">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 min-h-[3.5rem]">
+                              {product.name}
+                            </CardTitle>
+                            <p className="text-sm text-gray-600 mb-3 line-clamp-2 min-h-[2.5rem]">
+                              {product.description}
+                            </p>
+                            
+                            {/* Product Info Grid */}
+                            <div className="space-y-2 mb-3">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <MapPin className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{product.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Truck className="w-4 h-4 flex-shrink-0" />
+                                <span>Giao hàng: {product.delivery}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
+                                <span>Còn lại: {product.stockQuantity || 0} sản phẩm</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardHeader>
+                      </CardHeader>
 
-                    <CardContent className="pb-3">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            <span className="font-semibold">{product.rating}</span>
-                          </div>
-                          <span className="text-sm text-gray-500">({product.reviews})</span>
-                        </div>
-                      </div>
-                    </CardContent>
-
-                    <CardFooter className="pt-0">
-                      <div className="w-full">
-                        <div className="flex items-center justify-between mb-3">
+                      <CardContent className="pb-3">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            {product.discount && product.discount > 0 ? (
-                              <>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <span className="font-semibold">{product.rating}</span>
+                            </div>
+                            <span className="text-sm text-gray-500">({product.reviews})</span>
+                          </div>
+                        </div>
+                      </CardContent>
+
+                      {/* Footer - Fixed at bottom */}
+                      <CardFooter className="pt-0 mt-auto">
+                        <div className="w-full">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              {product.discount && product.discount > 0 ? (
+                                <>
+                                  <span className="text-2xl font-bold text-green-600">
+                                    {product.price?.toLocaleString('vi-VN')}đ
+                                  </span>
+                                  <span className="text-lg text-gray-400 line-through">
+                                    {product.originalPrice?.toLocaleString('vi-VN')}đ
+                                  </span>
+                                </>
+                              ) : (
                                 <span className="text-2xl font-bold text-green-600">
                                   {product.price?.toLocaleString('vi-VN')}đ
                                 </span>
-                                <span className="text-lg text-gray-400 line-through">
-                                  {product.originalPrice?.toLocaleString('vi-VN')}đ
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-2xl font-bold text-green-600">
-                                {product.price?.toLocaleString('vi-VN')}đ
-                              </span>
-                            )}
-                            <span className="text-gray-500">/{product.unit}</span>
+                              )}
+                              <span className="text-gray-500">/{product.unit}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="flex-1"
+                            >
+                              <Button 
+                                className="w-full bg-green-600 hover:bg-green-700"
+                                onClick={(e) => handleAddToCart(product.id, e)}
+                                disabled={addingToCart === product.id}
+                              >
+                                {addingToCart === product.id ? (
+                                  <Spinner variant="circle-filled" size={16} className="mr-2" />
+                                ) : (
+                                  <ShoppingCart className="w-4 h-4 mr-2" />
+                                )}
+                                {addingToCart === product.id ? 'Đang thêm...' : 'Thêm vào giỏ'}
+                              </Button>
+                            </motion.div>
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <Button variant="outline" className="px-4">
+                                Mua ngay
+                              </Button>
+                            </motion.div>
                           </div>
                         </div>
-                        
-                        <div className="flex gap-2">
-                          <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <Button className="flex-1 bg-green-600 hover:bg-green-700">
-                              <ShoppingCart className="w-4 h-4 mr-2" />
-                              Thêm vào giỏ
-                            </Button>
-                          </motion.div>
-                          <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <Button variant="outline" className="px-3">
-                              Mua ngay
-                            </Button>
-                          </motion.div>
-                        </div>
-                      </div>
-                    </CardFooter>
+                      </CardFooter>
+                    </div>
                   </Card>
                 </motion.div>
               ))}
