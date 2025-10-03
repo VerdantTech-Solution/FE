@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Trash2,
   Plus,
@@ -19,7 +19,7 @@ import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import logo from "@/assets/logo.png";
 import { Footer } from "./Footer";
 import { motion } from "framer-motion";
-import { getCart, type CartItem } from '@/api/cart';
+import { getCart, updateCartItem, type CartItem } from '@/api/cart';
 
 // Sử dụng CartItem từ API thay vì định nghĩa local
 
@@ -32,6 +32,13 @@ export const CartPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [coupon, setCoupon] = useState<string>("");
   const [appliedCoupon, setAppliedCoupon] = useState<string>("");
+  const [updatingItem, setUpdatingItem] = useState<number | null>(null);
+  const [removingItem, setRemovingItem] = useState<number | null>(null);
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log('updatingItem state changed:', updatingItem);
+  }, [updatingItem]);
 
   // Fetch cart data from API
   const fetchCart = async () => {
@@ -61,7 +68,17 @@ export const CartPage = () => {
         status: err?.status,
         data: err?.data
       });
-      setError(err?.message || 'Không thể tải giỏ hàng');
+      
+      // Xử lý lỗi 401 - Unauthorized
+      if (err?.status === 401 || err?.statusCode === 401) {
+        setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        // Tự động chuyển về trang login sau 2 giây
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else {
+        setError(err?.message || 'Không thể tải giỏ hàng');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,8 +88,22 @@ export const CartPage = () => {
     fetchCart();
   }, []);
 
+  // Listen for cart updates from other pages
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      console.log('Cart update event received, refreshing cart...');
+      fetchCart();
+    };
+
+    window.addEventListener('cart:updated', handleCartUpdate);
+    
+    return () => {
+      window.removeEventListener('cart:updated', handleCartUpdate);
+    };
+  }, []);
+
   // Extract items from API response - handle actual response structure
-  const items = cartResponse?.cartItems || [];
+  const items: CartItem[] = cartResponse?.cartItems || [];
   
   // Debug logging
   console.log('Cart response:', cartResponse);
@@ -95,14 +126,67 @@ export const CartPage = () => {
 
   const total = Math.max(0, subtotal - discount) + shipping + vat;
 
-  const updateQty = (id: number, delta: number) => {
-    // TODO: Implement API call to update quantity
-    console.log('Update quantity for item:', id, 'delta:', delta);
-  };
+  const updateQty = useCallback(async (id: number, delta: number) => {
+    try {
+      console.log('Starting update quantity for item:', id, 'delta:', delta);
+      setUpdatingItem(id);
+      
+      // Force a re-render by using setTimeout
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      const item = items.find(item => item.productId === id);
+      if (!item) {
+        console.log('Item not found:', id);
+        setUpdatingItem(null);
+        return;
+      }
+      
+      const newQuantity = Math.max(1, item.quantity + delta);
+      console.log('Update quantity for item:', id, 'new quantity:', newQuantity);
+      
+      await updateCartItem(id, newQuantity);
+      
+      // Refresh cart data
+      await fetchCart();
+      
+      // Dispatch event to update cart count in Navbar
+      window.dispatchEvent(new CustomEvent('cart:updated'));
+      
+      console.log('Quantity updated successfully');
+    } catch (error: any) {
+      console.error('Error updating quantity:', error);
+      alert('Có lỗi xảy ra khi cập nhật số lượng. Vui lòng thử lại.');
+    } finally {
+      console.log('Clearing updating item state');
+      setUpdatingItem(null);
+    }
+  }, [items, fetchCart]);
 
-  const removeItem = (id: number) => {
-    // TODO: Implement API call to remove item
-    console.log('Remove item:', id);
+  const removeItem = async (id: number) => {
+    try {
+      if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?')) {
+        return;
+      }
+      
+      setRemovingItem(id);
+      console.log('Removing item:', id);
+      
+      // Set quantity to 0 to remove item (HARD DELETE)
+      await updateCartItem(id, 0);
+      
+      // Refresh cart data
+      await fetchCart();
+      
+      // Dispatch event to update cart count in Navbar
+      window.dispatchEvent(new CustomEvent('cart:updated'));
+      
+      console.log('Item removed successfully');
+    } catch (error: any) {
+      console.error('Error removing item:', error);
+      alert('Có lỗi xảy ra khi xóa sản phẩm. Vui lòng thử lại.');
+    } finally {
+      setRemovingItem(null);
+    }
   };
 
 
@@ -130,18 +214,34 @@ export const CartPage = () => {
 
   // Only show error if we have no data at all
   if (error && !cartResponse && items.length === 0) {
+    const isAuthError = error.includes('Phiên đăng nhập đã hết hạn');
+    
     return (
       <div className="min-h-screen bg-gray-50 mt-[20px] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h3 className="text-xl font-semibold text-red-600 mb-2">Lỗi tải giỏ hàng</h3>
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="text-6xl mb-4">{isAuthError ? '🔒' : '⚠️'}</div>
+          <h3 className="text-xl font-semibold text-red-600 mb-2">
+            {isAuthError ? 'Phiên đăng nhập hết hạn' : 'Lỗi tải giỏ hàng'}
+          </h3>
           <p className="text-gray-500 mb-4">{error}</p>
-          <Button 
-            onClick={fetchCart}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            Thử lại
-          </Button>
+          {isAuthError ? (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-400">Đang chuyển về trang đăng nhập...</p>
+              <Button 
+                onClick={() => window.location.href = '/login'}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Đăng nhập ngay
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              onClick={fetchCart}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Thử lại
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -259,9 +359,14 @@ export const CartPage = () => {
                               size="sm"
                               className="text-red-500 hover:text-white hover:bg-red-500 rounded-full p-2 transition-all duration-200"
                               onClick={() => removeItem(item.productId)}
+                              disabled={removingItem === item.productId}
                               aria-label="Xóa sản phẩm"
                             >
-                              <Trash2 className="h-5 w-5" />
+                              {removingItem === item.productId ? (
+                                <Spinner variant="circle-filled" size={16} />
+                              ) : (
+                                <Trash2 className="h-5 w-5" />
+                              )}
                             </Button>
                         </div>
 
@@ -271,10 +376,19 @@ export const CartPage = () => {
                               variant="outline"
                               size="sm"
                               className="w-10 h-10 rounded-full border-2 hover:bg-gray-50"
-                              onClick={() => updateQty(item.productId, -1)}
+                              onClick={() => {
+                                console.log('Minus button clicked for item:', item.productId);
+                                console.log('Current updatingItem:', updatingItem);
+                                updateQty(item.productId, -1);
+                              }}
+                              disabled={updatingItem === item.productId}
                               aria-label="Giảm số lượng"
                             >
-                              <Minus className="h-4 w-4" />
+                              {updatingItem === item.productId ? (
+                                <Spinner variant="circle-filled" size={16} />
+                              ) : (
+                                <Minus className="h-4 w-4" />
+                              )}
                             </Button>
                             <span className="min-w-12 text-center font-semibold text-lg">
                               {item.quantity}
@@ -283,10 +397,19 @@ export const CartPage = () => {
                               variant="outline"
                               size="sm"
                               className="w-10 h-10 rounded-full border-2 hover:bg-gray-50"
-                              onClick={() => updateQty(item.productId, 1)}
+                              onClick={() => {
+                                console.log('Plus button clicked for item:', item.productId);
+                                console.log('Current updatingItem:', updatingItem);
+                                updateQty(item.productId, 1);
+                              }}
+                              disabled={updatingItem === item.productId}
                               aria-label="Tăng số lượng"
                             >
-                              <Plus className="h-4 w-4" />
+                              {updatingItem === item.productId ? (
+                                <Spinner variant="circle-filled" size={16} />
+                              ) : (
+                                <Plus className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                             <div className="text-right">

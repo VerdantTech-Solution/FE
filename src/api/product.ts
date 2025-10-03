@@ -71,7 +71,7 @@ export const updateProductCategory = async (
   data: Partial<UpdateProductCategoryRequest>
 ): Promise<ResponseWrapper<ProductCategory>> => {
   try {
-    const response = await apiClient.put(`/api/ProductCategory/${id}`, data);
+    const response = await apiClient.patch(`/api/ProductCategory/${id}`, data);
     console.log('Update product category response:', response.data);
     return response.data;
   } catch (error) {

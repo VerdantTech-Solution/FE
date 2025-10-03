@@ -100,7 +100,7 @@ export const getFarmProfileById = async (id: number): Promise<FarmProfile> => {
  */
 export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProfileRequest>): Promise<FarmProfile> => {
   try {
-    const response = await apiClient.put(`/api/FarmProfile/${id}`, data);
+    const response = await apiClient.patch(`/api/FarmProfile/${id}`, data);
     return response as unknown as FarmProfile;
   } catch (error) {
     console.error('Error updating farm profile:', error);

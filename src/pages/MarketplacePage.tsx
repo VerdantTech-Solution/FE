@@ -76,6 +76,7 @@ export const MarketplacePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -105,13 +106,117 @@ export const MarketplacePage = () => {
     event.stopPropagation(); // Ngăn chặn click vào card
     try {
       setAddingToCart(productId);
-      await addToCart({ productId, quantity: 1 });
+      setSuccessMessage(null);
+      
+      // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+      try {
+        const { getCart } = await import('@/api/cart');
+        const currentCart = await getCart();
+        const cartItems = currentCart?.cartItems || [];
+        const existingItem = cartItems.find((item: any) => item.productId === productId);
+        
+        if (existingItem) {
+          console.log('Product already in cart, increasing quantity...');
+          // Sản phẩm đã có trong giỏ, tăng số lượng
+          const { updateCartItem } = await import('@/api/cart');
+          const newQuantity = existingItem.quantity + 1;
+          
+          await updateCartItem(productId, newQuantity);
+          
+          // Dispatch event to update cart count in Navbar
+          window.dispatchEvent(new CustomEvent('cart:updated'));
+          
+          // Show success message
+          setSuccessMessage(`Đã tăng số lượng sản phẩm lên ${newQuantity}!`);
+          setTimeout(() => setSuccessMessage(null), 3000);
+          
+          console.log('Quantity increased successfully to:', newQuantity);
+          return; // Thoát khỏi function
+        }
+      } catch (cartError) {
+        console.log('Error checking cart, proceeding with add to cart:', cartError);
+      }
+      
+      // Nếu sản phẩm chưa có trong giỏ, thêm mới
+      const response = await addToCart({ productId, quantity: 1 });
+      console.log('Add to cart response:', response);
+      
       // Dispatch event to update cart count in Navbar
       window.dispatchEvent(new CustomEvent('cart:updated'));
+      
+      // Show success message
+      setSuccessMessage('Đã thêm sản phẩm vào giỏ hàng!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      
       console.log('Product added to cart successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding to cart:', error);
-      // Có thể thêm toast error ở đây
+      console.error('Error details:', {
+        status: error?.status,
+        statusCode: error?.statusCode,
+        message: error?.message,
+        data: error?.data,
+        response: error?.response
+      });
+      
+      // Xử lý lỗi 400 - Bad Request (sản phẩm đã có trong giỏ)
+      if (error?.status === 400 || error?.statusCode === 400 || error?.response?.status === 400) {
+        console.log('Handling 400 error - product already in cart');
+        // Thay vì báo lỗi, thử tăng số lượng sản phẩm đã có
+        try {
+          console.log('Product already in cart, attempting to increase quantity...');
+          
+          // Import functions
+          const { updateCartItem, getCart } = await import('@/api/cart');
+          
+          // Lấy giỏ hàng hiện tại để tìm số lượng sản phẩm
+          const currentCart = await getCart();
+          const cartItems = currentCart?.cartItems || [];
+          const existingItem = cartItems.find((item: any) => item.productId === productId);
+          
+          console.log('Current cart items:', cartItems);
+          console.log('Existing item:', existingItem);
+          
+          if (existingItem) {
+            // Tăng số lượng hiện tại lên 1
+            const newQuantity = existingItem.quantity + 1;
+            console.log('Updating quantity from', existingItem.quantity, 'to', newQuantity);
+            
+            await updateCartItem(productId, newQuantity);
+            
+            // Dispatch event to update cart count in Navbar
+            window.dispatchEvent(new CustomEvent('cart:updated'));
+            
+            // Show success message
+            setSuccessMessage(`Đã tăng số lượng sản phẩm lên ${newQuantity}!`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+            
+            console.log('Quantity increased successfully to:', newQuantity);
+            return; // Thoát khỏi function để không hiển thị lỗi
+          } else {
+            // Nếu không tìm thấy item trong giỏ, thử thêm lại
+            console.log('Item not found in cart, retrying add to cart...');
+            const retryResponse = await addToCart({ productId, quantity: 1 });
+            console.log('Retry add to cart response:', retryResponse);
+            
+            window.dispatchEvent(new CustomEvent('cart:updated'));
+            setSuccessMessage('Đã thêm sản phẩm vào giỏ hàng!');
+            setTimeout(() => setSuccessMessage(null), 3000);
+            return; // Thoát khỏi function để không hiển thị lỗi
+          }
+        } catch (updateError: any) {
+          console.error('Error updating quantity:', updateError);
+          alert('Có lỗi xảy ra khi cập nhật số lượng sản phẩm. Vui lòng thử lại.');
+          return; // Thoát khỏi function để không hiển thị lỗi gốc
+        }
+      } else if (error?.status === 401 || error?.statusCode === 401) {
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        window.location.href = '/login';
+      } else {
+        // Chỉ hiển thị alert nếu không phải lỗi 400
+        console.log('Non-400 error, showing alert');
+        alert('Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng.');
+      }
     } finally {
       setAddingToCart(null);
     }
@@ -234,6 +339,22 @@ export const MarketplacePage = () => {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success Message */}
+        {successMessage && (
+          <motion.div 
+            className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-green-600">✓</span>
+              <span className="font-medium">{successMessage}</span>
+            </div>
+          </motion.div>
+        )}
+
         {/* Category Filters */}
         <motion.div 
           className="mb-8"
