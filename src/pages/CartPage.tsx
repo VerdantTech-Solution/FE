@@ -141,6 +141,18 @@ export const CartPage = () => {
         return;
       }
       
+      // If quantity is 1 and user clicks minus, hard delete by setting quantity to 0
+      if (delta === -1 && item.quantity === 1) {
+        console.log('Quantity is 1 and minus clicked. Removing item:', id);
+        setRemovingItem(id);
+        await updateCartItem(id, 0);
+        await fetchCart();
+        window.dispatchEvent(new CustomEvent('cart:updated'));
+        setRemovingItem(null);
+        setUpdatingItem(null);
+        return;
+      }
+      
       const newQuantity = Math.max(1, item.quantity + delta);
       console.log('Update quantity for item:', id, 'new quantity:', newQuantity);
       
