@@ -73,7 +73,7 @@ export const getUserProfile = async (): Promise<UserResponse> => {
 // API cập nhật thông tin user
 export const updateUser = async (userId: string, userData: UpdateUserRequest): Promise<UserResponse> => {
   try {
-    const response = await apiClient.put(`/api/User/${userId}`, userData);
+    const response = await apiClient.patch(`/api/User/${userId}`, userData);
     console.log('Update user response:', response.data);
     return response.data;
   } catch (error) {
@@ -127,7 +127,7 @@ export const getAllUsers = async (): Promise<UserResponse[]> => {
 // API cập nhật địa chỉ của user
 export const updateUserAddress = async (addressId: number, addressData: UpdateAddressRequest): Promise<UserAddress> => {
   try {
-    const response = await apiClient.put(`/api/User/address/${addressId}`, addressData);
+    const response = await apiClient.patch(`/api/User/address/${addressId}`, addressData);
     console.log('Update user address response:', response.data);
     return response.data;
   } catch (error) {

@@ -65,6 +65,24 @@ export const addToCart = async (data: AddToCartRequest): Promise<CartResponse> =
   }
 };
 
+export const updateCartItem = async (productId: number, quantity: number): Promise<CartResponse> => {
+  try {
+    console.log('Updating cart item:', { productId, quantity });
+    const response = await apiClient.put<CartResponse>('/api/Cart/update', { productId, quantity });
+    console.log('Update cart response:', response);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating cart item:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      status: error?.status,
+      statusCode: error?.statusCode,
+      data: error?.data
+    });
+    throw error;
+  }
+};
+
 export const getCart = async (): Promise<any> => {
   try {
     const response = await apiClient.get('/api/Cart');
