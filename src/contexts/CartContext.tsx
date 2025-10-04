@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getCart } from '@/api/cart';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
+import { getCartCount } from '@/api/cart';
 
 interface CartContextType {
   cartCount: number;
@@ -24,39 +25,65 @@ interface CartProviderProps {
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [cartCount, setCartCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
-  const refreshCart = async () => {
+  const refreshCart = useCallback(async () => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTime;
+    
+    // Prevent multiple simultaneous calls
+    if (isLoading) {
+      console.log('Cart refresh already in progress, skipping...');
+      return;
+    }
+
+    // Debounce: only refresh if at least 1 second has passed since last refresh
+    if (timeSinceLastRefresh < 1000) {
+      console.log('Cart refresh too soon, skipping...');
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const cartData = await getCart();
-      const items = cartData?.cartItems || [];
-      const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
-      setCartCount(totalCount);
-      console.log('Cart count updated:', totalCount);
-    } catch (error) {
+      setLastRefreshTime(now);
+      const count = await getCartCount();
+      setCartCount(count);
+      console.log('Cart count updated:', count);
+    } catch (error: any) {
       console.error('Error fetching cart count:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        status: error?.status,
+        statusCode: error?.statusCode,
+        data: error?.data,
+        response: error?.response
+      });
       setCartCount(0);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading, lastRefreshTime]);
 
   // Load cart count on mount
   useEffect(() => {
     refreshCart();
-  }, []);
+  }, [refreshCart]);
 
   // Listen for cart updates
   useEffect(() => {
     const handleCartUpdate = () => {
-      refreshCart();
+      try {
+        refreshCart();
+      } catch (error) {
+        console.error('Error in cart update handler:', error);
+      }
     };
 
     window.addEventListener('cart:updated', handleCartUpdate);
     return () => {
       window.removeEventListener('cart:updated', handleCartUpdate);
     };
-  }, []);
+  }, [refreshCart]);
 
   const value: CartContextType = {
     cartCount,

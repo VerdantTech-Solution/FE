@@ -41,7 +41,7 @@ export const CartPage = () => {
   }, [updatingItem]);
 
   // Fetch cart data from API
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,13 +49,26 @@ export const CartPage = () => {
       console.log('Auth token:', localStorage.getItem('authToken'));
       
       const cartData = await getCart();
-      console.log('Cart data received:', cartData);
-      console.log('Cart items:', cartData?.cartItems);
+      console.log('Raw cart data received:', cartData);
       
-      // Accept any response that has data
+      // Check if we have valid cart data
       if (cartData) {
+        // Check for different response structures
+        let hasItems = false;
+        
+        if (cartData.data && cartData.data.cartItems && Array.isArray(cartData.data.cartItems)) {
+          console.log('Found cartItems in data.cartItems:', cartData.data.cartItems.length, 'items');
+          hasItems = cartData.data.cartItems.length > 0;
+        } else if (cartData.cartItems && Array.isArray(cartData.cartItems)) {
+          console.log('Found cartItems directly:', cartData.cartItems.length, 'items');
+          hasItems = cartData.cartItems.length > 0;
+        } else if (Array.isArray(cartData)) {
+          console.log('Response is array:', cartData.length, 'items');
+          hasItems = cartData.length > 0;
+        }
+        
         setCartResponse(cartData);
-        console.log('Cart data set successfully');
+        console.log('Cart data set successfully, has items:', hasItems);
         setError(null); // Clear any previous errors
       } else {
         console.warn('No cart data received');
@@ -66,7 +79,9 @@ export const CartPage = () => {
       console.error('Error details:', {
         message: err?.message,
         status: err?.status,
-        data: err?.data
+        statusCode: err?.statusCode,
+        data: err?.data,
+        response: err?.response
       });
       
       // Xử lý lỗi 401 - Unauthorized
@@ -82,11 +97,11 @@ export const CartPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCart();
-  }, []);
+  }, [fetchCart]);
 
   // Listen for cart updates from other pages
   useEffect(() => {
@@ -102,8 +117,25 @@ export const CartPage = () => {
     };
   }, []);
 
-  // Extract items from API response - handle actual response structure
-  const items: CartItem[] = cartResponse?.cartItems || [];
+  // Extract items from API response - handle different response structures
+  const items: CartItem[] = useMemo(() => {
+    if (!cartResponse) return [];
+    
+    // Handle different response structures
+    if (cartResponse.data && cartResponse.data.cartItems) {
+      console.log('Using data.cartItems structure');
+      return cartResponse.data.cartItems;
+    } else if (cartResponse.cartItems) {
+      console.log('Using cartItems structure');
+      return cartResponse.cartItems;
+    } else if (Array.isArray(cartResponse)) {
+      console.log('Response is array');
+      return cartResponse;
+    }
+    
+    console.log('No valid cart items found in response');
+    return [];
+  }, [cartResponse]);
   
   // Debug logging
   console.log('Cart response:', cartResponse);
@@ -210,6 +242,7 @@ export const CartPage = () => {
     setAppliedCoupon("");
     setCoupon("");
   };
+
 
   // Loading state
   if (loading) {
