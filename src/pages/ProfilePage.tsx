@@ -67,10 +67,10 @@ export const ProfilePage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [addressForm, setAddressForm] = useState({
-    locationAddress: "1",
-    province: "1",
-    district: "1",
-    commune: "",
+    locationAddress: "",
+    city: "",
+    district: "",
+    ward: "",
     latitude: 0,
     longitude: 0,
     isDeleted: false,
@@ -170,11 +170,23 @@ export const ProfilePage = () => {
   const handleCreateAddress = async () => {
     try {
       if (!user) return;
+      
+      // Map new form structure to API structure
+      const apiAddressData = {
+        locationAddress: addressForm.locationAddress,
+        province: addressForm.city, // Map city to province for API
+        district: addressForm.district,
+        commune: addressForm.ward, // Map ward to commune for API
+        latitude: addressForm.latitude,
+        longitude: addressForm.longitude,
+        isDeleted: addressForm.isDeleted,
+      };
+      
       if (editingAddressId !== null && editingAddressId !== undefined) {
-        const updated = await updateUserAddress(editingAddressId, addressForm);
+        const updated = await updateUserAddress(editingAddressId, apiAddressData);
         setUserAddresses((prev) => prev.map(a => (a.id === editingAddressId ? updated : a)));
       } else {
-        const created = await createUserAddress(user.id, addressForm);
+        const created = await createUserAddress(user.id, apiAddressData);
         setUserAddresses((prev) => [created, ...prev]);
       }
       // Sync with server to ensure UI reflects the latest canonical data
@@ -194,9 +206,9 @@ export const ProfilePage = () => {
   const openEditAddress = (addr: UserAddress) => {
     setAddressForm({
       locationAddress: addr.locationAddress || "",
-      province: addr.province || "",
+      city: addr.province || "", // Map old province field to new city field
       district: addr.district || "",
-      commune: addr.commune || "",
+      ward: addr.commune || "", // Map old commune field to new ward field
       latitude: addr.latitude || 0,
       longitude: addr.longitude || 0,
       isDeleted: addr.isDeleted ?? false,
@@ -550,15 +562,15 @@ export const ProfilePage = () => {
             <div className="grid gap-2">
               <Label>Chọn Tỉnh/Thành - Quận/Huyện - Xã/Phường</Label>
               <AddressSelector
-                selectedProvince={addressForm.province}
+                selectedCity={addressForm.city}
                 selectedDistrict={addressForm.district}
-                selectedWard={addressForm.commune}
-                onProvinceChange={(value) => setAddressForm((prev) => ({ ...prev, province: value }))}
+                selectedWard={addressForm.ward}
+                onCityChange={(value) => setAddressForm((prev) => ({ ...prev, city: value }))}
                 onDistrictChange={(value) => setAddressForm((prev) => ({ ...prev, district: value }))}
-                onWardChange={(value) => setAddressForm((prev) => ({ ...prev, commune: value }))}
-                initialProvince={addressForm.province}
+                onWardChange={(value) => setAddressForm((prev) => ({ ...prev, ward: value }))}
+                initialCity={addressForm.city}
                 initialDistrict={addressForm.district}
-                initialWard={addressForm.commune}
+                initialWard={addressForm.ward}
               />
             </div>
             <div className="flex items-center justify-between pt-1">

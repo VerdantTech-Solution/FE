@@ -40,9 +40,9 @@ export const CreateFarmPage = () => {
     farmName: "",
     farmSizeHectares: "",
     locationAddress: "",
-    province: "",
+    city: "",
     district: "",
-    commune: "",
+    ward: "",
     latitude: "",
     longitude: "",
     primaryCrops: "",
@@ -59,8 +59,8 @@ export const CreateFarmPage = () => {
   };
 
   // Handle address selection from AddressSelector
-  const handleProvinceChange = useCallback((province: string) => {
-    setForm((f) => ({ ...f, province }));
+  const handleCityChange = useCallback((city: string) => {
+    setForm((f) => ({ ...f, city }));
   }, []);
 
   const handleDistrictChange = useCallback((district: string) => {
@@ -68,7 +68,7 @@ export const CreateFarmPage = () => {
   }, []);
 
   const handleWardChange = useCallback((ward: string) => {
-    setForm((f) => ({ ...f, commune: ward }));
+    setForm((f) => ({ ...f, ward }));
   }, []);
 
 
@@ -136,9 +136,9 @@ export const CreateFarmPage = () => {
           form.farmName.trim() &&
           form.primaryCrops.trim() &&
           form.locationAddress.trim() &&
-          form.province.trim() &&
+          form.city.trim() &&
           form.district.trim() &&
-          form.commune.trim()
+          form.ward.trim()
         );
       case 3:
         return true;
@@ -160,9 +160,9 @@ export const CreateFarmPage = () => {
         farmName: form.farmName,
         farmSizeHectares: Number(form.farmSizeHectares) || 0,
         locationAddress: form.locationAddress || undefined,
-        province: form.province || undefined,
+        province: form.city || undefined, // Map city to province for API
         district: form.district || undefined,
-        commune: form.commune || undefined,
+        commune: form.ward || undefined, // Map ward to commune for API
         latitude: form.latitude === "" ? undefined : Number(form.latitude),
         longitude: form.longitude === "" ? undefined : Number(form.longitude),
         primaryCrops: form.primaryCrops || undefined,
@@ -182,9 +182,9 @@ export const CreateFarmPage = () => {
         farmName: "",
         farmSizeHectares: "",
         locationAddress: "",
-        province: "",
+        city: "",
         district: "",
-        commune: "",
+        ward: "",
         latitude: "",
         longitude: "",
         primaryCrops: "",
@@ -445,10 +445,10 @@ export const CreateFarmPage = () => {
                   <h5 className="font-semibold text-gray-800">Chọn địa chỉ hành chính</h5>
                 </div>
                 <AddressSelector
-                  selectedProvince={form.province}
+                  selectedCity={form.city}
                   selectedDistrict={form.district}
-                  selectedWard={form.commune}
-                  onProvinceChange={handleProvinceChange}
+                  selectedWard={form.ward}
+                  onCityChange={handleCityChange}
                   onDistrictChange={handleDistrictChange}
                   onWardChange={handleWardChange}
                 />
@@ -590,7 +590,7 @@ export const CreateFarmPage = () => {
                   <div>
                     <label className="text-sm font-medium text-gray-600">Địa chỉ</label>
                     <p className="text-sm text-gray-900">
-                      {[form.locationAddress, form.commune, form.district, form.province]
+                      {[form.locationAddress, form.ward, form.district, form.city]
                         .filter(Boolean)
                         .join(", ") || "Chưa nhập"}
                     </p>
