@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getProvinces, getDistricts, getWards, type Province, type District, type Ward } from '@/api/address';
+import { getCities, getDistricts, getWards, type City, type District, type Ward } from '@/api/address';
 
 export interface AddressData {
-  provinces: Province[];
+  cities: City[];
   districts: District[];
   wards: Ward[];
-  selectedProvince: Province | null;
+  selectedCity: City | null;
   selectedDistrict: District | null;
   selectedWard: Ward | null;
   loading: {
-    provinces: boolean;
+    cities: boolean;
     districts: boolean;
     wards: boolean;
   };
@@ -17,51 +17,51 @@ export interface AddressData {
 
 export const useAddress = () => {
   const [addressData, setAddressData] = useState<AddressData>({
-    provinces: [],
+    cities: [],
     districts: [],
     wards: [],
-    selectedProvince: null,
+    selectedCity: null,
     selectedDistrict: null,
     selectedWard: null,
     loading: {
-      provinces: false,
+      cities: false,
       districts: false,
       wards: false,
     },
   });
 
-  // Load provinces on mount
+  // Load cities on mount
   useEffect(() => {
-    const loadProvinces = async () => {
+    const loadCities = async () => {
       setAddressData(prev => ({
         ...prev,
-        loading: { ...prev.loading, provinces: true },
+        loading: { ...prev.loading, cities: true },
       }));
 
       try {
-        const provinces = await getProvinces();
+        const cities = await getCities();
         setAddressData(prev => ({
           ...prev,
-          provinces,
-          loading: { ...prev.loading, provinces: false },
+          cities,
+          loading: { ...prev.loading, cities: false },
         }));
       } catch (error) {
-        console.error('Error loading provinces:', error);
+        console.error('Error loading cities:', error);
         setAddressData(prev => ({
           ...prev,
-          loading: { ...prev.loading, provinces: false },
+          loading: { ...prev.loading, cities: false },
         }));
       }
     };
 
-    loadProvinces();
+    loadCities();
   }, []);
 
-  // Load districts when province is selected
-  const selectProvince = useCallback(async (province: Province | null) => {
+  // Load districts when city is selected
+  const selectCity = useCallback(async (city: City | null) => {
     setAddressData(prev => ({
       ...prev,
-      selectedProvince: province,
+      selectedCity: city,
       selectedDistrict: null,
       selectedWard: null,
       districts: [],
@@ -69,10 +69,10 @@ export const useAddress = () => {
       loading: { ...prev.loading, districts: true, wards: false },
     }));
 
-    if (!province) return;
+    if (!city) return;
 
     try {
-      const districts = await getDistricts(province.province_id);
+      const districts = await getDistricts(city.id);
       setAddressData(prev => ({
         ...prev,
         districts,
@@ -100,7 +100,7 @@ export const useAddress = () => {
     if (!district) return;
 
     try {
-      const wards = await getWards(district.district_id);
+      const wards = await getWards(district.id);
       setAddressData(prev => ({
         ...prev,
         wards,
@@ -127,7 +127,7 @@ export const useAddress = () => {
   const resetAddress = useCallback(() => {
     setAddressData(prev => ({
       ...prev,
-      selectedProvince: null,
+      selectedCity: null,
       selectedDistrict: null,
       selectedWard: null,
       districts: [],
@@ -136,26 +136,26 @@ export const useAddress = () => {
   }, []);
 
   // Set initial values (for editing existing data)
-  const setInitialAddress = useCallback(async (provinceName: string, districtName: string, wardName: string) => {
-    if (!addressData.provinces.length) return;
+  const setInitialAddress = useCallback(async (cityName: string, districtName: string, wardName: string) => {
+    if (!addressData.cities.length) return;
 
-    // Find province
-    const province = addressData.provinces.find(p => 
-      p.province_name === provinceName || 
-      p.province_name.includes(provinceName) ||
-      provinceName.includes(p.province_name)
+    // Find city
+    const city = addressData.cities.find(c => 
+      c.name === cityName || 
+      c.name.includes(cityName) ||
+      cityName.includes(c.name)
     );
 
-    if (province) {
-      await selectProvince(province);
+    if (city) {
+      await selectCity(city);
       
       // Wait for districts to load, then find district
       setTimeout(async () => {
-        const districts = await getDistricts(province.province_id);
+        const districts = await getDistricts(city.id);
         const district = districts.find(d => 
-          d.district_name === districtName || 
-          d.district_name.includes(districtName) ||
-          districtName.includes(d.district_name)
+          d.name === districtName || 
+          d.name.includes(districtName) ||
+          districtName.includes(d.name)
         );
 
         if (district) {
@@ -163,11 +163,11 @@ export const useAddress = () => {
           
           // Wait for wards to load, then find ward
           setTimeout(async () => {
-            const wards = await getWards(district.district_id);
+            const wards = await getWards(district.id);
             const ward = wards.find(w => 
-              w.ward_name === wardName || 
-              w.ward_name.includes(wardName) ||
-              wardName.includes(w.ward_name)
+              w.name === wardName || 
+              w.name.includes(wardName) ||
+              wardName.includes(w.name)
             );
 
             if (ward) {
@@ -177,11 +177,11 @@ export const useAddress = () => {
         }
       }, 500);
     }
-  }, [addressData.provinces, selectProvince, selectDistrict, selectWard]);
+  }, [addressData.cities, selectCity, selectDistrict, selectWard]);
 
   return {
     ...addressData,
-    selectProvince,
+    selectCity,
     selectDistrict,
     selectWard,
     resetAddress,

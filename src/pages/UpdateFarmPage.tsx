@@ -15,9 +15,9 @@ interface UpdateFarmFormData {
   farmName: string;
   farmSizeHectares: number;
   locationAddress: string;
-  province: string;
+  city: string;
   district: string;
-  commune: string;
+  ward: string;
   latitude: number;
   longitude: number;
   status: 'Active' | 'Maintenance' | 'Deleted';
@@ -33,9 +33,9 @@ const UpdateFarmPage = () => {
     farmName: '',
     farmSizeHectares: 0,
     locationAddress: '',
-    province: '',
+    city: '',
     district: '',
-    commune: '',
+    ward: '',
     latitude: 0,
     longitude: 0,
     status: 'Active',
@@ -67,9 +67,9 @@ const UpdateFarmPage = () => {
           farmName: farm?.farmName || farmAny?.name || farmAny?.farm_name || '',
           farmSizeHectares: farm?.farmSizeHectares || farmAny?.farm_size_hectares || farmAny?.size || 0,
           locationAddress: farm?.address?.locationAddress || farmAny?.address?.location_address || farmAny?.location_address || '',
-          province: farm?.address?.province || farmAny?.province || '',
+          city: farm?.address?.province || farmAny?.province || '', // Map province to city
           district: farm?.address?.district || farmAny?.district || '',
-          commune: farm?.address?.commune || farmAny?.commune || farmAny?.ward || '',
+          ward: farm?.address?.commune || farmAny?.commune || farmAny?.ward || '', // Map commune to ward
           latitude: farm?.address?.latitude || farmAny?.latitude || farmAny?.lat || 0,
           longitude: farm?.address?.longitude || farmAny?.longitude || farmAny?.lng || 0,
           status: farm?.status || 'Active',
@@ -140,7 +140,7 @@ const UpdateFarmPage = () => {
       return;
     }
 
-    if (!formData.province.trim()) {
+    if (!formData.city.trim()) {
       toast.error('Tỉnh/Thành không được để trống');
       return;
     }
@@ -150,7 +150,7 @@ const UpdateFarmPage = () => {
       return;
     }
 
-    if (!formData.commune.trim()) {
+    if (!formData.ward.trim()) {
       toast.error('Xã/Phường không được để trống');
       return;
     }
@@ -167,9 +167,9 @@ const UpdateFarmPage = () => {
         farmName: formData.farmName.trim(),
         farmSizeHectares: formData.farmSizeHectares,
         locationAddress: formData.locationAddress.trim(),
-        province: formData.province.trim(),
+        province: formData.city.trim(), // Map city to province for API
         district: formData.district.trim(),
-        commune: formData.commune.trim(),
+        commune: formData.ward.trim(), // Map ward to commune for API
         latitude: formData.latitude,
         longitude: formData.longitude,
         primaryCrops: formData.primaryCrops.trim(),
@@ -357,13 +357,13 @@ const UpdateFarmPage = () => {
 
                   {/* Address Fields */}
                   <AddressSelector
-                    selectedProvince={formData.province}
+                    selectedCity={formData.city}
                     selectedDistrict={formData.district}
-                    selectedWard={formData.commune}
-                    onProvinceChange={(value) => handleInputChange('province', value)}
+                    selectedWard={formData.ward}
+                    onCityChange={(value) => handleInputChange('city', value)}
                     onDistrictChange={(value) => handleInputChange('district', value)}
-                    onWardChange={(value) => handleInputChange('commune', value)}
-                    initialProvince={farmData?.address?.province || (farmData as any)?.province || ''}
+                    onWardChange={(value) => handleInputChange('ward', value)}
+                    initialCity={farmData?.address?.province || (farmData as any)?.province || ''}
                     initialDistrict={farmData?.address?.district || (farmData as any)?.district || ''}
                     initialWard={farmData?.address?.commune || (farmData as any)?.commune || (farmData as any)?.ward || ''}
                   />

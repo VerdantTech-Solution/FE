@@ -1,65 +1,86 @@
-// Address API functions for Vietnamese administrative divisions
-export interface Province {
-  province_id: string;
-  province_name: string;
-  province_type: string;
+// Address API functions for Vietnamese administrative divisions using GoShip API
+export interface City {
+  id: string;
+  name: string;
 }
 
 export interface District {
-  district_id: string;
-  district_name: string;
-  district_type: string;
-  province_id: string;
+  id: string;
+  name: string;
 }
 
 export interface Ward {
-  ward_id: string;
-  ward_name: string;
-  ward_type: string;
-  district_id: string;
+  id: string;
+  name: string;
 }
 
-const BASE_URL = 'https://vapi.vnappmob.com/api/v2/province';
+const BASE_URL = 'https://sep490.onrender.com/api/Courier';
 
-// Get all provinces
-export const getProvinces = async (): Promise<Province[]> => {
+// Get all cities from GoShip API
+export const getCities = async (): Promise<City[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/`);
+    const response = await fetch(`${BASE_URL}/cities`, {
+      headers: {
+        'accept': 'text/plain',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NTU2MTQyLCJleHAiOjE3NTk2NDI1NDIsImlhdCI6MTc1OTU1NjE0MiwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.ZqwyNmTZukKTkkb1YM84-_QUCIqHn2KubqMTZH8vCNw'
+      }
+    });
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch provinces');
+      throw new Error('Failed to fetch cities');
     }
+    
     const data = await response.json();
-    return data.results || [];
+    return data.data || [];
   } catch (error) {
-    console.error('Error fetching provinces:', error);
+    console.error('Error fetching cities:', error);
     throw error;
   }
 };
 
-// Get districts by province ID
-export const getDistricts = async (provinceId: string): Promise<District[]> => {
+// Legacy function for backward compatibility - now uses cities
+export const getProvinces = async (): Promise<City[]> => {
+  return getCities();
+};
+
+// Get districts by city ID from GoShip API
+export const getDistricts = async (cityId: string): Promise<District[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/district/${provinceId}`);
+    const response = await fetch(`${BASE_URL}/districts/${cityId}`, {
+      headers: {
+        'accept': 'text/plain',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NTU2MTQyLCJleHAiOjE3NTk2NDI1NDIsImlhdCI6MTc1OTU1NjE0MiwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.ZqwyNmTZukKTkkb1YM84-_QUCIqHn2KubqMTZH8vCNw'
+      }
+    });
+    
     if (!response.ok) {
       throw new Error('Failed to fetch districts');
     }
+    
     const data = await response.json();
-    return data.results || [];
+    return data.data || [];
   } catch (error) {
     console.error('Error fetching districts:', error);
     throw error;
   }
 };
 
-// Get wards by district ID
+// Get wards by district ID from GoShip API
 export const getWards = async (districtId: string): Promise<Ward[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/ward/${districtId}`);
+    const response = await fetch(`${BASE_URL}/wards/${districtId}`, {
+      headers: {
+        'accept': 'text/plain',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NTU2MTQyLCJleHAiOjE3NTk2NDI1NDIsImlhdCI6MTc1OTU1NjE0MiwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.ZqwyNmTZukKTkkb1YM84-_QUCIqHn2KubqMTZH8vCNw'
+      }
+    });
+    
     if (!response.ok) {
       throw new Error('Failed to fetch wards');
     }
+    
     const data = await response.json();
-    return data.results || [];
+    return data.data || [];
   } catch (error) {
     console.error('Error fetching wards:', error);
     throw error;

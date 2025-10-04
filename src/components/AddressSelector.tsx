@@ -5,37 +5,37 @@ import { Loader2 } from 'lucide-react';
 import { useAddress } from '@/hooks/useAddress';
 
 interface AddressSelectorProps {
-  selectedProvince: string;
+  selectedCity: string;
   selectedDistrict: string;
   selectedWard: string;
-  onProvinceChange: (value: string) => void;
+  onCityChange: (value: string) => void;
   onDistrictChange: (value: string) => void;
   onWardChange: (value: string) => void;
-  initialProvince?: string;
+  initialCity?: string;
   initialDistrict?: string;
   initialWard?: string;
 }
 
 const AddressSelector = ({
-  selectedProvince,
+  selectedCity,
   selectedDistrict,
   selectedWard,
-  onProvinceChange,
+  onCityChange,
   onDistrictChange,
   onWardChange,
-  initialProvince,
+  initialCity,
   initialDistrict,
   initialWard,
 }: AddressSelectorProps) => {
   const {
-    provinces,
+    cities,
     districts,
     wards,
-    selectedProvince: currentProvince,
+    selectedCity: currentCity,
     selectedDistrict: currentDistrict,
     selectedWard: currentWard,
     loading,
-    selectProvince,
+    selectCity,
     selectDistrict,
     selectWard,
     setInitialAddress,
@@ -43,62 +43,62 @@ const AddressSelector = ({
 
   // Set initial values when component mounts or when initial values change
   useEffect(() => {
-    if (initialProvince && initialDistrict && initialWard && provinces.length > 0) {
-      setInitialAddress(initialProvince, initialDistrict, initialWard);
+    if (initialCity && initialDistrict && initialWard && cities.length > 0) {
+      setInitialAddress(initialCity, initialDistrict, initialWard);
     }
-  }, [initialProvince, initialDistrict, initialWard, provinces.length, setInitialAddress]);
+  }, [initialCity, initialDistrict, initialWard, cities.length, setInitialAddress]);
 
-  const handleProvinceChange = (provinceId: string) => {
-    const province = provinces.find(p => p.province_id === provinceId);
-    if (province) {
-      selectProvince(province);
-      onProvinceChange(province.province_name);
+  const handleCityChange = (cityId: string) => {
+    const city = cities.find(c => c.id === cityId);
+    if (city) {
+      selectCity(city);
+      onCityChange(city.name);
       onDistrictChange('');
       onWardChange('');
     }
   };
 
   const handleDistrictChange = (districtId: string) => {
-    const district = districts.find(d => d.district_id === districtId);
+    const district = districts.find(d => d.id === districtId);
     if (district) {
       selectDistrict(district);
-      onDistrictChange(district.district_name);
+      onDistrictChange(district.name);
       onWardChange('');
     }
   };
 
   const handleWardChange = (wardId: string) => {
-    const ward = wards.find(w => w.ward_id === wardId);
+    const ward = wards.find(w => w.id === wardId);
     if (ward) {
       selectWard(ward);
-      onWardChange(ward.ward_name);
+      onWardChange(ward.name);
     }
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Province Selector */}
+      {/* City Selector */}
       <div className="space-y-2">
-        <Label htmlFor="province" className="text-sm font-medium text-gray-700">
+        <Label htmlFor="city" className="text-sm font-medium text-gray-700">
           Tỉnh/Thành <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentProvince?.province_id || ''}
-          onValueChange={handleProvinceChange}
-          disabled={loading.provinces}
+          value={currentCity?.id || ''}
+          onValueChange={handleCityChange}
+          disabled={loading.cities}
         >
           <SelectTrigger className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-            <SelectValue placeholder={loading.provinces ? "Đang tải..." : "Chọn tỉnh/thành"} />
+            <SelectValue placeholder={loading.cities ? "Đang tải..." : "Chọn tỉnh/thành"} />
           </SelectTrigger>
           <SelectContent>
-            {provinces.map((province) => (
-              <SelectItem key={province.province_id} value={province.province_id}>
-                {province.province_name}
+            {cities.map((city) => (
+              <SelectItem key={city.id} value={city.id}>
+                {city.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {loading.provinces && (
+        {loading.cities && (
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <Loader2 className="h-3 w-3 animate-spin" />
             Đang tải danh sách tỉnh/thành...
@@ -112,14 +112,14 @@ const AddressSelector = ({
           Quận/Huyện <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentDistrict?.district_id || ''}
+          value={currentDistrict?.id || ''}
           onValueChange={handleDistrictChange}
-          disabled={!currentProvince || loading.districts}
+          disabled={!currentCity || loading.districts}
         >
           <SelectTrigger className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
             <SelectValue 
               placeholder={
-                !currentProvince 
+                !currentCity 
                   ? "Chọn tỉnh/thành trước" 
                   : loading.districts 
                     ? "Đang tải..." 
@@ -129,8 +129,8 @@ const AddressSelector = ({
           </SelectTrigger>
           <SelectContent>
             {districts.map((district) => (
-              <SelectItem key={district.district_id} value={district.district_id}>
-                {district.district_name}
+              <SelectItem key={district.id} value={district.id}>
+                {district.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -149,7 +149,7 @@ const AddressSelector = ({
           Xã/Phường <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentWard?.ward_id || ''}
+          value={currentWard?.id || ''}
           onValueChange={handleWardChange}
           disabled={!currentDistrict || loading.wards}
         >
@@ -166,8 +166,8 @@ const AddressSelector = ({
           </SelectTrigger>
           <SelectContent>
             {wards.map((ward) => (
-              <SelectItem key={ward.ward_id} value={ward.ward_id}>
-                {ward.ward_name}
+              <SelectItem key={ward.id} value={ward.id}>
+                {ward.name}
               </SelectItem>
             ))}
           </SelectContent>
