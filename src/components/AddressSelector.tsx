@@ -8,12 +8,13 @@ interface AddressSelectorProps {
   selectedCity: string;
   selectedDistrict: string;
   selectedWard: string;
-  onCityChange: (value: string) => void;
-  onDistrictChange: (value: string) => void;
-  onWardChange: (value: string) => void;
+  onCityChange: (value: string, code?: string) => void;
+  onDistrictChange: (value: string, code?: string) => void;
+  onWardChange: (value: string, code?: string) => void;
   initialCity?: string;
   initialDistrict?: string;
   initialWard?: string;
+  className?: string;
 }
 
 const AddressSelector = ({
@@ -26,6 +27,7 @@ const AddressSelector = ({
   initialCity,
   initialDistrict,
   initialWard,
+  className = "",
 }: AddressSelectorProps) => {
   const {
     cities,
@@ -52,9 +54,9 @@ const AddressSelector = ({
     const city = cities.find(c => c.id === cityId);
     if (city) {
       selectCity(city);
-      onCityChange(city.name);
-      onDistrictChange('');
-      onWardChange('');
+      onCityChange(city.name, city.id);
+      onDistrictChange('', '');
+      onWardChange('', '');
     }
   };
 
@@ -62,8 +64,8 @@ const AddressSelector = ({
     const district = districts.find(d => d.id === districtId);
     if (district) {
       selectDistrict(district);
-      onDistrictChange(district.name);
-      onWardChange('');
+      onDistrictChange(district.name, district.id);
+      onWardChange('', '');
     }
   };
 
@@ -71,12 +73,12 @@ const AddressSelector = ({
     const ward = wards.find(w => w.id === wardId);
     if (ward) {
       selectWard(ward);
-      onWardChange(ward.name);
+      onWardChange(ward.name, ward.id);
     }
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${className}`}>
       {/* City Selector */}
       <div className="space-y-2">
         <Label htmlFor="city" className="text-sm font-medium text-gray-700">

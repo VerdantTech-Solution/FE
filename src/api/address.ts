@@ -22,7 +22,7 @@ export const getCities = async (): Promise<City[]> => {
     const response = await fetch(`${BASE_URL}/cities`, {
       headers: {
         'accept': 'text/plain',
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NTU2MTQyLCJleHAiOjE3NTk2NDI1NDIsImlhdCI6MTc1OTU1NjE0MiwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.ZqwyNmTZukKTkkb1YM84-_QUCIqHn2KubqMTZH8vCNw'
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NjQ1MDc1LCJleHAiOjE3NTk3MzE0NzUsImlhdCI6MTc1OTY0NTA3NSwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.5PCpBGKgWEmvYCweoLNHVBW1nh3GfPFhngK4VcuMtrs'
       }
     });
     
@@ -49,7 +49,7 @@ export const getDistricts = async (cityId: string): Promise<District[]> => {
     const response = await fetch(`${BASE_URL}/districts/${cityId}`, {
       headers: {
         'accept': 'text/plain',
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NTU2MTQyLCJleHAiOjE3NTk2NDI1NDIsImlhdCI6MTc1OTU1NjE0MiwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.ZqwyNmTZukKTkkb1YM84-_QUCIqHn2KubqMTZH8vCNw'
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NjQ1MDc1LCJleHAiOjE3NTk3MzE0NzUsImlhdCI6MTc1OTY0NTA3NSwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.5PCpBGKgWEmvYCweoLNHVBW1nh3GfPFhngK4VcuMtrs'
       }
     });
     
@@ -71,7 +71,7 @@ export const getWards = async (districtId: string): Promise<Ward[]> => {
     const response = await fetch(`${BASE_URL}/wards/${districtId}`, {
       headers: {
         'accept': 'text/plain',
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NTU2MTQyLCJleHAiOjE3NTk2NDI1NDIsImlhdCI6MTc1OTU1NjE0MiwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.ZqwyNmTZukKTkkb1YM84-_QUCIqHn2KubqMTZH8vCNw'
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwicm9sZSI6IkFkbWluIiwibmJmIjoxNzU5NjQ1MDc1LCJleHAiOjE3NTk3MzE0NzUsImlhdCI6MTc1OTY0NTA3NSwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.5PCpBGKgWEmvYCweoLNHVBW1nh3GfPFhngK4VcuMtrs'
       }
     });
     
