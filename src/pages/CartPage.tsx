@@ -23,8 +23,67 @@ import { getCart, updateCartItem, type CartItem } from '@/api/cart';
 
 // Sử dụng CartItem từ API thay vì định nghĩa local
 
+// Processed cart item with images as string
+interface ProcessedCartItem extends Omit<CartItem, 'images'> {
+  images: string;
+}
+
 const currency = (v: number) =>
   v.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+
+// Constants
+// const IMAGE_BASE_URL = 'https://sep490.onrender.com/images/'; // Commented out for hardcoded images
+const PLACEHOLDER_IMAGE = '/placeholder-product.jpg';
+
+// Hardcoded images for testing
+const HARDCODED_IMAGES = [
+  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop', // Farm equipment
+  'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop', // Tractor
+  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop', // Agriculture
+  'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop', // Machinery
+  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop'  // Equipment
+];
+
+// Helper function to get image URL
+const getImageUrl = (_images: string | undefined, productId: number): string => {
+  // Use hardcoded images for now
+  const hardcodedImage = HARDCODED_IMAGES[productId % HARDCODED_IMAGES.length];
+  return hardcodedImage;
+  
+  // Original logic commented out for now
+  /*
+  if (!images || images.trim() === '') {
+    console.log('No images provided, using placeholder');
+    return PLACEHOLDER_IMAGE;
+  }
+  
+  try {
+    // Get the first image from comma-separated list
+    const firstImage = images.split(',')[0].trim();
+    
+    if (!firstImage) {
+      console.log('Empty first image, using placeholder');
+      return PLACEHOLDER_IMAGE;
+    }
+    
+    console.log('Processing image:', firstImage);
+    
+    // If images is already a full URL, use it directly
+    if (firstImage.startsWith('http://') || firstImage.startsWith('https://')) {
+      console.log('Using full URL:', firstImage);
+      return firstImage;
+    }
+    
+    // If images is a relative path, add base URL
+    const fullUrl = `${IMAGE_BASE_URL}${firstImage}`;
+    console.log('Using relative path with base URL:', fullUrl);
+    return fullUrl;
+  } catch (error) {
+    console.warn('Error processing image URL:', error);
+    return PLACEHOLDER_IMAGE;
+  }
+  */
+};
 
 export const CartPage = () => {
   const [cartResponse, setCartResponse] = useState<any>(null);
@@ -53,6 +112,8 @@ export const CartPage = () => {
       
       // Check if we have valid cart data
       if (cartData) {
+        console.log('Cart data received:', cartData);
+        
         // Check for different response structures
         let hasItems = false;
         
@@ -65,6 +126,16 @@ export const CartPage = () => {
         } else if (Array.isArray(cartData)) {
           console.log('Response is array:', cartData.length, 'items');
           hasItems = cartData.length > 0;
+        }
+        
+        // Log the actual structure for debugging
+        if (cartData.data) {
+          console.log('Cart data structure:', {
+            hasUserInfo: !!cartData.data.userInfo,
+            hasCartItems: !!cartData.data.cartItems,
+            cartItemsLength: cartData.data.cartItems?.length || 0,
+            firstItemImages: cartData.data.cartItems?.[0]?.images
+          });
         }
         
         setCartResponse(cartData);
@@ -118,29 +189,61 @@ export const CartPage = () => {
   }, []);
 
   // Extract items from API response - handle different response structures
-  const items: CartItem[] = useMemo(() => {
-    if (!cartResponse) return [];
-    
-    // Handle different response structures
-    if (cartResponse.data && cartResponse.data.cartItems) {
-      console.log('Using data.cartItems structure');
-      return cartResponse.data.cartItems;
-    } else if (cartResponse.cartItems) {
-      console.log('Using cartItems structure');
-      return cartResponse.cartItems;
-    } else if (Array.isArray(cartResponse)) {
-      console.log('Response is array');
-      return cartResponse;
+  const items: ProcessedCartItem[] = useMemo(() => {
+    if (!cartResponse) {
+      console.log('No cart response');
+      return [];
     }
     
-    console.log('No valid cart items found in response');
-    return [];
+    console.log('Processing cart response:', cartResponse);
+    console.log('Cart response type:', typeof cartResponse);
+    console.log('Cart response keys:', Object.keys(cartResponse));
+    
+    let cartItems: CartItem[] = [];
+    
+    // Handle different response structures
+    if (cartResponse.data && cartResponse.data.cartItems && Array.isArray(cartResponse.data.cartItems)) {
+      console.log('Using data.cartItems structure, found', cartResponse.data.cartItems.length, 'items');
+      cartItems = cartResponse.data.cartItems;
+    } else if (cartResponse.cartItems && Array.isArray(cartResponse.cartItems)) {
+      console.log('Using cartItems structure, found', cartResponse.cartItems.length, 'items');
+      cartItems = cartResponse.cartItems;
+    } else if (Array.isArray(cartResponse)) {
+      console.log('Response is array, found', cartResponse.length, 'items');
+      cartItems = cartResponse;
+    }
+    
+    // Process images to convert from array to string if needed
+    const processedItems = cartItems.map(item => {
+      let imageString = '';
+      
+      console.log('Processing item images:', item.productName, item.images);
+      
+      if (Array.isArray(item.images)) {
+        // Convert array of image objects to comma-separated string
+        imageString = item.images.map((img: any) => img.imageUrl).join(',');
+        console.log('Converted array to string:', imageString);
+      } else if (typeof item.images === 'string') {
+        imageString = item.images;
+        console.log('Using string as is:', imageString);
+      }
+      
+      return {
+        ...item,
+        images: imageString
+      } as ProcessedCartItem;
+    });
+    
+    console.log('Processed items:', processedItems);
+    return processedItems;
   }, [cartResponse]);
   
-  // Debug logging
-  console.log('Cart response:', cartResponse);
-  console.log('Cart items:', items);
-  console.log('Items length:', items.length);
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Cart response:', cartResponse);
+    console.log('Cart items:', items);
+    console.log('Items length:', items.length);
+  }
   
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
@@ -295,6 +398,7 @@ export const CartPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 mt-[20px]">
       
+      
       {/* Header */}
       <div className="bg-white border-b">
         <motion.div
@@ -376,9 +480,13 @@ export const CartPage = () => {
                   <CardContent className="p-6">
                     <div className="flex gap-6">
                       <img
-                        src={item.images ? `https://sep490.onrender.com/images/${item.images.split(',')[0]}` : '/placeholder-product.jpg'}
+                        src={getImageUrl(item.images, item.productId)}
                         alt={item.productName}
                         className="w-32 h-32 object-cover rounded-xl shadow-sm"
+                        onError={(e) => {
+                          // Fallback to placeholder if image fails to load
+                          e.currentTarget.src = PLACEHOLDER_IMAGE;
+                        }}
                       />
                       <div className="flex-1">
                         <div className="flex items-start justify-between gap-4">
