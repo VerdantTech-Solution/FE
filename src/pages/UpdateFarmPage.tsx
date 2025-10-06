@@ -18,6 +18,9 @@ interface UpdateFarmFormData {
   city: string;
   district: string;
   ward: string;
+  provinceCode?: number;
+  districtCode?: number;
+  communeCode?: number;
   latitude: number;
   longitude: number;
   status: 'Active' | 'Maintenance' | 'Deleted';
@@ -36,6 +39,9 @@ const UpdateFarmPage = () => {
     city: '',
     district: '',
     ward: '',
+    provinceCode: 0,
+    districtCode: 0,
+    communeCode: 0,
     latitude: 0,
     longitude: 0,
     status: 'Active',
@@ -70,6 +76,9 @@ const UpdateFarmPage = () => {
           city: farm?.address?.province || farmAny?.province || '', // Map province to city
           district: farm?.address?.district || farmAny?.district || '',
           ward: farm?.address?.commune || farmAny?.commune || farmAny?.ward || '', // Map commune to ward
+          provinceCode: farmAny?.address?.provinceCode || farmAny?.provinceCode || 0,
+          districtCode: farmAny?.address?.districtCode || farmAny?.districtCode || 0,
+          communeCode: farmAny?.address?.communeCode || farmAny?.communeCode || 0,
           latitude: farm?.address?.latitude || farmAny?.latitude || farmAny?.lat || 0,
           longitude: farm?.address?.longitude || farmAny?.longitude || farmAny?.lng || 0,
           status: farm?.status || 'Active',
@@ -163,6 +172,7 @@ const UpdateFarmPage = () => {
     try {
       setIsSaving(true);
       
+      // Ensure province and ProvinceCode follow API rule (both present or both null)
       const updateData: CreateFarmProfileRequest = {
         farmName: formData.farmName.trim(),
         farmSizeHectares: formData.farmSizeHectares,
@@ -170,11 +180,24 @@ const UpdateFarmPage = () => {
         province: formData.city.trim(), // Map city to province for API
         district: formData.district.trim(),
         commune: formData.ward.trim(), // Map ward to commune for API
+        provinceCode: formData.provinceCode || undefined,
+        districtCode: formData.districtCode || undefined,
+        communeCode: formData.communeCode || undefined,
         latitude: formData.latitude,
         longitude: formData.longitude,
         primaryCrops: formData.primaryCrops.trim(),
         status: formData.status,
       };
+
+      // Fix rule: Province and ProvinceCode must both exist or both be null
+      if (!updateData.province || updateData.province.trim() === '') {
+        updateData.province = undefined;
+        updateData.provinceCode = undefined;
+      } else if (!updateData.provinceCode || updateData.provinceCode === 0) {
+        toast.error('Vui lòng chọn lại Tỉnh/Thành để lấy mã (ProvinceCode).');
+        setIsSaving(false);
+        return;
+      }
 
       await updateFarmProfile(Number(id), updateData);
       
@@ -360,9 +383,29 @@ const UpdateFarmPage = () => {
                     selectedCity={formData.city}
                     selectedDistrict={formData.district}
                     selectedWard={formData.ward}
-                    onCityChange={(value) => handleInputChange('city', value)}
-                    onDistrictChange={(value) => handleInputChange('district', value)}
-                    onWardChange={(value) => handleInputChange('ward', value)}
+                    onCityChange={(value, code) => setFormData(prev => ({
+                      ...prev,
+                      city: value,
+                      provinceCode: code ? parseInt(code) || 0 : 0,
+                      // reset lower levels
+                      district: '',
+                      districtCode: 0,
+                      ward: '',
+                      communeCode: 0,
+                    }))}
+                    onDistrictChange={(value, code) => setFormData(prev => ({
+                      ...prev,
+                      district: value,
+                      districtCode: code ? parseInt(code) || 0 : 0,
+                      // reset ward
+                      ward: '',
+                      communeCode: 0,
+                    }))}
+                    onWardChange={(value, code) => setFormData(prev => ({
+                      ...prev,
+                      ward: value,
+                      communeCode: code ? parseInt(code) || 0 : 0,
+                    }))}
                     initialCity={farmData?.address?.province || (farmData as any)?.province || ''}
                     initialDistrict={farmData?.address?.district || (farmData as any)?.district || ''}
                     initialWard={farmData?.address?.commune || (farmData as any)?.commune || (farmData as any)?.ward || ''}

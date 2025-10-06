@@ -31,6 +31,9 @@ export interface CreateFarmProfileRequest {
   province?: string;
   district?: string;
   commune?: string;
+  provinceCode?: number;
+  districtCode?: number;
+  communeCode?: number;
   latitude?: number;
   longitude?: number;
   primaryCrops?: string;
@@ -55,10 +58,18 @@ export interface GetFarmProfilesResponse {
  * Tạo farm profile mới cho user hiện tại
  * API endpoint: POST /api/FarmProfile
  */
-export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise<CreateFarmProfileResponse> => {
+export interface CreateFarmProfileApiResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: string;
+  errors: string[];
+}
+
+export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise<CreateFarmProfileApiResponse> => {
   try {
     const response = await apiClient.post('/api/FarmProfile', data);
-    return response as unknown as CreateFarmProfileResponse;
+    // apiClient returns response.data already
+    return response as unknown as CreateFarmProfileApiResponse;
   } catch (error) {
     console.error('Error creating farm profile:', error);
     throw error;
