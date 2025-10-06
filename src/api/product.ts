@@ -4,7 +4,6 @@ export interface CreateProductCategoryRequest {
   name: string;
   parentId: number | null;
   description: string;
-  iconUrl: string | null;
 }
 
 export interface UpdateProductCategoryRequest extends CreateProductCategoryRequest {
@@ -23,7 +22,6 @@ export interface ProductCategory {
   name: string;
   slug: string;
   description: string;
-  iconUrl: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -73,7 +71,18 @@ export const updateProductCategory = async (
   try {
     const response = await apiClient.patch(`/api/ProductCategory/${id}`, data);
     console.log('Update product category response:', response.data);
-    return response.data;
+    
+    // Ensure we return the proper response structure
+    if (response.data && typeof response.data === 'object') {
+      return response.data;
+    }
+    
+    // Fallback if response structure is different
+    return {
+      status: true,
+      statusCode: 200,
+      data: response.data
+    };
   } catch (error) {
     console.error('Update product category error:', error);
     throw error;
