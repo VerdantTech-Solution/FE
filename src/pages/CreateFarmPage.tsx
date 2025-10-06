@@ -43,6 +43,9 @@ export const CreateFarmPage = () => {
     city: "",
     district: "",
     ward: "",
+    provinceCode: 0,
+    districtCode: 0,
+    communeCode: 0,
     latitude: "",
     longitude: "",
     primaryCrops: "",
@@ -59,16 +62,16 @@ export const CreateFarmPage = () => {
   };
 
   // Handle address selection from AddressSelector
-  const handleCityChange = useCallback((city: string) => {
-    setForm((f) => ({ ...f, city }));
+  const handleCityChange = useCallback((city: string, code?: string) => {
+    setForm((f) => ({ ...f, city, provinceCode: code ? parseInt(code) || 0 : 0, district: '', ward: '', districtCode: 0, communeCode: 0 }));
   }, []);
 
-  const handleDistrictChange = useCallback((district: string) => {
-    setForm((f) => ({ ...f, district }));
+  const handleDistrictChange = useCallback((district: string, code?: string) => {
+    setForm((f) => ({ ...f, district, districtCode: code ? parseInt(code) || 0 : 0, ward: '', communeCode: 0 }));
   }, []);
 
-  const handleWardChange = useCallback((ward: string) => {
-    setForm((f) => ({ ...f, ward }));
+  const handleWardChange = useCallback((ward: string, code?: string) => {
+    setForm((f) => ({ ...f, ward, communeCode: code ? parseInt(code) || 0 : 0 }));
   }, []);
 
 
@@ -163,12 +166,18 @@ export const CreateFarmPage = () => {
         province: form.city || undefined, // Map city to province for API
         district: form.district || undefined,
         commune: form.ward || undefined, // Map ward to commune for API
+        provinceCode: form.provinceCode || undefined,
+        districtCode: form.districtCode || undefined,
+        communeCode: form.communeCode || undefined,
         latitude: form.latitude === "" ? undefined : Number(form.latitude),
         longitude: form.longitude === "" ? undefined : Number(form.longitude),
         primaryCrops: form.primaryCrops || undefined,
       };
 
-      await createFarmProfile(payload);
+      const res = await createFarmProfile(payload);
+      if (!res.status) {
+        throw new Error((res.errors || []).join(', '));
+      }
       
       // Set success data and show alert
       setSuccessData({
