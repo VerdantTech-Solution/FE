@@ -10,6 +10,8 @@ import {
   Wallet,
   TrendingUp
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router';
 
 
 const WalletBalance = () => {
@@ -200,6 +202,13 @@ const WithdrawForm = () => {
 };
 
 const WalletPage = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
   return (
     <div className="flex h-screen bg-gray-50 mt-[80px]">
       {/* Sidebar */}
@@ -222,6 +231,13 @@ const WalletPage = () => {
                 <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
                 <span className="text-sm font-medium text-gray-700">Vendor Name</span>
               </div>
+              <Button 
+                variant="outline" 
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </Button>
             </div>
           </div>
         </header>

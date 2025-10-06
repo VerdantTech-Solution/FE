@@ -2,7 +2,8 @@ import { Layout } from "@/layouts";
 import { Route, Routes as RRDRoutes } from "react-router";
 import { allRoutes } from "./all-routes";
 import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage, CartPage, StaffPage } from "@/pages";
-import { AdminProtectedRoute, StaffProtectedRoute } from "@/components";
+import { AdminProtectedRoute, StaffProtectedRoute, VendorProtectedRoute } from "@/components";
+import VendorPage from "@/pages/vendor/VendorPage";
 
 export const Routes = () => {
   return (
@@ -25,11 +26,16 @@ export const Routes = () => {
           <StaffPage />
         </StaffProtectedRoute>
       } />
+    <Route path="/vendor/*" element={
+        <VendorProtectedRoute>
+          <VendorPage />
+        </VendorProtectedRoute>
+      } />
      
       
       {/* Route chính - SimpleRoleRedirect không có Layout (không có Navbar) */}
       <Route path="/" element={<SimpleRoleRedirect />} />
-      
+     
       {/* Các routes khác sử dụng Layout */}
       <Route element={<Layout />}>
         {allRoutes.map((route) => (

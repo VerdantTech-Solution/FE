@@ -14,6 +14,7 @@ export { ForgotPassword } from './ForgotPassword';
 export { ResetPassword } from './ResetPassword';
 export { ChangePassword } from './ChangePassword';
 export { StaffProtectedRoute } from './StaffProtectedRoute';
+export { VendorProtectedRoute } from './VendorProtectedRoute';
 export { default as StepIndicator } from './StepIndicator';
 export { default as AddressSelector } from './AddressSelector';
 export { default as CurrentFarmWeather } from './CurrentFarmWeather';

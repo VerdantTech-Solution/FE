@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { User, LogOut, ChevronDown, Shield, Leaf, ShoppingCart, Package } from "lucide-react";
+import { User, LogOut, ChevronDown, Shield, Leaf, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -300,16 +300,7 @@ const Navbar = () => {
                             <Leaf className="h-4 w-4" />
                             Thông Tin Trang Trại
                           </button>
-                          <button
-                            className="group w-full px-4 py-2 text-left text-sm text-gray-700 rounded-md flex items-center gap-3 transition-all duration-200 ease-out hover:bg-green-500 hover:text-white hover:shadow-md hover:-translate-y-0.5"
-                            onClick={() => {
-                              navigate("/vendor/dashboard");
-                              closeUserDropdown();
-                            }}
-                          >
-                            <Package className="h-4 w-4" />
-                            Quản Lý Sản Phẩm
-                          </button>
+                          {/* Vendor link removed as requested */}
                           
                           <button
                             className="w-full px-4 py-2 text-left text-sm text-gray-700 rounded-md transition-all duration-200 ease-out hover:text-white hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 flex items-center gap-3"
