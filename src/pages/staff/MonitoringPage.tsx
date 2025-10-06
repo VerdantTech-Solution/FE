@@ -27,18 +27,17 @@ export const MonitoringPage: React.FC = () => {
     name: '',
     parentId: null,
     description: '',
-    iconUrl: ''
   });
 
   // Edit form states
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isEditLoading, setIsEditLoading] = useState(false);
+  const [isEditDialogLoading, setIsEditDialogLoading] = useState(false);
   const [editItemId, setEditItemId] = useState<number | null>(null);
   const [editData, setEditData] = useState<UpdateProductCategoryRequest>({
     name: '',
     parentId: null,
     description: '',
-    iconUrl: '',
     isActive: true,
   });
 
@@ -100,11 +99,10 @@ export const MonitoringPage: React.FC = () => {
         name: formData.name.trim(),
         parentId: formData.parentId,
         description: formData.description.trim(),
-        iconUrl: formData.iconUrl?.trim() || null
       };
       const result = await createProductCategory(payload);
       alert(`Tạo thiết bị giám sát "${result.name}" thành công!`);
-      setFormData({ name: '', parentId: null, description: '', iconUrl: '' });
+      setFormData({ name: '', parentId: null, description: '' });
       setIsCreateFormOpen(false);
       handleMonitoringCreated();
     } catch (error: any) {
@@ -117,15 +115,25 @@ export const MonitoringPage: React.FC = () => {
   };
 
   const openEditDialog = async (item: ProductCategory) => {
+    setIsEditDialogLoading(true);
     setEditItemId(item.id);
     setEditData({
       name: item.name,
       parentId: item.parent?.id ?? null,
       description: item.description,
-      iconUrl: item.iconUrl || '',
       isActive: item.isActive,
     });
-    try { const categories = await getProductCategories(); setParentCategories(categories); } catch {}
+    
+    // Load parent categories for the dropdown
+    try { 
+      const categories = await getProductCategories(); 
+      setParentCategories(categories); 
+    } catch (error) {
+      console.error('Error fetching parent categories for edit:', error);
+    } finally {
+      setIsEditDialogLoading(false);
+    }
+    
     setIsEditFormOpen(true);
   };
 
@@ -136,25 +144,54 @@ export const MonitoringPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editItemId == null) return;
-    if (!editData.name.trim()) { alert('Vui lòng nhập tên danh mục'); return; }
-    if (!editData.description.trim()) { alert('Vui lòng nhập mô tả'); return; }
+    if (!editData.name.trim()) { 
+      alert('Vui lòng nhập tên danh mục'); 
+      return; 
+    }
+    if (!editData.description.trim()) { 
+      alert('Vui lòng nhập mô tả'); 
+      return; 
+    }
+    
     setIsEditLoading(true);
     try {
       const payload: Partial<UpdateProductCategoryRequest> = {
         name: editData.name.trim(),
         parentId: editData.parentId,
         description: editData.description.trim(),
-        iconUrl: editData.iconUrl?.trim() || null,
         isActive: editData.isActive,
       };
+      
+      console.log('Updating category with payload:', payload);
       const res: ResponseWrapper<ProductCategory> = await updateProductCategory(editItemId, payload);
-      if (!res.status) { throw new Error(res.errors?.join(', ') || 'Cập nhật thất bại'); }
-      alert(`Cập nhật danh mục "${res.data.name}" thành công!`);
+      
+      // Check if the response indicates success
+      if (res && res.status === false) { 
+        throw new Error(res.errors?.join(', ') || 'Cập nhật thất bại'); 
+      }
+      
+      // Success message
+      const updatedName = res?.data?.name || editData.name;
+      alert(`Cập nhật danh mục "${updatedName}" thành công!`);
+      
+      // Close dialog and refresh data
       setIsEditFormOpen(false);
       setEditItemId(null);
+      setEditData({ name: '', parentId: null, description: '', isActive: true });
       await fetchMonitoringItems();
+      
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.errors?.join(', ') || err?.message || 'Có lỗi xảy ra khi cập nhật danh mục';
+      console.error('Update category error:', err);
+      let errorMessage = 'Có lỗi xảy ra khi cập nhật danh mục';
+      
+      if (err?.response?.data?.errors) {
+        errorMessage = err.response.data.errors.join(', ');
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
       alert(`Lỗi: ${errorMessage}`);
     } finally {
       setIsEditLoading(false);
@@ -221,19 +258,6 @@ export const MonitoringPage: React.FC = () => {
                   <Label htmlFor="description" className="text-sm font-medium">Mô tả <span className="text-red-500">*</span></Label>
                   <Textarea id="description" value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} placeholder="Nhập mô tả chi tiết về thiết bị giám sát" rows={4} required disabled={isCreateLoading} />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="iconUrl" className="text-sm font-medium">URL Icon</Label>
-                  <Input id="iconUrl" type="url" value={formData.iconUrl || ''} onChange={(e) => handleInputChange('iconUrl', e.target.value)} placeholder="https://example.com/icon.png" disabled={isCreateLoading} />
-                  <p className="text-xs text-gray-500">Đường dẫn đến hình ảnh icon cho thiết bị giám sát</p>
-                </div>
-                {formData.iconUrl && formData.iconUrl.trim() && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Xem trước Icon</Label>
-                    <div className="w-16 h-16 border border-gray-200 rounded-lg overflow-hidden">
-                      <img src={formData.iconUrl} alt="Icon preview" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    </div>
-                  </div>
-                )}
                 <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                   <Button type="button" variant="outline" onClick={() => setIsCreateFormOpen(false)} disabled={isCreateLoading}><X size={16} className="mr-2" />Hủy</Button>
                   <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isCreateLoading}>{isCreateLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Đang tạo...</>) : (<><Plus size={16} className="mr-2" />Tạo thiết bị</>)}</Button>
@@ -338,9 +362,6 @@ export const MonitoringPage: React.FC = () => {
                       <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
-                            {item.iconUrl && (
-                              <img src={item.iconUrl} alt={item.name} className="w-8 h-8 rounded object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                            )}
                             <div>
                               <p className="font-medium text-gray-900">{item.name}</p>
                               <p className="text-sm text-gray-500">{item.description}</p>
@@ -403,57 +424,109 @@ export const MonitoringPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Cập nhật danh mục</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name" className="text-sm font-medium">Tên danh mục <span className="text-red-500">*</span></Label>
-                <Input id="edit-name" value={editData.name} onChange={(e) => handleEditInputChange('name', e.target.value)} disabled={isEditLoading} required />
+          
+          {isEditDialogLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-2 text-gray-600">Đang tải dữ liệu...</span>
+            </div>
+          ) : (
+            <form onSubmit={handleEditSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name" className="text-sm font-medium">Tên danh mục <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-name" 
+                    value={editData.name} 
+                    onChange={(e) => handleEditInputChange('name', e.target.value)} 
+                    disabled={isEditLoading} 
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-parent" className="text-sm font-medium">Danh mục cha</Label>
+                  <Select 
+                    value={editData.parentId == null ? 'null' : String(editData.parentId)} 
+                    onValueChange={(v) => handleEditInputChange('parentId', v === 'null' ? null : parseInt(v))} 
+                    disabled={isEditLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn danh mục cha" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="null">Không có danh mục cha</SelectItem>
+                      {parentCategories.map((category) => (
+                        <SelectItem key={category.id} value={String(category.id)}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-parent" className="text-sm font-medium">Danh mục cha</Label>
-                <Select value={editData.parentId == null ? 'null' : String(editData.parentId)} onValueChange={(v) => handleEditInputChange('parentId', v === 'null' ? null : parseInt(v))} disabled={isEditLoading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn danh mục cha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="null">Không có danh mục cha</SelectItem>
-                    {parentCategories.map((category) => (
-                      <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description" className="text-sm font-medium">Mô tả <span className="text-red-500">*</span></Label>
-              <Textarea id="edit-description" value={editData.description} onChange={(e) => handleEditInputChange('description', e.target.value)} rows={4} disabled={isEditLoading} required />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-icon" className="text-sm font-medium">URL Icon</Label>
-                <Input id="edit-icon" type="url" value={editData.iconUrl || ''} onChange={(e) => handleEditInputChange('iconUrl', e.target.value)} placeholder="https://example.com/icon.png" disabled={isEditLoading} />
+                <Label htmlFor="edit-description" className="text-sm font-medium">Mô tả <span className="text-red-500">*</span></Label>
+                <Textarea 
+                  id="edit-description" 
+                  value={editData.description} 
+                  onChange={(e) => handleEditInputChange('description', e.target.value)} 
+                  rows={4} 
+                  disabled={isEditLoading} 
+                  required 
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Trạng thái</Label>
                 <div className="flex items-center gap-3">
-                  <Button type="button" variant={editData.isActive ? 'default' : 'outline'} onClick={() => handleEditInputChange('isActive', true)} disabled={isEditLoading} className={editData.isActive ? 'bg-green-600 hover:bg-green-700' : ''}>Hoạt động</Button>
-                  <Button type="button" variant={!editData.isActive ? 'default' : 'outline'} onClick={() => handleEditInputChange('isActive', false)} disabled={isEditLoading} className={!editData.isActive ? 'bg-gray-600 hover:bg-gray-700' : ''}>Không hoạt động</Button>
+                  <Button 
+                    type="button" 
+                    variant={editData.isActive ? 'default' : 'outline'} 
+                    onClick={() => handleEditInputChange('isActive', true)} 
+                    disabled={isEditLoading} 
+                    className={editData.isActive ? 'bg-green-600 hover:bg-green-700' : ''}
+                  >
+                    Hoạt động
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant={!editData.isActive ? 'default' : 'outline'} 
+                    onClick={() => handleEditInputChange('isActive', false)} 
+                    disabled={isEditLoading} 
+                    className={!editData.isActive ? 'bg-gray-600 hover:bg-gray-700' : ''}
+                  >
+                    Không hoạt động
+                  </Button>
                 </div>
               </div>
-            </div>
-            {editData.iconUrl && editData.iconUrl.trim() && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Xem trước Icon</Label>
-                <div className="w-16 h-16 border border-gray-200 rounded-lg overflow-hidden">
-                  <img src={editData.iconUrl} alt="Icon preview" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditFormOpen(false)} 
+                  disabled={isEditLoading}
+                >
+                  <X size={16} className="mr-2" />Hủy
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-blue-600 hover:bg-blue-700" 
+                  disabled={isEditLoading}
+                >
+                  {isEditLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Đang cập nhật...
+                    </>
+                  ) : (
+                    <>
+                      <Edit size={16} className="mr-2" />
+                      Cập nhật
+                    </>
+                  )}
+                </Button>
               </div>
-            )}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Button type="button" variant="outline" onClick={() => setIsEditFormOpen(false)} disabled={isEditLoading}><X size={16} className="mr-2" />Hủy</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isEditLoading}>{isEditLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Đang cập nhật...</>) : (<><Edit size={16} className="mr-2" />Cập nhật</>)}</Button>
-            </div>
-          </form>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
