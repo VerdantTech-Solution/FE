@@ -20,10 +20,19 @@ export interface CartItem {
   description: string;
   unitPrice: number;
   quantity: number;
-  images: string;
+  images: CartImage[] | string; // Support both array and string formats
   isActive: boolean;
   soldCount: number;
   ratingAverage: number;
+}
+
+export interface CartImage {
+  id: number;
+  imageUrl: string;
+  purpose: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserInfoDTO {
@@ -43,7 +52,7 @@ export interface UserInfoDTO {
 }
 
 export interface CartData {
-  userInfoDTO: UserInfoDTO;
+  userInfo: UserInfoDTO; // Changed from userInfoDTO to userInfo
   cartItems: CartItem[];
 }
 
@@ -120,7 +129,8 @@ export const getCart = async (): Promise<any> => {
       }
     }
     
-    return response;
+    // Return the actual data from the response, not the whole response object
+    return response.data || response;
   } catch (error: any) {
     console.error('Error fetching cart:', error);
     console.error('Error details:', {
@@ -139,13 +149,14 @@ export const getCartCount = async (): Promise<number> => {
     const cartData = await getCart();
     console.log('getCartCount - cartData:', cartData);
     
-    if (cartData && cartData.data && cartData.data.cartItems) {
-      const count = cartData.data.cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      console.log('getCartCount - count from data.cartItems:', count);
-      return count;
-    } else if (cartData && cartData.cartItems) {
+    // Since getCart now returns response.data, we need to check for cartItems directly
+    if (cartData && cartData.cartItems && Array.isArray(cartData.cartItems)) {
       const count = cartData.cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
       console.log('getCartCount - count from cartItems:', count);
+      return count;
+    } else if (cartData && cartData.data && cartData.data.cartItems) {
+      const count = cartData.data.cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+      console.log('getCartCount - count from data.cartItems:', count);
       return count;
     }
     console.log('getCartCount - no cart items found, returning 0');
