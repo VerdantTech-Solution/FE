@@ -100,11 +100,13 @@ export const LoginPage = () => {
       // Cập nhật auth context với user và token
       login(response.user, response.token);
       
-      // toast.success("Đăng nhập thành công!"); // Removed toast as per new_code
-      console.log("Login successful, redirecting to home");
-      
-      // Chuyển hướng sau khi đăng nhập thành công với replace để tránh history issues
-      navigate("/", { replace: true });
+      // Chuyển hướng theo role
+      const role = response.user?.role;
+      if (role === 'Vendor') {
+        navigate('/vendor', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (error: unknown) {
       console.error("Login error:", error);
       // Xử lý lỗi đăng nhập
@@ -141,8 +143,13 @@ export const LoginPage = () => {
       // Use AuthContext login method (consistent with regular login)
       login(data.user, data.token);
       
-      console.log("Google login successful, redirecting to home");
-      navigate("/");
+      // Chuyển hướng theo role cho Google login
+      const role = data.user?.role;
+      if (role === 'Vendor') {
+        navigate('/vendor', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (error: unknown) {
       console.error("Google login error:", error);
       const errorMessage = error && typeof error === 'object' && 'message' in error 
