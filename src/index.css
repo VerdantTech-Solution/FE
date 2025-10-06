@@ -174,3 +174,84 @@ html {
 .font-inter {
   font-family: var(--font-family-inter);
 }
+
+/* Custom animations for MoMo-style result dialog */
+@keyframes scale-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 2s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
+  animation-delay: 0.3s;
+  animation-fill-mode: both;
+}
+
+.animate-fade-in-up-delayed {
+  animation: fade-in-up 0.6s ease-out;
+  animation-delay: 0.5s;
+  animation-fill-mode: both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+  animation-delay: 0.8s;
+  animation-fill-mode: both;
+}
+
+.animate-fade-in-delayed {
+  animation: fade-in 0.4s ease-out;
+  animation-delay: 0.9s;
+  animation-fill-mode: both;
+}

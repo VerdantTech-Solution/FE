@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import VendorSidebar from './VendorSidebar';
+import RegisterProductForm from '@/components/RegisterProductForm';
 import { 
   Bell,
   Search,
@@ -215,6 +215,10 @@ const RegistrationManagementPage = () => {
               <p className="text-gray-600">Duyệt và quản lý các đơn đăng ký sản phẩm</p>
             </div>
             <div className="flex items-center space-x-4">
+              <RegisterProductForm onProductRegistered={() => {
+                // Có thể refresh danh sách ở đây
+                console.log('Sản phẩm đã được đăng ký thành công');
+              }} />
               <Button variant="ghost" size="sm" className="p-2">
                 <Bell size={20} />
               </Button>

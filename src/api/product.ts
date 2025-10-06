@@ -198,3 +198,37 @@ export const getProductById = async (id: number): Promise<Product> => {
     throw error;
   }
 };
+
+// Interface for product registration
+export interface RegisterProductRequest {
+  categoryId: number;
+  proposedProductCode: string;
+  proposedProductName: string;
+  description: string;
+  unitPrice: number;
+  energyEfficiencyRating?: string;
+  specifications?: {
+    [key: string]: string;
+  };
+  manualUrls?: string;
+  images?: string;
+  warrantyMonths: number;
+  weightKg: number;
+  dimensionsCm: {
+    width: number;
+    height: number;
+    length: number;
+  };
+}
+
+// API đăng ký sản phẩm mới
+export const registerProduct = async (data: RegisterProductRequest): Promise<any> => {
+  try {
+    const response = await apiClient.post('/api/Product/register-product', data);
+    console.log('Register product response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Register product error:', error);
+    throw error;
+  }
+};

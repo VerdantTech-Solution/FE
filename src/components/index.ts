@@ -19,3 +19,4 @@ export { default as AddressSelector } from './AddressSelector';
 export { default as CurrentFarmWeather } from './CurrentFarmWeather';
 export { default as HourlyFarmWeather } from './HourlyFarmWeather';
 export { default as CreateProductForm } from './CreateProductForm';
+export { default as RegisterProductForm } from './RegisterProductForm';
