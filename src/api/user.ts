@@ -28,11 +28,27 @@ export interface UserAddress {
   province: string;
   district: string;
   commune: string;
+  provinceCode?: number;
+  districtCode?: number;
+  communeCode?: number;
   latitude: number;
   longitude: number;
   isDeleted: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// Interface cho request tạo địa chỉ mới
+export interface CreateAddressRequest {
+  locationAddress: string;
+  province: string;
+  district: string;
+  commune: string;
+  provinceCode?: number;
+  districtCode?: number;
+  communeCode?: number;
+  latitude: number;
+  longitude: number;
 }
 
 // Interface cho request update address
@@ -41,6 +57,9 @@ export interface UpdateAddressRequest {
   province: string;
   district: string;
   commune: string;
+  provinceCode?: number;
+  districtCode?: number;
+  communeCode?: number;
   latitude: number;
   longitude: number;
   isDeleted: boolean;
@@ -136,8 +155,20 @@ export const updateUserAddress = async (addressId: number, addressData: UpdateAd
   }
 };
 
+// API xóa địa chỉ của user (chuẩn bị cho xử lý deleted sau này)
+export const deleteUserAddress = async (addressId: number): Promise<{ status: boolean; statusCode: string | number; data?: string; errors?: string[] }> => {
+  try {
+    const response = await apiClient.delete(`/api/User/address/${addressId}`);
+    console.log('Delete user address response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Delete user address error:', error);
+    throw error;
+  }
+};
+
 // API tạo địa chỉ mới cho user
-export const createUserAddress = async (userId: string, addressData: UpdateAddressRequest): Promise<UserAddress> => {
+export const createUserAddress = async (userId: string, addressData: CreateAddressRequest): Promise<{ status: boolean; statusCode: string; data: string; errors: string[] }> => {
   try {
     const response = await apiClient.post(`/api/User/${userId}/address`, addressData);
     console.log('Create user address response:', response.data);
