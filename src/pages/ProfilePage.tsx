@@ -2,10 +2,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Shield, LogOut, Edit, Key} from "lucide-react";
+import { User, Mail, Phone, Shield, LogOut, Edit, Key, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
-import { getUserProfile, createUserAddress, updateUserAddress, type UserAddress } from "@/api/user";
+import { getUserProfile, createUserAddress, updateUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
@@ -74,6 +74,9 @@ export const ProfilePage = () => {
     latitude: 0,
     longitude: 0,
     isDeleted: false,
+    provinceCode: 0,
+    districtCode: 0,
+    communeCode: 0,
   });
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
 
@@ -171,35 +174,82 @@ export const ProfilePage = () => {
     try {
       if (!user) return;
       
-      // Map new form structure to API structure
-      const apiAddressData = {
-        locationAddress: addressForm.locationAddress,
-        province: addressForm.city, // Map city to province for API
-        district: addressForm.district,
-        commune: addressForm.ward, // Map ward to commune for API
-        latitude: addressForm.latitude,
-        longitude: addressForm.longitude,
-        isDeleted: addressForm.isDeleted,
-      };
-      
       if (editingAddressId !== null && editingAddressId !== undefined) {
+        // Update existing address
+        const apiAddressData = {
+          locationAddress: addressForm.locationAddress,
+          province: addressForm.city,
+          district: addressForm.district,
+          commune: addressForm.ward,
+          provinceCode: addressForm.provinceCode,
+          districtCode: addressForm.districtCode,
+          communeCode: addressForm.communeCode,
+          latitude: addressForm.latitude,
+          longitude: addressForm.longitude,
+          isDeleted: addressForm.isDeleted,
+        };
+        
         const updated = await updateUserAddress(editingAddressId, apiAddressData);
         setUserAddresses((prev) => prev.map(a => (a.id === editingAddressId ? updated : a)));
+        window.location.reload();
       } else {
-        const created = await createUserAddress(user.id, apiAddressData);
-        setUserAddresses((prev) => [created, ...prev]);
+        // Create new address
+        const createAddressData: CreateAddressRequest = {
+          locationAddress: addressForm.locationAddress,
+          province: addressForm.city,
+          district: addressForm.district,
+          commune: addressForm.ward,
+          provinceCode: addressForm.provinceCode,
+          districtCode: addressForm.districtCode,
+          communeCode: addressForm.communeCode,
+          latitude: addressForm.latitude,
+          longitude: addressForm.longitude,
+        };
+        
+        const response = await createUserAddress(user.id, createAddressData);
+        
+        if (response.status) {
+          // Success - refresh addresses from server
+          const refreshed = await getUserProfile();
+          if (Array.isArray((refreshed as any).addresses)) {
+            setUserAddresses((refreshed as any).addresses as UserAddress[]);
+          }
+          window.location.reload();
+        } else {
+          console.error('Failed to create address:', response.errors);
+          // Handle error - could show toast notification
+        }
       }
-      // Sync with server to ensure UI reflects the latest canonical data
+      
+      setIsDialogOpen(false);
+      setEditingAddressId(null);
+    } catch (error) {
+      console.error('Error creating/updating address:', error);
+      // Handle error - could show toast notification
+    }
+  };
+
+  const handleDeleteAddress = async (addressId: number) => {
+    try {
+      if (!addressId) return;
+      const confirmed = window.confirm('Bạn có chắc muốn xóa địa chỉ này?');
+      if (!confirmed) return;
+      const { deleteUserAddress } = await import('@/api/user');
+      const res = await deleteUserAddress(addressId);
+      if ((res as any)?.status === false) {
+        throw new Error(((res as any).errors || []).join(', '));
+      }
+      setUserAddresses(prev => prev.filter(a => a.id !== addressId));
       try {
         const refreshed = await getUserProfile();
         if (Array.isArray((refreshed as any).addresses)) {
           setUserAddresses((refreshed as any).addresses as UserAddress[]);
         }
+        window.location.reload();
       } catch {}
-      setIsDialogOpen(false);
-      setEditingAddressId(null);
     } catch (error) {
-      // consider toast later
+      console.error('Delete address failed:', error);
+      alert('Xóa địa chỉ thất bại. Vui lòng thử lại.');
     }
   };
 
@@ -212,6 +262,9 @@ export const ProfilePage = () => {
       latitude: addr.latitude || 0,
       longitude: addr.longitude || 0,
       isDeleted: addr.isDeleted ?? false,
+      provinceCode: addr.provinceCode || 0,
+      districtCode: addr.districtCode || 0,
+      communeCode: addr.communeCode || 0,
     });
     setEditingAddressId(addr.id ?? null);
     setIsDialogOpen(true);
@@ -435,16 +488,25 @@ export const ProfilePage = () => {
                         <div className="space-y-3">
                           {userAddresses.map((addr, idx) => (
                             <div key={addr.id ?? idx} className="text-sm text-gray-900 border rounded p-3">
-                              <p className="text-lg font-semibold">
-                                {addr.locationAddress && addr.locationAddress.trim() !== "" 
-                                  ? addr.locationAddress 
-                                  : ([addr.commune, addr.district, addr.province].filter(Boolean).join(', ') || ((addr.latitude && addr.longitude) ? `${addr.latitude}, ${addr.longitude}` : 'Chưa cập nhật'))}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {[addr.commune, addr.district, addr.province].filter(Boolean).join(', ') || ((addr.latitude && addr.longitude) ? `${addr.latitude}, ${addr.longitude}` : '')}
-                              </p>
-                              <div className="mt-2">
-                                <Button size="sm" variant="outline" onClick={() => openEditAddress(addr)}>Cập nhật</Button>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-lg font-semibold">
+                                    {addr.locationAddress && addr.locationAddress.trim() !== "" 
+                                      ? addr.locationAddress 
+                                      : ([addr.commune, addr.district, addr.province].filter(Boolean).join(', ') || ((addr.latitude && addr.longitude) ? `${addr.latitude}, ${addr.longitude}` : 'Chưa cập nhật'))}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {[addr.commune, addr.district, addr.province].filter(Boolean).join(', ') || ((addr.latitude && addr.longitude) ? `${addr.latitude}, ${addr.longitude}` : '')}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => openEditAddress(addr)}>Cập nhật</Button>
+                                  {addr.id != null && (
+                                    <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleDeleteAddress(addr.id!)} aria-label="Xóa địa chỉ">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -555,6 +617,7 @@ export const ProfilePage = () => {
                 <Input value={addressForm.longitude} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
               </div>
             </div>
+            {/* Removed manual code inputs; codes are handled internally via AddressSelector selections */}
             <div className="grid gap-2">
               <Label>Địa chỉ cụ thể</Label>
               <Input value={addressForm.locationAddress} onChange={(e) => setAddressForm({ ...addressForm, locationAddress: e.target.value })} placeholder="Số nhà, đường..." />
@@ -565,16 +628,35 @@ export const ProfilePage = () => {
                 selectedCity={addressForm.city}
                 selectedDistrict={addressForm.district}
                 selectedWard={addressForm.ward}
-                onCityChange={(value) => setAddressForm((prev) => ({ ...prev, city: value }))}
-                onDistrictChange={(value) => setAddressForm((prev) => ({ ...prev, district: value }))}
-                onWardChange={(value) => setAddressForm((prev) => ({ ...prev, ward: value }))}
+                onCityChange={(value, code) => setAddressForm((prev) => ({
+                  ...prev,
+                  city: value,
+                  provinceCode: code ? parseInt(code) || 0 : 0,
+                  // reset when city changes
+                  district: '',
+                  districtCode: 0,
+                  ward: '',
+                  communeCode: 0,
+                }))}
+                onDistrictChange={(value, code) => setAddressForm((prev) => ({
+                  ...prev,
+                  district: value,
+                  districtCode: code ? parseInt(code) || 0 : 0,
+                  // reset when district changes
+                  ward: '',
+                  communeCode: 0,
+                }))}
+                onWardChange={(value, code) => setAddressForm((prev) => ({
+                  ...prev,
+                  ward: value,
+                  communeCode: code ? parseInt(code) || 0 : 0,
+                }))}
                 initialCity={addressForm.city}
                 initialDistrict={addressForm.district}
                 initialWard={addressForm.ward}
               />
             </div>
             <div className="flex items-center justify-between pt-1">
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsMapOpen(true)}>Mở bản đồ</Button>
               <Button type="button" size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={handleCreateAddress}>{editingAddressId ? 'Cập nhật' : 'Lưu'}</Button>
             </div>
           </div>
