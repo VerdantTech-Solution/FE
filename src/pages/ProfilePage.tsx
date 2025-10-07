@@ -79,6 +79,7 @@ export const ProfilePage = () => {
     communeCode: 0,
   });
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
+  const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
@@ -229,29 +230,32 @@ export const ProfilePage = () => {
     }
   };
 
-  const handleDeleteAddress = async (addressId: number) => {
+  const handleSoftDeleteAddress = async (addr: UserAddress) => {
+    if (!addr?.id) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
     try {
-      if (!addressId) return;
-      const confirmed = window.confirm('Bạn có chắc muốn xóa địa chỉ này?');
-      if (!confirmed) return;
-      const { deleteUserAddress } = await import('@/api/user');
-      const res = await deleteUserAddress(addressId);
-      if ((res as any)?.status === false) {
-        throw new Error(((res as any).errors || []).join(', '));
-      }
-      setUserAddresses(prev => prev.filter(a => a.id !== addressId));
-      try {
-        const refreshed = await getUserProfile();
-        if (Array.isArray((refreshed as any).addresses)) {
-          setUserAddresses((refreshed as any).addresses as UserAddress[]);
-        }
-        window.location.reload();
-      } catch {}
-    } catch (error) {
-      console.error('Delete address failed:', error);
-      alert('Xóa địa chỉ thất bại. Vui lòng thử lại.');
+      setDeletingAddressId(addr.id);
+      const payload = {
+        locationAddress: addr.locationAddress,
+        province: addr.province,
+        district: addr.district,
+        commune: addr.commune,
+        provinceCode: addr.provinceCode ?? 0,
+        districtCode: addr.districtCode ?? 0,
+        communeCode: addr.communeCode ?? 0,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        isDeleted: true,
+      };
+      await updateUserAddress(addr.id, payload);
+      setUserAddresses(prev => prev.filter(a => a.id !== addr.id));
+    } catch (e) {
+      console.error('Failed to delete address', e);
+    } finally {
+      setDeletingAddressId(null);
     }
   };
+
 
   const openEditAddress = (addr: UserAddress) => {
     setAddressForm({
@@ -484,9 +488,9 @@ export const ProfilePage = () => {
                       <p className="text-sm font-medium text-gray-500">Địa chỉ</p>
                       {isAddressLoading ? (
                         <p className="text-sm text-gray-500">Đang tải...</p>
-                      ) : (userAddresses && userAddresses.length > 0) ? (
+                      ) : (userAddresses && userAddresses.filter(a => !a.isDeleted).length > 0) ? (
                         <div className="space-y-3">
-                          {userAddresses.map((addr, idx) => (
+                          {userAddresses.filter(a => !a.isDeleted).map((addr, idx) => (
                             <div key={addr.id ?? idx} className="text-sm text-gray-900 border rounded p-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -502,8 +506,8 @@ export const ProfilePage = () => {
                                 <div className="flex items-center gap-2">
                                   <Button size="sm" variant="outline" onClick={() => openEditAddress(addr)}>Cập nhật</Button>
                                   {addr.id != null && (
-                                    <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleDeleteAddress(addr.id!)} aria-label="Xóa địa chỉ">
-                                      <Trash2 className="h-4 w-4" />
+                                    <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleSoftDeleteAddress(addr)} aria-label="Xóa địa chỉ" disabled={deletingAddressId === addr.id}>
+                                      {deletingAddressId === addr.id ? <Spinner variant="circle-filled" size={16} /> : <Trash2 className="h-4 w-4" />}
                                     </Button>
                                   )}
                                 </div>

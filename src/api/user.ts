@@ -69,8 +69,8 @@ export interface UpdateAddressRequest {
 export const getUserById = async (userId: string): Promise<UserResponse> => {
   try {
     const response = await apiClient.get(`/api/User/${userId}`);
-    console.log('Get user by ID response:', response.data);
-    return response.data;
+    console.log('Get user by ID response:', response);
+    return response as unknown as UserResponse;
   } catch (error) {
     console.error('Get user by ID error:', error);
     throw error;
@@ -81,8 +81,11 @@ export const getUserById = async (userId: string): Promise<UserResponse> => {
 export const getUserProfile = async (): Promise<UserResponse> => {
   try {
     const response = await apiClient.get('/api/Auth/profile');
-    console.log('Get user profile response:', response.data);
-    return response.data;
+    console.log('Get user profile response:', response);
+    const raw: any = response;
+    // Backend wraps payload: { status, statusCode, data: { ...user } }
+    const profile = (raw && typeof raw === 'object' && 'data' in raw) ? raw.data : raw;
+    return profile as UserResponse;
   } catch (error) {
     console.error('Get user profile error:', error);
     throw error;
@@ -93,8 +96,8 @@ export const getUserProfile = async (): Promise<UserResponse> => {
 export const updateUser = async (userId: string, userData: UpdateUserRequest): Promise<UserResponse> => {
   try {
     const response = await apiClient.patch(`/api/User/${userId}`, userData);
-    console.log('Update user response:', response.data);
-    return response.data;
+    console.log('Update user response:', response);
+    return response as unknown as UserResponse;
   } catch (error) {
     console.error('Update user error:', error);
     throw error;
@@ -116,25 +119,22 @@ export const deleteUser = async (userId: string): Promise<void> => {
 export const getAllUsers = async (): Promise<UserResponse[]> => {
   try {
     const response = await apiClient.get('/api/User');
-    console.log('Get all users response:', response.data);
-    
-    // Các key có thể chứa array users
+    console.log('Get all users response:', response);
+
+    const raw: any = response;
     const possibleKeys = ['data', 'users', 'items'];
-    
-    // Kiểm tra response.data có phải array không
-    if (Array.isArray(response.data)) {
-      return response.data;
+
+    if (Array.isArray(raw)) {
+      return raw as UserResponse[];
     }
-    
-    // Tìm array users trong các key có thể
+
     for (const key of possibleKeys) {
-      if (response.data?.[key] && Array.isArray(response.data[key])) {
-        return response.data[key];
+      if (raw?.[key] && Array.isArray(raw[key])) {
+        return raw[key] as UserResponse[];
       }
     }
-    
-    // Nếu không tìm thấy, log warning và trả về array rỗng
-    console.warn('Unexpected response structure:', response.data);
+
+    console.warn('Unexpected response structure:', raw);
     return [];
   } catch (error) {
     console.error('Get all users error:', error);
@@ -147,32 +147,21 @@ export const getAllUsers = async (): Promise<UserResponse[]> => {
 export const updateUserAddress = async (addressId: number, addressData: UpdateAddressRequest): Promise<UserAddress> => {
   try {
     const response = await apiClient.patch(`/api/User/address/${addressId}`, addressData);
-    console.log('Update user address response:', response.data);
-    return response.data;
+    console.log('Update user address response:', response);
+    return response as unknown as UserAddress;
   } catch (error) {
     console.error('Update user address error:', error);
     throw error;
   }
 };
 
-// API xóa địa chỉ của user (chuẩn bị cho xử lý deleted sau này)
-export const deleteUserAddress = async (addressId: number): Promise<{ status: boolean; statusCode: string | number; data?: string; errors?: string[] }> => {
-  try {
-    const response = await apiClient.delete(`/api/User/address/${addressId}`);
-    console.log('Delete user address response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Delete user address error:', error);
-    throw error;
-  }
-};
 
 // API tạo địa chỉ mới cho user
 export const createUserAddress = async (userId: string, addressData: CreateAddressRequest): Promise<{ status: boolean; statusCode: string; data: string; errors: string[] }> => {
   try {
     const response = await apiClient.post(`/api/User/${userId}/address`, addressData);
-    console.log('Create user address response:', response.data);
-    return response.data;
+    console.log('Create user address response:', response);
+    return response as unknown as { status: boolean; statusCode: string; data: string; errors: string[] };
   } catch (error) {
     console.error('Create user address error:', error);
     throw error;

@@ -69,7 +69,16 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
   try {
     const response = await apiClient.post('/api/FarmProfile', data);
     // apiClient returns response.data already
-    return response as unknown as CreateFarmProfileApiResponse;
+    const raw: any = response;
+    if (raw && typeof raw === 'object' && 'status' in raw && 'data' in raw) {
+      return raw as CreateFarmProfileApiResponse;
+    }
+    return {
+      status: true,
+      statusCode: 200,
+      data: String(raw?.id ?? ''),
+      errors: [],
+    } as CreateFarmProfileApiResponse;
   } catch (error) {
     console.error('Error creating farm profile:', error);
     throw error;
@@ -83,7 +92,11 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
 export const getFarmProfiles = async (): Promise<FarmProfile[]> => {
   try {
     const response = await apiClient.get('/api/FarmProfile');
-    return response as unknown as FarmProfile[];
+    const raw: any = response;
+    if (Array.isArray(raw)) return raw as FarmProfile[];
+    if (raw?.data && Array.isArray(raw.data)) return raw.data as FarmProfile[];
+    if (raw?.items && Array.isArray(raw.items)) return raw.items as FarmProfile[];
+    return [];
   } catch (error) {
     console.error('Error fetching farm profiles:', error);
     throw error;
@@ -97,7 +110,7 @@ export const getFarmProfiles = async (): Promise<FarmProfile[]> => {
 export const getFarmProfileById = async (id: number): Promise<FarmProfile> => {
   try {
     const response = await apiClient.get(`/api/FarmProfile/${id}`);
-    const farmData = (response as any).data ?? response;
+    const farmData = (response as any)?.data ?? response;
     return farmData as FarmProfile;
   } catch (error) {
     console.error('Error fetching farm profile by ID:', error);
@@ -112,7 +125,7 @@ export const getFarmProfileById = async (id: number): Promise<FarmProfile> => {
 export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProfileRequest>): Promise<FarmProfile> => {
   try {
     const response = await apiClient.patch(`/api/FarmProfile/${id}`, data);
-    return response as unknown as FarmProfile;
+    return ((response as any)?.data ?? response) as FarmProfile;
   } catch (error) {
     console.error('Error updating farm profile:', error);
     throw error;
@@ -126,7 +139,7 @@ export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProf
 export const deleteFarmProfile = async (id: number): Promise<{ message: string }> => {
   try {
     const response = await apiClient.delete(`/api/FarmProfile/${id}`);
-    return response as unknown as { message: string };
+    return ((response as any)?.data ?? response) as { message: string };
   } catch (error) {
     console.error('Error deleting farm profile:', error);
     throw error;
@@ -140,7 +153,7 @@ export const deleteFarmProfile = async (id: number): Promise<{ message: string }
 export const updateFarmProfileStatus = async (id: number, status: 'Active' | 'Maintenance' | 'Deleted'): Promise<FarmProfile> => {
   try {
     const response = await apiClient.patch(`/api/FarmProfile/${id}/status`, { status });
-    return response as unknown as FarmProfile;
+    return ((response as any)?.data ?? response) as FarmProfile;
   } catch (error) {
     console.error('Error updating farm profile status:', error);
     throw error;
@@ -154,7 +167,11 @@ export const updateFarmProfileStatus = async (id: number, status: 'Active' | 'Ma
 export const getFarmProfilesByUserId = async (userId: number): Promise<FarmProfile[]> => {
   try {
     const response = await apiClient.get(`/api/FarmProfile/User/${userId}`);
-    return response as unknown as FarmProfile[];
+    const raw: any = response;
+    if (Array.isArray(raw)) return raw as FarmProfile[];
+    if (raw?.data && Array.isArray(raw.data)) return raw.data as FarmProfile[];
+    if (raw?.items && Array.isArray(raw.items)) return raw.items as FarmProfile[];
+    return [];
   } catch (error) {
     console.error('Error fetching farm profiles by userId:', error);
     throw error;

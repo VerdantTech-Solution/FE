@@ -22,6 +22,7 @@ export * from './ForgotPasswordPage';
 export * from './ResetPasswordPage';
 export * from './ChangePasswordPage';
 export * from './CartPage';
+export { default as PreviewOrderPage } from './PreviewOrderPage';
 export * from './FarmList';
 export * from './MapAreaPage';
 export * from './CreateFarmPage';
