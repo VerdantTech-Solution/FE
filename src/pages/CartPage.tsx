@@ -16,6 +16,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from "@/components/ui/alert-dialog";
 import logo from "@/assets/logo.png";
 import { Footer } from "./Footer";
 import { motion } from "framer-motion";
@@ -96,6 +106,8 @@ export const CartPage = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<string>("");
   const [updatingItem, setUpdatingItem] = useState<number | null>(null);
   const [removingItem, setRemovingItem] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // Debug logging for state changes
   useEffect(() => {
@@ -314,10 +326,6 @@ export const CartPage = () => {
 
   const removeItem = async (id: number) => {
     try {
-      if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?')) {
-        return;
-      }
-      
       setRemovingItem(id);
       console.log('Removing item:', id);
       
@@ -337,6 +345,19 @@ export const CartPage = () => {
     } finally {
       setRemovingItem(null);
     }
+  };
+
+  const confirmRemove = (id: number) => {
+    setPendingDeleteId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (pendingDeleteId == null) return;
+    const id = pendingDeleteId;
+    setDeleteDialogOpen(false);
+    await removeItem(id);
+    setPendingDeleteId(null);
   };
 
 
@@ -514,7 +535,7 @@ export const CartPage = () => {
                               variant="ghost"
                               size="sm"
                               className="text-red-500 hover:text-white hover:bg-red-500 rounded-full p-2 transition-all duration-200"
-                              onClick={() => removeItem(item.productId)}
+                              onClick={() => confirmRemove(item.productId)}
                               disabled={removingItem === item.productId}
                               aria-label="Xóa sản phẩm"
                             >
@@ -715,6 +736,22 @@ export const CartPage = () => {
           </div>
         </div>
       </div>
+     {/* Delete confirmation dialog */}
+     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+       <AlertDialogContent>
+         <AlertDialogHeader>
+           <AlertDialogTitle>Xóa sản phẩm khỏi giỏ hàng?</AlertDialogTitle>
+           <AlertDialogDescription>
+             Hành động này sẽ xóa sản phẩm khỏi giỏ hàng của bạn. Bạn không thể hoàn tác.
+           </AlertDialogDescription>
+         </AlertDialogHeader>
+         <AlertDialogFooter>
+           <AlertDialogCancel>Hủy</AlertDialogCancel>
+           <AlertDialogAction onClick={handleConfirmDelete}>Xóa</AlertDialogAction>
+         </AlertDialogFooter>
+       </AlertDialogContent>
+     </AlertDialog>
+
      <Footer />
     </div>
   );
