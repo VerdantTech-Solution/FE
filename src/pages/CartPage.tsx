@@ -20,6 +20,8 @@ import logo from "@/assets/logo.png";
 import { Footer } from "./Footer";
 import { motion } from "framer-motion";
 import { getCart, updateCartItem, type CartItem } from '@/api/cart';
+import { useNavigate } from 'react-router';
+import { PATH_NAMES } from '@/constants';
 
 // Sử dụng CartItem từ API thay vì định nghĩa local
 
@@ -86,6 +88,7 @@ const getImageUrl = (_images: string | undefined, productId: number): string => 
 };
 
 export const CartPage = () => {
+  const navigate = useNavigate();
   const [cartResponse, setCartResponse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -687,9 +690,10 @@ export const CartPage = () => {
                     <Button
                       disabled={items.length === 0}
                       className="w-full bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl py-4 text-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                      onClick={() => navigate(PATH_NAMES.ORDER_PREVIEW)}
                     >
                       <CreditCard className="h-5 w-5 mr-2" />
-                      Thanh toán
+                      Xem trước đơn hàng
                     </Button>
                     <Button
                       variant="outline"

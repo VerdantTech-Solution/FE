@@ -20,4 +20,6 @@ export const PATH_NAMES = {
   VENDOR_REGISTRATIONS: '/vendor/registrations',
   VENDOR_WALLET: '/vendor/wallet',
   VENDOR_INFO: '/vendor/info',
+  // Order routes
+  ORDER_PREVIEW: '/order/preview',
 };
