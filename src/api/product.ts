@@ -171,15 +171,20 @@ const transformProductData = (apiProduct: any): Product => {
 export const getAllProducts = async (): Promise<Product[]> => {
   try {
     const response = await apiClient.get('/api/Product');
-    console.log('Get all products response:', response.data);
+    console.log('Get all products response:', response);
     
-    // API trả về { status, statusCode, data } nên cần lấy response.data.data
-    if (response.data && response.data.data) {
-      return response.data.data.map(transformProductData);
+    // apiClient đã unwrap response.data do interceptor, nên response là { status, statusCode, data }
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data.map(transformProductData);
     }
     
-    // Fallback nếu cấu trúc khác
-    return (response.data || []).map(transformProductData);
+    // Fallback nếu response trực tiếp là array
+    if (Array.isArray(response)) {
+      return response.map(transformProductData);
+    }
+    
+    // Trả về empty array nếu không có data
+    return [];
   } catch (error) {
     console.error('Get all products error:', error);
     throw error;
@@ -190,9 +195,14 @@ export const getAllProducts = async (): Promise<Product[]> => {
 export const getProductById = async (id: number): Promise<Product> => {
   try {
     const response = await apiClient.get(`/api/Product/${id}`);
-    console.log('Get product by ID response:', response.data);
-    // API trả về cấu trúc { status, statusCode, data, errors }
-    return response.data.data;
+    console.log('Get product by ID response:', response);
+    // apiClient đã unwrap response.data do interceptor
+    // response là { status, statusCode, data, errors }
+    // Áp dụng transform để đảm bảo data format đúng
+    if (response && response.data) {
+      return transformProductData(response.data);
+    }
+    return response.data || response;
   } catch (error) {
     console.error('Get product by ID error:', error);
     throw error;

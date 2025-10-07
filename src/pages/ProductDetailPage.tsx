@@ -15,10 +15,14 @@ import {
   Clock,
   User,
   Phone,
-  Mail
+  Mail,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getProductById, type Product } from '@/api/product';
+import { addToCart } from '@/api/cart';
+import { useCart } from '@/contexts/CartContext';
 
 // Animation variants
 const pageVariants = {
@@ -61,11 +65,16 @@ const infoVariants = {
 export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { refreshCart } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showErrorMessage, setShowErrorMessage] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -90,9 +99,60 @@ export const ProductDetailPage = () => {
     fetchProduct();
   }, [id]);
 
-  const handleAddToCart = () => {
-    // TODO: Implement add to cart functionality
-    console.log('Adding to cart:', { product, quantity });
+  const handleAddToCart = async () => {
+    if (!product || !id) return;
+
+    // Check if user is logged in
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setErrorMessage('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
+      setShowErrorMessage(true);
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      return;
+    }
+
+    // Check stock availability
+    if (quantity > product.stockQuantity) {
+      setErrorMessage(`Chỉ còn ${product.stockQuantity} sản phẩm trong kho`);
+      setShowErrorMessage(true);
+      setTimeout(() => setShowErrorMessage(false), 3000);
+      return;
+    }
+
+    try {
+      setAddingToCart(true);
+      console.log('Adding to cart:', { 
+        productId: parseInt(id), 
+        quantity 
+      });
+
+      await addToCart({
+        productId: parseInt(id),
+        quantity: quantity
+      });
+
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
+      // Refresh cart count
+      await refreshCart();
+
+      // Dispatch custom event for cart update
+      window.dispatchEvent(new Event('cart:updated'));
+
+      console.log('Product added to cart successfully');
+    } catch (err: any) {
+      console.error('Error adding to cart:', err);
+      const errorMsg = err?.message || err?.errors?.[0] || 'Không thể thêm sản phẩm vào giỏ hàng';
+      setErrorMessage(errorMsg);
+      setShowErrorMessage(true);
+      setTimeout(() => setShowErrorMessage(false), 3000);
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   const handleToggleFavorite = () => {
@@ -152,6 +212,45 @@ export const ProductDetailPage = () => {
       variants={pageVariants}
       className="min-h-screen bg-gray-50"
     >
+      {/* Success/Error Messages */}
+      {showSuccessMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg"
+        >
+          <div className="flex items-start space-x-3">
+            <CheckCircle2 className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold">Thêm vào giỏ hàng thành công!</p>
+              <p className="text-sm opacity-90 mt-1">Đã thêm {quantity} sản phẩm vào giỏ hàng</p>
+              <button
+                onClick={() => navigate('/cart')}
+                className="text-sm font-medium underline mt-2 hover:opacity-80"
+              >
+                Xem giỏ hàng →
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {showErrorMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3"
+        >
+          <AlertCircle className="w-6 h-6" />
+          <div>
+            <p className="font-semibold">Lỗi!</p>
+            <p className="text-sm opacity-90">{errorMessage}</p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -347,7 +446,8 @@ export const ProductDetailPage = () => {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => setQuantity(Math.min(product.stockQuantity, quantity + 1))}
+                    disabled={quantity >= product.stockQuantity}
                   >
                     +
                   </Button>
@@ -357,10 +457,22 @@ export const ProductDetailPage = () => {
               <div className="flex space-x-4">
                 <Button 
                   onClick={handleAddToCart}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  disabled={addingToCart || product.stockQuantity === 0}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Thêm vào giỏ hàng
+                  {addingToCart ? (
+                    <>
+                      <Spinner variant="circle-filled" size={16} className="mr-2" />
+                      Đang thêm...
+                    </>
+                  ) : product.stockQuantity === 0 ? (
+                    'Hết hàng'
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Thêm vào giỏ hàng
+                    </>
+                  )}
                 </Button>
                 <Button 
                   variant="outline"
