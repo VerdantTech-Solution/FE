@@ -13,6 +13,16 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter as AlertFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from "@/components/ui/alert-dialog";
 import MapUserArea from "@/components/MapUserArea";
 import AddressSelector from "@/components/AddressSelector";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -80,6 +90,8 @@ export const ProfilePage = () => {
   });
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
   const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
+  const [deleteAddressDialogOpen, setDeleteAddressDialogOpen] = useState(false);
+  const [pendingDeleteAddress, setPendingDeleteAddress] = useState<UserAddress | null>(null);
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
@@ -232,7 +244,6 @@ export const ProfilePage = () => {
 
   const handleSoftDeleteAddress = async (addr: UserAddress) => {
     if (!addr?.id) return;
-    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
     try {
       setDeletingAddressId(addr.id);
       const payload = {
@@ -254,6 +265,19 @@ export const ProfilePage = () => {
     } finally {
       setDeletingAddressId(null);
     }
+  };
+
+  const confirmDeleteAddress = (addr: UserAddress) => {
+    setPendingDeleteAddress(addr);
+    setDeleteAddressDialogOpen(true);
+  };
+
+  const handleConfirmDeleteAddress = async () => {
+    if (!pendingDeleteAddress) return;
+    const addr = pendingDeleteAddress;
+    setDeleteAddressDialogOpen(false);
+    await handleSoftDeleteAddress(addr);
+    setPendingDeleteAddress(null);
   };
 
 
@@ -506,7 +530,7 @@ export const ProfilePage = () => {
                                 <div className="flex items-center gap-2">
                                   <Button size="sm" variant="outline" onClick={() => openEditAddress(addr)}>Cập nhật</Button>
                                   {addr.id != null && (
-                                    <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleSoftDeleteAddress(addr)} aria-label="Xóa địa chỉ" disabled={deletingAddressId === addr.id}>
+                                    <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => confirmDeleteAddress(addr)} aria-label="Xóa địa chỉ" disabled={deletingAddressId === addr.id}>
                                       {deletingAddressId === addr.id ? <Spinner variant="circle-filled" size={16} /> : <Trash2 className="h-4 w-4" />}
                                     </Button>
                                   )}
@@ -679,6 +703,22 @@ export const ProfilePage = () => {
         onClose={() => setIsMapOpen(false)}
       />
     )}
+
+    {/* Delete address confirmation dialog */}
+    <AlertDialog open={deleteAddressDialogOpen} onOpenChange={setDeleteAddressDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Bạn muốn xóa địa chỉ ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Địa chỉ sẽ bị xóa khi bạn bấm đồng ý
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertFooter>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmDeleteAddress}>Đồng ý</AlertDialogAction>
+        </AlertFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 };
