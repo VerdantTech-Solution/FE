@@ -210,7 +210,7 @@ const RegistrationManagementPage = () => {
     navigate('/login');
   };
   return (
-    <div className="flex h-screen bg-gray-50 mt-[80px]">
+    <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <VendorSidebar />
       
