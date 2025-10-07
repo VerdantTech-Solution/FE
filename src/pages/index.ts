@@ -23,6 +23,8 @@ export * from './ResetPasswordPage';
 export * from './ChangePasswordPage';
 export * from './CartPage';
 export { default as PreviewOrderPage } from './PreviewOrderPage';
+export { default as ConfirmOrderPage } from './ConfirmOrderPage';
+export { default as OrderSuccessPage } from './OrderSuccessPage';
 export * from './FarmList';
 export * from './MapAreaPage';
 export * from './CreateFarmPage';
