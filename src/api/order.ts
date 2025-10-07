@@ -32,3 +32,81 @@ export const createOrderPreview = async (
 };
 
 
+// ===== Create Order From Preview =====
+export interface CreateOrderFromPreviewRequest {
+  shippingDetailId: string;
+}
+
+export interface OrderProductSummary {
+  id: number;
+  productCode: string;
+  productName: string;
+  slug?: string;
+  description?: string;
+  unitPrice: number;
+  images?: string[] | null;
+  warrantyMonths?: number;
+  ratingAverage?: number;
+}
+
+export interface OrderDetailItem {
+  id: number;
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  subtotal: number;
+  createdAt: string;
+  product: OrderProductSummary;
+}
+
+export interface OrderAddress {
+  id: number;
+  locationAddress?: string;
+  province?: string;
+  district?: string;
+  commune?: string;
+  provinceCode?: number;
+  districtCode?: number;
+  communeCode?: number;
+  latitude?: number;
+  longitude?: number;
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+}
+
+export interface OrderEntity {
+  id: number;
+  customerId: number;
+  status: string;
+  subtotal: number;
+  taxAmount: number;
+  shippingFee: number;
+  discountAmount: number;
+  totalAmount: number;
+  shippingMethod: string;
+  orderPaymentMethod: OrderPaymentMethod;
+  trackingNumber: string | null;
+  notes: string;
+  cancelledReason: string | null;
+  cancelledAt: string | null;
+  confirmedAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  address: OrderAddress;
+  orderDetails: OrderDetailItem[];
+}
+
+export type CreateOrderFromPreviewResponse = CreateOrderPreviewResponse<OrderEntity>;
+
+export const createOrderFromPreview = async (
+  orderPreviewId: string,
+  payload: CreateOrderFromPreviewRequest
+): Promise<CreateOrderFromPreviewResponse> => {
+  const response = await apiClient.post(`/api/Order/${orderPreviewId}`, payload);
+  return response as unknown as CreateOrderFromPreviewResponse;
+};
+

@@ -22,4 +22,6 @@ export const PATH_NAMES = {
   VENDOR_INFO: '/vendor/info',
   // Order routes
   ORDER_PREVIEW: '/order/preview',
+  ORDER_CONFIRM: '/order/confirm',
+  ORDER_SUCCESS: '/order/success',
 };

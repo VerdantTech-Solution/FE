@@ -130,8 +130,23 @@ export default function PreviewOrderPage() {
         setError(res.errors?.[0] || 'Tạo bản xem trước thất bại');
         return;
       }
-      // For now, simply navigate back to cart or next step; data is cached server-side
-      navigate('/cart');
+      // Navigate to confirm page with previewId returned from API
+      const extractPreviewId = (r: any): string => {
+        const d = (r && typeof r === 'object' && 'data' in r) ? (r as any).data : r;
+        if (typeof d === 'string') return d;
+        if (d && typeof d === 'object') {
+          if (typeof d.orderPreviewId === 'string') return d.orderPreviewId;
+          if (typeof d.previewId === 'string') return d.previewId;
+          if (typeof d.id === 'string') return d.id;
+        }
+        return '';
+      };
+      const previewId = extractPreviewId(res);
+      if (previewId) {
+        navigate(`/order/confirm?previewId=${encodeURIComponent(previewId)}`);
+      } else {
+        setError('Không lấy được mã bản xem trước đơn hàng. Vui lòng thử lại.');
+      }
     } catch (e: any) {
       setError(e?.message || 'Không thể tạo bản xem trước');
     } finally {
