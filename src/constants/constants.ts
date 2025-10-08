@@ -24,4 +24,5 @@ export const PATH_NAMES = {
   ORDER_PREVIEW: '/order/preview',
   ORDER_CONFIRM: '/order/confirm',
   ORDER_SUCCESS: '/order/success',
+  ORDER_HISTORY: '/order/history',
 };

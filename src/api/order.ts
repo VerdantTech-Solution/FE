@@ -110,3 +110,27 @@ export const createOrderFromPreview = async (
   return response as unknown as CreateOrderFromPreviewResponse;
 };
 
+// ===== Get My Orders =====
+export type GetMyOrdersResponse = CreateOrderPreviewResponse<OrderEntity[]>;
+
+export const getMyOrders = async (): Promise<GetMyOrdersResponse> => {
+  const response = await apiClient.get('/api/Order/me');
+  return response as unknown as GetMyOrdersResponse;
+};
+
+// ===== Update Order =====
+export interface UpdateOrderRequest {
+  notes?: string;
+  cancelledReason?: string;
+}
+
+export type UpdateOrderResponse = CreateOrderPreviewResponse<string>;
+
+export const updateOrder = async (
+  orderId: number,
+  payload: UpdateOrderRequest
+): Promise<UpdateOrderResponse> => {
+  const response = await apiClient.patch(`/api/Order/${orderId}`, payload);
+  return response as unknown as UpdateOrderResponse;
+};
+

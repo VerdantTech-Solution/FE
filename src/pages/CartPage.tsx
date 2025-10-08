@@ -3,7 +3,6 @@ import {
   Trash2,
   Plus,
   Minus,
-  Truck,
   ShieldCheck,
   BadgePercent,
   Package,
@@ -264,7 +263,6 @@ export const CartPage = () => {
     () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [items]
   );
-  const shipping = subtotal > 500000 ? 0 : 30000;
   const vat = Math.round(subtotal * 0.08);
   const discount = useMemo(() => {
     // Simple demo: SALE10 = 10% off on subtotal (cap 100k)
@@ -274,7 +272,7 @@ export const CartPage = () => {
     return 0;
   }, [appliedCoupon, subtotal]);
 
-  const total = Math.max(0, subtotal - discount) + shipping + vat;
+  const total = Math.max(0, subtotal - discount) + vat;
 
   const updateQty = useCallback(async (id: number, delta: number) => {
     try {
@@ -604,30 +602,6 @@ export const CartPage = () => {
               ))
             )}
 
-            {items.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: 0.5 }}
-              >
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <Truck className="h-6 w-6 text-green-700" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Đơn hàng trên <span className="font-semibold text-green-800">500.000đ</span> sẽ được{" "}
-                        <span className="font-bold text-green-800">miễn phí vận chuyển</span>.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              </motion.div>
-            )}
           </motion.div>
 
           <div className="lg:col-span-1">
@@ -682,16 +656,7 @@ export const CartPage = () => {
                         <span className="font-semibold text-green-700">- {currency(discount)}</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between text-sm text-gray-700">
-                      <span>Phí vận chuyển</span>
-                      <span className="font-semibold">
-                        {shipping === 0 ? (
-                          <span className="text-green-700">Miễn phí</span>
-                        ) : (
-                          currency(shipping)
-                        )}
-                      </span>
-                    </div>
+                  
                     <div className="flex items-center justify-between text-sm text-gray-700">
                       <span>VAT (8%)</span>
                       <span className="font-semibold">{currency(vat)}</span>
