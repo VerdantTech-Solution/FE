@@ -174,3 +174,31 @@ export const getCartCount = async (): Promise<number> => {
   }
 };
 
+// Clear all cart items by setting quantity to 0 for each item
+export const clearCart = async (): Promise<void> => {
+  try {
+    const cartData = await getCart();
+    let cartItems: CartItem[] = [];
+    
+    // Extract cart items from different response structures
+    if (cartData && cartData.cartItems && Array.isArray(cartData.cartItems)) {
+      cartItems = cartData.cartItems;
+    } else if (cartData && cartData.data && cartData.data.cartItems) {
+      cartItems = cartData.data.cartItems;
+    } else if (Array.isArray(cartData)) {
+      cartItems = cartData;
+    }
+    
+    // Set quantity to 0 for each item to remove them
+    const clearPromises = cartItems.map(item => 
+      updateCartItem(item.productId, 0)
+    );
+    
+    await Promise.all(clearPromises);
+    console.log('Cart cleared successfully');
+  } catch (error: any) {
+    console.error('Error clearing cart:', error);
+    throw error;
+  }
+};
+

@@ -3,12 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { createOrderFromPreview, type CreateOrderFromPreviewRequest, type OrderEntity } from '@/api/order';
-import { getUserProfile } from '@/api/user';
-
-const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+import { createOrderFromPreview, type CreateOrderFromPreviewRequest } from '@/api/order';
+import { clearCart } from '@/api/cart';
 
 export default function ConfirmOrderPage() {
   const navigate = useNavigate();
@@ -19,10 +16,6 @@ export default function ConfirmOrderPage() {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethodOption | ''>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [order, setOrder] = useState<OrderEntity | null>(null);
-  const [customerName, setCustomerName] = useState<string>('');
-  const [customerEmail, setCustomerEmail] = useState<string>('');
-  const [customerPhone, setCustomerPhone] = useState<string>('');
 
   const canSubmit = useMemo(() => !!orderPreviewId && !!shippingMethod && !submitting, [orderPreviewId, shippingMethod, submitting]);
 
@@ -55,7 +48,16 @@ export default function ConfirmOrderPage() {
         setError(res.errors?.[0] || 'Tạo đơn hàng thất bại');
         return;
       }
-      setOrder(res.data);
+      // Clear cart after successful order creation
+      try {
+        await clearCart();
+        // Dispatch event to update cart count in Navbar and other components
+        window.dispatchEvent(new CustomEvent('cart:updated'));
+        console.log('Cart cleared after successful order');
+      } catch (clearError) {
+        console.error('Error clearing cart:', clearError);
+        // Don't block navigation if cart clearing fails
+      }
       // Navigate to success page with order in navigation state for richer UI
       navigate('/order/success', { state: { order: res.data } });
     } catch (e: any) {
@@ -98,114 +100,6 @@ export default function ConfirmOrderPage() {
           </CardContent>
         </Card>
 
-        {order && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Đơn hàng đã tạo</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 1) Thông tin khách hàng */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-gray-500">Khách hàng</div>
-                  <div className="font-semibold">{customerName || '—'}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Email</div>
-                  <div className="font-semibold">{customerEmail || '—'}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Số điện thoại</div>
-                  <div className="font-semibold">{customerPhone || '—'}</div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* 2) Địa chỉ giao */}
-              <div className="text-sm">
-                <div className="font-semibold mb-1">Địa chỉ giao</div>
-                <div className="text-gray-700">
-                  {[
-                    order.address?.locationAddress,
-                    order.address?.commune,
-                    order.address?.district,
-                    order.address?.province,
-                  ].filter(Boolean).join(', ')}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* 3) Sản phẩm */}
-              <div className="space-y-2">
-                <div className="font-semibold">Sản phẩm</div>
-                {order.orderDetails.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between text-sm">
-                    <div className="text-gray-800">{d.product.productName} x {d.quantity}</div>
-                    <div className="font-semibold">{currency(d.subtotal)}</div>
-                  </div>
-                ))}
-              </div>
-
-              <Separator />
-
-              {/* 4) Trạng thái và thông tin đơn */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-gray-500">Mã đơn</div>
-                  <div className="font-semibold">#{order.id}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Trạng thái</div>
-                  <div className="font-semibold">{order.status === 'Pending' ? 'Đang duyệt đơn hàng' : order.status}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Phương thức TT</div>
-                  <div className="font-semibold">{order.orderPaymentMethod}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Phương thức giao</div>
-                  <div className="font-semibold">{order.shippingMethod}</div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* 5) Tóm tắt tiền */}
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <div className="text-gray-600">Tạm tính</div>
-                  <div className="font-semibold">{currency(order.subtotal)}</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-gray-600">Phí vận chuyển</div>
-                  <div className="font-semibold">{order.shippingFee === 0 ? 'Miễn phí' : currency(order.shippingFee)}</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-gray-600">Thuế (VAT)</div>
-                  <div className="font-semibold">{currency(order.taxAmount)}</div>
-                </div>
-                {order.discountAmount > 0 && (
-                  <div className="flex items-center justify-between">
-                    <div className="text-gray-600">Giảm giá</div>
-                    <div className="font-semibold">-{currency(order.discountAmount)}</div>
-                  </div>
-                )}
-                <Separator />
-                <div className="flex items-center justify-between text-base">
-                  <div className="font-bold">Tổng cộng</div>
-                  <div className="font-bold text-green-700">{currency(order.totalAmount)}</div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button onClick={() => navigate('/cart')}>Về giỏ hàng</Button>
-                <Button variant="outline" onClick={() => navigate('/')}>Tiếp tục mua sắm</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

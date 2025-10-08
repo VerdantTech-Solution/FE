@@ -25,6 +25,7 @@ export * from './CartPage';
 export { default as PreviewOrderPage } from './PreviewOrderPage';
 export { default as ConfirmOrderPage } from './ConfirmOrderPage';
 export { default as OrderSuccessPage } from './OrderSuccessPage';
+export { default as OrderHistoryPage } from './OrderHistoryPage';
 export * from './FarmList';
 export * from './MapAreaPage';
 export * from './CreateFarmPage';
