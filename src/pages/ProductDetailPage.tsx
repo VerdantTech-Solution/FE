@@ -23,6 +23,7 @@ import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getProductById, type Product } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { useCart } from '@/contexts/CartContext';
+import ProductSpecifications from '@/components/ProductSpecifications';
 
 // Animation variants
 const pageVariants = {
@@ -387,43 +388,16 @@ export const ProductDetailPage = () => {
                 {product.description}
               </p>
               
-              {/* Specifications */}
-              {product.specifications && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Thông số kỹ thuật:</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {Object.entries(product.specifications).map(([key, value]) => (
-                      <div key={key} className="flex justify-between">
-                        <span className="text-gray-600 capitalize">{key}:</span>
-                        <span className="font-medium">{String(value)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Dimensions */}
-              {product.dimensionsCm && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Kích thước:</h4>
-                  <div className="text-sm text-gray-600">
-                    {product.dimensionsCm.width}cm × {product.dimensionsCm.height}cm × {product.dimensionsCm.length}cm
-                  </div>
-                </div>
-              )}
-              
-              {/* Weight */}
-              {product.weightkg && (
-                <div className="mt-2">
-                  <span className="text-sm text-gray-600">Trọng lượng: {product.weightkg}kg</span>
-                </div>
-              )}
-              
-              {/* Warranty */}
-              <div className="mt-4">
-                <span className="text-sm text-gray-600">
-                  Bảo hành: {product.warrantyMonths} tháng
-                </span>
+              {/* Product Specifications Component */}
+              <div className="mt-6">
+                <ProductSpecifications
+                  specifications={product.specifications}
+                  dimensionsCm={product.dimensionsCm}
+                  weightkg={product.weightkg}
+                  warrantyMonths={product.warrantyMonths}
+                  energyEfficiencyRating={product.energyEfficiencyRating}
+                  categoryName={product.category}
+                />
               </div>
             </div>
 
