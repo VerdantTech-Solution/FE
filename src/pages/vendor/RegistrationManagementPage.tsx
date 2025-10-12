@@ -11,52 +11,33 @@ import {
   Eye,
   Check,
   X,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
-
-// Mock data for registrations
-const mockRegistrations = [
-  {
-    id: 1,
-    productName: "Thuốc trừ sâu sinh học",
-    applicant: "Nguyễn Văn A",
-    status: "pending",
-    submittedAt: "15/01/2024",
-    category: "Công nghệ sinh học"
-  },
-  {
-    id: 2,
-    productName: "Pin năng lượng mặt trời",
-    applicant: "Trần Thị B",
-    status: "approved",
-    submittedAt: "14/01/2024",
-    category: "Năng lượng tái tạo"
-  },
-  {
-    id: 3,
-    productName: "Hệ thống xử lý nước",
-    applicant: "Lê Văn C",
-    status: "rejected",
-    submittedAt: "13/01/2024",
-    category: "Xử lý nước"
-  }
-];
+import { useState, useEffect } from 'react';
+import { getProductRegistrations } from '@/api/product';
+import type { ProductRegistration } from '@/api/product';
 
 const statusConfig = {
-  pending: { label: "Chờ duyệt", color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  approved: { label: "Đã duyệt", color: "bg-green-100 text-green-800", icon: Check },
-  rejected: { label: "Từ chối", color: "bg-red-100 text-red-800", icon: X }
+  Pending: { label: "Chờ duyệt", color: "bg-yellow-100 text-yellow-800", icon: Clock },
+  Approved: { label: "Đã duyệt", color: "bg-green-100 text-green-800", icon: Check },
+  Rejected: { label: "Từ chối", color: "bg-red-100 text-red-800", icon: X }
 };
 
 
-const RegistrationStatsCards = () => {
+const RegistrationStatsCards = ({ registrations }: { registrations: ProductRegistration[] }) => {
+  const totalRegistrations = registrations.length;
+  const pendingCount = registrations.filter(r => r.status === 'Pending').length;
+  const approvedCount = registrations.filter(r => r.status === 'Approved').length;
+  const rejectedCount = registrations.filter(r => r.status === 'Rejected').length;
+
   const stats = [
-    { label: "Tổng đơn đăng ký", value: "156", icon: "📋", color: "bg-blue-50 text-blue-600" },
-    { label: "Chờ duyệt", value: "23", icon: "⏰", color: "bg-yellow-50 text-yellow-600" },
-    { label: "Đã duyệt", value: "128", icon: "✓", color: "bg-green-50 text-green-600" },
-    { label: "Từ chối", value: "5", icon: "✗", color: "bg-red-50 text-red-600" }
+    { label: "Tổng đơn đăng ký", value: totalRegistrations.toString(), icon: "📋", color: "bg-blue-50 text-blue-600" },
+    { label: "Chờ duyệt", value: pendingCount.toString(), icon: "⏰", color: "bg-yellow-50 text-yellow-600" },
+    { label: "Đã duyệt", value: approvedCount.toString(), icon: "✓", color: "bg-green-50 text-green-600" },
+    { label: "Từ chối", value: rejectedCount.toString(), icon: "✗", color: "bg-red-50 text-red-600" }
   ];
 
   return (
@@ -123,7 +104,32 @@ const RegistrationFilters = () => {
   );
 };
 
-const RegistrationTable = () => {
+const RegistrationTable = ({ registrations, loading }: { registrations: ProductRegistration[], loading: boolean }) => {
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN');
+    } catch {
+      return dateString;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Danh sách đơn đăng ký</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-600">Đang tải dữ liệu...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -134,81 +140,114 @@ const RegistrationTable = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-600">Sản phẩm</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-600">Người đăng ký</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-600">Danh mục</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Mã sản phẩm</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Tên sản phẩm</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Giá</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Trạng thái</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-600">Ngày gửi</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Ngày tạo</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {mockRegistrations.map((registration) => {
-                const statusInfo = statusConfig[registration.status as keyof typeof statusConfig];
-                const StatusIcon = statusInfo.icon;
-                
-                return (
-                  <tr key={registration.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-4 px-4">
-                      <p className="font-medium text-gray-900">{registration.productName}</p>
-                    </td>
-                    <td className="py-4 px-4 text-gray-600">{registration.applicant}</td>
-                    <td className="py-4 px-4 text-gray-600">{registration.category}</td>
-                    <td className="py-4 px-4">
-                      <Badge className={`${statusInfo.color} border-0`}>
-                        <StatusIcon size={12} className="mr-1" />
-                        {statusInfo.label}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4 text-gray-600">{registration.submittedAt}</td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm" className="p-2">
-                          <Eye size={16} />
-                        </Button>
-                        {registration.status === 'pending' && (
-                          <>
-                            <Button variant="ghost" size="sm" className="p-2 text-green-600 hover:text-green-700">
-                              <Check size={16} />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="p-2 text-red-600 hover:text-red-700">
-                              <X size={16} />
-                            </Button>
-                          </>
+              {registrations.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                    Không có đơn đăng ký nào
+                  </td>
+                </tr>
+              ) : (
+                registrations.map((registration) => {
+                  const statusInfo = statusConfig[registration.status];
+                  const StatusIcon = statusInfo.icon;
+                  
+                  return (
+                    <tr key={registration.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-4 px-4">
+                        <p className="font-medium text-gray-900">{registration.proposedProductCode}</p>
+                      </td>
+                      <td className="py-4 px-4">
+                        <p className="font-medium text-gray-900">{registration.proposedProductName}</p>
+                        <p className="text-sm text-gray-500 truncate max-w-xs">{registration.description}</p>
+                      </td>
+                      <td className="py-4 px-4 text-gray-600">
+                        {registration.unitPrice.toLocaleString('vi-VN')} VNĐ
+                      </td>
+                      <td className="py-4 px-4">
+                        <Badge className={`${statusInfo.color} border-0`}>
+                          <StatusIcon size={12} className="mr-1" />
+                          {statusInfo.label}
+                        </Badge>
+                        {registration.status === 'Rejected' && registration.rejectionReason && (
+                          <p className="text-xs text-red-600 mt-1">{registration.rejectionReason}</p>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-4 px-4 text-gray-600">{formatDate(registration.createdAt)}</td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center space-x-2">
+                          <Button variant="ghost" size="sm" className="p-2" title="Xem chi tiết">
+                            <Eye size={16} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            Hiển thị 1-3 trong tổng số 156 đơn đăng ký
-          </p>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">1</Button>
-            <Button variant="outline" size="sm">2</Button>
-            <Button variant="outline" size="sm">3</Button>
+        {registrations.length > 0 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Hiển thị 1-{registrations.length} trong tổng số {registrations.length} đơn đăng ký
+            </p>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">1</Button>
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
 };
 
 const RegistrationManagementPage = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [registrations, setRegistrations] = useState<ProductRegistration[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRegistrations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getProductRegistrations();
+      setRegistrations(data);
+    } catch (err) {
+      console.error('Error fetching registrations:', err);
+      setError('Không thể tải danh sách đơn đăng ký');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRegistrations();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
+
+  const handleProductRegistered = () => {
+    // Refresh the registrations list when a new product is registered
+    fetchRegistrations();
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -224,16 +263,13 @@ const RegistrationManagementPage = () => {
               <p className="text-gray-600">Duyệt và quản lý các đơn đăng ký sản phẩm</p>
             </div>
             <div className="flex items-center space-x-4">
-              <RegisterProductForm onProductRegistered={() => {
-                // Có thể refresh danh sách ở đây
-                console.log('Sản phẩm đã được đăng ký thành công');
-              }} />
+              <RegisterProductForm onProductRegistered={handleProductRegistered} />
               <Button variant="ghost" size="sm" className="p-2">
                 <Bell size={20} />
               </Button>
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Vendor Name</span>
+                <span className="text-sm font-medium text-gray-700">{user?.email || 'Vendor Name'}</span>
               </div>
               <Button 
                 variant="outline" 
@@ -248,9 +284,22 @@ const RegistrationManagementPage = () => {
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
-          <RegistrationStatsCards />
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{error}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                onClick={fetchRegistrations}
+              >
+                Thử lại
+              </Button>
+            </div>
+          )}
+          <RegistrationStatsCards registrations={registrations} />
           <RegistrationFilters />
-          <RegistrationTable />
+          <RegistrationTable registrations={registrations} loading={loading} />
         </main>
       </div>
     </div>
