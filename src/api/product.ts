@@ -1,5 +1,35 @@
 import { apiClient } from './apiClient';
 
+// Interface for product registration response
+export interface ProductRegistration {
+  id: number;
+  vendorId: number;
+  categoryId: number;
+  proposedProductCode: string;
+  proposedProductName: string;
+  description: string;
+  unitPrice: number;
+  energyEfficiencyRating?: string;
+  specifications?: {
+    [key: string]: string;
+  };
+  manualUrls?: string;
+  images?: string;
+  warrantyMonths: number;
+  weightKg: number;
+  dimensionsCm: {
+    Width: number;
+    Height: number;
+    Length: number;
+  };
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  approvedBy?: number;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt?: string;
+}
+
 export interface CreateProductCategoryRequest {
   name: string;
   parentId: number | null;
@@ -239,6 +269,29 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
     return response.data;
   } catch (error) {
     console.error('Register product error:', error);
+    throw error;
+  }
+};
+
+// API lấy tất cả sản phẩm đã đăng ký theo VendorID
+export const getProductRegistrations = async (): Promise<ProductRegistration[]> => {
+  try {
+    const response = await apiClient.get('/api/Product/product-registrations');
+    console.log('Get product registrations response:', response);
+    
+    // apiClient đã unwrap response.data do interceptor
+    if (response && Array.isArray(response)) {
+      return response;
+    }
+    
+    // Fallback nếu response có cấu trúc khác
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Get product registrations error:', error);
     throw error;
   }
 };
