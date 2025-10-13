@@ -65,7 +65,7 @@ export const StaffPage: React.FC = () => {
             <SidebarSection>
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "equipment"} onClick={() => setSelectedMenu("equipment")} icon={<Shield className="w-5 h-5" />}>Thiết bị</SidebarNavItem>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Giám sát</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh mục sản phẩm</SidebarNavItem>
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Hệ thống</SidebarSectionTitle>
