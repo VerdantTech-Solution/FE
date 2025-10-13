@@ -218,7 +218,7 @@ export const MonitoringPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Giám sát</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Danh mục sản phẩm</h1>
           <p className="text-gray-600">Quản lý thiết bị giám sát hệ thống</p>
         </div>
         <div className="flex items-center space-x-4">
@@ -226,12 +226,12 @@ export const MonitoringPage: React.FC = () => {
             <DialogTrigger asChild>
               <Button className="bg-blue-600 hover:bg-blue-700">
                 <Plus size={20} className="mr-2" />
-                Thêm thiết bị giám sát
+                Thêm danh mục sản phẩm
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-xl font-semibold">Tạo thiết bị giám sát mới</DialogTitle>
+                <DialogTitle className="text-xl font-semibold">Tạo danh mục sản phẩm mới</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -335,7 +335,7 @@ export const MonitoringPage: React.FC = () => {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Danh sách thiết bị giám sát</CardTitle>
+          <CardTitle className="text-lg font-semibold">Danh sách danh mục sản phẩm</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
