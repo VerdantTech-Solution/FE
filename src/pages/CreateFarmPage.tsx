@@ -45,7 +45,7 @@ export const CreateFarmPage = () => {
     ward: "",
     provinceCode: 0,
     districtCode: 0,
-    communeCode: 0,
+    communeCode: "", // Changed to string
     latitude: "",
     longitude: "",
     primaryCrops: "",
@@ -63,15 +63,15 @@ export const CreateFarmPage = () => {
 
   // Handle address selection from AddressSelector
   const handleCityChange = useCallback((city: string, code?: string) => {
-    setForm((f) => ({ ...f, city, provinceCode: code ? parseInt(code) || 0 : 0, district: '', ward: '', districtCode: 0, communeCode: 0 }));
+    setForm((f) => ({ ...f, city, provinceCode: code ? parseInt(code) || 0 : 0, district: '', ward: '', districtCode: 0, communeCode: "" }));
   }, []);
 
   const handleDistrictChange = useCallback((district: string, code?: string) => {
-    setForm((f) => ({ ...f, district, districtCode: code ? parseInt(code) || 0 : 0, ward: '', communeCode: 0 }));
+    setForm((f) => ({ ...f, district, districtCode: code ? parseInt(code) || 0 : 0, ward: '', communeCode: "" }));
   }, []);
 
   const handleWardChange = useCallback((ward: string, code?: string) => {
-    setForm((f) => ({ ...f, ward, communeCode: code ? parseInt(code) || 0 : 0 }));
+    setForm((f) => ({ ...f, ward, communeCode: code || "" }));
   }, []);
 
 
@@ -168,7 +168,7 @@ export const CreateFarmPage = () => {
         commune: form.ward || undefined, // Map ward to commune for API
         provinceCode: form.provinceCode || undefined,
         districtCode: form.districtCode || undefined,
-        communeCode: form.communeCode || undefined,
+        communeCode: form.communeCode || undefined, // Now properly handled as string
         latitude: form.latitude === "" ? undefined : Number(form.latitude),
         longitude: form.longitude === "" ? undefined : Number(form.longitude),
         primaryCrops: form.primaryCrops || undefined,
@@ -194,6 +194,9 @@ export const CreateFarmPage = () => {
         city: "",
         district: "",
         ward: "",
+        provinceCode: 0,
+        districtCode: 0,
+        communeCode: "",
         latitude: "",
         longitude: "",
         primaryCrops: "",

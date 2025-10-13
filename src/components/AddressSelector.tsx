@@ -54,26 +54,26 @@ const AddressSelector = ({
     const city = cities.find(c => c.id === cityId);
     if (city) {
       selectCity(city);
-      onCityChange(city.name, city.id);
+      onCityChange(city.name, city.provinceId.toString());
       onDistrictChange('', '');
       onWardChange('', '');
     }
   };
 
   const handleDistrictChange = (districtId: string) => {
-    const district = districts.find(d => d.id === districtId);
+    const district = districts.find(d => d.districtId.toString() === districtId);
     if (district) {
       selectDistrict(district);
-      onDistrictChange(district.name, district.id);
+      onDistrictChange(district.name, district.districtId.toString());
       onWardChange('', '');
     }
   };
 
   const handleWardChange = (wardId: string) => {
-    const ward = wards.find(w => w.id === wardId);
+    const ward = wards.find(w => w.wardId.toString() === wardId);
     if (ward) {
       selectWard(ward);
-      onWardChange(ward.name, ward.id);
+      onWardChange(ward.name, ward.communeCode);
     }
   };
 
@@ -114,7 +114,7 @@ const AddressSelector = ({
           Quận/Huyện <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentDistrict?.id || ''}
+          value={currentDistrict?.districtId?.toString() || ''}
           onValueChange={handleDistrictChange}
           disabled={!currentCity || loading.districts}
         >
@@ -131,7 +131,7 @@ const AddressSelector = ({
           </SelectTrigger>
           <SelectContent>
             {districts.map((district) => (
-              <SelectItem key={district.id} value={district.id}>
+              <SelectItem key={district.districtId} value={district.districtId.toString()}>
                 {district.name}
               </SelectItem>
             ))}
@@ -151,7 +151,7 @@ const AddressSelector = ({
           Xã/Phường <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentWard?.id || ''}
+          value={currentWard?.wardId?.toString() || ''}
           onValueChange={handleWardChange}
           disabled={!currentDistrict || loading.wards}
         >
@@ -168,7 +168,7 @@ const AddressSelector = ({
           </SelectTrigger>
           <SelectContent>
             {wards.map((ward) => (
-              <SelectItem key={ward.id} value={ward.id}>
+              <SelectItem key={ward.wardId} value={ward.wardId.toString()}>
                 {ward.name}
               </SelectItem>
             ))}

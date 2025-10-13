@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCities, getDistricts, getWards, type City, type District, type Ward } from '@/api/address';
+import { getCities, getDistricts, getWards, type City, type District, type Ward, type Province, type Commune } from '@/api/address';
 
 export interface AddressData {
   cities: City[];
@@ -72,7 +72,7 @@ export const useAddress = () => {
     if (!city) return;
 
     try {
-      const districts = await getDistricts(city.id);
+      const districts = await getDistricts(city.provinceId);
       setAddressData(prev => ({
         ...prev,
         districts,
@@ -100,7 +100,7 @@ export const useAddress = () => {
     if (!district) return;
 
     try {
-      const wards = await getWards(district.id);
+      const wards = await getWards(district.districtId);
       setAddressData(prev => ({
         ...prev,
         wards,
@@ -151,7 +151,7 @@ export const useAddress = () => {
       
       // Wait for districts to load, then find district
       setTimeout(async () => {
-        const districts = await getDistricts(city.id);
+        const districts = await getDistricts(city.provinceId);
         const district = districts.find(d => 
           d.name === districtName || 
           d.name.includes(districtName) ||
@@ -163,7 +163,7 @@ export const useAddress = () => {
           
           // Wait for wards to load, then find ward
           setTimeout(async () => {
-            const wards = await getWards(district.id);
+            const wards = await getWards(district.districtId);
             const ward = wards.find(w => 
               w.name === wardName || 
               w.name.includes(wardName) ||

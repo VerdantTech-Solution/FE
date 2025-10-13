@@ -30,12 +30,13 @@ export interface UserAddress {
   commune: string;
   provinceCode?: number;
   districtCode?: number;
-  communeCode?: number;
+  communeCode?: string;
   latitude: number;
   longitude: number;
   isDeleted: boolean;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
 }
 
 // Interface cho request tạo địa chỉ mới
@@ -46,7 +47,7 @@ export interface CreateAddressRequest {
   commune: string;
   provinceCode?: number;
   districtCode?: number;
-  communeCode?: number;
+  communeCode?: string;
   latitude: number;
   longitude: number;
 }
@@ -59,7 +60,7 @@ export interface UpdateAddressRequest {
   commune: string;
   provinceCode?: number;
   districtCode?: number;
-  communeCode?: number;
+  communeCode?: string;
   latitude: number;
   longitude: number;
   isDeleted: boolean;
@@ -155,13 +156,32 @@ export const updateUserAddress = async (addressId: number, addressData: UpdateAd
   }
 };
 
+// API xóa địa chỉ của user (soft delete)
+export const deleteUserAddress = async (addressId: number): Promise<void> => {
+  try {
+    const response = await apiClient.delete(`/api/User/address/${addressId}`);
+    console.log('Delete user address response:', response);
+  } catch (error) {
+    console.error('Delete user address error:', error);
+    throw error;
+  }
+};
+
+
+// Interface cho response tạo địa chỉ
+export interface CreateAddressResponse {
+  status: boolean;
+  statusCode: string;
+  data: UserResponse;
+  errors: string[];
+}
 
 // API tạo địa chỉ mới cho user
-export const createUserAddress = async (userId: string, addressData: CreateAddressRequest): Promise<{ status: boolean; statusCode: string; data: string; errors: string[] }> => {
+export const createUserAddress = async (userId: string, addressData: CreateAddressRequest): Promise<CreateAddressResponse> => {
   try {
     const response = await apiClient.post(`/api/User/${userId}/address`, addressData);
     console.log('Create user address response:', response);
-    return response as unknown as { status: boolean; statusCode: string; data: string; errors: string[] };
+    return response as unknown as CreateAddressResponse;
   } catch (error) {
     console.error('Create user address error:', error);
     throw error;
