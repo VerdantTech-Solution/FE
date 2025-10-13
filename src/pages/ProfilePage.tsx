@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { User, Mail, Phone, Shield, LogOut, Edit, Key, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
-import { getUserProfile, createUserAddress, updateUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
+import { getUserProfile, createUserAddress, updateUserAddress, deleteUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
@@ -86,8 +86,10 @@ export const ProfilePage = () => {
     isDeleted: false,
     provinceCode: 0,
     districtCode: 0,
-    communeCode: 0,
+    communeCode: "",
   });
+  const [addressFormErrors, setAddressFormErrors] = useState<{[key: string]: string}>({});
+  const [isSubmittingAddress, setIsSubmittingAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
   const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
   const [deleteAddressDialogOpen, setDeleteAddressDialogOpen] = useState(false);
@@ -183,9 +185,61 @@ export const ProfilePage = () => {
     setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
   };
 
+  const resetAddressForm = () => {
+    setAddressForm({
+      locationAddress: "",
+      city: "",
+      district: "",
+      ward: "",
+      latitude: 0,
+      longitude: 0,
+      isDeleted: false,
+      provinceCode: 0,
+      districtCode: 0,
+      communeCode: "",
+    });
+    setAddressFormErrors({});
+    setEditingAddressId(null);
+  };
+
+  const validateAddressForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!addressForm.locationAddress.trim()) {
+      errors.locationAddress = "Vui lòng nhập địa chỉ cụ thể";
+    }
+    
+    if (!addressForm.city) {
+      errors.city = "Vui lòng chọn tỉnh/thành";
+    }
+    
+    if (!addressForm.district) {
+      errors.district = "Vui lòng chọn quận/huyện";
+    }
+    
+    if (!addressForm.ward) {
+      errors.ward = "Vui lòng chọn xã/phường";
+    }
+    
+    if (addressForm.latitude === 0 && addressForm.longitude === 0) {
+      errors.coordinates = "Vui lòng chọn vị trí trên bản đồ hoặc tìm kiếm địa chỉ";
+    }
+    
+    setAddressFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreateAddress = async () => {
     try {
       if (!user) return;
+      
+      // Validate form before submission
+      if (!validateAddressForm()) {
+        return;
+      }
+      
+      setIsSubmittingAddress(true);
+      setAddressFormErrors({});
       
       if (editingAddressId !== null && editingAddressId !== undefined) {
         // Update existing address
@@ -234,11 +288,16 @@ export const ProfilePage = () => {
         }
       }
       
+      // Reset form and close dialog on success
+      resetAddressForm();
       setIsDialogOpen(false);
-      setEditingAddressId(null);
     } catch (error) {
       console.error('Error creating/updating address:', error);
-      // Handle error - could show toast notification
+      setAddressFormErrors({
+        general: 'Có lỗi xảy ra khi lưu địa chỉ. Vui lòng thử lại.'
+      });
+    } finally {
+      setIsSubmittingAddress(false);
     }
   };
 
@@ -246,22 +305,42 @@ export const ProfilePage = () => {
     if (!addr?.id) return;
     try {
       setDeletingAddressId(addr.id);
-      const payload = {
-        locationAddress: addr.locationAddress,
-        province: addr.province,
-        district: addr.district,
-        commune: addr.commune,
-        provinceCode: addr.provinceCode ?? 0,
-        districtCode: addr.districtCode ?? 0,
-        communeCode: addr.communeCode ?? 0,
-        latitude: addr.latitude,
-        longitude: addr.longitude,
-        isDeleted: true,
-      };
-      await updateUserAddress(addr.id, payload);
-      setUserAddresses(prev => prev.filter(a => a.id !== addr.id));
+      
+      console.log('Attempting to delete address ID:', addr.id);
+      
+      // Try the dedicated delete endpoint first
+      try {
+        await deleteUserAddress(addr.id);
+        console.log('Address deleted successfully using DELETE endpoint');
+        setUserAddresses(prev => prev.filter(a => a.id !== addr.id));
+        return;
+      } catch (deleteError) {
+        console.log('DELETE endpoint failed, trying soft delete with PATCH:', deleteError);
+        
+        // Fallback to soft delete using PATCH
+        const payload = {
+          locationAddress: addr.locationAddress,
+          province: addr.province,
+          district: addr.district,
+          commune: addr.commune,
+          provinceCode: addr.provinceCode ?? 0,
+          districtCode: addr.districtCode ?? 0,
+          communeCode: addr.communeCode ?? "", // Fixed: should be string, not number
+          latitude: addr.latitude,
+          longitude: addr.longitude,
+          isDeleted: true,
+        };
+        
+        console.log('Soft deleting address with payload:', payload);
+        await updateUserAddress(addr.id, payload);
+        console.log('Address soft deleted successfully');
+        setUserAddresses(prev => prev.filter(a => a.id !== addr.id));
+      }
+      
     } catch (e) {
-      console.error('Failed to delete address', e);
+      console.error('Failed to delete address:', e);
+      // Show error to user - you could add a toast notification here
+      alert(`Không thể xóa địa chỉ: ${e instanceof Error ? e.message : 'Lỗi không xác định'}`);
     } finally {
       setDeletingAddressId(null);
     }
@@ -292,9 +371,10 @@ export const ProfilePage = () => {
       isDeleted: addr.isDeleted ?? false,
       provinceCode: addr.provinceCode || 0,
       districtCode: addr.districtCode || 0,
-      communeCode: addr.communeCode || 0,
+      communeCode: addr.communeCode || "",
     });
     setEditingAddressId(addr.id ?? null);
+    setAddressFormErrors({});
     setIsDialogOpen(true);
   };
 
@@ -312,6 +392,11 @@ export const ProfilePage = () => {
         // ignore errors silently here
       }
     );
+  };
+
+  const openAddAddressDialog = () => {
+    resetAddressForm();
+    setIsDialogOpen(true);
   };
 
   // Hiển thị loading nếu đang kiểm tra authentication
@@ -538,11 +623,11 @@ export const ProfilePage = () => {
                               </div>
                             </div>
                           ))}
-                          <Button size="sm" variant="outline" onClick={() => { setIsDialogOpen(true); }}>Thêm địa chỉ</Button>
+                          <Button size="sm" variant="outline" onClick={openAddAddressDialog}>Thêm địa chỉ</Button>
                         </div>
                       ) : (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => { setIsDialogOpen(true); }}>Thêm địa chỉ</Button>
+                          <Button size="sm" variant="outline" onClick={openAddAddressDialog}>Thêm địa chỉ</Button>
                         </>
                       )}
                     </div>
@@ -616,11 +701,24 @@ export const ProfilePage = () => {
     </motion.div>
 
     {/* Global Address Dialog (Add / Update) */}
-    <Dialog open={isDialogOpen} onOpenChange={(open: boolean) => { setIsDialogOpen(open); if (!open) { setEditingAddressId(null); } }}>
+    <Dialog open={isDialogOpen} onOpenChange={(open: boolean) => { 
+      setIsDialogOpen(open); 
+      if (!open) { 
+        resetAddressForm(); 
+      } 
+    }}>
       <DialogContent className="sm:max-w-[520px] md:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>{editingAddressId ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ'}</DialogTitle>
         </DialogHeader>
+        
+        {/* General Error Display */}
+        {addressFormErrors.general && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <p className="text-sm text-red-600">{addressFormErrors.general}</p>
+          </div>
+        )}
+        
         <div className="space-y-4">
           <div className="space-y-3">
             <SearchAddress
@@ -635,23 +733,42 @@ export const ProfilePage = () => {
               lng={addressForm.longitude}
               onPick={(lat, lng) => setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }))}
             />
+            {addressFormErrors.coordinates && (
+              <p className="text-sm text-red-600">{addressFormErrors.coordinates}</p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label>Vĩ độ</Label>
-                <Input value={addressForm.latitude} onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
+                <Input 
+                  value={addressForm.latitude} 
+                  onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} 
+                  placeholder="0" 
+                />
               </div>
               <div className="grid gap-2">
                 <Label>Kinh độ</Label>
-                <Input value={addressForm.longitude} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} placeholder="0" />
+                <Input 
+                  value={addressForm.longitude} 
+                  onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} 
+                  placeholder="0" 
+                />
               </div>
             </div>
             {/* Removed manual code inputs; codes are handled internally via AddressSelector selections */}
             <div className="grid gap-2">
-              <Label>Địa chỉ cụ thể</Label>
-              <Input value={addressForm.locationAddress} onChange={(e) => setAddressForm({ ...addressForm, locationAddress: e.target.value })} placeholder="Số nhà, đường..." />
+              <Label>Địa chỉ cụ thể <span className="text-red-500">*</span></Label>
+              <Input 
+                value={addressForm.locationAddress} 
+                onChange={(e) => setAddressForm({ ...addressForm, locationAddress: e.target.value })} 
+                placeholder="Số nhà, đường..." 
+                className={addressFormErrors.locationAddress ? "border-red-500" : ""}
+              />
+              {addressFormErrors.locationAddress && (
+                <p className="text-sm text-red-600">{addressFormErrors.locationAddress}</p>
+              )}
             </div>
             <div className="grid gap-2">
-              <Label>Chọn Tỉnh/Thành - Quận/Huyện - Xã/Phường</Label>
+              <Label>Chọn Tỉnh/Thành - Quận/Huyện - Xã/Phường <span className="text-red-500">*</span></Label>
               <AddressSelector
                 selectedCity={addressForm.city}
                 selectedDistrict={addressForm.district}
@@ -664,7 +781,7 @@ export const ProfilePage = () => {
                   district: '',
                   districtCode: 0,
                   ward: '',
-                  communeCode: 0,
+                  communeCode: "",
                 }))}
                 onDistrictChange={(value, code) => setAddressForm((prev) => ({
                   ...prev,
@@ -672,20 +789,42 @@ export const ProfilePage = () => {
                   districtCode: code ? parseInt(code) || 0 : 0,
                   // reset when district changes
                   ward: '',
-                  communeCode: 0,
+                  communeCode: "",
                 }))}
                 onWardChange={(value, code) => setAddressForm((prev) => ({
                   ...prev,
                   ward: value,
-                  communeCode: code ? parseInt(code) || 0 : 0,
+                  communeCode: code || "",
                 }))}
                 initialCity={addressForm.city}
                 initialDistrict={addressForm.district}
                 initialWard={addressForm.ward}
               />
+              {(addressFormErrors.city || addressFormErrors.district || addressFormErrors.ward) && (
+                <div className="space-y-1">
+                  {addressFormErrors.city && <p className="text-sm text-red-600">{addressFormErrors.city}</p>}
+                  {addressFormErrors.district && <p className="text-sm text-red-600">{addressFormErrors.district}</p>}
+                  {addressFormErrors.ward && <p className="text-sm text-red-600">{addressFormErrors.ward}</p>}
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between pt-1">
-              <Button type="button" size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={handleCreateAddress}>{editingAddressId ? 'Cập nhật' : 'Lưu'}</Button>
+              <Button 
+                type="button" 
+                size="sm" 
+                className="bg-emerald-600 hover:bg-emerald-700" 
+                onClick={handleCreateAddress}
+                disabled={isSubmittingAddress}
+              >
+                {isSubmittingAddress ? (
+                  <>
+                    <Spinner variant="circle-filled" size={16} className="mr-2" />
+                    {editingAddressId ? 'Đang cập nhật...' : 'Đang lưu...'}
+                  </>
+                ) : (
+                  editingAddressId ? 'Cập nhật' : 'Lưu'
+                )}
+              </Button>
             </div>
           </div>
         </div>

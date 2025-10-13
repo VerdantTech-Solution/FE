@@ -33,7 +33,7 @@ export interface CreateFarmProfileRequest {
   commune?: string;
   provinceCode?: number;
   districtCode?: number;
-  communeCode?: number;
+  communeCode?: string; // Must be string according to API spec
   latitude?: number;
   longitude?: number;
   primaryCrops?: string;
@@ -42,8 +42,49 @@ export interface CreateFarmProfileRequest {
 
 // Interface cho response tạo farm profile
 export interface CreateFarmProfileResponse {
-  id: number;
-  message?: string;
+  status: boolean;
+  statusCode: string;
+  data: {
+    id: number;
+    user: {
+      id: number;
+      email: string;
+      role: string;
+      fullName: string;
+      phoneNumber: string;
+      isVerified: boolean;
+      avatarUrl: string | null;
+      status: string;
+      lastLoginAt: string;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string | null;
+      addresses: any[];
+    };
+    farmName: string;
+    farmSizeHectares: number;
+    address: {
+      id: number;
+      locationAddress: string;
+      province: string;
+      district: string;
+      commune: string;
+      provinceCode: number;
+      districtCode: number;
+      communeCode: string;
+      latitude: number;
+      longitude: number;
+      isDeleted: boolean;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string | null;
+    };
+    status: string;
+    primaryCrops: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  errors: string[];
 }
 
 // Interface cho response lấy danh sách farm profiles
@@ -65,22 +106,58 @@ export interface CreateFarmProfileApiResponse {
   errors: string[];
 }
 
-export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise<CreateFarmProfileApiResponse> => {
+export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise<CreateFarmProfileResponse> => {
   try {
-    const response = await apiClient.post('/api/FarmProfile', data);
+    console.log('Creating farm profile with data:', data);
+    
+    // Clean up the data - ensure communeCode is string
+    const cleanData = {
+      farmName: data.farmName.trim(),
+      farmSizeHectares: data.farmSizeHectares,
+      ...(data.locationAddress && { locationAddress: data.locationAddress.trim() }),
+      ...(data.province && { province: data.province }),
+      ...(data.district && { district: data.district }),
+      ...(data.commune && { commune: data.commune }),
+      ...(data.provinceCode && data.provinceCode > 0 && { provinceCode: data.provinceCode }),
+      ...(data.districtCode && data.districtCode > 0 && { districtCode: data.districtCode }),
+      ...(data.communeCode && { communeCode: String(data.communeCode) }), // Ensure communeCode is string
+      ...(data.latitude && data.latitude !== 0 && { latitude: data.latitude }),
+      ...(data.longitude && data.longitude !== 0 && { longitude: data.longitude }),
+      ...(data.primaryCrops && { primaryCrops: data.primaryCrops.trim() }),
+    };
+    
+    console.log('Cleaned farm profile data:', cleanData);
+    
+    const response = await apiClient.post('/api/FarmProfile', cleanData);
+    console.log('Farm profile creation response:', response);
+    
     // apiClient returns response.data already
     const raw: any = response;
     if (raw && typeof raw === 'object' && 'status' in raw && 'data' in raw) {
-      return raw as CreateFarmProfileApiResponse;
+      return raw as CreateFarmProfileResponse;
     }
+    
+    // Fallback response structure
     return {
       status: true,
-      statusCode: 200,
-      data: String(raw?.id ?? ''),
+      statusCode: "Created",
+      data: raw as any,
       errors: [],
-    } as CreateFarmProfileApiResponse;
-  } catch (error) {
+    } as CreateFarmProfileResponse;
+  } catch (error: any) {
     console.error('Error creating farm profile:', error);
+    
+    // Log detailed error information
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+      console.error('Response headers:', error.response.headers);
+    } else if (error.request) {
+      console.error('Request error:', error.request);
+    } else {
+      console.error('Error message:', error.message);
+    }
+    
     throw error;
   }
 };
