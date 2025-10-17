@@ -168,9 +168,11 @@ export const FarmList = () => {
   }, [farms, filter, query]);
 
   const stats = useMemo(() => {
-    const total = farms.length;
-    const active = farms.filter((f) => f.status === "Active").length;
-    const area = farms.reduce((s, f) => s + f.areaHectare, 0);
+    // Exclude deleted farms from statistics
+    const nonDeleted = farms.filter((f) => f.status !== "Deleted");
+    const total = nonDeleted.length;
+    const active = nonDeleted.filter((f) => f.status === "Active").length;
+    const area = nonDeleted.reduce((sum, f) => sum + f.areaHectare, 0);
     return { total, active, area };
   }, [farms]);
 

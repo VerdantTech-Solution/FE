@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import VendorSidebar from './VendorSidebar';
 import RegisterProductForm from '@/components/RegisterProductForm';
 import { 
@@ -104,7 +105,7 @@ const RegistrationFilters = () => {
   );
 };
 
-const RegistrationTable = ({ registrations, loading }: { registrations: ProductRegistration[], loading: boolean }) => {
+const RegistrationTable = ({ registrations, loading, onView }: { registrations: ProductRegistration[], loading: boolean, onView: (registration: ProductRegistration) => void }) => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -184,7 +185,7 @@ const RegistrationTable = ({ registrations, loading }: { registrations: ProductR
                       <td className="py-4 px-4 text-gray-600">{formatDate(registration.createdAt)}</td>
                       <td className="py-4 px-4">
                         <div className="flex items-center space-x-2">
-                          <Button variant="ghost" size="sm" className="p-2" title="Xem chi tiết">
+                          <Button variant="ghost" size="sm" className="p-2" title="Xem chi tiết" onClick={() => onView(registration)}>
                             <Eye size={16} />
                           </Button>
                         </div>
@@ -219,6 +220,8 @@ const RegistrationManagementPage = () => {
   const [registrations, setRegistrations] = useState<ProductRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selected, setSelected] = useState<ProductRegistration | null>(null);
 
   const fetchRegistrations = async () => {
     try {
@@ -246,6 +249,11 @@ const RegistrationManagementPage = () => {
   const handleProductRegistered = () => {
     // Refresh the registrations list when a new product is registered
     fetchRegistrations();
+  };
+
+  const handleView = (registration: ProductRegistration) => {
+    setSelected(registration);
+    setDetailOpen(true);
   };
 
   return (
@@ -299,7 +307,82 @@ const RegistrationManagementPage = () => {
           )}
           <RegistrationStatsCards registrations={registrations} />
           <RegistrationFilters />
-          <RegistrationTable registrations={registrations} loading={loading} />
+          <RegistrationTable registrations={registrations} loading={loading} onView={handleView} />
+
+          <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Chi tiết đơn đăng ký</DialogTitle>
+                <DialogDescription>
+                  Thông tin đầy đủ về đơn đăng ký sản phẩm
+                </DialogDescription>
+              </DialogHeader>
+              {selected && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Mã sản phẩm đề xuất</p>
+                      <p className="font-medium text-gray-900">{selected.proposedProductCode}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Tên sản phẩm đề xuất</p>
+                      <p className="font-medium text-gray-900">{selected.proposedProductName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Giá</p>
+                      <p className="font-medium text-gray-900">{selected.unitPrice.toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Trạng thái</p>
+                      <p className="font-medium text-gray-900">{selected.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Ngày tạo</p>
+                      <p className="font-medium text-gray-900">{new Date(selected.createdAt).toLocaleString('vi-VN')}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Năng lượng</p>
+                      <p className="font-medium text-gray-900">{selected.energyEfficiencyRating || '-'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Mô tả</p>
+                    <p className="text-gray-900">{selected.description || '-'}</p>
+                  </div>
+                  {selected.specifications && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-2">Thông số kỹ thuật</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Object.entries(selected.specifications).map(([k, v]) => (
+                          <div key={k} className="flex items-start justify-between gap-4">
+                            <span className="text-gray-600">{k}</span>
+                            <span className="font-medium text-gray-900">{v as string}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Bảo hành (tháng)</p>
+                      <p className="font-medium text-gray-900">{selected.warrantyMonths}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Khối lượng (kg)</p>
+                      <p className="font-medium text-gray-900">{selected.weightKg}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Kích thước (cm)</p>
+                      <p className="font-medium text-gray-900">{`${selected.dimensionsCm.Width} x ${selected.dimensionsCm.Height} x ${selected.dimensionsCm.Length}`}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailOpen(false)}>Đóng</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>
