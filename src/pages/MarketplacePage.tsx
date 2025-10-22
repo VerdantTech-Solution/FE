@@ -80,18 +80,16 @@ export const MarketplacePage = () => {
 
   const fetchProducts = async () => {
     try {
-      console.log('Starting to fetch products...');
-      console.log('Auth token:', localStorage.getItem('authToken'));
       setLoading(true);
       setError(null);
-      const productsData = await getAllProducts();
-      console.log('Products fetched successfully:', productsData);
-      setProducts(productsData);
+      
+      const products = await getAllProducts({ page: 1, pageSize: 100 });
+      setProducts(products);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
       setError(errorMessage);
-      setProducts([]); // Set empty array instead of fallback data
+      setProducts([]);
     } finally {
       setLoading(false);
       setPageLoading(false);

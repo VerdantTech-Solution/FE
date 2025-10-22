@@ -130,6 +130,15 @@ export const deleteProductCategory = async (id: number): Promise<void> => {
   }
 };
 
+// Product Image Interface
+export interface ProductImage {
+  id: number;
+  imagePublicId: string;
+  imageUrl: string;
+  purpose: string;
+  sortOrder: number;
+}
+
 // Product interfaces
 export interface Product {
   id: number;
@@ -142,13 +151,18 @@ export interface Product {
   commissionRate: number;
   discountPercentage: number;
   energyEfficiencyRating?: string;
-  specifications?: any;
+  specifications?: {
+    [key: string]: string;
+  };
   manualUrls?: string;
-  images: string;
+  publicUrl?: string;
+  images: ProductImage[] | string; // Có thể là array of objects hoặc string
   warrantyMonths: number;
   stockQuantity: number;
-  weightkg?: number;
-  dimensionsCm?: any;
+  weightKg?: number;
+  dimensionsCm?: {
+    [key: string]: number;
+  };
   isActive: boolean;
   viewCount?: number;
   soldCount?: number;
@@ -178,6 +192,29 @@ export interface ProductResponse {
 
 // Transform API data to component format
 const transformProductData = (apiProduct: any): Product => {
+  // Xử lý images - có thể là string, array of objects, array of strings, hoặc null
+  let imageUrl = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop';
+  
+  // Ưu tiên publicUrl nếu có
+  if (apiProduct.publicUrl && typeof apiProduct.publicUrl === 'string') {
+    imageUrl = apiProduct.publicUrl;
+  } else if (apiProduct.images) {
+    if (typeof apiProduct.images === 'string' && apiProduct.images.length > 0) {
+      // Trường hợp 1: images là string (CSV)
+      imageUrl = apiProduct.images.split(',')[0].trim();
+    } else if (Array.isArray(apiProduct.images) && apiProduct.images.length > 0) {
+      const firstImage = apiProduct.images[0];
+      
+      if (typeof firstImage === 'string') {
+        // Trường hợp 2: images là array of strings
+        imageUrl = firstImage;
+      } else if (firstImage && typeof firstImage === 'object' && firstImage.imageUrl) {
+        // Trường hợp 3: images là array of objects
+        imageUrl = firstImage.imageUrl;
+      }
+    }
+  }
+
   return {
     ...apiProduct,
     // Map API fields to component expected fields
@@ -187,34 +224,59 @@ const transformProductData = (apiProduct: any): Product => {
       ? Math.round(apiProduct.unitPrice / (1 - apiProduct.discountPercentage / 100))
       : apiProduct.unitPrice,
     discount: apiProduct.discountPercentage,
-    unit: 'chiếc', // Default unit
-    category: 'machines', // Default category, có thể map từ categoryId
-    rating: apiProduct.ratingAverage || 4.5, // Sử dụng rating từ API hoặc default
-    reviews: apiProduct.soldCount || Math.floor(Math.random() * 100) + 10, // Sử dụng soldCount hoặc random
-    location: 'TP. HCM', // Default location
-    delivery: '3-5 ngày', // Default delivery
-    image: apiProduct.images ? apiProduct.images.split(',')[0] : 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop'
+    unit: 'chiếc',
+    category: 'machines',
+    rating: apiProduct.ratingAverage || 4.5,
+    reviews: apiProduct.soldCount || Math.floor(Math.random() * 100) + 10,
+    location: 'TP. HCM',
+    delivery: '3-5 ngày',
+    image: imageUrl
   };
 };
 
-// API lấy tất cả sản phẩm
-export const getAllProducts = async (): Promise<Product[]> => {
+// Định nghĩa tham số đầu vào cho API phân trang
+export interface PaginationParams {
+  page?: number; // Trang hiện tại (optional, mặc định 1)
+  pageSize?: number; // Số sản phẩm mỗi trang (optional, mặc định 100)
+}
+
+// Định nghĩa cấu trúc phản hồi API có phân trang
+export interface PaginatedResponse<T> {
+  data: T[]; // API trả về 'data' chứa mảng items
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
+}
+
+// API lấy tất cả sản phẩm (có phân trang)
+export const getAllProducts = async (
+  params: PaginationParams = { page: 1, pageSize: 100 }
+): Promise<Product[]> => {
   try {
-    const response = await apiClient.get('/api/Product');
-    console.log('Get all products response:', response);
+    const { page = 1, pageSize = 100 } = params;
     
-    // apiClient đã unwrap response.data do interceptor, nên response là { status, statusCode, data }
-    if (response && response.data && Array.isArray(response.data)) {
-      return response.data.map(transformProductData);
+    const response = await apiClient.get('/api/Product', {
+      params: { page, pageSize },
+    });
+    
+    const responseData = response.data;
+    let productsArray: any[] = [];
+    
+    if (Array.isArray(responseData)) {
+      productsArray = responseData;
+    } else if (responseData && Array.isArray(responseData.data)) {
+      productsArray = responseData.data;
+    } else if (responseData && responseData.data && typeof responseData.data === 'object') {
+      productsArray = Object.values(responseData.data);
+    } else {
+      console.warn('Unknown response structure:', responseData);
+      return [];
     }
     
-    // Fallback nếu response trực tiếp là array
-    if (Array.isArray(response)) {
-      return response.map(transformProductData);
-    }
-    
-    // Trả về empty array nếu không có data
-    return [];
+    return productsArray.map(transformProductData);
   } catch (error) {
     console.error('Get all products error:', error);
     throw error;
@@ -225,14 +287,20 @@ export const getAllProducts = async (): Promise<Product[]> => {
 export const getProductById = async (id: number): Promise<Product> => {
   try {
     const response = await apiClient.get(`/api/Product/${id}`);
-    console.log('Get product by ID response:', response);
-    // apiClient đã unwrap response.data do interceptor
-    // response là { status, statusCode, data, errors }
-    // Áp dụng transform để đảm bảo data format đúng
-    if (response && response.data) {
-      return transformProductData(response.data);
+    
+    let productData = null;
+    
+    if (response.data) {
+      productData = response.data;
+    } else if (response && typeof response === 'object' && 'id' in response) {
+      productData = response;
     }
-    return response.data || response;
+    
+    if (!productData) {
+      throw new Error('Product not found');
+    }
+    
+    return transformProductData(productData);
   } catch (error) {
     console.error('Get product by ID error:', error);
     throw error;
@@ -276,7 +344,7 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
 // API lấy tất cả sản phẩm đã đăng ký theo VendorID
 export const getProductRegistrations = async (): Promise<ProductRegistration[]> => {
   try {
-    const response = await apiClient.get('/api/Product/product-registrations');
+    const response = await apiClient.get('/api/ProductRegistrations');
     console.log('Get product registrations response:', response);
     
     // apiClient đã unwrap response.data do interceptor

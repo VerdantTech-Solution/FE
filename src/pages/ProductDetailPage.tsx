@@ -20,10 +20,53 @@ import {
   AlertCircle
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getProductById, type Product } from '@/api/product';
+import { getProductById, type Product, type ProductImage } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { useCart } from '@/contexts/CartContext';
 import ProductSpecifications from '@/components/ProductSpecifications';
+
+// Helper function to get image URLs from product
+const getProductImages = (product: Product): string[] => {
+  const images: string[] = [];
+  
+  // Thêm image chính (đã được transform)
+  if (product.image) {
+    images.push(product.image);
+  }
+  
+  // Thêm các images khác nếu có
+  if (product.images) {
+    if (typeof product.images === 'string') {
+      // Nếu images là string CSV
+      const imageUrls = product.images.split(',').map(url => url.trim()).filter(url => url.length > 0);
+      imageUrls.forEach(url => {
+        if (!images.includes(url)) {
+          images.push(url);
+        }
+      });
+    } else if (Array.isArray(product.images)) {
+      // Nếu images là array of objects
+      product.images.forEach((img: ProductImage | string) => {
+        if (typeof img === 'string') {
+          if (!images.includes(img)) {
+            images.push(img);
+          }
+        } else if (img && typeof img === 'object' && img.imageUrl) {
+          if (!images.includes(img.imageUrl)) {
+            images.push(img.imageUrl);
+          }
+        }
+      });
+    }
+  }
+  
+  // Fallback nếu không có images
+  if (images.length === 0) {
+    images.push('https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=600&fit=crop');
+  }
+  
+  return images;
+};
 
 // Animation variants
 const pageVariants = {
@@ -296,36 +339,50 @@ export const ProductDetailPage = () => {
             variants={imageVariants}
             className="space-y-4"
           >
-            <div className="aspect-square bg-white rounded-lg shadow-sm border overflow-hidden">
-              <img 
-                src={product.images?.split(',')[selectedImage] || '/placeholder-product.jpg'} 
-                alt={product.productName}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            
-            {/* Thumbnail Images */}
-            {product.images && product.images.split(',').length > 1 && (
-              <div className="flex space-x-2 overflow-x-auto">
-                {product.images.split(',').map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                      selectedImage === index 
-                        ? 'border-green-500' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
+            {(() => {
+              const productImages = getProductImages(product);
+              return (
+                <>
+                  <div className="aspect-square bg-white rounded-lg shadow-sm border overflow-hidden">
                     <img 
-                      src={image.trim()} 
-                      alt={`${product.productName} ${index + 1}`}
+                      src={productImages[selectedImage] || productImages[0]} 
+                      alt={product.productName}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback nếu ảnh không load được
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=600&fit=crop';
+                      }}
                     />
-                  </button>
-                ))}
-              </div>
-            )}
+                  </div>
+                  
+                  {/* Thumbnail Images */}
+                  {productImages.length > 1 && (
+                    <div className="flex space-x-2 overflow-x-auto">
+                      {productImages.map((imageUrl, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedImage(index)}
+                          className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                            selectedImage === index 
+                              ? 'border-green-500' 
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <img 
+                            src={imageUrl} 
+                            alt={`${product.productName} ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=100&h=100&fit=crop';
+                            }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </motion.div>
 
           {/* Product Info */}
