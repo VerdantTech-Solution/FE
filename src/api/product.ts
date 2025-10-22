@@ -307,36 +307,120 @@ export const getProductById = async (id: number): Promise<Product> => {
   }
 };
 
-// Interface for product registration
+// Interface for product registration (matches backend API)
 export interface RegisterProductRequest {
+  vendorId: number;
   categoryId: number;
   proposedProductCode: string;
   proposedProductName: string;
-  description: string;
+  description?: string;
   unitPrice: number;
   energyEfficiencyRating?: string;
   specifications?: {
     [key: string]: string;
   };
-  manualUrls?: string;
-  images?: string;
-  warrantyMonths: number;
-  weightKg: number;
-  dimensionsCm: {
-    width: number;
-    height: number;
-    length: number;
+  warrantyMonths?: number;
+  weightKg?: number;
+  dimensionsCm?: {
+    width?: number;
+    height?: number;
+    length?: number;
   };
+  manualFile?: File | null;
+  images?: File[];
+  certificate?: File[];
 }
 
-// API đăng ký sản phẩm mới
+// API đăng ký sản phẩm mới (multipart/form-data)
 export const registerProduct = async (data: RegisterProductRequest): Promise<any> => {
   try {
-    const response = await apiClient.post('/api/Product/register-product', data);
-    console.log('Register product response:', response.data);
-    return response.data;
-  } catch (error) {
+    const formData = new FormData();
+    
+    // Add Data fields with "Data." prefix
+    formData.append('Data.VendorId', data.vendorId.toString());
+    formData.append('Data.CategoryId', data.categoryId.toString());
+    formData.append('Data.ProposedProductCode', data.proposedProductCode);
+    formData.append('Data.ProposedProductName', data.proposedProductName);
+    
+    if (data.description) {
+      formData.append('Data.Description', data.description);
+    }
+    
+    formData.append('Data.UnitPrice', data.unitPrice.toString());
+    
+    if (data.energyEfficiencyRating) {
+      formData.append('Data.EnergyEfficiencyRating', data.energyEfficiencyRating);
+    }
+    
+    // Add specifications as individual key-value pairs
+    if (data.specifications && Object.keys(data.specifications).length > 0) {
+      Object.entries(data.specifications).forEach(([key, value]) => {
+        formData.append(`Data.Specifications[${key}]`, value);
+      });
+    }
+    
+    if (data.warrantyMonths !== undefined) {
+      formData.append('Data.WarrantyMonths', data.warrantyMonths.toString());
+    }
+    
+    if (data.weightKg !== undefined) {
+      formData.append('Data.WeightKg', data.weightKg.toString());
+    }
+    
+    // Add dimensions (required fields)
+    if (data.dimensionsCm) {
+      formData.append('Data.DimensionsCm.Width', (data.dimensionsCm.width || 0).toString());
+      formData.append('Data.DimensionsCm.Height', (data.dimensionsCm.height || 0).toString());
+      formData.append('Data.DimensionsCm.Length', (data.dimensionsCm.length || 0).toString());
+    } else {
+      // If dimensionsCm is not provided, send default values
+      formData.append('Data.DimensionsCm.Width', '0');
+      formData.append('Data.DimensionsCm.Height', '0');
+      formData.append('Data.DimensionsCm.Length', '0');
+    }
+    
+    // Add files
+    if (data.manualFile) {
+      formData.append('ManualFile', data.manualFile);
+    }
+    
+    if (data.images && data.images.length > 0) {
+      data.images.forEach((image) => {
+        formData.append('Images', image);
+      });
+    }
+    
+    if (data.certificate && data.certificate.length > 0) {
+      data.certificate.forEach((cert) => {
+        formData.append('Certificate', cert);
+      });
+    }
+    
+    // Debug: Log FormData contents
+    console.log('FormData contents:');
+    for (let pair of formData.entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `[File: ${pair[1].name}]` : pair[1]));
+    }
+    
+    const response = await apiClient.post('/api/ProductRegistrations', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('Register product response:', response);
+    return response;
+  } catch (error: any) {
     console.error('Register product error:', error);
+    
+    // Log detailed validation errors
+    if (error?.errors) {
+      console.error('Validation errors:', error.errors);
+      Object.keys(error.errors).forEach(key => {
+        console.error(`  ${key}:`, error.errors[key]);
+      });
+    }
+    
     throw error;
   }
 };

@@ -18,6 +18,7 @@ export const PATH_NAMES = {
   VENDOR_DASHBOARD: '/vendor/dashboard',
   VENDOR_PRODUCTS: '/vendor/products',
   VENDOR_REGISTRATIONS: '/vendor/registrations',
+  VENDOR_REGISTER_PRODUCT: '/vendor/registrations/new',
   VENDOR_WALLET: '/vendor/wallet',
   VENDOR_INFO: '/vendor/info',
   // Order routes

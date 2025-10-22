@@ -5,7 +5,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import VendorSidebar from './VendorSidebar';
-import RegisterProductForm from '@/components/RegisterProductForm';
 import { 
   Bell,
   Search,
@@ -13,13 +12,15 @@ import {
   Check,
   X,
   Clock,
-  Loader2
+  Loader2,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 import { useState, useEffect } from 'react';
 import { getProductRegistrations } from '@/api/product';
 import type { ProductRegistration } from '@/api/product';
+import { PATH_NAMES } from '@/constants';
 
 const statusConfig = {
   Pending: { label: "Chờ duyệt", color: "bg-yellow-100 text-yellow-800", icon: Clock },
@@ -246,14 +247,13 @@ const RegistrationManagementPage = () => {
     navigate('/login');
   };
 
-  const handleProductRegistered = () => {
-    // Refresh the registrations list when a new product is registered
-    fetchRegistrations();
-  };
-
   const handleView = (registration: ProductRegistration) => {
     setSelected(registration);
     setDetailOpen(true);
+  };
+
+  const handleRegisterNewProduct = () => {
+    navigate(PATH_NAMES.VENDOR_REGISTER_PRODUCT);
   };
 
   return (
@@ -271,7 +271,13 @@ const RegistrationManagementPage = () => {
               <p className="text-gray-600">Duyệt và quản lý các đơn đăng ký sản phẩm</p>
             </div>
             <div className="flex items-center space-x-4">
-              <RegisterProductForm onProductRegistered={handleProductRegistered} />
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={handleRegisterNewProduct}
+              >
+                <Plus size={20} className="mr-2" />
+                Đăng ký sản phẩm mới
+              </Button>
               <Button variant="ghost" size="sm" className="p-2">
                 <Bell size={20} />
               </Button>
