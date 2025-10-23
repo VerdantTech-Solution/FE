@@ -28,8 +28,8 @@ export interface UserAddress {
   province: string;
   district: string;
   commune: string;
-  provinceCode?: number;
-  districtCode?: number;
+  provinceCode?: string;
+  districtCode?: string;
   communeCode?: string;
   latitude: number;
   longitude: number;
@@ -45,8 +45,8 @@ export interface CreateAddressRequest {
   province: string;
   district: string;
   commune: string;
-  provinceCode?: number;
-  districtCode?: number;
+  provinceCode?: string;
+  districtCode?: string;
   communeCode?: string;
   latitude: number;
   longitude: number;
@@ -58,8 +58,8 @@ export interface UpdateAddressRequest {
   province: string;
   district: string;
   commune: string;
-  provinceCode?: number;
-  districtCode?: number;
+  provinceCode?: string;
+  districtCode?: string;
   communeCode?: string;
   latitude: number;
   longitude: number;

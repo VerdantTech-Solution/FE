@@ -43,9 +43,9 @@ export const CreateFarmPage = () => {
     city: "",
     district: "",
     ward: "",
-    provinceCode: 0,
-    districtCode: 0,
-    communeCode: "", // Changed to string
+    provinceCode: "",
+    districtCode: "",
+    communeCode: "",
     latitude: "",
     longitude: "",
     primaryCrops: "",
@@ -63,11 +63,11 @@ export const CreateFarmPage = () => {
 
   // Handle address selection from AddressSelector
   const handleCityChange = useCallback((city: string, code?: string) => {
-    setForm((f) => ({ ...f, city, provinceCode: code ? parseInt(code) || 0 : 0, district: '', ward: '', districtCode: 0, communeCode: "" }));
+    setForm((f) => ({ ...f, city, provinceCode: code || "", district: '', ward: '', districtCode: "", communeCode: "" }));
   }, []);
 
   const handleDistrictChange = useCallback((district: string, code?: string) => {
-    setForm((f) => ({ ...f, district, districtCode: code ? parseInt(code) || 0 : 0, ward: '', communeCode: "" }));
+    setForm((f) => ({ ...f, district, districtCode: code || "", ward: '', communeCode: "" }));
   }, []);
 
   const handleWardChange = useCallback((ward: string, code?: string) => {
@@ -168,7 +168,7 @@ export const CreateFarmPage = () => {
         commune: form.ward || undefined, // Map ward to commune for API
         provinceCode: form.provinceCode || undefined,
         districtCode: form.districtCode || undefined,
-        communeCode: form.communeCode || undefined, // Now properly handled as string
+        communeCode: form.communeCode || undefined,
         latitude: form.latitude === "" ? undefined : Number(form.latitude),
         longitude: form.longitude === "" ? undefined : Number(form.longitude),
         primaryCrops: form.primaryCrops || undefined,
@@ -194,8 +194,8 @@ export const CreateFarmPage = () => {
         city: "",
         district: "",
         ward: "",
-        provinceCode: 0,
-        districtCode: 0,
+        provinceCode: "",
+        districtCode: "",
         communeCode: "",
         latitude: "",
         longitude: "",

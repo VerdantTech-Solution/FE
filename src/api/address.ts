@@ -1,29 +1,31 @@
 // Address API functions for Vietnamese administrative divisions using GHN API
 export interface Province {
-  provinceId: number;
+  provinceCode: string;
   name: string;
 }
 
 export interface District {
-  districtId: number;
-  provinceId: number;
+  districtCode: string;
   name: string;
 }
 
 export interface Commune {
   communeCode: string;
-  districtId: number;
   name: string;
 }
 
 // Legacy interface for backward compatibility
-export interface Ward extends Commune {
+export interface Ward {
+  communeCode: string;
+  name: string;
   wardId: number;
 }
 
 // Legacy interfaces for backward compatibility
-export interface City extends Province {
+export interface City {
   id: string;
+  name: string;
+  provinceId: number;
 }
 
 import { apiClient } from './apiClient';
@@ -47,9 +49,9 @@ export const getProvinces = async (): Promise<Province[]> => {
 export const getCities = async (): Promise<City[]> => {
   const provinces = await getProvinces();
   return provinces.map(province => ({
-    id: province.provinceId.toString(),
+    id: province.provinceCode,
     name: province.name,
-    provinceId: province.provinceId
+    provinceId: parseInt(province.provinceCode) || 0
   }));
 };
 
@@ -78,7 +80,7 @@ export const getAllDistricts = async (): Promise<District[]> => {
 };
 
 // Get communes by district ID from GHN API
-export const getCommunes = async (districtId: number): Promise<Commune[]> => {
+export const getCommunes = async (districtId: string): Promise<Commune[]> => {
   try {
     const res = await apiClient.get(`${BASE_URL}/communes?districtId=${districtId}`, { headers: { accept: 'text/plain' } });
     const payload = (res as any) || {};
@@ -102,10 +104,11 @@ export const getAllCommunes = async (): Promise<Commune[]> => {
 };
 
 // Legacy function for backward compatibility - now uses communes
-export const getWards = async (districtId: number): Promise<Ward[]> => {
+export const getWards = async (districtId: string): Promise<Ward[]> => {
   const communes = await getCommunes(districtId);
   return communes.map(commune => ({
-    ...commune,
+    communeCode: commune.communeCode,
+    name: commune.name,
     wardId: parseInt(commune.communeCode) || 0
   }));
 };

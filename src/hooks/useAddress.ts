@@ -100,7 +100,7 @@ export const useAddress = () => {
     if (!district) return;
 
     try {
-      const wards = await getWards(district.districtId);
+      const wards = await getWards(district.districtCode);
       setAddressData(prev => ({
         ...prev,
         wards,
