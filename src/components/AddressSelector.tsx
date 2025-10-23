@@ -50,6 +50,34 @@ const AddressSelector = ({
     }
   }, [initialCity, initialDistrict, initialWard, cities.length, setInitialAddress]);
 
+  // Sync with external props when they change
+  useEffect(() => {
+    if (selectedCity && selectedCity !== currentCity?.name) {
+      const city = cities.find(c => c.name === selectedCity);
+      if (city && city.id !== currentCity?.id) {
+        selectCity(city);
+      }
+    }
+  }, [selectedCity, cities, currentCity, selectCity]);
+
+  useEffect(() => {
+    if (selectedDistrict && selectedDistrict !== currentDistrict?.name) {
+      const district = districts.find(d => d.name === selectedDistrict);
+      if (district && district.districtCode !== currentDistrict?.districtCode) {
+        selectDistrict(district);
+      }
+    }
+  }, [selectedDistrict, districts, currentDistrict, selectDistrict]);
+
+  useEffect(() => {
+    if (selectedWard && selectedWard !== currentWard?.name) {
+      const ward = wards.find(w => w.name === selectedWard);
+      if (ward && ward.communeCode !== currentWard?.communeCode) {
+        selectWard(ward);
+      }
+    }
+  }, [selectedWard, wards, currentWard, selectWard]);
+
   const handleCityChange = (cityId: string) => {
     const city = cities.find(c => c.id === cityId);
     if (city) {
@@ -61,16 +89,16 @@ const AddressSelector = ({
   };
 
   const handleDistrictChange = (districtId: string) => {
-    const district = districts.find(d => d.districtId.toString() === districtId);
+    const district = districts.find(d => d.districtCode === districtId);
     if (district) {
       selectDistrict(district);
-      onDistrictChange(district.name, district.districtId.toString());
+      onDistrictChange(district.name, district.districtCode);
       onWardChange('', '');
     }
   };
 
   const handleWardChange = (wardId: string) => {
-    const ward = wards.find(w => w.wardId.toString() === wardId);
+    const ward = wards.find(w => w.communeCode === wardId);
     if (ward) {
       selectWard(ward);
       onWardChange(ward.name, ward.communeCode);
@@ -114,7 +142,7 @@ const AddressSelector = ({
           Quận/Huyện <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentDistrict?.districtId?.toString() || ''}
+          value={currentDistrict?.districtCode || ''}
           onValueChange={handleDistrictChange}
           disabled={!currentCity || loading.districts}
         >
@@ -131,7 +159,7 @@ const AddressSelector = ({
           </SelectTrigger>
           <SelectContent>
             {districts.map((district) => (
-              <SelectItem key={district.districtId} value={district.districtId.toString()}>
+              <SelectItem key={district.districtCode} value={district.districtCode}>
                 {district.name}
               </SelectItem>
             ))}
@@ -151,7 +179,7 @@ const AddressSelector = ({
           Xã/Phường <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={currentWard?.wardId?.toString() || ''}
+          value={currentWard?.communeCode || ''}
           onValueChange={handleWardChange}
           disabled={!currentDistrict || loading.wards}
         >
@@ -168,7 +196,7 @@ const AddressSelector = ({
           </SelectTrigger>
           <SelectContent>
             {wards.map((ward) => (
-              <SelectItem key={ward.wardId} value={ward.wardId.toString()}>
+              <SelectItem key={ward.communeCode} value={ward.communeCode}>
                 {ward.name}
               </SelectItem>
             ))}

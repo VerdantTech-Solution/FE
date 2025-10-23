@@ -84,8 +84,8 @@ export const ProfilePage = () => {
     latitude: 0,
     longitude: 0,
     isDeleted: false,
-    provinceCode: 0,
-    districtCode: 0,
+    provinceCode: "",
+    districtCode: "",
     communeCode: "",
   });
   const [addressFormErrors, setAddressFormErrors] = useState<{[key: string]: string}>({});
@@ -136,8 +136,8 @@ export const ProfilePage = () => {
         }
 
         // Lấy danh sách địa chỉ từ profile
-        if (Array.isArray((userData as any).addresses)) {
-          setUserAddresses((userData as any).addresses as UserAddress[]);
+        if (Array.isArray((userData as any).address)) {
+          setUserAddresses((userData as any).address as UserAddress[]);
         }
 
       }
@@ -194,8 +194,8 @@ export const ProfilePage = () => {
       latitude: 0,
       longitude: 0,
       isDeleted: false,
-      provinceCode: 0,
-      districtCode: 0,
+      provinceCode: "",
+      districtCode: "",
       communeCode: "",
     });
     setAddressFormErrors({});
@@ -278,8 +278,8 @@ export const ProfilePage = () => {
         if (response.status) {
           // Success - refresh addresses from server
           const refreshed = await getUserProfile();
-          if (Array.isArray((refreshed as any).addresses)) {
-            setUserAddresses((refreshed as any).addresses as UserAddress[]);
+          if (Array.isArray((refreshed as any).address)) {
+            setUserAddresses((refreshed as any).address as UserAddress[]);
           }
           window.location.reload();
         } else {
@@ -323,9 +323,9 @@ export const ProfilePage = () => {
           province: addr.province,
           district: addr.district,
           commune: addr.commune,
-          provinceCode: addr.provinceCode ?? 0,
-          districtCode: addr.districtCode ?? 0,
-          communeCode: addr.communeCode ?? "", // Fixed: should be string, not number
+          provinceCode: addr.provinceCode ?? "",
+          districtCode: addr.districtCode ?? "",
+          communeCode: addr.communeCode ?? "",
           latitude: addr.latitude,
           longitude: addr.longitude,
           isDeleted: true,
@@ -369,8 +369,8 @@ export const ProfilePage = () => {
       latitude: addr.latitude || 0,
       longitude: addr.longitude || 0,
       isDeleted: addr.isDeleted ?? false,
-      provinceCode: addr.provinceCode || 0,
-      districtCode: addr.districtCode || 0,
+      provinceCode: addr.provinceCode || "",
+      districtCode: addr.districtCode || "",
       communeCode: addr.communeCode || "",
     });
     setEditingAddressId(addr.id ?? null);
@@ -776,17 +776,17 @@ export const ProfilePage = () => {
                 onCityChange={(value, code) => setAddressForm((prev) => ({
                   ...prev,
                   city: value,
-                  provinceCode: code ? parseInt(code) || 0 : 0,
+                  provinceCode: code || "",
                   // reset when city changes
                   district: '',
-                  districtCode: 0,
+                  districtCode: "",
                   ward: '',
                   communeCode: "",
                 }))}
                 onDistrictChange={(value, code) => setAddressForm((prev) => ({
                   ...prev,
                   district: value,
-                  districtCode: code ? parseInt(code) || 0 : 0,
+                  districtCode: code || "",
                   // reset when district changes
                   ward: '',
                   communeCode: "",
