@@ -196,6 +196,9 @@ export const clearCart = async (): Promise<void> => {
     
     await Promise.all(clearPromises);
     console.log('Cart cleared successfully');
+    
+    // Dispatch event to notify cart context
+    window.dispatchEvent(new CustomEvent('cart:updated'));
   } catch (error: any) {
     console.error('Error clearing cart:', error);
     throw error;

@@ -34,7 +34,7 @@ export const createOrderPreview = async (
 
 // ===== Create Order From Preview =====
 export interface CreateOrderFromPreviewRequest {
-  shippingDetailId: string;
+  courierId: string;
 }
 
 export interface OrderProductSummary {
@@ -106,8 +106,71 @@ export const createOrderFromPreview = async (
   orderPreviewId: string,
   payload: CreateOrderFromPreviewRequest
 ): Promise<CreateOrderFromPreviewResponse> => {
+  console.log('Creating order from preview:', {
+    orderPreviewId,
+    payload,
+    url: `/api/Order/${orderPreviewId}`
+  });
+  
   const response = await apiClient.post(`/api/Order/${orderPreviewId}`, payload);
+  
+  console.log('Order creation API response:', response);
+  
   return response as unknown as CreateOrderFromPreviewResponse;
+};
+
+// ===== Get All Orders =====
+export interface OrderCustomer {
+  id: number;
+  email: string;
+  role: string;
+  fullName: string;
+  phoneNumber: string;
+  isVerified: boolean;
+  avatarUrl: string | null;
+  status: string;
+  lastLoginAt: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  address: any[];
+}
+
+export interface OrderWithCustomer extends OrderEntity {
+  customer: OrderCustomer;
+}
+
+export interface GetAllOrdersResponse {
+  status: boolean;
+  statusCode: string;
+  data: {
+    data: OrderWithCustomer[];
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    totalRecords: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+  errors: string[];
+}
+
+export const getAllOrders = async (
+  page: number = 1,
+  pageSize: number = 10,
+  status?: string
+): Promise<GetAllOrdersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  
+  if (status) {
+    params.append('status', status);
+  }
+  
+  const response = await apiClient.get(`/api/Order?${params.toString()}`);
+  return response as unknown as GetAllOrdersResponse;
 };
 
 // ===== Get My Orders =====
