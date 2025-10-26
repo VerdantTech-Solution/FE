@@ -34,12 +34,12 @@ export default function ConfirmOrderPage() {
       setError('Vui lòng chọn phương thức giao hàng');
       return;
     }
-    // Map shipping method to a shippingDetailId (placeholder/demo mapping)
-    const methodToDetailId: Record<ShippingMethodOption, string> = {
-      Nhanh: 'MTFfN18xMTkw', // example id
-      TietKiem: 'MTFfN18xMTkx', // example id
+    // Map shipping method to a priceTableId (placeholder/demo mapping)
+    const methodToDetailId: Record<ShippingMethodOption, number> = {
+      Nhanh: 1, // example id
+      TietKiem: 2, // example id
     };
-    const payload: CreateOrderFromPreviewRequest = { shippingDetailId: methodToDetailId[shippingMethod] };
+    const payload: CreateOrderFromPreviewRequest = { priceTableId: methodToDetailId[shippingMethod] };
     try {
       setSubmitting(true);
       setError(null);

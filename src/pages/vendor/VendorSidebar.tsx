@@ -1,8 +1,6 @@
-import React from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { 
   BarChart3, 
-  ClipboardList, 
   Square, 
   CreditCard, 
   User

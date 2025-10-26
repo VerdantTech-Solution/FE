@@ -34,7 +34,7 @@ export const createOrderPreview = async (
 
 // ===== Create Order From Preview =====
 export interface CreateOrderFromPreviewRequest {
-  courierId: string;
+  priceTableId: number;
 }
 
 export interface OrderProductSummary {

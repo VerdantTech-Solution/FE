@@ -138,13 +138,23 @@ export default function PreviewOrderPage() {
       
       console.log('Creating order with:', {
         orderPreviewId,
-        courierId: shippingDetailId
+        priceTableId: shippingDetailId
       });
       
       const { createOrderFromPreview } = await import('@/api/order');
       
+      // Convert shippingDetailId to number - handle both string and number
+      const priceTableIdValue = typeof shippingDetailId === 'string' 
+        ? Number(shippingDetailId) || parseInt(shippingDetailId, 10) 
+        : shippingDetailId;
+      
+      console.log('Converting shipping ID to priceTableId:', {
+        shippingDetailId,
+        priceTableIdValue
+      });
+      
       const response = await createOrderFromPreview(orderPreviewId, {
-        courierId: shippingDetailId
+        priceTableId: priceTableIdValue
       });
       
       console.log('Order creation response:', response);
@@ -245,6 +255,9 @@ export default function PreviewOrderPage() {
         shippingDetails = (res.data as any).shippingDetails || [];
       }
       
+      console.log('Full response data:', JSON.stringify(res.data, null, 2));
+      console.log('Shipping details extracted:', shippingDetails);
+      
       if (previewId && typeof previewId === 'string' && previewId.trim() !== '') {
         console.log('Setting order preview ID:', previewId);
         setOrderPreviewId(previewId);
@@ -252,8 +265,11 @@ export default function PreviewOrderPage() {
         if (shippingDetails && shippingDetails.length > 0) {
           console.log('Setting shipping options:', shippingDetails);
           setShippingOptions(shippingDetails);
-          if (shippingDetails[0]?.id) {
-            setSelectedShippingId(shippingDetails[0].id);
+          // Try multiple possible ID fields
+          const firstShippingId = shippingDetails[0]?.id || shippingDetails[0]?.priceTableId || shippingDetails[0]?.shippingDetailId;
+          console.log('First shipping option ID:', firstShippingId);
+          if (firstShippingId) {
+            setSelectedShippingId(String(firstShippingId));
           }
         } else {
           console.log('No shipping options, navigating to confirm page');
@@ -292,6 +308,14 @@ export default function PreviewOrderPage() {
         {error && (
           <div className="mb-4 text-red-600 text-sm">{error}</div>
         )}
+
+        {/* Debug info - remove in production */}
+        <div className="mb-4 text-xs bg-gray-100 p-2 rounded hidden">
+          <div>Shipping Options Count: {shippingOptions.length}</div>
+          <div>Selected Shipping ID: {selectedShippingId || 'None'}</div>
+          <div>Order Preview ID: {orderPreviewId || 'None'}</div>
+          <div>Address Selected: {selectedAddressId || 'None'}</div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
@@ -458,35 +482,32 @@ export default function PreviewOrderPage() {
                   {submitting ? <Spinner variant="circle-filled" size={16} /> : 'Tạo bản xem trước'}
                 </Button>
                 
-                {/* Debug Info */}
-                <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                  <div className="font-semibold mb-1">Debug Info:</div>
-                  <div>Order Preview ID: {orderPreviewId || 'Chưa có'}</div>
-                  <div>Selected Shipping ID: {selectedShippingId || 'Chưa chọn'}</div>
-                  <div>Shipping Options: {shippingOptions.length}</div>
-                </div>
-                
                 {/* Shipping Options */}
                 {shippingOptions.length > 0 && (
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h3 className="font-semibold text-blue-800 mb-3">Chọn phương thức giao hàng</h3>
                     <div className="space-y-3">
-                      {shippingOptions.map((option) => (
+                      {shippingOptions.map((option, index) => {
+                        // Get the ID field - try multiple possible field names
+                        const optionId = option.id || option.priceTableId || option.shippingDetailId || index;
+                        const optionIdString = String(optionId);
+                        
+                        return (
                         <div 
-                          key={option.id}
+                          key={optionIdString || `shipping-option-${index}`}
                           className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedShippingId === option.id 
+                            selectedShippingId === optionIdString
                               ? 'border-green-500 bg-green-50' 
                               : 'border-gray-200 hover:border-blue-300'
                           }`}
-                          onClick={() => setSelectedShippingId(option.id)}
+                          onClick={() => setSelectedShippingId(optionIdString)}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                               <input 
                                 type="radio" 
-                                checked={selectedShippingId === option.id}
-                                onChange={() => setSelectedShippingId(option.id)}
+                                checked={selectedShippingId === optionIdString}
+                                onChange={() => setSelectedShippingId(optionIdString)}
                                 className="text-green-600"
                               />
                               <div className="flex items-center space-x-2">
@@ -511,7 +532,8 @@ export default function PreviewOrderPage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     
                     <div className="mt-4 flex space-x-2">

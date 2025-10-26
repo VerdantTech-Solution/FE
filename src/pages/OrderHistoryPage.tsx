@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getAllOrders, type OrderWithCustomer } from '@/api/order';
-import { ChevronLeft, ChevronRight, Package, Calendar, MapPin, CreditCard, Truck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard } from 'lucide-react';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -300,7 +300,7 @@ export default function OrderHistoryPage() {
                               {detail.product.images && detail.product.images.length > 0 && (
                                 <img
                                   src={Array.isArray(detail.product.images) 
-                                    ? detail.product.images[0]?.imageUrl || detail.product.images[0]
+                                    ? ((typeof detail.product.images[0] === 'object' && 'imageUrl' in detail.product.images[0]) ? (detail.product.images[0] as any).imageUrl : String(Array.isArray(detail.product.images) && detail.product.images[0] ? detail.product.images[0] : detail.product.images))
                                     : detail.product.images
                                   }
                                   alt={detail.product.productName}
