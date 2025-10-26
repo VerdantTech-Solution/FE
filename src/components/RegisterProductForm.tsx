@@ -30,7 +30,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     { key: '', value: '' }
   ]);
   
-  const [formData, setFormData] = useState<RegisterProductRequest>({
+  const [formData, setFormData] = useState<Partial<RegisterProductRequest>>({
     categoryId: 1,
     proposedProductCode: '',
     proposedProductName: '',
@@ -38,8 +38,8 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     unitPrice: 0,
     energyEfficiencyRating: '',
     specifications: {},
-    manualUrls: '',
-    images: '',
+    manualFile: null,
+    images: [],
     warrantyMonths: 0,
     weightKg: 0,
     dimensionsCm: {
@@ -173,17 +173,17 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.proposedProductName.trim()) {
+    if (!formData.proposedProductName?.trim()) {
       alert('Vui lòng nhập tên sản phẩm');
       return;
     }
 
-    if (!formData.proposedProductCode.trim()) {
+    if (!formData.proposedProductCode?.trim()) {
       alert('Vui lòng nhập mã sản phẩm');
       return;
     }
 
-    if (formData.unitPrice <= 0) {
+    if ((formData.unitPrice ?? 0) <= 0) {
       alert('Vui lòng nhập giá hợp lệ');
       return;
     }
@@ -201,13 +201,17 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
 
       const payload = {
         ...formData,
-        unitPrice: parseFloat(formData.unitPrice.toString()),
-        warrantyMonths: parseInt(formData.warrantyMonths.toString()),
-        weightKg: parseFloat(formData.weightKg.toString()),
+        vendorId: 0, // This will be set by backend based on auth
+        categoryId: formData.categoryId || 1,
+        proposedProductCode: formData.proposedProductCode || '',
+        proposedProductName: formData.proposedProductName || '',
+        unitPrice: parseFloat((formData.unitPrice ?? 0).toString()),
+        warrantyMonths: parseInt((formData.warrantyMonths || 0).toString()),
+        weightKg: parseFloat((formData.weightKg || 0).toString()),
         specifications: specificationsDict,
       };
       
-      await registerProduct(payload);
+      await registerProduct(payload as RegisterProductRequest);
       setResultStatus('success');
       
       // Reset form after 3 seconds and close
@@ -222,8 +226,8 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
           unitPrice: 0,
           energyEfficiencyRating: '',
           specifications: {},
-          manualUrls: '',
-          images: '',
+          manualFile: null,
+          images: [],
           warrantyMonths: 0,
           weightKg: 0,
           dimensionsCm: {
@@ -395,7 +399,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                     Danh mục <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={formData.categoryId.toString()}
+                    value={(formData.categoryId ?? 1).toString()}
                     onValueChange={(value) => handleInputChange('categoryId', parseInt(value))}
                     disabled={isLoading}
                   >
@@ -533,7 +537,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                     <Input
                       type="number"
                       step="0.01"
-                      value={formData.dimensionsCm.width}
+                      value={formData.dimensionsCm?.width}
                       onChange={(e) => handleInputChange('dimensionsCm.width', e.target.value)}
                       placeholder="Rộng"
                       disabled={isLoading}
@@ -544,7 +548,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                     <Input
                       type="number"
                       step="0.01"
-                      value={formData.dimensionsCm.height}
+                      value={formData.dimensionsCm?.height}
                       onChange={(e) => handleInputChange('dimensionsCm.height', e.target.value)}
                       placeholder="Cao"
                       disabled={isLoading}
@@ -555,7 +559,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                     <Input
                       type="number"
                       step="0.01"
-                      value={formData.dimensionsCm.length}
+                      value={formData.dimensionsCm?.length}
                       onChange={(e) => handleInputChange('dimensionsCm.length', e.target.value)}
                       placeholder="Dài"
                       disabled={isLoading}
@@ -575,7 +579,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const suggestedSpecs = getSuggestedSpecifications(formData.categoryId);
+                        const suggestedSpecs = getSuggestedSpecifications(formData.categoryId ?? 1);
                         setSpecifications(suggestedSpecs);
                       }}
                       disabled={isLoading}
@@ -640,7 +644,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                 </Label>
                 <Input
                   id="manualUrls"
-                  value={formData.manualUrls}
+                  value={typeof formData.manualFile === 'string' ? formData.manualFile : ''}
                   onChange={(e) => handleInputChange('manualUrls', e.target.value)}
                   placeholder="https://example.com/manual.pdf"
                   disabled={isLoading}
@@ -654,7 +658,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                 </Label>
                 <Input
                   id="images"
-                  value={formData.images}
+                  value={Array.isArray(formData.images) ? '' : (formData.images || '')}
                   onChange={(e) => handleInputChange('images', e.target.value)}
                   placeholder="https://example.com/image.jpg"
                   disabled={isLoading}

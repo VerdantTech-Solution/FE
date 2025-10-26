@@ -181,9 +181,9 @@ export const ProfilePage = () => {
     );
   }
 
-  const handleMapSelect = (lat: number, lng: number) => {
-    setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-  };
+  // const handleMapSelect = (lat: number, lng: number) => {
+  //   setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+  // };
 
   const resetAddressForm = () => {
     setAddressForm({
@@ -378,21 +378,21 @@ export const ProfilePage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-      },
-      () => {
-        // ignore errors silently here
-      }
-    );
-  };
+  // const handleUseCurrentLocation = () => {
+  //   if (!navigator.geolocation) {
+  //     return;
+  //   }
+  //   navigator.geolocation.getCurrentPosition(
+  //     (pos) => {
+  //       const lat = pos.coords.latitude;
+  //       const lng = pos.coords.longitude;
+  //       setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+  //     },
+  //     () => {
+  //       // ignore errors silently here
+  //     }
+  //   );
+  // };
 
   const openAddAddressDialog = () => {
     resetAddressForm();

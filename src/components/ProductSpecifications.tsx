@@ -42,8 +42,7 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
   dimensionsCm,
   weightkg,
   warrantyMonths,
-  energyEfficiencyRating,
-  categoryName = ''
+  energyEfficiencyRating
 }) => {
   // Phân loại thông số theo mức độ quan trọng và loại
   const categorizeSpecifications = (): SpecificationItem[] => {
@@ -99,14 +98,19 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
         .find(spec => spec.key === key);
       
       if (foundSpec) {
+        // Determine category by checking which array contains this spec's key
+        const isPerformance = performanceSpecs.some(spec => spec.key === key);
+        const isPhysical = physicalSpecs.some(spec => spec.key === key);
+        const isOperational = operationalSpecs.some(spec => spec.key === key);
+        
         items.push({
           key,
           value,
           icon: foundSpec.icon,
           importance: foundSpec.importance,
-          category: performanceSpecs.includes(foundSpec) ? 'performance' :
-                   physicalSpecs.includes(foundSpec) ? 'physical' :
-                   operationalSpecs.includes(foundSpec) ? 'operational' : 'safety'
+          category: isPerformance ? 'performance' :
+                   isPhysical ? 'physical' :
+                   isOperational ? 'operational' : 'safety'
         });
       } else {
         // Thông số không được phân loại

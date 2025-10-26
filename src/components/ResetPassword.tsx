@@ -60,7 +60,7 @@ export const ResetPassword: React.FC<ResetPasswordProps> = ({
   const onSubmit = async (data: ResetPasswordForm) => {
     setIsLoading(true);
     try {
-      const response = await resetPassword(data.email, data.code, data.newPassword);
+      await resetPassword(data.email, data.code, data.newPassword);
       setIsSuccess(true);
       toast.success('Đặt lại mật khẩu thành công!');
       form.reset();

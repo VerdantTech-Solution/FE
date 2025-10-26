@@ -180,9 +180,9 @@ const UpdateFarmPage = () => {
         province: formData.city.trim(), // Map city to province for API
         district: formData.district.trim(),
         commune: formData.ward.trim(), // Map ward to commune for API
-        provinceCode: formData.provinceCode || undefined,
-        districtCode: formData.districtCode || undefined,
-        communeCode: formData.communeCode || undefined,
+        provinceCode: formData.provinceCode ? String(formData.provinceCode) : undefined,
+        districtCode: formData.districtCode ? String(formData.districtCode) : undefined,
+        communeCode: formData.communeCode ? String(formData.communeCode) : undefined,
         latitude: formData.latitude,
         longitude: formData.longitude,
         primaryCrops: formData.primaryCrops.trim(),
@@ -193,7 +193,7 @@ const UpdateFarmPage = () => {
       if (!updateData.province || updateData.province.trim() === '') {
         updateData.province = undefined;
         updateData.provinceCode = undefined;
-      } else if (!updateData.provinceCode || updateData.provinceCode === 0) {
+      } else if (!updateData.provinceCode || String(updateData.provinceCode) === '0') {
         toast.error('Vui lòng chọn lại Tỉnh/Thành để lấy mã (ProvinceCode).');
         setIsSaving(false);
         return;
