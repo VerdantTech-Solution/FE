@@ -26,4 +26,7 @@ export const PATH_NAMES = {
   ORDER_CONFIRM: '/order/confirm',
   ORDER_SUCCESS: '/order/success',
   ORDER_HISTORY: '/order/history',
+  // PayOS routes
+  PAYOS_CANCEL: '/payos/cancel',
+  PAYOS_RETURN: '/payos/return',
 };
