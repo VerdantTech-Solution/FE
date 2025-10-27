@@ -97,9 +97,6 @@ export default function PreviewOrderPage() {
         if (firstAddress?.id) {
           setAddressType('home');
           setSelectedAddressId(firstAddress.id);
-        } else if (Array.isArray(farmsFetched) && farmsFetched.length > 0 && farmsFetched[0].address?.id) {
-          setAddressType('farm');
-          setSelectedAddressId(farmsFetched[0].address!.id);
         }
       } catch (e: any) {
         setError(e?.message || 'Không thể tải dữ liệu');
@@ -111,9 +108,20 @@ export default function PreviewOrderPage() {
   }, []);
 
   const subtotal = useMemo(() => cartItems.reduce((s, it) => s + it.unitPrice * it.quantity, 0), [cartItems]);
-  const shipping = subtotal > 500000 ? 0 : 30000;
-  const vat = Math.round(subtotal * 0.08);
-  const total = Math.max(0, subtotal) + shipping + vat;
+  
+  // Get selected shipping price from shipping options
+  const selectedShippingPrice = useMemo(() => {
+    if (!selectedShippingId || shippingOptions.length === 0) {
+      return 0;
+    }
+    const selectedOption = shippingOptions.find(option => {
+      const optionId = option.id || option.priceTableId || option.shippingDetailId;
+      return String(optionId) === selectedShippingId;
+    });
+    return selectedOption?.totalAmount || 0;
+  }, [selectedShippingId, shippingOptions]);
+  
+  const total = Math.max(0, subtotal) + selectedShippingPrice;
 
   const formatAddress = (addr?: { locationAddress?: string; commune?: string; district?: string; province?: string; latitude?: number; longitude?: number }) => {
     if (!addr) return '';
@@ -204,7 +212,7 @@ export default function PreviewOrderPage() {
     }
     
     const payload: CreateOrderPreviewRequest = {
-      taxAmount: vat,
+      taxAmount: 0,
       discountAmount: 0,
       addressId: selectedAddressId,
       orderPaymentMethod,
@@ -238,7 +246,9 @@ export default function PreviewOrderPage() {
       setSubmitting(true);
       setError(null);
       
+      console.log('Submitting order preview with payload:', payload);
       const res = await createOrderPreview(payload);
+      console.log('Order preview response:', res);
       
       if (!res.status) {
         const errorMessage = res.errors?.[0] || 'Tạo bản xem trước thất bại';
@@ -357,7 +367,9 @@ export default function PreviewOrderPage() {
                           setSelectedAddressId(first?.id ?? null);
                         } else {
                           const firstFarm = farmProfiles.find(f => f.address?.id);
-                          setSelectedAddressId(firstFarm?.address?.id ?? null);
+                          if (firstFarm?.address?.id) {
+                            setSelectedAddressId(firstFarm.address.id);
+                          }
                         }
                       }}>
                         <SelectTrigger className="w-full">
@@ -439,15 +451,30 @@ export default function PreviewOrderPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='Banking'} onChange={() => setOrderPaymentMethod('Banking')} />
+                    <input type="radio" name="pm" checked={orderPaymentMethod==='Banking'} onChange={() => {
+                      setOrderPaymentMethod('Banking');
+                      setOrderPreviewId(null);
+                      setShippingOptions([]);
+                      setSelectedShippingId(null);
+                    }} />
                     <span>Chuyển khoản (Banking)</span>
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='COD'} onChange={() => setOrderPaymentMethod('COD')} />
+                    <input type="radio" name="pm" checked={orderPaymentMethod==='COD'} onChange={() => {
+                      setOrderPaymentMethod('COD');
+                      setOrderPreviewId(null);
+                      setShippingOptions([]);
+                      setSelectedShippingId(null);
+                    }} />
                     <span>Thanh toán khi nhận hàng (COD)</span>
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='Wallet'} onChange={() => setOrderPaymentMethod('Wallet')} />
+                    <input type="radio" name="pm" checked={orderPaymentMethod==='Wallet'} onChange={() => {
+                      setOrderPaymentMethod('Wallet');
+                      setOrderPreviewId(null);
+                      setShippingOptions([]);
+                      setSelectedShippingId(null);
+                    }} />
                     <span>Ví nội bộ</span>
                   </label>
                 </div>
@@ -459,14 +486,16 @@ export default function PreviewOrderPage() {
                     <span className="text-gray-600">Tạm tính</span>
                     <span className="font-semibold">{currency(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phí vận chuyển</span>
-                    <span className="font-semibold">{shipping === 0 ? 'Miễn phí' : currency(shipping)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">VAT (8%)</span>
-                    <span className="font-semibold">{currency(vat)}</span>
-                  </div>
+             
+                  
+                  {/* Show shipping only when shipping options are available and selected */}
+                  {selectedShippingPrice > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Phí vận chuyển</span>
+                      <span className="font-semibold">{currency(selectedShippingPrice)}</span>
+                    </div>
+                  )}
+                 
                   <Separator />
                   <div className="flex justify-between text-base">
                     <span className="font-bold">Tổng cộng</span>
@@ -486,6 +515,17 @@ export default function PreviewOrderPage() {
                 {shippingOptions.length > 0 && (
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h3 className="font-semibold text-blue-800 mb-3">Chọn phương thức giao hàng</h3>
+                    
+                    {/* Show updated total when shipping is selected */}
+                    {selectedShippingPrice > 0 && (
+                      <div className="mb-4 p-3 bg-white rounded-lg border border-green-300">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Tổng tiền thanh toán:</span>
+                          <span className="text-xl font-bold text-green-700">{currency(total)}</span>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="space-y-3">
                       {shippingOptions.map((option, index) => {
                         // Get the ID field - try multiple possible field names

@@ -657,10 +657,7 @@ export const CartPage = () => {
                       </div>
                     )}
                   
-                    <div className="flex items-center justify-between text-sm text-gray-700">
-                      <span>VAT (8%)</span>
-                      <span className="font-semibold">{currency(vat)}</span>
-                    </div>
+                  
                   </div>
 
                   <Separator />

@@ -19,6 +19,7 @@ import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
 import { UserManagementPanel } from "./staff/UserManagementPanel";
+import { OrderManagementPanel } from "./staff/OrderManagementPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
 import { MonitoringPage } from "./staff/MonitoringPage";
@@ -115,6 +116,9 @@ export const StaffPage: React.FC = () => {
           )}
           {selectedMenu === "users" && (
             <UserManagementPanel />
+          )}
+          {selectedMenu === "orders" && (
+            <OrderManagementPanel />
           )}
           {selectedMenu === "monitoring" && (
             <MonitoringPage/>

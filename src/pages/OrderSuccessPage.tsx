@@ -80,109 +80,145 @@ export default function OrderSuccessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-green-50 mt-[100px]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="text-center mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 mt-[100px]">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="text-center mb-10">
             {/* Success Icon */}
-            <div className="mx-auto w-20 h-20 rounded-full bg-green-500 flex items-center justify-center mb-6 shadow-lg">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <motion.div 
+              className="mx-auto w-28 h-28 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mb-8 shadow-2xl"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            >
+              <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
-            </div>
+            </motion.div>
             
-            {/* Decorative dots */}
-            <div className="flex justify-center space-x-2 mb-6">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-            </div>
-            
-            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Thanh toán thành công!</h1>
-            <p className="text-lg text-gray-600 mb-4">Cảm ơn bạn đã hoàn tất đơn hàng. Chúng tôi đã nhận được thanh toán của bạn.</p>
-            <div className="inline-block bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">
-              Mã đơn hàng: #{order.id}
-            </div>
+            <motion.h1 
+              className="text-4xl font-extrabold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              Thanh toán thành công!
+            </motion.h1>
+            <motion.p 
+              className="text-lg text-gray-600 mb-6"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              Cảm ơn bạn đã hoàn tất đơn hàng. Chúng tôi đã nhận được thanh toán của bạn.
+            </motion.p>
+            <motion.div 
+              className="inline-block bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-6 py-3 rounded-full text-sm font-semibold shadow-md border-2 border-green-200"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              🔖 Mã đơn hàng: #{order.id}
+            </motion.div>
           </div>
         </motion.div>
 
         {/* Chi tiết đơn hàng */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Chi tiết đơn hàng</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <div className="text-gray-500">Mã đơn hàng</div>
-                <div className="font-semibold">#{order.id}</div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="mb-8 shadow-xl border-2 border-green-100">
+            <CardContent className="p-8">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-6">Chi tiết đơn hàng</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="text-gray-500 text-sm mb-1">Mã đơn hàng</div>
+                  <div className="font-bold text-gray-900 text-lg">#{order.id}</div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <div className="text-gray-500 text-sm mb-1">Ngày thanh toán</div>
+                  <div className="font-bold text-gray-900 text-lg">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                  <div className="text-gray-500 text-sm mb-1">Phương thức</div>
+                  <div className="font-bold text-gray-900 text-lg">{order.orderPaymentMethod}</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 border-2 border-green-300">
+                  <div className="text-gray-500 text-sm mb-1">Tổng tiền</div>
+                  <div className="font-bold text-green-600 text-2xl">{currency(order.totalAmount)}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-gray-500">Ngày thanh toán</div>
-                <div className="font-semibold">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
-              </div>
-              <div>
-                <div className="text-gray-500">Phương thức</div>
-                <div className="font-semibold">{order.orderPaymentMethod}</div>
-              </div>
-              <div>
-                <div className="text-gray-500">Tổng tiền</div>
-                <div className="font-semibold text-green-600 text-lg">{currency(order.totalAmount)}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Bước tiếp theo */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Bước tiếp theo</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Email xác nhận */}
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">Email xác nhận</div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Card className="mb-8 shadow-xl border-2 border-blue-100">
+            <CardContent className="p-8">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6">Bước tiếp theo</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Email xác nhận */}
+                <motion.div 
+                  className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 hover:shadow-lg transition-all duration-300"
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="font-bold text-gray-900 mb-1">Email xác nhận</div>
                     <div className="text-sm text-gray-600">đã được gửi</div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
 
-              {/* Xử lý đơn hàng */}
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">Đơn hàng sẽ được</div>
+                {/* Xử lý đơn hàng */}
+                <motion.div 
+                  className="p-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-200 hover:shadow-lg transition-all duration-300"
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                    </div>
+                    <div className="font-bold text-gray-900 mb-1">Đơn hàng sẽ được</div>
                     <div className="text-sm text-gray-600">xử lý trong 24h</div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
 
-              {/* Thông báo giao hàng */}
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 00-15 0v5h5l-5 5-5-5h5v-5a7.5 7.5 0 0115 0v5z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">Thông báo khi</div>
+                {/* Thông báo giao hàng */}
+                <motion.div 
+                  className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:shadow-lg transition-all duration-300"
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                    </div>
+                    <div className="font-bold text-gray-900 mb-1">Thông báo khi</div>
                     <div className="text-sm text-gray-600">giao hàng</div>
                   </div>
-                </div>
+                </motion.div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -281,57 +317,36 @@ export default function OrderSuccessPage() {
                   <div className="font-bold">Tổng cộng</div>
                   <div className="font-bold text-green-700">{summary ? currency(summary.total) : '—'}</div>
                 </div>
-                <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Button className="bg-green-600 hover:bg-green-700 flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>Tải hóa đơn</span>
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/')} className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    <span>Về trang chủ</span>
-                  </Button>
-                  <Button variant="outline" className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
-                    <span>Theo dõi đơn hàng</span>
-                  </Button>
+                <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => navigate('/')} 
+                      className="w-full bg-white"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      Về trang chủ
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button 
+                      className="w-full bg-green-600"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      Theo dõi đơn hàng
+                    </Button>
+                  </motion.div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        {/* Support Section */}
-        <div className="mt-12 text-center">
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cần hỗ trợ? Liên hệ với chúng tôi</h3>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-8">
-              <div className="flex items-center space-x-2 text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                <span>1900-1234</span>
-              </div>
-              <div className="flex items-center space-x-2 text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <span>support@company.com</span>
-              </div>
-              <div className="flex items-center space-x-2 text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <span>Live Chat</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      
       </div>
     </div>
   );
