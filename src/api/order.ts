@@ -181,6 +181,16 @@ export const getMyOrders = async (): Promise<GetMyOrdersResponse> => {
   return response as unknown as GetMyOrdersResponse;
 };
 
+// ===== Get Order By ID =====
+export type GetOrderByIdResponse = CreateOrderPreviewResponse<OrderWithCustomer>;
+
+export const getOrderById = async (
+  orderId: number
+): Promise<GetOrderByIdResponse> => {
+  const response = await apiClient.get(`/api/Order/${orderId}`);
+  return response as unknown as GetOrderByIdResponse;
+};
+
 // ===== Update Order =====
 export interface UpdateOrderRequest {
   notes?: string;
@@ -194,6 +204,20 @@ export const updateOrder = async (
   payload: UpdateOrderRequest
 ): Promise<UpdateOrderResponse> => {
   const response = await apiClient.patch(`/api/Order/${orderId}`, payload);
+  return response as unknown as UpdateOrderResponse;
+};
+
+// ===== Update Order Status =====
+export interface UpdateOrderStatusRequest {
+  status: "Pending" | "Paid" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded";
+  cancelledReason?: string;
+}
+
+export const updateOrderStatus = async (
+  orderId: number,
+  payload: UpdateOrderStatusRequest
+): Promise<UpdateOrderResponse> => {
+  const response = await apiClient.put(`/api/Order/${orderId}`, payload);
   return response as unknown as UpdateOrderResponse;
 };
 
