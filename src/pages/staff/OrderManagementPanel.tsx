@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2 } from "lucide-react";
+import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
 import { getAllOrders, getOrderById, updateOrderStatus, type OrderWithCustomer, type GetAllOrdersResponse } from "@/api/order";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
@@ -262,48 +262,58 @@ export const OrderManagementPanel: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card className="p-4">
+        {/* Total Orders */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-blue-600">
+            <Package className="h-20 w-20" />
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Tổng đơn hàng</p>
-              <p className="text-2xl font-semibold">{stats.total}</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 grid place-items-center">
-              <Package className="h-5 w-5" />
+              <p className="text-3xl font-bold tracking-tight">{stats.total}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+
+        {/* Pending */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-yellow-600">
+            <Clock className="h-20 w-20" />
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Chờ xử lý</p>
-              <p className="text-2xl font-semibold">{stats.pending}</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.pending}</p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-yellow-100 text-yellow-600 grid place-items-center">
-              {stats.pending}
-            </div>
+           
           </div>
         </Card>
-        <Card className="p-4">
+
+        {/* Delivered */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-green-600">
+            <CheckCircle className="h-20 w-20" />
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Đã giao</p>
-              <p className="text-2xl font-semibold">{stats.delivered}</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.delivered}</p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-green-100 text-green-600 grid place-items-center">
-              {stats.delivered}
-            </div>
+         
           </div>
         </Card>
-        <Card className="p-4">
+
+        {/* Cancelled */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-red-600">
+            <XCircle className="h-20 w-20" />
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Đã hủy</p>
-              <p className="text-2xl font-semibold">{stats.cancelled}</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.cancelled}</p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 grid place-items-center">
-              {stats.cancelled}
-            </div>
+         
           </div>
         </Card>
       </div>
