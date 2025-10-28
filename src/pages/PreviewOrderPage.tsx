@@ -9,6 +9,7 @@ import { getUserProfile, type UserAddress } from '@/api/user';
 import { getFarmProfilesByUserId, type FarmProfile } from '@/api/farm';
 import { getCart, type CartItem } from '@/api/cart';
 import { createOrderPreview, type CreateOrderPreviewRequest } from '@/api/order';
+import { redirectToPayOS } from '@/api/payos';
 import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -71,13 +72,11 @@ export default function PreviewOrderPage() {
         setUserAddresses(addresses);
         // Fetch farms by current user id to avoid 405 on GET /api/FarmProfile
         const uid = Number(profile?.id);
-        let farmsFetched: FarmProfile[] = [];
         if (!Number.isNaN(uid)) {
           try {
             const farmsRes = await getFarmProfilesByUserId(uid);
             if (Array.isArray(farmsRes)) {
               const activeFarms = farmsRes.filter((f) => f.status !== 'Deleted' && !!f.address?.id);
-              farmsFetched = activeFarms;
               setFarmProfiles(activeFarms);
             }
           } catch (fe) {
@@ -180,13 +179,33 @@ export default function PreviewOrderPage() {
           // Không throw error để không làm gián đoạn flow đặt hàng
         }
         
-        // Truyền dữ liệu đơn hàng qua navigation state
-        navigate('/order/success', { 
-          state: { 
-            order: response.data,
-            usr: { order: response.data }
-          } 
-        });
+        // For Banking payment method, redirect to PayOS
+        console.log('✅ Order created successfully!');
+        console.log('📦 Order ID:', response.data.id);
+        console.log('💳 Payment method:', response.data.orderPaymentMethod);
+        
+        if (response.data.orderPaymentMethod === 'Banking') {
+          console.log('🔄 Banking payment - Redirecting to PayOS');
+          // Don't clear cart yet, only after successful payment
+          console.log('⏳ Keeping cart until payment is confirmed');
+          
+          // Call PayOS API to get payment link and redirect
+          await redirectToPayOS(response.data.id, 'Thanh toán đơn hàng');
+          return; // Exit function, navigation happens in redirectToPayOS
+        } else {
+          console.log('ℹ️ Payment method is', response.data.orderPaymentMethod, '- Order created, clearing cart');
+          // For COD/Wallet: Order already created, clear cart and navigate
+          try {
+            const { clearCart } = await import('@/api/cart');
+            await clearCart();
+            console.log('✅ Cart cleared after order creation');
+            window.dispatchEvent(new CustomEvent('cart:updated'));
+          } catch (clearError) {
+            console.error('⚠️ Error clearing cart:', clearError);
+          }
+          // Navigate to order history
+          navigate('/order/history');
+        }
       } else {
         const errorMessage = response.errors?.[0] || 'Tạo đơn hàng thất bại';
         console.error('Order creation failed:', errorMessage);
