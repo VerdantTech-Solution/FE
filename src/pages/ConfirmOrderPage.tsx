@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { createOrderFromPreview, type CreateOrderFromPreviewRequest } from '@/api/order';
 import { clearCart } from '@/api/cart';
+import { redirectToPayOS } from '@/api/payos';
 
 export default function ConfirmOrderPage() {
   const navigate = useNavigate();
@@ -58,8 +59,21 @@ export default function ConfirmOrderPage() {
         console.error('Error clearing cart:', clearError);
         // Don't block navigation if cart clearing fails
       }
-      // Navigate to success page with order in navigation state for richer UI
-      navigate('/order/success', { state: { order: res.data } });
+      // For Banking payment method, redirect to PayOS
+      console.log('✅ Order created successfully!');
+      console.log('📦 Order ID:', res.data.id);
+      console.log('💳 Payment method:', res.data.orderPaymentMethod);
+      
+      if (res.data.orderPaymentMethod === 'Banking') {
+        console.log('🔄 Redirecting to PayOS for Banking payment...');
+        // Call PayOS API to get payment link and redirect
+        await redirectToPayOS(res.data.id, 'Thanh toán đơn hàng');
+        return; // Exit function, navigation happens in redirectToPayOS
+      } else {
+        console.log('ℹ️ Payment method is', res.data.orderPaymentMethod, '- skipping PayOS');
+        // Navigate to order history for COD/Wallet payments
+        navigate('/order/history');
+      }
     } catch (e: any) {
       setError(e?.message || 'Không thể tạo đơn hàng');
     } finally {

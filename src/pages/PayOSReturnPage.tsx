@@ -5,6 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { CheckCircle2, Home, Package, FileText, Download } from 'lucide-react';
+import { getOrderById } from '@/api/order';
+import type { OrderEntity } from '@/api/order';
+import { clearCart } from '@/api/cart';
 
 export default function PayOSReturnPage() {
   const navigate = useNavigate();
@@ -12,17 +15,59 @@ export default function PayOSReturnPage() {
   const [loading, setLoading] = useState(true);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [amount, setAmount] = useState<string | null>(null);
+  const [order, setOrder] = useState<OrderEntity | null>(null);
+  const [creatingOrder, setCreatingOrder] = useState(false);
 
   useEffect(() => {
-    // Get order info from URL parameters
-    const id = params.get('orderId') || params.get('order_id') || params.get('orderCode') || params.get('order_code');
-    const amt = params.get('amount') || params.get('total');
+    const loadOrder = async () => {
+      try {
+        // Get order info from URL parameters
+        const id = params.get('orderId') || params.get('order_id') || params.get('orderCode') || params.get('order_code');
+        const amt = params.get('amount') || params.get('total');
+        
+        setOrderId(id);
+        setAmount(amt);
+        
+        // Payment successful, clear cart now
+        if (id) {
+          console.log('[PayOS Return] Payment successful for order:', id);
+          setCreatingOrder(true);
+          
+          try {
+            // Clear cart after successful payment
+            await clearCart();
+            console.log('[PayOS Return] ✅ Cart cleared after successful payment');
+            window.dispatchEvent(new CustomEvent('cart:updated'));
+          } catch (clearError) {
+            console.error('[PayOS Return] ⚠️ Error clearing cart:', clearError);
+          } finally {
+            setCreatingOrder(false);
+          }
+        }
+        
+        if (id) {
+          // Fetch order details if orderId is available
+          try {
+            const orderIdNum = parseInt(id);
+            if (!isNaN(orderIdNum)) {
+              const orderData = await getOrderById(orderIdNum);
+              if (orderData.status && orderData.data) {
+                setOrder(orderData.data);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching order:', error);
+          }
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading order:', error);
+        setLoading(false);
+      }
+    };
     
-    setOrderId(id);
-    setAmount(amt);
-    
-    // Simulate loading
-    setTimeout(() => setLoading(false), 1000);
+    loadOrder();
   }, [params]);
 
   const formatCurrency = (value: string | null) => {
@@ -34,10 +79,18 @@ export default function PayOSReturnPage() {
     }).format(num);
   };
 
-  if (loading) {
+  if (loading || creatingOrder) {
     return (
       <div className="min-h-screen bg-gray-50 mt-[100px] flex items-center justify-center">
-        <Spinner variant="circle-filled" size={60} className="text-green-600" />
+        <div className="text-center">
+          <Spinner variant="circle-filled" size={60} className="text-green-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            {creatingOrder ? 'Đang tạo đơn hàng...' : 'Đang tải...'}
+          </h3>
+          <p className="text-gray-500">
+            {creatingOrder ? 'Vui lòng chờ trong giây lát' : 'Đang xử lý thanh toán'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -64,13 +117,13 @@ export default function PayOSReturnPage() {
                 
                 {orderId && (
                   <div className="inline-block bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold mb-2">
-                    Mã đơn: {orderId}
+                    Mã đơn: #{orderId}
                   </div>
                 )}
                 
-                {amount && (
+                {order && (
                   <div className="text-2xl font-bold text-green-600 mt-2">
-                    {formatCurrency(amount)}
+                    {order.totalAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
                   </div>
                 )}
               </div>
@@ -130,7 +183,7 @@ export default function PayOSReturnPage() {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium h-12 group"
                 >
                   <Package className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                  Xem đơn hàng
+                  Đơn hàng của tôi
                 </Button>
                 
                 <Button
