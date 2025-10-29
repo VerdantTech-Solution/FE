@@ -49,16 +49,6 @@ export default function ConfirmOrderPage() {
         setError(res.errors?.[0] || 'Tạo đơn hàng thất bại');
         return;
       }
-      // Clear cart after successful order creation
-      try {
-        await clearCart();
-        // Dispatch event to update cart count in Navbar and other components
-        window.dispatchEvent(new CustomEvent('cart:updated'));
-        console.log('Cart cleared after successful order');
-      } catch (clearError) {
-        console.error('Error clearing cart:', clearError);
-        // Don't block navigation if cart clearing fails
-      }
       // For Banking payment method, redirect to PayOS
       console.log('✅ Order created successfully!');
       console.log('📦 Order ID:', res.data.id);
@@ -66,11 +56,23 @@ export default function ConfirmOrderPage() {
       
       if (res.data.orderPaymentMethod === 'Banking') {
         console.log('🔄 Redirecting to PayOS for Banking payment...');
+        // Don't clear cart yet for Banking - only clear after successful payment
+        console.log('⏳ Keeping cart until payment is confirmed');
         // Call PayOS API to get payment link and redirect
         await redirectToPayOS(res.data.id, 'Thanh toán đơn hàng');
         return; // Exit function, navigation happens in redirectToPayOS
       } else {
-        console.log('ℹ️ Payment method is', res.data.orderPaymentMethod, '- skipping PayOS');
+        console.log('ℹ️ Payment method is', res.data.orderPaymentMethod, '- Order created, clearing cart');
+        // For COD/Wallet: Order already created, clear cart and navigate
+        try {
+          await clearCart();
+          // Dispatch event to update cart count in Navbar and other components
+          window.dispatchEvent(new CustomEvent('cart:updated'));
+          console.log('✅ Cart cleared after order creation');
+        } catch (clearError) {
+          console.error('⚠️ Error clearing cart:', clearError);
+          // Don't block navigation if cart clearing fails
+        }
         // Navigate to order history for COD/Wallet payments
         navigate('/order/history');
       }
