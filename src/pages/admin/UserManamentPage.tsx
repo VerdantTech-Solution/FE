@@ -58,44 +58,10 @@ export const UserManamentPage = () => {
       setLoading(true);
       setError(null);
       const usersData = await getAllUsers();
-
-      // Debug log để kiểm tra dữ liệu
-      console.log('Users data received:', usersData);
-      console.log('Type of usersData:', typeof usersData);
-      console.log('Is Array:', Array.isArray(usersData));
-
-      if (Array.isArray(usersData)) {
-        setUsers(usersData);
-      } else {
-        console.error('Expected array but got:', typeof usersData, usersData);
-
-        // Fallback: sử dụng dữ liệu mẫu nếu API trả về sai định dạng
-        const fallbackUsers: UserResponse[] = [
-          {
-            id: "1",
-            fullName: "Nguyễn Văn A",
-            email: "nguyenvana@example.com",
-            phoneNumber: "0123456789",
-            role: "Admin",
-            status: "active"
-          },
-          {
-            id: "2",
-            fullName: "Trần Thị B",
-            email: "tranthib@example.com",
-            phoneNumber: "0987654321",
-            role: "customer",
-            status: "active"
-          }
-        ];
-
-        setUsers(fallbackUsers);
-        console.warn('Using fallback data due to unexpected API response format');
-      }
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
-      setError(`Không thể tải danh sách người dùng: ${errorMessage}. Vui lòng thử lại sau.`);
-      console.error('Error fetching users:', err);
+      setError(`Không thể tải danh sách người dùng: ${errorMessage}.`);
     } finally {
       setLoading(false);
     }

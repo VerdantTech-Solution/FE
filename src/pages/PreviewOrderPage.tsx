@@ -169,16 +169,6 @@ export default function PreviewOrderPage() {
       if (response.status) {
         console.log('Order created successfully, navigating to success page');
         
-        // Xóa giỏ hàng sau khi đặt hàng thành công
-        try {
-          const { clearCart } = await import('@/api/cart');
-          await clearCart();
-          console.log('Giỏ hàng đã được xóa sau khi đặt hàng thành công');
-        } catch (clearError) {
-          console.error('Lỗi khi xóa giỏ hàng:', clearError);
-          // Không throw error để không làm gián đoạn flow đặt hàng
-        }
-        
         // For Banking payment method, redirect to PayOS
         console.log('✅ Order created successfully!');
         console.log('📦 Order ID:', response.data.id);

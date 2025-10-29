@@ -24,7 +24,8 @@ import {
   Settings,
   BarChart,
   Target,
-  Activity
+  Activity,
+  Package
 } from "lucide-react";
 
 // Import admin pages
@@ -34,7 +35,8 @@ import {
   EquipmentPage, 
   MonitoringPageAdmin, 
   SettingsPage, 
-  UserManamentPage
+  UserManamentPage,
+  OrderManagementPage
 } from "./admin";
 
 export const AdminPage = () => {
@@ -155,6 +157,19 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  active={selectedView === 'orders'}
+                  onClick={() => setSelectedView('orders')}
+                  icon={<Package className="w-5 h-5" />}
+                >
+                  Quản Lý Đơn Hàng
+                </SidebarNavItem>
+              </motion.div>
+              
+              <motion.div
+                whileHover={{ x: 5 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SidebarNavItem
                   active={selectedView === 'analytics'}
                   onClick={() => setSelectedView('analytics')}
                   icon={<BarChart className="w-5 h-5" />}
@@ -245,6 +260,7 @@ export const AdminPage = () => {
               >
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}
                 {selectedView === 'usermanament' && 'Quản lý người dùng'}
+                {selectedView === 'orders' && 'Quản lý đơn hàng'}
                 {selectedView === 'analytics' && 'Phân tích dữ liệu'}
                 {selectedView === 'equipment' && 'Quản lý thiết bị'}
                 {selectedView === 'monitoring' && 'Giám sát hệ thống'}
@@ -328,6 +344,17 @@ export const AdminPage = () => {
                 exit="exit"
               >
                 <UserManamentPage />
+              </motion.div>
+            )}
+            {selectedView === 'orders' && (
+              <motion.div
+                key="orders"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <OrderManagementPage />
               </motion.div>
             )}
             {selectedView === 'overview' && (
