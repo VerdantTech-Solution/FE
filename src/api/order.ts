@@ -47,6 +47,7 @@ export interface OrderProductSummary {
   images?: string[] | null;
   warrantyMonths?: number;
   ratingAverage?: number;
+  categoryId?: number;
 }
 
 export interface OrderDetailItem {
@@ -218,6 +219,23 @@ export const updateOrderStatus = async (
   payload: UpdateOrderStatusRequest
 ): Promise<UpdateOrderResponse> => {
   const response = await apiClient.put(`/api/Order/${orderId}`, payload);
+  return response as unknown as UpdateOrderResponse;
+};
+
+// ===== Ship Order =====
+export interface ShipOrderItem {
+  productId: number;
+  serialNumber?: string;
+  lotNumber?: string;
+}
+
+export type ShipOrderRequest = ShipOrderItem[];
+
+export const shipOrder = async (
+  orderId: number,
+  payload: ShipOrderRequest
+): Promise<UpdateOrderResponse> => {
+  const response = await apiClient.post(`/api/Order/${orderId}/ship`, payload);
   return response as unknown as UpdateOrderResponse;
 };
 

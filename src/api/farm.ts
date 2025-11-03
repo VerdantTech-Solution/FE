@@ -59,7 +59,7 @@ export interface CreateFarmProfileResponse {
       createdAt: string;
       updatedAt: string;
       deletedAt: string | null;
-      addresses: any[];
+      userAddresses: any[];
     };
     farmName: string;
     farmSizeHectares: number;

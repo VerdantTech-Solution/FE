@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, Download } from "lucide-react";
-import { getAllOrders, getOrderById, updateOrderStatus, type OrderWithCustomer, type GetAllOrdersResponse } from "@/api/order";
+import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
+import { getProductById } from "@/api/product";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
@@ -40,6 +42,9 @@ export const OrderManagementPage: React.FC = () => {
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [newStatus, setNewStatus] = useState<string>("");
+  const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
+  const [shipItems, setShipItems] = useState<Array<{ productId: number; categoryId?: number; productName: string; quantity: number; serialNumber: string; lotNumber: string }>>([]);
+  const [isShipping, setIsShipping] = useState(false);
 
   const stats = useMemo<OrderStats>(() => {
     return {
@@ -183,9 +188,104 @@ export const OrderManagementPage: React.FC = () => {
     setNewStatus(value);
     if (value === "Cancelled") {
       setShowCancelReason(true);
+    } else if (value === "Shipped") {
+      // Open ship dialog if order is not already shipped
+      if (selectedOrder && selectedOrder.status !== "Shipped" && selectedOrder.status !== "Delivered") {
+        handleOpenShipDialog();
+        return;
+      }
     } else {
       setShowCancelReason(false);
       setCancelReason("");
+    }
+  };
+
+  const handleOpenShipDialog = async () => {
+    if (!selectedOrder || !selectedOrder.orderDetails) return;
+    
+    // Fetch categoryId for each product if not present
+    const items = await Promise.all(
+      selectedOrder.orderDetails.map(async (detail) => {
+        let categoryId = detail.product.categoryId;
+        
+        // If categoryId is not in order details, fetch from product API
+        if (!categoryId) {
+          try {
+            const product = await getProductById(detail.product.id);
+            categoryId = product.categoryId;
+          } catch (error) {
+            console.error(`Failed to fetch category for product ${detail.product.id}:`, error);
+          }
+        }
+        
+        return {
+          productId: detail.product.id,
+          categoryId: categoryId,
+          productName: detail.product.productName,
+          quantity: detail.quantity,
+          serialNumber: "",
+          lotNumber: "",
+        };
+      })
+    );
+    
+    setShipItems(items);
+    setIsShipDialogOpen(true);
+  };
+
+  const handleShipOrder = async () => {
+    if (!selectedOrder) return;
+
+    // Validate: categoryId = 1 needs serialNumber, others need lotNumber
+    const hasErrors = shipItems.some(item => {
+      if (item.categoryId === 1) {
+        return !item.serialNumber.trim();
+      } else {
+        return !item.lotNumber.trim();
+      }
+    });
+
+    if (hasErrors) {
+      alert("Vui lòng điền đầy đủ thông tin: Máy móc (category ID = 1) cần số seri, các loại khác cần số lô");
+      return;
+    }
+
+    setIsShipping(true);
+    try {
+      // Prepare ship payload - one item per product (not per quantity)
+      const payload: ShipOrderItem[] = shipItems.map(item => ({
+        productId: item.productId,
+        serialNumber: item.categoryId === 1 ? item.serialNumber : undefined,
+        lotNumber: item.categoryId !== 1 ? item.lotNumber : undefined,
+      }));
+
+      console.log("Shipping order with payload:", payload);
+      const response = await shipOrder(selectedOrder.id, payload);
+      console.log("Ship order response:", response);
+      
+      if (response.status) {
+        // Refresh the order details
+        const orderResponse = await getOrderById(selectedOrder.id);
+        if (orderResponse.status && orderResponse.data) {
+          setSelectedOrder(orderResponse.data);
+        }
+        
+        // Refresh the list
+        await fetchOrders();
+        
+        setIsShipDialogOpen(false);
+        setShipItems([]);
+        setNewStatus("");
+        alert("Đã gửi đơn hàng thành công!");
+      } else {
+        console.error("Failed to ship order:", response.errors);
+        alert(`Không thể gửi đơn hàng: ${response.errors?.join(", ") || "Unknown error"}`);
+      }
+    } catch (error: any) {
+      console.error("Error shipping order:", error);
+      alert(`Có lỗi xảy ra: ${error?.response?.data?.errors?.join(", ") || error.message || "Unknown error"}`);
+    } finally {
+      setIsShipping(false);
     }
   };
 
@@ -777,6 +877,92 @@ export const OrderManagementPage: React.FC = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Ship Order Dialog */}
+      <Dialog open={isShipDialogOpen} onOpenChange={setIsShipDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              Gửi đơn hàng #{selectedOrder?.id}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <p className="text-sm text-gray-600">
+              Vui lòng điền thông tin: Máy móc (category ID = 1) cần số seri, các loại khác cần số lô
+            </p>
+            <div className="space-y-4">
+              {shipItems.map((item, index) => (
+                <Card key={item.productId} className="p-4">
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{item.productName}</h4>
+                      <p className="text-xs text-gray-500">Số lượng: {item.quantity}</p>
+                      {item.categoryId && (
+                        <p className="text-xs text-gray-500">Category ID: {item.categoryId}</p>
+                      )}
+                    </div>
+                    {item.categoryId === 1 ? (
+                      <div className="grid gap-2">
+                        <Label htmlFor={`serial-${item.productId}`}>
+                          Số seri <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id={`serial-${item.productId}`}
+                          value={item.serialNumber}
+                          onChange={(e) => {
+                            const updated = [...shipItems];
+                            updated[index].serialNumber = e.target.value;
+                            setShipItems(updated);
+                          }}
+                          placeholder="Nhập số seri"
+                          required
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid gap-2">
+                        <Label htmlFor={`lot-${item.productId}`}>
+                          Số lô <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id={`lot-${item.productId}`}
+                          value={item.lotNumber}
+                          onChange={(e) => {
+                            const updated = [...shipItems];
+                            updated[index].lotNumber = e.target.value;
+                            setShipItems(updated);
+                          }}
+                          placeholder="Nhập số lô"
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsShipDialogOpen(false);
+                  setShipItems([]);
+                  setNewStatus("");
+                }}
+                disabled={isShipping}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleShipOrder}
+                disabled={isShipping}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isShipping ? "Đang gửi..." : "Gửi đơn hàng"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
