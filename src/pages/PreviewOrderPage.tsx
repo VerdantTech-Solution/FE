@@ -59,10 +59,14 @@ export default function PreviewOrderPage() {
         // Lấy địa chỉ từ profile
         let addresses: UserAddress[] = [];
         
-        if (Array.isArray(profile?.addresses)) {
+        if (Array.isArray(profile?.userAddresses)) {
+          addresses = (profile.userAddresses as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (Array.isArray(profile?.addresses)) {
           addresses = (profile.addresses as UserAddress[]).filter((addr) => !addr.isDeleted);
         } else if (Array.isArray(profile?.address)) {
           addresses = (profile.address as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (profile?.data && Array.isArray(profile.data.userAddresses)) {
+          addresses = (profile.data.userAddresses as UserAddress[]).filter((addr) => !addr.isDeleted);
         } else if (profile?.data && Array.isArray(profile.data.addresses)) {
           addresses = (profile.data.addresses as UserAddress[]).filter((addr) => !addr.isDeleted);
         } else if (profile?.data && Array.isArray(profile.data.address)) {
@@ -476,15 +480,6 @@ export default function PreviewOrderPage() {
                       setSelectedShippingId(null);
                     }} />
                     <span>Thanh toán khi nhận hàng (COD)</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='Wallet'} onChange={() => {
-                      setOrderPaymentMethod('Wallet');
-                      setOrderPreviewId(null);
-                      setShippingOptions([]);
-                      setSelectedShippingId(null);
-                    }} />
-                    <span>Ví nội bộ</span>
                   </label>
                 </div>
 

@@ -9,7 +9,7 @@ export interface UserResponse {
   role: string;
   avatarUrl?: string;
   status?: string;
-  addresses?: UserAddress[];
+  userAddresses?: UserAddress[];
   [key: string]: unknown;
 }
 

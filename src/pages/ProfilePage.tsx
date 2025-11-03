@@ -136,8 +136,8 @@ export const ProfilePage = () => {
         }
 
         // Lấy danh sách địa chỉ từ profile
-        if (Array.isArray((userData as any).address)) {
-          setUserAddresses((userData as any).address as UserAddress[]);
+        if (Array.isArray((userData as any).userAddresses)) {
+          setUserAddresses((userData as any).userAddresses as UserAddress[]);
         }
 
       }
@@ -278,8 +278,8 @@ export const ProfilePage = () => {
         if (response.status) {
           // Success - refresh addresses from server
           const refreshed = await getUserProfile();
-          if (Array.isArray((refreshed as any).address)) {
-            setUserAddresses((refreshed as any).address as UserAddress[]);
+          if (Array.isArray((refreshed as any).userAddresses)) {
+            setUserAddresses((refreshed as any).userAddresses as UserAddress[]);
           }
           window.location.reload();
         } else {

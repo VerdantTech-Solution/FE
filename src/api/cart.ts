@@ -48,7 +48,7 @@ export interface UserInfoDTO {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  addresses: any[];
+  userAddresses: any[];
 }
 
 export interface CartData {
