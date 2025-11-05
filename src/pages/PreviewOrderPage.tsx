@@ -426,6 +426,33 @@ export default function PreviewOrderPage() {
                       </Select>
                     </div>
                   </div>
+                  
+                  {/* Button to create address when none exists */}
+                  {addressType === 'home' && userAddresses.length === 0 && (
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={() => navigate('/profile')}
+                      >
+                        + Thêm địa chỉ nhà
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {addressType === 'farm' && farmProfiles.filter(f => f.status !== 'Deleted' && f.address?.id).length === 0 && (
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={() => navigate('/create-farm')}
+                      >
+                        + Tạo địa chỉ trang trại
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />

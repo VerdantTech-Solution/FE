@@ -1,186 +1,644 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Search, Trash2, Plus, Download, Upload, Edit2, Ban } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Search, Trash2, Plus, RefreshCw, Edit2, Ban, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal } from "lucide-react";
+import { getAllUsers, updateUser, deleteUser, type UserResponse } from "@/api/user";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { motion } from "framer-motion";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
 type Role = "staff" | "admin" | "user" | "all";
 
-interface UserRow {
-  id: string;
-  name: string;
-  email: string;
-  role: Exclude<Role, "all">;
-  status: "active" | "banned";
-}
-
-const seedUsers: UserRow[] = [
-  { id: "1", name: "Nguyễn Văn A", email: "a@example.com", role: "staff", status: "active" },
-  { id: "2", name: "Trần Thị B", email: "b@example.com", role: "user", status: "active" },
-  { id: "3", name: "Lê Văn C", email: "c@example.com", role: "admin", status: "active" },
-  { id: "4", name: "Phạm Thị D", email: "d@example.com", role: "user", status: "banned" },
-];
-
 export const UserManagementPanel: React.FC = () => {
+  const [users, setUsers] = useState<UserResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<Role>("all");
-  const [rows, setRows] = useState<UserRow[]>(seedUsers);
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage] = useState(10);
 
-  const data = useMemo(() => {
-    return rows.filter((u) => {
-      if (role !== "all" && u.role !== role) return false;
-      if (query.trim()) {
-        const q = query.toLowerCase();
-        if (!u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
-      }
-      return true;
+  // Edit user dialog states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'inactive' | 'suspended' | 'deleted'>('active');
+
+  // Delete user dialog states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteUserName, setDeleteUserName] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Fetch users from API
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const usersData = await getAllUsers();
+      setUsers(Array.isArray(usersData) ? usersData : []);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
+      setError(`Không thể tải danh sách người dùng: ${errorMessage}.`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const openEditDialog = (user: UserResponse) => {
+    setEditError(null);
+    setEditUserId(user.id);
+    setEditFullName(user.fullName || '');
+    setEditPhone(user.phoneNumber || '');
+    setEditAvatarUrl((user.avatarUrl as string) || '');
+    setEditStatus((user.status?.toLowerCase() as 'active' | 'inactive' | 'suspended' | 'deleted') || 'active');
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editUserId) return;
+    try {
+      setEditError(null);
+      setEditLoading(true);
+      await updateUser(editUserId, {
+        fullName: editFullName,
+        phoneNumber: editPhone,
+        avatarUrl: editAvatarUrl || null,
+        status: editStatus
+      });
+      setIsEditOpen(false);
+      await fetchUsers();
+      window.alert('Cập nhật người dùng thành công');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Cập nhật người dùng thất bại';
+      setEditError(message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const openDeleteDialog = (user: UserResponse) => {
+    setDeleteUserId(user.id);
+    setDeleteUserName(user.fullName || user.email);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    try {
+      setDeleteLoading(true);
+      await deleteUser(deleteUserId);
+      setDeleteDialogOpen(false);
+      await fetchUsers();
+      window.alert('Xóa người dùng thành công');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Xóa người dùng thất bại';
+      window.alert(message);
+    } finally {
+      setDeleteLoading(false);
+      setDeleteUserId(null);
+      setDeleteUserName('');
+    }
+  };
+
+  // Filter users
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = user.fullName.toLowerCase().includes(query.toLowerCase()) ||
+        user.email.toLowerCase().includes(query.toLowerCase()) ||
+        (user.phoneNumber && user.phoneNumber.includes(query));
+      const matchesRole = role === 'all' || user.role.toLowerCase() === role.toLowerCase();
+      const matchesStatus = selectedStatus === 'all' || (user.status && user.status.toLowerCase() === selectedStatus);
+
+      return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [rows, role, query]);
+  }, [users, query, role, selectedStatus]);
 
-  const promote = (id: string) => {
-    setRows((prev) => prev.map((u) => (u.id === id ? { ...u, role: "staff" } : u)));
+  // Pagination
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
   };
 
-  const banToggle = (id: string) => {
-    setRows((prev) => prev.map((u) => (u.id === id ? { ...u, status: u.status === "active" ? "banned" : "active" } : u)));
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
-  const remove = (id: string) => {
-    setRows((prev) => prev.filter((u) => u.id !== id));
+  const getRoleColor = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'customer':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'farmer':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'staff':
+        return 'bg-green-100 text-green-800 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
-  const viewUser = (id: string) => {
-    // Navigate to user detail page
-    console.log(`Navigate to user detail: ${id}`);
-    // You can replace this with actual navigation logic
-    // For example: navigate(`/staff/users/${id}`) or window.location.href = `/staff/users/${id}`
+  const getStatusColor = (status: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
+
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'inactive':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'suspended':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'deleted':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
+
+  const getStatusIcon = (status: string) => {
+    if (!status) return '⚪';
+
+    switch (status.toLowerCase()) {
+      case 'active':
+        return '🟢';
+      case 'inactive':
+        return '🟠';
+      case 'suspended':
+        return '🟡';
+      case 'deleted':
+        return '🔴';
+      default:
+        return '⚪';
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Spinner variant="circle-filled" size={60} className="text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600">Đang tải danh sách người dùng...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-medium text-gray-900 mb-2">Đã xảy ra lỗi</h3>
+          <p className="text-gray-500 mb-6">{error}</p>
+          <Button
+            onClick={() => fetchUsers()}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {/* Header actions */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+      >
         <div>
           <h2 className="text-2xl font-semibold text-gray-900">Quản lý người dùng</h2>
           <p className="text-sm text-gray-500">Quản lý tài khoản và quyền truy cập của người dùng</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2"><Upload className="w-4 h-4" />Nhập</Button>
-          <Button variant="outline" className="gap-2"><Download className="w-4 h-4" />Xuất</Button>
-          <Button className="bg-green-600 hover:bg-green-700 gap-2"><Plus className="w-4 h-4" />Thêm mới</Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => {
+              setCurrentPage(1);
+              fetchUsers();
+            }}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Làm mới
+          </Button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Tổng người dùng</p>
-              <p className="text-2xl font-semibold">{rows.length}</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 grid place-items-center">{rows.length}</div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Admin</p>
-              <p className="text-2xl font-semibold">{rows.filter(r => r.role === "admin").length}</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-green-100 text-green-600 grid place-items-center">A</div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Customer</p>
-              <p className="text-2xl font-semibold">{rows.filter(r => r.role === "user").length}</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-violet-100 text-violet-600 grid place-items-center">C</div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Hoạt động</p>
-              <p className="text-2xl font-semibold">{rows.filter(r => r.status === "active").length}</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-orange-100 text-orange-600 grid place-items-center">●</div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter block */}
-      <Card className="mb-6">
-        <div className="p-4 border-b text-sm font-medium text-gray-700">Bộ lọc và tìm kiếm</div>
-        <div className="p-4 grid gap-3 md:grid-cols-3">
-          <div className="relative">
-            <Input placeholder="Tìm theo tên, email" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          </div>
-          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-            <SelectTrigger><SelectValue placeholder="Tất cả vai trò" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả vai trò</SelectItem>
-              <SelectItem value="user">Customer</SelectItem>
-              <SelectItem value="staff">Staff</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2 md:justify-end">
-            <Button variant="outline">Xóa bộ lọc</Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Table */}
-      <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
-        <div className="grid grid-cols-12 bg-gray-50 px-5 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-          <div className="col-span-4">Người dùng</div>
-          <div className="col-span-3">Thông tin liên hệ</div>
-          <div className="col-span-2">Vai trò</div>
-          <div className="col-span-1">Trạng thái</div>
-          <div className="col-span-2 text-right">Hành động</div>
-        </div>
-        {data.map((u) => (
-          <div key={u.id} className="grid grid-cols-12 items-center px-5 py-3 border-t text-sm">
-            <div className="col-span-4 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-gray-200 text-gray-600 grid place-items-center font-semibold">
-                {u.name.split(" ").slice(-1)[0].slice(0,1)}
+      {/* Stats Cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Tổng người dùng</p>
+                <p className="text-2xl font-bold text-blue-900">{users.length}</p>
               </div>
-              <div className="cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors" onClick={() => viewUser(u.id)}>
-                <div className="font-medium text-gray-900 hover:text-blue-600">{u.name}</div>
-                <div className="text-xs text-gray-500">ID: USR{String(u.id).padStart(3,'0')}</div>
+              <div className="p-3 bg-blue-200 rounded-full">
+                <Users className="w-8 h-8 text-blue-700" />
               </div>
             </div>
-            <div className="col-span-3 text-gray-600">
-              <div>{u.email}</div>
-              <div className="text-xs text-gray-500">0987654321</div>
-            </div>
-            <div className="col-span-2">
-              <span className={`px-2 py-0.5 rounded-full text-xs capitalize ${u.role === "admin" ? "bg-purple-100 text-purple-700" : u.role === "staff" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>{u.role}</span>
-            </div>
-            <div className="col-span-1">
-              <span className={`inline-flex items-center gap-1 text-xs ${u.status === "active" ? "text-green-600" : "text-red-600"}`}>
-                <span className={`h-2 w-2 rounded-full ${u.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
-                {u.status === "active" ? "Hoạt động" : "Bị chặn"}
-              </span>
-            </div>
-            <div className="col-span-2 text-right">
-              <div className="inline-flex items-center gap-2">
-                <Button size="icon" variant="ghost" className="h-8 w-8" title="Chỉnh sửa" onClick={() => promote(u.id)}><Edit2 className="w-4 h-4" /></Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8" title={u.status === "active" ? "Chặn" : "Bỏ chặn"} onClick={() => banToggle(u.id)}><Ban className="w-4 h-4" /></Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" title="Xóa" onClick={() => remove(u.id)}><Trash2 className="w-4 h-4" /></Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Admin</p>
+                <p className="text-2xl font-bold text-green-900">
+                  {users.filter(u => u.role === 'Admin').length}
+                </p>
+              </div>
+              <div className="p-3 bg-green-200 rounded-full">
+                <Shield className="w-8 h-8 text-green-700" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">Customer</p>
+                <p className="text-2xl font-bold text-purple-900">
+                  {users.filter(u => u.role === 'Customer').length}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-200 rounded-full">
+                <User className="w-8 h-8 text-purple-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-600">Hoạt động</p>
+                <p className="text-2xl font-bold text-orange-900">
+                  {users.filter(u => u.status === 'Active').length}
+                </p>
+              </div>
+              <div className="p-3 bg-orange-200 rounded-full">
+                <Activity className="w-8 h-8 text-orange-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Filters Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Card className="border-gray-200">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <Search className="w-5 h-5 mr-2 text-gray-600" />
+              Bộ lọc và tìm kiếm
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Tìm kiếm</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Tìm theo tên, email, số điện thoại..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Vai trò</label>
+                <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tất cả vai trò" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả vai trò</SelectItem>
+                    <SelectItem value="Customer">Customer</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Trạng thái</label>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                    <SelectItem value="active">Hoạt động</SelectItem>
+                    <SelectItem value="inactive">Không hoạt động</SelectItem>
+                    <SelectItem value="suspended">Tạm khóa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setQuery('');
+                    setRole('all');
+                    setSelectedStatus('all');
+                  }}
+                  className="w-full"
+                >
+                  Xóa bộ lọc
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Users Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
+        <Card className="border-gray-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Danh sách người dùng</CardTitle>
+                <CardDescription>
+                  Hiển thị {filteredUsers.length} người dùng trong tổng số {users.length}
+                </CardDescription>
+              </div>
+              <div className="text-sm text-gray-500">
+                Trang {currentPage} / {totalPages}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="grid grid-cols-12 bg-gray-50 px-5 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide border-b">
+                <div className="col-span-3">Người dùng</div>
+                <div className="col-span-3">Thông tin liên hệ</div>
+                <div className="col-span-2">Vai trò</div>
+                <div className="col-span-2">Trạng thái</div>
+                <div className="col-span-2 text-right">Hành động</div>
+              </div>
+              {currentUsers.map((user, index) => (
+                <motion.div
+                  key={user.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className="grid grid-cols-12 items-center px-5 py-4 border-b hover:bg-gray-50 transition-colors"
+                >
+                  <div className="col-span-3 flex items-center gap-3">
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={`Avatar của ${user.fullName}`}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-medium text-gray-900">{user.fullName}</div>
+                      <div className="text-xs text-gray-500">ID: {user.id}</div>
+                    </div>
+                  </div>
+                  <div className="col-span-3">
+                    <div className="flex items-center text-sm mb-1">
+                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                      <span className="text-gray-700">{user.email}</span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                      <span className="text-gray-700">{user.phoneNumber || 'Chưa có'}</span>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}>
+                      {user.role}
+                    </span>
+                  </div>
+                                     <div className="col-span-2">
+                     <div className="flex items-center space-x-2">
+                       <span className="text-lg">{getStatusIcon(user.status || '')}</span>
+                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status || '')}`}>
+                         {user.status || 'Chưa xác định'}
+                       </span>
+                     </div>
+                   </div>
+                   <div className="col-span-2 text-right">
+                     <div className="inline-flex items-center gap-2">
+                       <Button 
+                         size="sm" 
+                         variant="outline" 
+                         className="h-8 w-8 border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700" 
+                         title="Chỉnh sửa" 
+                         onClick={() => openEditDialog(user)}
+                       >
+                         <Edit2 className="w-4 h-4" />
+                       </Button>
+                       <Button 
+                         size="sm" 
+                         variant="outline" 
+                         className="h-8 w-8 border-red-600 text-red-600 hover:bg-red-50 hover:border-red-700" 
+                         title="Xóa" 
+                         onClick={() => openDeleteDialog(user)}
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </Button>
+                       <Button size="sm" variant="ghost" className="h-8 w-8" title="Xem thêm">
+                         <MoreHorizontal className="w-4 h-4" />
+                       </Button>
+                     </div>
+                   </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Empty State */}
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-16">
+                <Users className="w-20 h-20 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 mb-2">Không tìm thấy người dùng</h3>
+                <p className="text-gray-500 mb-6">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setQuery('');
+                    setRole('all');
+                    setSelectedStatus('all');
+                  }}
+                >
+                  Xóa bộ lọc
+                </Button>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200">
+                <div className="text-sm text-gray-500">
+                  Hiển thị {indexOfFirstUser + 1} - {Math.min(indexOfLastUser, filteredUsers.length)} trong tổng số {filteredUsers.length} người dùng
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Trước
+                  </Button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className="w-10 h-10 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cập nhật người dùng</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Họ và tên</label>
+              <Input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Số điện thoại</label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="0123456789" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Avatar URL</label>
+              <Input value={editAvatarUrl} onChange={(e) => setEditAvatarUrl(e.target.value)} placeholder="https://..." />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Trạng thái</label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as 'active' | 'inactive' | 'suspended' | 'deleted')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="deleted">Deleted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ))}
-        {data.length === 0 && (
-          <Card className="m-4 p-6 text-center text-gray-500">Không có người dùng phù hợp</Card>
-        )}
-      </div>
+          {editError && (
+            <p className="text-sm text-red-600">{editError}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={editLoading}>Hủy</Button>
+            <Button onClick={handleUpdateUser} disabled={editLoading || !editUserId || !editFullName}>
+              {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Alert Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa người dùng</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa người dùng <strong>{deleteUserName}</strong>? 
+              Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? 'Đang xóa...' : 'Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
