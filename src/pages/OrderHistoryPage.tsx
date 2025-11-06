@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getAllOrders, type OrderWithCustomer } from '@/api/order';
+import { getOrdersByUser, type OrderWithCustomer } from '@/api/order';
 import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard } from 'lucide-react';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -14,6 +15,8 @@ const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case 'pending':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'paid':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'confirmed':
       return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'processing':
@@ -35,6 +38,8 @@ const getStatusText = (status: string) => {
   switch (status.toLowerCase()) {
     case 'pending':
       return 'Chờ xử lý';
+    case 'paid':
+      return 'Đã thanh toán';
     case 'confirmed':
       return 'Đã xác nhận';
     case 'processing':
@@ -73,7 +78,35 @@ const formatAddress = (address: any) => {
   return parts.join(', ');
 };
 
+const getProductImageUrl = (images: any): string | undefined => {
+  if (!images) return undefined;
+  if (Array.isArray(images)) {
+    const first = images[0];
+    if (!first) return undefined;
+    if (typeof first === 'object' && 'imageUrl' in first) return (first as any).imageUrl as string;
+    return String(first);
+  }
+  return String(images);
+};
+
 export default function OrderHistoryPage() {
+  const [searchParams] = useSearchParams();
+  const userIdParam = searchParams.get('userId');
+  const userId = userIdParam ? Number(userIdParam) : undefined;
+  const getUserIdFromToken = () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return undefined;
+      const parts = token.split('.');
+      if (parts.length !== 3) return undefined;
+      const payloadJson = JSON.parse(atob(parts[1]));
+      const nameId = payloadJson?.nameid || payloadJson?.sub || payloadJson?.userId;
+      const parsed = Number(nameId);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  };
   const [orders, setOrders] = useState<OrderWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,13 +115,17 @@ export default function OrderHistoryPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
 
-  const loadOrders = async (page: number = 1, status?: string) => {
+  const loadOrders = async (page: number = 1) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await getAllOrders(page, pageSize, status);
+      const effectiveUserId = userId ?? getUserIdFromToken();
+      if (!effectiveUserId) throw { message: 'Không xác định được userId. Vui lòng đăng nhập hoặc thêm ?userId=...' };
+
+      const response = await getOrdersByUser(effectiveUserId, page, pageSize);
       
       if (response.status) {
         setOrders(response.data.data);
@@ -99,15 +136,16 @@ export default function OrderHistoryPage() {
         setError(response.errors?.[0] || 'Không thể tải danh sách đơn hàng');
       }
     } catch (e: any) {
-      setError(e?.message || 'Lỗi khi tải danh sách đơn hàng');
+      const serverMsg = e?.errors?.[0] || e?.message;
+      setError(serverMsg || 'Lỗi khi tải danh sách đơn hàng');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders(1, selectedStatus === 'all' ? undefined : selectedStatus);
-  }, [selectedStatus]);
+    loadOrders(1);
+  }, [selectedStatus, userId, pageSize]);
 
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status);
@@ -116,13 +154,17 @@ export default function OrderHistoryPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    loadOrders(page, selectedStatus === 'all' ? undefined : selectedStatus);
+    loadOrders(page);
   };
 
   const handlePageSizeChange = (size: string) => {
     setPageSize(parseInt(size));
     setCurrentPage(1);
-    loadOrders(1, selectedStatus === 'all' ? undefined : selectedStatus);
+    loadOrders(1);
+  };
+
+  const toggleExpanded = (orderId: number) => {
+    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
   if (loading && orders.length === 0) {
@@ -158,6 +200,7 @@ export default function OrderHistoryPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="Paid">Đã thanh toán</SelectItem>
                 <SelectItem value="Pending">Chờ xử lý</SelectItem>
                 <SelectItem value="Confirmed">Đã xác nhận</SelectItem>
                 <SelectItem value="Processing">Đang xử lý</SelectItem>
@@ -216,32 +259,46 @@ export default function OrderHistoryPage() {
               >
                 <Card className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
                           <CardTitle className="text-lg">Đơn hàng #{order.id}</CardTitle>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {formatDate(order.createdAt)}
-                          </p>
+                          <Badge className={`px-3 py-1 ${getStatusColor(order.status)}`}>
+                            {getStatusText(order.status)}
+                          </Badge>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-gray-900">{currency(order.totalAmount)}</p>
+                          <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <Badge className={`px-3 py-1 ${getStatusColor(order.status)}`}>
-                          {getStatusText(order.status)}
-                        </Badge>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900">
-                            {currency(order.totalAmount)}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {order.orderDetails.length} sản phẩm
-                          </p>
-                        </div>
+                      <div className="flex items-start gap-4 overflow-x-auto">
+                        {order.orderDetails.slice(0, 5).map((detail) => {
+                          const url = getProductImageUrl(detail.product.images);
+                          return (
+                            <div key={detail.id} className="flex-shrink-0">
+                              {url ? (
+                                <img src={url} alt={detail.product.productName} className="w-12 h-12 object-cover rounded-md border" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-md bg-gray-100 border" />
+                              )}
+                              <p className="mt-2 text-base font-semibold text-gray-900">{detail.product.productName}</p>
+                            </div>
+                          );
+                        })}
+                        {order.orderDetails.length > 5 && (
+                          <span className="text-sm text-gray-500">+{order.orderDetails.length - 5} nữa</span>
+                        )}
+                      </div>
+                      <div className="flex justify-end">
+                        <Button variant="outline" size="sm" onClick={() => toggleExpanded(order.id)}>
+                          {expandedOrders[order.id] ? 'Ẩn chi tiết' : 'Xem chi tiết'}
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
 
+                  {expandedOrders[order.id] && (
                   <CardContent className="pt-0">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       {/* Customer Info */}
@@ -264,7 +321,7 @@ export default function OrderHistoryPage() {
                           <span className="text-sm font-medium text-gray-700">Địa chỉ giao hàng</span>
                         </div>
                         <div className="pl-6">
-                          <p className="text-sm text-gray-900">{formatAddress(order.address)}</p>
+                          <p className="text-sm text-gray-900">{formatAddress(order.address ?? order.customer?.userAddresses?.[0])}</p>
                         </div>
                       </div>
 
@@ -359,6 +416,7 @@ export default function OrderHistoryPage() {
                       </div>
                     </div>
                   </CardContent>
+                  )}
                 </Card>
               </motion.div>
             ))

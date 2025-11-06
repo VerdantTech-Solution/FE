@@ -44,7 +44,7 @@ export interface OrderProductSummary {
   slug?: string;
   description?: string;
   unitPrice: number;
-  images?: string[] | null;
+  images?: any;
   warrantyMonths?: number;
   ratingAverage?: number;
   categoryId?: number;
@@ -99,6 +99,10 @@ export interface OrderEntity {
   updatedAt: string;
   address: OrderAddress;
   orderDetails: OrderDetailItem[];
+  width?: number;
+  height?: number;
+  length?: number;
+  weight?: number;
 }
 
 export type CreateOrderFromPreviewResponse = CreateOrderPreviewResponse<OrderEntity>;
@@ -134,7 +138,7 @@ export interface OrderCustomer {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  address: any[];
+  userAddresses?: any[];
 }
 
 export interface OrderWithCustomer extends OrderEntity {
@@ -171,6 +175,20 @@ export const getAllOrders = async (
   }
   
   const response = await apiClient.get(`/api/Order?${params.toString()}`);
+  return response as unknown as GetAllOrdersResponse;
+};
+
+// ===== Get Orders By User ID =====
+export const getOrdersByUser = async (
+  userId: number,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<GetAllOrdersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  const response = await apiClient.get(`/api/Order/user/${userId}?${params.toString()}`);
   return response as unknown as GetAllOrdersResponse;
 };
 
