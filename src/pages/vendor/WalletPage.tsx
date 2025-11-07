@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import VendorSidebar from './VendorSidebar';
+import CreateBankDialog from '@/components/bank/CreateBankDialog';
+import BankAccountsList from '@/components/bank/BankAccountsList';
 import { 
   Bell,
   ArrowUpRight,
@@ -12,6 +14,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
+import { 
+  getSupportedBanks, 
+  getVendorBankAccounts,
+  type SupportedBank,
+  type VendorBankAccount
+} from '@/api/vendorbankaccounts';
 
 
 const WalletBalance = () => {
@@ -202,13 +210,59 @@ const WithdrawForm = () => {
 };
 
 const WalletPage = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
+  const [banks, setBanks] = useState<SupportedBank[]>([]);
+  const [vendorBankAccounts, setVendorBankAccounts] = useState<VendorBankAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
+
+  // Load vendor bank accounts
+  const loadVendorBankAccounts = async () => {
+    const userId = Number(user?.id);
+    if (!userId) return;
+
+    try {
+      setLoadingAccounts(true);
+      const accounts = await getVendorBankAccounts(userId);
+      setVendorBankAccounts(accounts || []);
+    } catch (err) {
+      console.error('Load vendor bank accounts error:', err);
+      setVendorBankAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      loadVendorBankAccounts();
+      loadBanks();
+    }
+  }, [user?.id]);
+
+  const loadBanks = async () => {
+    try {
+      const banksData = await getSupportedBanks();
+      setBanks(banksData);
+    } catch (err) {
+      console.error('Load banks error:', err);
+    }
+  };
+
+  const handleOpenBankDialog = () => {
+    setIsBankDialogOpen(true);
+  };
+
+  const handleBankAccountSuccess = () => {
+    loadVendorBankAccounts();
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -246,12 +300,30 @@ const WalletPage = () => {
         <main className="flex-1 p-6 overflow-y-auto">
           <WalletBalance />
           <TransactionStats />
+          
+          {/* Ngân hàng của bạn */}
+          <BankAccountsList
+            accounts={vendorBankAccounts}
+            banks={banks}
+            loading={loadingAccounts}
+            onAddBank={handleOpenBankDialog}
+            onDeleteSuccess={handleBankAccountSuccess}
+          />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <RecentTransactions />
             <WithdrawForm />
           </div>
         </main>
       </div>
+
+      {/* Bank Setup Dialog */}
+      <CreateBankDialog
+        open={isBankDialogOpen}
+        onOpenChange={setIsBankDialogOpen}
+        userId={Number(user?.id) || 0}
+        onSuccess={handleBankAccountSuccess}
+      />
     </div>
   );
 };
