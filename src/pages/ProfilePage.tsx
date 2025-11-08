@@ -13,6 +13,14 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import BankAccountsList from "@/components/bank/BankAccountsList";
+import CreateBankDialog from "@/components/bank/CreateBankDialog";
+import { 
+  getSupportedBanks, 
+  getVendorBankAccounts,
+  type SupportedBank,
+  type VendorBankAccount
+} from "@/api/vendorbankaccounts";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -94,13 +102,56 @@ export const ProfilePage = () => {
   const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
   const [deleteAddressDialogOpen, setDeleteAddressDialogOpen] = useState(false);
   const [pendingDeleteAddress, setPendingDeleteAddress] = useState<UserAddress | null>(null);
+  
+  // Bank Accounts state for refund
+  const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
+  const [banks, setBanks] = useState<SupportedBank[]>([]);
+  const [userBankAccounts, setUserBankAccounts] = useState<VendorBankAccount[]>([]);
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
     if (user?.id) {
       fetchLatestUserData();
+      loadUserBankAccounts();
+      loadBanks();
     }
   }, [user?.id]);
+  
+  // Load user bank accounts
+  const loadUserBankAccounts = async () => {
+    const userId = Number(user?.id);
+    if (!userId) return;
+
+    try {
+      setLoadingBankAccounts(true);
+      const accounts = await getVendorBankAccounts(userId);
+      setUserBankAccounts(accounts || []);
+    } catch (err) {
+      console.error('Load user bank accounts error:', err);
+      setUserBankAccounts([]);
+    } finally {
+      setLoadingBankAccounts(false);
+    }
+  };
+
+  // Load supported banks
+  const loadBanks = async () => {
+    try {
+      const banksData = await getSupportedBanks();
+      setBanks(banksData);
+    } catch (err) {
+      console.error('Load banks error:', err);
+    }
+  };
+
+  const handleOpenBankDialog = () => {
+    setIsBankDialogOpen(true);
+  };
+
+  const handleBankAccountSuccess = () => {
+    loadUserBankAccounts();
+  };
 
   // Cập nhật avatarUrl khi user thay đổi
   useEffect(() => {
@@ -697,6 +748,26 @@ export const ProfilePage = () => {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Bank Accounts Section for Refund */}
+        {!isEditing && (
+          <motion.div 
+            className="mt-6" 
+            initial={{ y: 12, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <BankAccountsList
+              accounts={userBankAccounts}
+              banks={banks}
+              loading={loadingBankAccounts}
+              onAddBank={handleOpenBankDialog}
+              onDeleteSuccess={handleBankAccountSuccess}
+              title="Tài khoản ngân hàng để hoàn tiền"
+              description="Thêm tài khoản để nhận hoàn tiền khi cần"
+            />
+          </motion.div>
+        )}
       </div>
     </motion.div>
 
@@ -858,6 +929,14 @@ export const ProfilePage = () => {
         </AlertFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Bank Account Dialog */}
+    <CreateBankDialog
+      open={isBankDialogOpen}
+      onOpenChange={setIsBankDialogOpen}
+      userId={Number(user?.id) || 0}
+      onSuccess={handleBankAccountSuccess}
+    />
     </>
   );
 };

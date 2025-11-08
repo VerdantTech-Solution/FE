@@ -48,7 +48,7 @@ export interface VendorBankAccountsResponse {
 // Lấy danh sách ngân hàng được hỗ trợ
 export const getSupportedBanks = async (): Promise<SupportedBank[]> => {
   try {
-    const response = await apiClient.get<SupportedBanksResponse>('/api/VendorBankAccounts/supported-banks') as unknown as SupportedBanksResponse;
+    const response = await apiClient.get<SupportedBanksResponse>('/api/UserBankAccounts/supported-banks') as unknown as SupportedBanksResponse;
     return response?.data || [];
   } catch (error) {
     console.error('Get supported banks error:', error);
@@ -63,7 +63,7 @@ export const createVendorBankAccount = async (
 ): Promise<CreateBankAccountResponse> => {
   try {
     const response = await apiClient.post<CreateBankAccountResponse>(
-      `/api/VendorBankAccounts/vendor/${userId}`,
+      `/api/UserBankAccounts/user/${userId}`,
       data
     ) as unknown as CreateBankAccountResponse;
     return response;
@@ -77,7 +77,7 @@ export const createVendorBankAccount = async (
 export const getVendorBankAccounts = async (userId: number): Promise<VendorBankAccount[]> => {
   try {
     const response = await apiClient.get<VendorBankAccountsResponse>(
-      `/api/VendorBankAccounts/vendor/${userId}`
+      `/api/UserBankAccounts/user/${userId}`
     ) as unknown as VendorBankAccountsResponse;
     return response?.data || [];
   } catch (error) {
@@ -89,7 +89,7 @@ export const getVendorBankAccounts = async (userId: number): Promise<VendorBankA
 // Xóa tài khoản ngân hàng của vendor
 export const deleteVendorBankAccount = async (accountId: number): Promise<void> => {
   try {
-    await apiClient.delete(`/api/VendorBankAccounts/${accountId}`);
+    await apiClient.delete(`/api/UserBankAccounts/${accountId}`);
   } catch (error) {
     console.error('Delete vendor bank account error:', error);
     throw error;
