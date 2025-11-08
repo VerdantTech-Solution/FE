@@ -20,17 +20,35 @@ import {
   type SupportedBank,
   type VendorBankAccount
 } from '@/api/vendorbankaccounts';
+import { useWallet } from '@/hooks/useWallet';
 
 
-const WalletBalance = () => {
+interface WalletBalanceProps {
+  balance: number;
+  loading: boolean;
+}
+
+const WalletBalance = ({ balance, loading }: WalletBalanceProps) => {
+  // Format số tiền với dấu phẩy ngăn cách
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN').format(amount);
+  };
+
   return (
     <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-green-100 text-sm">Số dư ví</p>
-            <p className="text-3xl font-bold mt-2">₫125,000,000</p>
-            <p className="text-green-100 text-sm mt-1">+12.5% so với tháng trước</p>
+            {loading ? (
+              <div className="flex items-center mt-2">
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                <p className="text-3xl font-bold">Đang tải...</p>
+              </div>
+            ) : (
+              <p className="text-3xl font-bold mt-2">₫{formatCurrency(balance)}</p>
+            )}
+            <p className="text-green-100 text-sm mt-1">Số dư khả dụng</p>
           </div>
           <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
             <Wallet size={32} />
@@ -216,6 +234,10 @@ const WalletPage = () => {
   const [banks, setBanks] = useState<SupportedBank[]>([]);
   const [vendorBankAccounts, setVendorBankAccounts] = useState<VendorBankAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  
+  // Use wallet hook để quản lý wallet
+  const userId = user?.id ? Number(user.id) : undefined;
+  const { balance, loading: walletLoading, refreshWallet } = useWallet(userId);
 
   const handleLogout = async () => {
     await logout();
@@ -261,6 +283,7 @@ const WalletPage = () => {
 
   const handleBankAccountSuccess = () => {
     loadVendorBankAccounts();
+    refreshWallet(); // Refresh wallet sau khi thêm/xóa bank account
   };
 
   return (
@@ -298,7 +321,7 @@ const WalletPage = () => {
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
-          <WalletBalance />
+          <WalletBalance balance={balance} loading={walletLoading} />
           <TransactionStats />
           
           {/* Ngân hàng của bạn */}
