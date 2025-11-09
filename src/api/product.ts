@@ -315,7 +315,7 @@ export interface RegisterProductRequest {
   proposedProductName: string;
   description?: string;
   unitPrice: number;
-  energyEfficiencyRating?: string;
+  energyEfficiencyRating?: number; // Must be 0-5
   specifications?: {
     [key: string]: string;
   };
@@ -326,6 +326,8 @@ export interface RegisterProductRequest {
     height?: number;
     length?: number;
   };
+  certificationCode?: string;
+  certificationName?: string;
   manualFile?: File | null;
   images?: File[];
   certificate?: File[];
@@ -348,8 +350,8 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
     
     formData.append('Data.UnitPrice', data.unitPrice.toString());
     
-    if (data.energyEfficiencyRating) {
-      formData.append('Data.EnergyEfficiencyRating', data.energyEfficiencyRating);
+    if (data.energyEfficiencyRating !== undefined && data.energyEfficiencyRating !== null) {
+      formData.append('Data.EnergyEfficiencyRating', data.energyEfficiencyRating.toString());
     }
     
     // Add specifications as individual key-value pairs
@@ -377,6 +379,15 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
       formData.append('Data.DimensionsCm.Width', '0');
       formData.append('Data.DimensionsCm.Height', '0');
       formData.append('Data.DimensionsCm.Length', '0');
+    }
+    
+    // Add certification fields (required by BE)
+    if (data.certificationCode) {
+      formData.append('Data.CertificationCode', data.certificationCode);
+    }
+    
+    if (data.certificationName) {
+      formData.append('Data.CertificationName', data.certificationName);
     }
     
     // Add files
