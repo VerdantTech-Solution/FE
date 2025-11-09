@@ -263,7 +263,6 @@ export const CartPage = () => {
     () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [items]
   );
-  const vat = Math.round(subtotal * 0.08);
   const discount = useMemo(() => {
     // Simple demo: SALE10 = 10% off on subtotal (cap 100k)
     if (appliedCoupon.toUpperCase() === "SALE10") {
@@ -272,7 +271,7 @@ export const CartPage = () => {
     return 0;
   }, [appliedCoupon, subtotal]);
 
-  const total = Math.max(0, subtotal - discount) + vat;
+  const total = Math.max(0, subtotal - discount);
 
   const updateQty = useCallback(async (id: number, delta: number) => {
     try {
@@ -656,8 +655,6 @@ export const CartPage = () => {
                         <span className="font-semibold text-green-700">- {currency(discount)}</span>
                       </div>
                     )}
-                  
-                  
                   </div>
 
                   <Separator />

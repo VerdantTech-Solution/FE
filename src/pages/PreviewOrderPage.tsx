@@ -295,8 +295,8 @@ export default function PreviewOrderPage() {
             setSelectedShippingId(String(firstShippingId));
           }
         } else {
-          console.log('No shipping options, navigating to confirm page');
-          navigate(`/order/confirm?previewId=${encodeURIComponent(previewId)}`);
+          console.log('No shipping options available');
+          setError('Không có phương thức giao hàng khả dụng cho địa chỉ này. Vui lòng thử lại hoặc chọn địa chỉ khác.');
         }
       } else {
         console.error('Invalid preview ID:', previewId);
@@ -464,6 +464,107 @@ export default function PreviewOrderPage() {
               </CardContent>
             </Card>
 
+            {/* Shipping Options Card */}
+            {shippingOptions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Chọn phương thức giao hàng</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Show updated total when shipping is selected */}
+                  {selectedShippingPrice > 0 && (
+                    <div className="p-3 bg-green-50 rounded-lg border border-green-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Tổng tiền thanh toán:</span>
+                        <span className="text-xl font-bold text-green-700">{currency(total)}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3">
+                    {shippingOptions.map((option, index) => {
+                      // Get the ID field - try multiple possible field names
+                      const optionId = option.id || option.priceTableId || option.shippingDetailId || index;
+                      const optionIdString = String(optionId);
+                      
+                      return (
+                        <div 
+                          key={optionIdString || `shipping-option-${index}`}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedShippingId === optionIdString
+                              ? 'border-green-500 bg-green-50' 
+                              : 'border-gray-200 hover:border-blue-300'
+                          }`}
+                          onClick={() => setSelectedShippingId(optionIdString)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <input 
+                                type="radio" 
+                                checked={selectedShippingId === optionIdString}
+                                onChange={() => setSelectedShippingId(optionIdString)}
+                                className="text-green-600"
+                              />
+                              <div className="flex items-center space-x-2">
+                                {option.carrierLogo && (
+                                  <img 
+                                    src={option.carrierLogo} 
+                                    alt={option.carrierName}
+                                    className="w-8 h-8 object-contain"
+                                  />
+                                )}
+                                <div>
+                                  <div className="font-medium text-gray-900">{option.carrierName}</div>
+                                  <div className="text-sm text-gray-600">{option.service}</div>
+                                  <div className="text-xs text-gray-500">{option.expected}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-green-600">
+                                {currency(option.totalAmount)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Button 
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      disabled={!selectedShippingId || shippingLoading}
+                      onClick={() => {
+                        if (selectedShippingId) {
+                          // Tạo order từ preview với shipping option đã chọn
+                          handleCreateOrderFromPreview(selectedShippingId);
+                        }
+                      }}
+                    >
+                      {shippingLoading ? (
+                        <>
+                          <Spinner variant="circle-filled" size={16} className="mr-2" />
+                          Đang tạo đơn hàng...
+                        </>
+                      ) : (
+                        'Xác nhận đơn hàng'
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setShippingOptions([]);
+                        setSelectedShippingId(null);
+                      }}
+                    >
+                      Hủy
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Sản phẩm trong đơn</CardTitle>
@@ -536,109 +637,11 @@ export default function PreviewOrderPage() {
 
                 <Button 
                   className="w-full bg-green-600 hover:bg-green-700" 
-                  disabled={submitting || !selectedAddressId || cartItems.length === 0} 
+                  disabled={submitting || !selectedAddressId || cartItems.length === 0 || shippingOptions.length > 0} 
                   onClick={handleSubmitPreview}
                 >
                   {submitting ? <Spinner variant="circle-filled" size={16} /> : 'Tạo bản xem trước'}
                 </Button>
-                
-                {/* Shipping Options */}
-                {shippingOptions.length > 0 && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h3 className="font-semibold text-blue-800 mb-3">Chọn phương thức giao hàng</h3>
-                    
-                    {/* Show updated total when shipping is selected */}
-                    {selectedShippingPrice > 0 && (
-                      <div className="mb-4 p-3 bg-white rounded-lg border border-green-300">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Tổng tiền thanh toán:</span>
-                          <span className="text-xl font-bold text-green-700">{currency(total)}</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="space-y-3">
-                      {shippingOptions.map((option, index) => {
-                        // Get the ID field - try multiple possible field names
-                        const optionId = option.id || option.priceTableId || option.shippingDetailId || index;
-                        const optionIdString = String(optionId);
-                        
-                        return (
-                        <div 
-                          key={optionIdString || `shipping-option-${index}`}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedShippingId === optionIdString
-                              ? 'border-green-500 bg-green-50' 
-                              : 'border-gray-200 hover:border-blue-300'
-                          }`}
-                          onClick={() => setSelectedShippingId(optionIdString)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <input 
-                                type="radio" 
-                                checked={selectedShippingId === optionIdString}
-                                onChange={() => setSelectedShippingId(optionIdString)}
-                                className="text-green-600"
-                              />
-                              <div className="flex items-center space-x-2">
-                                {option.carrierLogo && (
-                                  <img 
-                                    src={option.carrierLogo} 
-                                    alt={option.carrierName}
-                                    className="w-8 h-8 object-contain"
-                                  />
-                                )}
-                                <div>
-                                  <div className="font-medium text-gray-900">{option.carrierName}</div>
-                                  <div className="text-sm text-gray-600">{option.service}</div>
-                                  <div className="text-xs text-gray-500">{option.expected}</div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-semibold text-green-600">
-                                {currency(option.totalAmount)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        );
-                      })}
-                    </div>
-                    
-                    <div className="mt-4 flex space-x-2">
-                      <Button 
-                        className="flex-1 bg-green-600 hover:bg-green-700"
-                        disabled={!selectedShippingId || shippingLoading}
-                        onClick={() => {
-                          if (selectedShippingId) {
-                            // Tạo order từ preview với shipping option đã chọn
-                            handleCreateOrderFromPreview(selectedShippingId);
-                          }
-                        }}
-                      >
-                        {shippingLoading ? (
-                          <>
-                            <Spinner variant="circle-filled" size={16} className="mr-2" />
-                            Đang tạo đơn hàng...
-                          </>
-                        ) : (
-                          'Xác nhận đơn hàng'
-                        )}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          setShippingOptions([]);
-                          setSelectedShippingId(null);
-                        }}
-                      >
-                        Hủy
-                      </Button>
-                    </div>
-                  </div>
-                )}
                 
                 <Button variant="outline" className="w-full" onClick={() => navigate('/cart')}>Quay lại giỏ hàng</Button>
               </CardContent>

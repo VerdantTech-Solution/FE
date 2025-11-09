@@ -3,7 +3,8 @@ import {
   BarChart3, 
   Square, 
   CreditCard, 
-  User
+  User,
+  FileText
 } from 'lucide-react';
 
 const VendorSidebar = () => {
@@ -28,6 +29,12 @@ const VendorSidebar = () => {
       label: "Ví", 
       icon: CreditCard, 
       path: "/vendor/wallet" 
+    },
+    { 
+      id: "cashout-requests", 
+      label: "Yêu cầu rút tiền", 
+      icon: FileText, 
+      path: "/vendor/cashout-requests" 
     },
     { 
       id: "vendor-info", 
