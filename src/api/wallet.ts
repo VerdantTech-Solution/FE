@@ -195,3 +195,53 @@ export const getPendingCashoutRequest = async (userId: number): Promise<GetCasho
   }
 };
 
+export interface DeleteCashoutRequestResponse {
+  status: boolean;
+  statusCode: string;
+  data: string;
+  errors: string[];
+}
+
+/**
+ * Delete pending cashout request - Xóa yêu cầu rút tiền đang pending
+ * Chỉ vendor sở hữu yêu cầu mới có thể xóa
+ * @returns Response với status và message
+ */
+export const deletePendingCashoutRequest = async (): Promise<DeleteCashoutRequestResponse> => {
+  try {
+    const response = await apiClient.delete<DeleteCashoutRequestResponse>(
+      '/api/Wallet/cashout-request'
+    ) as unknown as DeleteCashoutRequestResponse;
+    
+    return response;
+  } catch (error: any) {
+    // apiClient interceptor rejects with error.response?.data
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as DeleteCashoutRequestResponse;
+    }
+    
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as DeleteCashoutRequestResponse;
+    }
+    
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: DeleteCashoutRequestResponse = {
+        status: false,
+        statusCode: error.statusCode || 'Error',
+        data: '',
+        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể xóa yêu cầu rút tiền']
+      };
+      return errorResponse;
+    }
+    
+    const errorResponse: DeleteCashoutRequestResponse = {
+      status: false,
+      statusCode: 'Error',
+      data: '',
+      errors: [error?.message || error?.toString() || 'Không thể xóa yêu cầu rút tiền']
+    };
+    
+    return errorResponse;
+  }
+};
+

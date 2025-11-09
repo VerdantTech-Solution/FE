@@ -15,9 +15,20 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getPendingCashoutRequest, type CashoutRequestData } from '@/api/wallet';
+import { getPendingCashoutRequest, deletePendingCashoutRequest, type CashoutRequestData } from '@/api/wallet';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -75,6 +86,8 @@ const CashoutRequestManagementPage = () => {
   const [cashoutRequest, setCashoutRequest] = useState<CashoutRequestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCashoutRequest = async () => {
     if (!user?.id) {
@@ -120,6 +133,39 @@ const CashoutRequestManagementPage = () => {
     fetchCashoutRequest();
   }, [user?.id]);
 
+  const handleDeleteRequest = async () => {
+    try {
+      setDeleting(true);
+      const response = await deletePendingCashoutRequest();
+
+      if (response && typeof response === 'object' && 'status' in response) {
+        const statusValue: any = response.status;
+        const statusIsTrue = statusValue === true || 
+                            statusValue === 'true' ||
+                            (typeof statusValue === 'string' && String(statusValue).toLowerCase() === 'true');
+        
+        if (statusIsTrue) {
+          // Delete successful
+          setShowDeleteDialog(false);
+          setCashoutRequest(null);
+          // Optionally show success message or navigate
+        } else {
+          // Delete failed
+          const errorMessage = response.errors && response.errors.length > 0 
+            ? response.errors[0] 
+            : 'Không thể xóa yêu cầu rút tiền';
+          setError(errorMessage);
+        }
+      } else {
+        setError('Không thể xóa yêu cầu rút tiền');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Không thể xóa yêu cầu rút tiền');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -146,18 +192,30 @@ const CashoutRequestManagementPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">Quản lý yêu cầu rút tiền</h1>
               <p className="text-gray-600 mt-1">Xem và theo dõi trạng thái yêu cầu rút tiền của bạn</p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={fetchCashoutRequest}
-              disabled={loading}
-            >
-              {loading ? (
-                <Spinner variant="circle-filled" size={16} className="mr-2" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
+            <div className="flex items-center gap-3">
+              {cashoutRequest && cashoutRequest.status === 'Pending' && (
+                <Button 
+                  variant="destructive" 
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={deleting || loading}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Xóa yêu cầu
+                </Button>
               )}
-              Làm mới
-            </Button>
+              <Button 
+                variant="outline" 
+                onClick={fetchCashoutRequest}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Spinner variant="circle-filled" size={16} className="mr-2" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Làm mới
+              </Button>
+            </div>
           </div>
 
           {/* Error Message */}
@@ -336,6 +394,39 @@ const CashoutRequestManagementPage = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogContent className="max-w-md">
+              <AlertDialogHeader>
+                <div className="mx-auto mb-4 w-14 h-14 bg-red-50 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-7 h-7 text-red-600" />
+                </div>
+                <AlertDialogTitle>Xác nhận xóa yêu cầu rút tiền?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Bạn có chắc chắn muốn xóa yêu cầu rút tiền này? Hành động này không thể hoàn tác. 
+                  Bạn sẽ cần tạo yêu cầu mới nếu muốn rút tiền sau này.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Hủy</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteRequest}
+                  disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleting ? (
+                    <>
+                      <Spinner variant="circle-filled" size={16} className="mr-2" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    'Xóa'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
