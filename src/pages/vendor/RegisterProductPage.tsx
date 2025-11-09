@@ -13,7 +13,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, X, Trash2, Upload, Check } from "lucide-react";
+import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, Trash2, Upload, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { registerProduct, getProductCategories } from "@/api/product";
 import type { RegisterProductRequest, ProductCategory } from "@/api/product";
@@ -24,13 +24,6 @@ import StepIndicator from "@/components/StepIndicator";
 interface SpecificationItem {
   key: string;
   value: string;
-}
-
-interface CertificateFile {
-  file: File | null;
-  imageUrl: string;
-  purpose: string;
-  sortOrder: number;
 }
 
 export const RegisterProductPage = () => {
@@ -44,7 +37,6 @@ export const RegisterProductPage = () => {
   const [specifications, setSpecifications] = useState<SpecificationItem[]>([
     { key: '', value: '' }
   ]);
-  const [certificateFiles, setCertificateFiles] = useState<CertificateFile[]>([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -53,19 +45,22 @@ export const RegisterProductPage = () => {
     proposedProductName: "",
     description: "",
     unitPrice: 0,
-    energyEfficiencyRating: "",
+    energyEfficiencyRating: 0,
     warrantyMonths: 0,
     weightKg: 0,
     dimensionsCm: {
       width: 0,
       height: 0,
       length: 0
-    }
+    },
+    certificationCode: "",
+    certificationName: ""
   });
 
   // File states
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [certificateFiles, setCertificateFiles] = useState<File[]>([]);
 
   const steps = [
     "Thông tin sản phẩm",
@@ -164,36 +159,6 @@ export const RegisterProductPage = () => {
     setSpecifications(newSpecs);
   };
 
-  const addCertificateFile = () => {
-    setCertificateFiles([...certificateFiles, {
-      file: null,
-      imageUrl: '',
-      purpose: '',
-      sortOrder: certificateFiles.length
-    }]);
-  };
-
-  const removeCertificateFile = (index: number) => {
-    setCertificateFiles(certificateFiles.filter((_, i) => i !== index));
-  };
-
-  const updateCertificateFile = (index: number, field: keyof CertificateFile, value: any) => {
-    const newFiles = [...certificateFiles];
-    newFiles[index] = { ...newFiles[index], [field]: value };
-    setCertificateFiles(newFiles);
-  };
-
-  const handleFileChange = (index: number, file: File | null) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateCertificateFile(index, 'file', file);
-        updateCertificateFile(index, 'imageUrl', reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const nextStep = () => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
@@ -260,10 +225,17 @@ export const RegisterProductPage = () => {
         }
       });
 
-      // Collect certificate files
-      const certificateFilesArray = certificateFiles
-        .filter(cert => cert.file !== null)
-        .map(cert => cert.file!);
+      // Validate and parse energyEfficiencyRating (must be 0-5 or undefined)
+      let energyRating: number | undefined = undefined;
+      if (form.energyEfficiencyRating !== undefined && form.energyEfficiencyRating !== null) {
+        const rating = typeof form.energyEfficiencyRating === 'string' 
+          ? parseFloat(form.energyEfficiencyRating) 
+          : form.energyEfficiencyRating;
+        
+        if (!isNaN(rating) && rating >= 0 && rating <= 5) {
+          energyRating = rating;
+        }
+      }
 
       const payload: RegisterProductRequest = {
         vendorId: typeof user.id === 'string' ? parseInt(user.id) : user.id,
@@ -272,7 +244,7 @@ export const RegisterProductPage = () => {
         proposedProductName: form.proposedProductName,
         description: form.description || undefined,
         unitPrice: parseFloat(form.unitPrice.toString()),
-        energyEfficiencyRating: form.energyEfficiencyRating || undefined,
+        energyEfficiencyRating: energyRating,
         specifications: Object.keys(specificationsDict).length > 0 ? specificationsDict : undefined,
         warrantyMonths: parseInt(form.warrantyMonths.toString()) || undefined,
         weightKg: parseFloat(form.weightKg.toString()) || undefined,
@@ -281,17 +253,16 @@ export const RegisterProductPage = () => {
           height: form.dimensionsCm.height || 0,
           length: form.dimensionsCm.length || 0
         },
+        certificationCode: form.certificationCode.trim() || undefined,
+        certificationName: form.certificationName.trim() || undefined,
         manualFile: manualFile || undefined,
         images: imageFiles.length > 0 ? imageFiles : undefined,
-        certificate: certificateFilesArray.length > 0 ? certificateFilesArray : undefined
+        certificate: certificateFiles.length > 0 ? certificateFiles : undefined
       };
 
       console.log('Sending payload:', payload);
       const response = await registerProduct(payload);
       console.log('Register product success:', response);
-      
-      // TODO: Upload certificate files here if API is available
-      // For now, we'll just show success
       
       setSuccessData({
         productName: form.proposedProductName,
@@ -304,23 +275,54 @@ export const RegisterProductPage = () => {
       
       let errorMessage = 'Có lỗi xảy ra khi đăng ký sản phẩm.';
       
-      if (error?.response?.status === 405) {
+      // Parse error message from backend
+      if (error?.response?.status === 500) {
+        // Extract meaningful error message from stack trace
+        const errorText = error?.response?.data || error?.message || '';
+        
+        if (typeof errorText === 'string') {
+          // Extract the main error message (first line of exception)
+          const match = errorText.match(/(?:System\.\w+Exception|Exception):\s*([^\n\r]+)/);
+          if (match && match[1]) {
+            errorMessage = match[1].trim();
+          } else if (errorText.includes('EnergyEfficiencyRating')) {
+            errorMessage = 'Xếp hạng hiệu suất phải là số từ 0 đến 5. Vui lòng kiểm tra lại.';
+          } else if (errorText.includes('CertificationCode') || errorText.includes('CertificationName')) {
+            errorMessage = 'Thông tin chứng nhận không hợp lệ. Vui lòng kiểm tra lại mã và tên chứng nhận.';
+          } else {
+            errorMessage = 'Có lỗi xảy ra từ máy chủ. Vui lòng kiểm tra lại thông tin và thử lại.';
+          }
+        }
+      } else if (error?.response?.status === 405) {
         errorMessage = 'API endpoint không hỗ trợ. Vui lòng liên hệ quản trị viên.';
       } else if (error?.response?.status === 401) {
         errorMessage = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
       } else if (error?.response?.status === 403) {
         errorMessage = 'Bạn không có quyền đăng ký sản phẩm.';
+      } else if (error?.response?.status === 400) {
+        // Bad request - validation errors
+        if (error?.response?.data?.errors) {
+          const errors = error.response.data.errors;
+          if (typeof errors === 'object') {
+            const errorMessages = Object.values(errors).flat();
+            errorMessage = Array.isArray(errorMessages) 
+              ? errorMessages.join('\n')
+              : 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+          } else if (Array.isArray(errors)) {
+            errorMessage = errors.join('\n');
+          }
+        } else if (error?.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else {
+          errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường thông tin.';
+        }
       } else if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.errors) {
-        errorMessage = Array.isArray(error.response.data.errors) 
-          ? error.response.data.errors.join(', ')
-          : 'Có lỗi xảy ra.';
-      } else if (error?.message) {
+      } else if (error?.message && !error.message.includes('System.')) {
         errorMessage = error.message;
       }
       
-      alert(errorMessage + '\n\nVui lòng thử lại hoặc kiểm tra console để biết thêm chi tiết.');
+      alert('❌ ' + errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -467,12 +469,25 @@ export const RegisterProductPage = () => {
                   <Label htmlFor="energyEfficiencyRating" className="text-sm font-medium">
                     Xếp hạng hiệu suất
                   </Label>
-                  <Input
-                    id="energyEfficiencyRating"
-                    value={form.energyEfficiencyRating}
-                    onChange={(e) => handleChange('energyEfficiencyRating', e.target.value)}
-                    placeholder="A+, 5 sao, ..."
-                  />
+                  <Select
+                    value={form.energyEfficiencyRating.toString()}
+                    onValueChange={(value) => handleChange('energyEfficiencyRating', parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn mức xếp hạng" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0 - Không xếp hạng</SelectItem>
+                      <SelectItem value="1">1 ⭐ - Thấp</SelectItem>
+                      <SelectItem value="2">2 ⭐⭐ - Trung bình thấp</SelectItem>
+                      <SelectItem value="3">3 ⭐⭐⭐ - Trung bình</SelectItem>
+                      <SelectItem value="4">4 ⭐⭐⭐⭐ - Khá</SelectItem>
+                      <SelectItem value="5">5 ⭐⭐⭐⭐⭐ - Xuất sắc</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Đánh giá hiệu suất năng lượng của sản phẩm (tùy chọn)
+                  </p>
                 </div>
               </div>
 
@@ -657,89 +672,74 @@ export const RegisterProductPage = () => {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Chứng nhận & Xác nhận</h3>
               <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                Tải lên các chứng nhận sản phẩm (không bắt buộc) và xác nhận thông tin
+                Nhập thông tin chứng nhận và tải lên tài liệu chứng nhận (không bắt buộc)
               </p>
             </div>
 
-            {/* Certificate Files */}
+            {/* Certificate Information */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-                    <Upload className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-gray-800">Chứng nhận sản phẩm</h4>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
+                  <Upload className="w-4 h-4 text-emerald-600" />
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addCertificateFile}
-                  className="h-8"
-                >
-                  <Plus size={16} className="mr-1" />
-                  Thêm chứng nhận
-                </Button>
+                <h4 className="text-lg font-semibold text-gray-800">Thông tin chứng nhận sản phẩm</h4>
               </div>
 
-              {certificateFiles.length === 0 ? (
-                <div className="p-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-2">Chưa có chứng nhận nào</p>
-                  <p className="text-sm text-gray-500">Bấm "Thêm chứng nhận" để tải lên tài liệu</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Certificate Code */}
+                <div className="space-y-2">
+                  <Label htmlFor="certificationCode" className="text-sm font-medium">
+                    Mã chứng nhận <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="certificationCode"
+                    value={form.certificationCode}
+                    onChange={(e) => handleChange('certificationCode', e.target.value)}
+                    placeholder="VD: CERT-2024-001"
+                    required
+                  />
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {certificateFiles.map((cert, index) => (
-                    <Card key={index} className="border-2">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-1 space-y-3">
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">
-                                Mục đích chứng nhận
-                              </Label>
-                              <Input
-                                value={cert.purpose}
-                                onChange={(e) => updateCertificateFile(index, 'purpose', e.target.value)}
-                                placeholder="VD: Giấy chứng nhận chất lượng, ISO, ..."
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">
-                                Tệp tin
-                              </Label>
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  type="file"
-                                  accept="image/*,.pdf"
-                                  onChange={(e) => handleFileChange(index, e.target.files?.[0] || null)}
-                                  className="flex-1"
-                                />
-                                {cert.imageUrl && (
-                                  <div className="flex items-center gap-1 text-green-600 text-sm">
-                                    <CheckCircle2 size={16} />
-                                    <span>Đã chọn</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeCertificateFile(index)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <X size={20} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+
+                {/* Certificate Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="certificationName" className="text-sm font-medium">
+                    Tên chứng nhận <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="certificationName"
+                    value={form.certificationName}
+                    onChange={(e) => handleChange('certificationName', e.target.value)}
+                    placeholder="VD: Chứng nhận ISO 9001"
+                    required
+                  />
                 </div>
-              )}
+              </div>
+
+              {/* Certificate Files */}
+              <div className="space-y-2">
+                <Label htmlFor="certificateFiles" className="text-sm font-medium">
+                  Tệp tin chứng nhận
+                </Label>
+                <Input
+                  id="certificateFiles"
+                  type="file"
+                  accept="image/*,.pdf"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setCertificateFiles(files);
+                  }}
+                />
+                {certificateFiles.length > 0 && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle2 size={14} />
+                    {certificateFiles.length} tệp chứng nhận đã chọn
+                  </p>
+                )}
+                <p className="text-sm text-gray-500">
+                  Có thể tải lên nhiều file chứng nhận (hình ảnh hoặc PDF)
+                </p>
+              </div>
             </div>
 
             {/* Summary */}
@@ -774,6 +774,14 @@ export const RegisterProductPage = () => {
                   <p className="font-semibold text-gray-900">{form.weightKg} kg</p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-600">Mã chứng nhận</p>
+                  <p className="font-semibold text-gray-900">{form.certificationCode || "Chưa nhập"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Tên chứng nhận</p>
+                  <p className="font-semibold text-gray-900">{form.certificationName || "Chưa nhập"}</p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-600">File hướng dẫn</p>
                   <p className="font-semibold text-gray-900">{manualFile ? manualFile.name : "Chưa có"}</p>
                 </div>
@@ -782,8 +790,8 @@ export const RegisterProductPage = () => {
                   <p className="font-semibold text-gray-900">{imageFiles.length} tệp</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Chứng nhận</p>
-                  <p className="font-semibold text-gray-900">{certificateFiles.filter(c => c.file).length} tệp</p>
+                  <p className="text-sm text-gray-600">File chứng nhận</p>
+                  <p className="font-semibold text-gray-900">{certificateFiles.length} tệp</p>
                 </div>
               </div>
             </div>
