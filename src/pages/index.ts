@@ -23,7 +23,6 @@ export * from './ResetPasswordPage';
 export * from './ChangePasswordPage';
 export * from './CartPage';
 export { default as PreviewOrderPage } from './PreviewOrderPage';
-export { default as ConfirmOrderPage } from './ConfirmOrderPage';
 export { default as OrderHistoryPage } from './OrderHistoryPage';
 export { default as PayOSCancelPage } from './PayOSCancelPage';
 export { default as PayOSReturnPage } from './PayOSReturnPage';

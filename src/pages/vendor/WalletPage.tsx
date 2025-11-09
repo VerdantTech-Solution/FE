@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import VendorSidebar from './VendorSidebar';
 import CreateBankDialog from '@/components/bank/CreateBankDialog';
 import BankAccountsList from '@/components/bank/BankAccountsList';
+import WithdrawRequestDialog from '@/components/wallet/WithdrawRequestDialog';
 import { 
   Bell,
   ArrowUpRight,
@@ -181,8 +181,19 @@ const RecentTransactions = () => {
   );
 };
 
-const WithdrawForm = () => {
-  const [amount, setAmount] = useState('');
+const WithdrawForm = ({ 
+  onWithdrawClick, 
+  balance, 
+  hasBankAccounts 
+}: { 
+  onWithdrawClick: () => void; 
+  balance: number;
+  hasBankAccounts: boolean;
+}) => {
+  // Format số tiền với dấu phẩy ngăn cách
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN').format(amount);
+  };
 
   return (
     <Card>
@@ -191,34 +202,24 @@ const WithdrawForm = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Số tiền muốn rút
-            </label>
-            <Input
-              type="number"
-              placeholder="Nhập số tiền"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Số dư khả dụng</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(balance)} ₫</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Số tài khoản ngân hàng
-            </label>
-            <Input
-              placeholder="Nhập số tài khoản"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tên ngân hàng
-            </label>
-            <Input
-              placeholder="Nhập tên ngân hàng"
-            />
-          </div>
-          <Button className="w-full bg-green-600 hover:bg-green-700">
+          
+          {!hasBankAccounts && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-800">
+                Vui lòng thêm tài khoản ngân hàng trước khi rút tiền
+              </p>
+            </div>
+          )}
+          
+          <Button 
+            className="w-full bg-green-600 hover:bg-green-700"
+            onClick={onWithdrawClick}
+            disabled={!hasBankAccounts || balance <= 0}
+          >
             Yêu cầu rút tiền
           </Button>
         </div>
@@ -231,6 +232,7 @@ const WalletPage = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [banks, setBanks] = useState<SupportedBank[]>([]);
   const [vendorBankAccounts, setVendorBankAccounts] = useState<VendorBankAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -286,6 +288,10 @@ const WalletPage = () => {
     refreshWallet(); // Refresh wallet sau khi thêm/xóa bank account
   };
 
+  const handleWithdrawSuccess = () => {
+    refreshWallet(); // Refresh wallet sau khi tạo yêu cầu rút tiền
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -335,7 +341,11 @@ const WalletPage = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <RecentTransactions />
-            <WithdrawForm />
+            <WithdrawForm 
+              onWithdrawClick={() => setIsWithdrawDialogOpen(true)}
+              balance={balance}
+              hasBankAccounts={vendorBankAccounts.length > 0}
+            />
           </div>
         </main>
       </div>
@@ -346,6 +356,15 @@ const WalletPage = () => {
         onOpenChange={setIsBankDialogOpen}
         userId={Number(user?.id) || 0}
         onSuccess={handleBankAccountSuccess}
+      />
+
+      {/* Withdraw Request Dialog */}
+      <WithdrawRequestDialog
+        open={isWithdrawDialogOpen}
+        onOpenChange={setIsWithdrawDialogOpen}
+        bankAccounts={vendorBankAccounts}
+        balance={balance}
+        onSuccess={handleWithdrawSuccess}
       />
     </div>
   );

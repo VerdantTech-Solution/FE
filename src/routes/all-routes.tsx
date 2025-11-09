@@ -1,5 +1,5 @@
 import { PATH_NAMES } from "@/constants";
-import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, ConfirmOrderPage, PayOSCancelPage, PayOSReturnPage } from "@/pages";
+import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, PayOSCancelPage, PayOSReturnPage } from "@/pages";
 import OrderHistoryPage from "@/pages/OrderHistoryPage";
 import UpdateFarmPage from "@/pages/UpdateFarmPage";
 
@@ -14,7 +14,6 @@ export const allRoutes = [
   { path: PATH_NAMES.PROFILE, component: <ProfilePage /> },
   { path: PATH_NAMES.CART, component: <CartPage /> },
   { path: PATH_NAMES.ORDER_PREVIEW, component: <PreviewOrderPage /> },
-  { path: PATH_NAMES.ORDER_CONFIRM, component: <ConfirmOrderPage /> },
   { path: PATH_NAMES.ORDER_HISTORY, component: <OrderHistoryPage /> },
   { path: PATH_NAMES.PAYOS_CANCEL, component: <PayOSCancelPage /> },
   { path: PATH_NAMES.PAYOS_RETURN, component: <PayOSReturnPage /> },
