@@ -24,7 +24,8 @@ import {
   Settings,
   BarChart,
   Target,
-  Activity
+  Activity,
+  Package
 } from "lucide-react";
 
 // Import admin pages
@@ -34,12 +35,14 @@ import {
   EquipmentPage, 
   MonitoringPageAdmin, 
   SettingsPage, 
-  UserManamentPage
+  UserManamentPage,
+  OrderManagementPage
 } from "./admin";
 
 export const AdminPage = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedView, setSelectedView] = useState('overview');
+  const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -101,7 +104,7 @@ export const AdminPage = () => {
         initial="hidden"
         animate="visible"
       >
-        <Sidebar className="fixed left-0 top-0 z-30">
+        <Sidebar className="fixed left-0 top-0 z-30" collapsed={collapsed}>
           <SidebarHeader>
             <SidebarHeaderTitle>
               <motion.div 
@@ -130,6 +133,7 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  collapsed={collapsed}
                   active={selectedView === 'overview'}
                   onClick={() => setSelectedView('overview')}
                   icon={<Home className="w-5 h-5" />}
@@ -142,6 +146,7 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  collapsed={collapsed}
                   active={selectedView === 'usermanament'}
                   onClick={() => setSelectedView('usermanament')}
                   icon={<Users className="w-5 h-5" />}
@@ -155,6 +160,21 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'orders'}
+                  onClick={() => setSelectedView('orders')}
+                  icon={<Package className="w-5 h-5" />}
+                >
+                  Quản Lý Đơn Hàng
+                </SidebarNavItem>
+              </motion.div>
+              
+              <motion.div
+                whileHover={{ x: 5 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SidebarNavItem
+                  collapsed={collapsed}
                   active={selectedView === 'analytics'}
                   onClick={() => setSelectedView('analytics')}
                   icon={<BarChart className="w-5 h-5" />}
@@ -171,6 +191,7 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  collapsed={collapsed}
                   active={selectedView === 'equipment'}
                   onClick={() => setSelectedView('equipment')}
                   icon={<Target className="w-5 h-5" />}
@@ -184,6 +205,7 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  collapsed={collapsed}
                   active={selectedView === 'monitoring'}
                   onClick={() => setSelectedView('monitoring')}
                   icon={<Activity className="w-5 h-5" />}
@@ -200,6 +222,7 @@ export const AdminPage = () => {
                 transition={{ duration: 0.2 }}
               >
                 <SidebarNavItem
+                  collapsed={collapsed}
                   active={selectedView === 'settings'}
                   onClick={() => setSelectedView('settings')}
                   icon={<Settings className="w-5 h-5" />}
@@ -215,6 +238,9 @@ export const AdminPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
+              <Button className="w-full" onClick={() => setCollapsed((v) => !v)}>
+                {collapsed ? "Mở" : "Thu gọn"}
+              </Button>
             </motion.div>
           </SidebarFooter>
         </Sidebar>
@@ -222,7 +248,7 @@ export const AdminPage = () => {
 
       {/* Main Content */}
       <motion.div 
-        className="ml-64"
+        className={collapsed ? "ml-16" : "ml-64"}
         variants={contentVariants}
         initial="hidden"
         animate="visible"
@@ -245,6 +271,7 @@ export const AdminPage = () => {
               >
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}
                 {selectedView === 'usermanament' && 'Quản lý người dùng'}
+                {selectedView === 'orders' && 'Quản lý đơn hàng'}
                 {selectedView === 'analytics' && 'Phân tích dữ liệu'}
                 {selectedView === 'equipment' && 'Quản lý thiết bị'}
                 {selectedView === 'monitoring' && 'Giám sát hệ thống'}
@@ -328,6 +355,17 @@ export const AdminPage = () => {
                 exit="exit"
               >
                 <UserManamentPage />
+              </motion.div>
+            )}
+            {selectedView === 'orders' && (
+              <motion.div
+                key="orders"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <OrderManagementPage />
               </motion.div>
             )}
             {selectedView === 'overview' && (

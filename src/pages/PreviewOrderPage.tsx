@@ -9,6 +9,7 @@ import { getUserProfile, type UserAddress } from '@/api/user';
 import { getFarmProfilesByUserId, type FarmProfile } from '@/api/farm';
 import { getCart, type CartItem } from '@/api/cart';
 import { createOrderPreview, type CreateOrderPreviewRequest } from '@/api/order';
+import { redirectToPayOS } from '@/api/payos';
 import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -31,6 +32,12 @@ export default function PreviewOrderPage() {
   const [orderPaymentMethod, setOrderPaymentMethod] = useState<'Banking' | 'COD' | 'Wallet'>('Banking');
   const [notes, setNotes] = useState('');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  
+  // Shipping options state
+  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [orderPreviewId, setOrderPreviewId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -46,19 +53,34 @@ export default function PreviewOrderPage() {
         setUserName(profile?.fullName || user?.fullName || '');
         setUserEmail(profile?.email || user?.email || '');
         setUserPhone(profile?.phoneNumber || (user as any)?.phoneNumber || '');
-        if (Array.isArray(profile?.addresses)) {
-          const activeAddresses = (profile.addresses as UserAddress[]).filter((addr) => !addr.isDeleted);
-          setUserAddresses(activeAddresses);
+        
+      
+        
+        // Lấy địa chỉ từ profile
+        let addresses: UserAddress[] = [];
+        
+        if (Array.isArray(profile?.userAddresses)) {
+          addresses = (profile.userAddresses as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (Array.isArray(profile?.addresses)) {
+          addresses = (profile.addresses as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (Array.isArray(profile?.address)) {
+          addresses = (profile.address as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (profile?.data && Array.isArray(profile.data.userAddresses)) {
+          addresses = (profile.data.userAddresses as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (profile?.data && Array.isArray(profile.data.addresses)) {
+          addresses = (profile.data.addresses as UserAddress[]).filter((addr) => !addr.isDeleted);
+        } else if (profile?.data && Array.isArray(profile.data.address)) {
+          addresses = (profile.data.address as UserAddress[]).filter((addr) => !addr.isDeleted);
         }
+        
+        setUserAddresses(addresses);
         // Fetch farms by current user id to avoid 405 on GET /api/FarmProfile
         const uid = Number(profile?.id);
-        let farmsFetched: FarmProfile[] = [];
         if (!Number.isNaN(uid)) {
           try {
             const farmsRes = await getFarmProfilesByUserId(uid);
             if (Array.isArray(farmsRes)) {
               const activeFarms = farmsRes.filter((f) => f.status !== 'Deleted' && !!f.address?.id);
-              farmsFetched = activeFarms;
               setFarmProfiles(activeFarms);
             }
           } catch (fe) {
@@ -73,16 +95,11 @@ export default function PreviewOrderPage() {
         setCartItems(items);
 
         // default select first user address if exists
-        const firstAddress = Array.isArray(profile?.addresses)
-          ? (profile.addresses as UserAddress[]).find((a) => !a.isDeleted)
-          : undefined;
+        const firstAddress = addresses.length > 0 ? addresses[0] : undefined;
+        
         if (firstAddress?.id) {
           setAddressType('home');
           setSelectedAddressId(firstAddress.id);
-        } else if (Array.isArray(farmsFetched) && farmsFetched.length > 0 && farmsFetched[0].address?.id) {
-          // fallback if only farm addresses exist
-          setAddressType('farm');
-          setSelectedAddressId(farmsFetched[0].address!.id);
         }
       } catch (e: any) {
         setError(e?.message || 'Không thể tải dữ liệu');
@@ -94,9 +111,20 @@ export default function PreviewOrderPage() {
   }, []);
 
   const subtotal = useMemo(() => cartItems.reduce((s, it) => s + it.unitPrice * it.quantity, 0), [cartItems]);
-  const shipping = subtotal > 500000 ? 0 : 30000;
-  const vat = Math.round(subtotal * 0.08);
-  const total = Math.max(0, subtotal) + shipping + vat;
+  
+  // Get selected shipping price from shipping options
+  const selectedShippingPrice = useMemo(() => {
+    if (!selectedShippingId || shippingOptions.length === 0) {
+      return 0;
+    }
+    const selectedOption = shippingOptions.find(option => {
+      const optionId = option.id || option.priceTableId || option.shippingDetailId;
+      return String(optionId) === selectedShippingId;
+    });
+    return selectedOption?.totalAmount || 0;
+  }, [selectedShippingId, shippingOptions]);
+  
+  const total = Math.max(0, subtotal) + selectedShippingPrice;
 
   const formatAddress = (addr?: { locationAddress?: string; commune?: string; district?: string; province?: string; latitude?: number; longitude?: number }) => {
     if (!addr) return '';
@@ -109,43 +137,170 @@ export default function PreviewOrderPage() {
     return '';
   };
 
+  const handleCreateOrderFromPreview = async (shippingDetailId: string) => {
+    if (!orderPreviewId) {
+      setError('Không tìm thấy mã bản xem trước đơn hàng');
+      return;
+    }
+    
+    try {
+      setShippingLoading(true);
+      setError(null);
+      
+      console.log('Creating order with:', {
+        orderPreviewId,
+        priceTableId: shippingDetailId
+      });
+      
+      const { createOrderFromPreview } = await import('@/api/order');
+      
+      // Convert shippingDetailId to number - handle both string and number
+      const priceTableIdValue = typeof shippingDetailId === 'string' 
+        ? Number(shippingDetailId) || parseInt(shippingDetailId, 10) 
+        : shippingDetailId;
+      
+      console.log('Converting shipping ID to priceTableId:', {
+        shippingDetailId,
+        priceTableIdValue
+      });
+      
+      const response = await createOrderFromPreview(orderPreviewId, {
+        priceTableId: priceTableIdValue
+      });
+      
+      console.log('Order creation response:', response);
+      
+      if (response.status) {
+        console.log('Order created successfully, navigating to success page');
+        
+        // For Banking payment method, redirect to PayOS
+        console.log('✅ Order created successfully!');
+        console.log('📦 Order ID:', response.data.id);
+        console.log('💳 Payment method:', response.data.orderPaymentMethod);
+        
+        if (response.data.orderPaymentMethod === 'Banking') {
+          console.log('🔄 Banking payment - Redirecting to PayOS');
+          // Don't clear cart yet, only after successful payment
+          console.log('⏳ Keeping cart until payment is confirmed');
+          
+          // Call PayOS API to get payment link and redirect
+          await redirectToPayOS(response.data.id, 'Thanh toán đơn hàng');
+          return; // Exit function, navigation happens in redirectToPayOS
+        } else {
+          console.log('ℹ️ Payment method is', response.data.orderPaymentMethod, '- Order created, clearing cart');
+          // For COD/Wallet: Order already created, clear cart and navigate
+          try {
+            const { clearCart } = await import('@/api/cart');
+            await clearCart();
+            console.log('✅ Cart cleared after order creation');
+            window.dispatchEvent(new CustomEvent('cart:updated'));
+          } catch (clearError) {
+            console.error('⚠️ Error clearing cart:', clearError);
+          }
+          // Navigate to order history
+          navigate('/order/history');
+        }
+      } else {
+        const errorMessage = response.errors?.[0] || 'Tạo đơn hàng thất bại';
+        console.error('Order creation failed:', errorMessage);
+        setError(errorMessage);
+      }
+    } catch (e: any) {
+      console.error('Error creating order:', e);
+      setError(e?.message || 'Không thể tạo đơn hàng');
+    } finally {
+      setShippingLoading(false);
+    }
+  };
+
   const handleSubmitPreview = async () => {
     if (!selectedAddressId) {
       setError('Vui lòng chọn địa chỉ giao hàng');
       return;
     }
+    
+    if (cartItems.length === 0) {
+      setError('Giỏ hàng trống, vui lòng thêm sản phẩm');
+      return;
+    }
+    
     const payload: CreateOrderPreviewRequest = {
-      taxAmount: vat,
+      taxAmount: 0,
       discountAmount: 0,
       addressId: selectedAddressId,
       orderPaymentMethod,
-      notes,
-      orderDetails: cartItems.map((it) => ({ productId: it.productId, quantity: it.quantity, discountAmount: 0 })),
+      notes: notes.trim() || undefined,
+      orderDetails: cartItems.map((it) => ({ 
+        productId: it.productId, 
+        quantity: it.quantity, 
+        discountAmount: 0 
+      })),
     };
+    
+    // Validate payload
+    if (!payload.addressId || payload.addressId <= 0) {
+      setError('Địa chỉ không hợp lệ');
+      return;
+    }
+    
+    // Kiểm tra địa chỉ có tồn tại trong userAddresses không
+    const addressExists = userAddresses.some(addr => addr.id === payload.addressId);
+    if (!addressExists) {
+      setError(`Địa chỉ với ID ${payload.addressId} không tồn tại trong danh sách địa chỉ của bạn`);
+      return;
+    }
+    
+    if (!payload.orderDetails || payload.orderDetails.length === 0) {
+      setError('Không có sản phẩm nào trong đơn hàng');
+      return;
+    }
+    
     try {
       setSubmitting(true);
       setError(null);
+      
+      console.log('Submitting order preview with payload:', payload);
       const res = await createOrderPreview(payload);
+      console.log('Order preview response:', res);
+      
       if (!res.status) {
-        setError(res.errors?.[0] || 'Tạo bản xem trước thất bại');
+        const errorMessage = res.errors?.[0] || 'Tạo bản xem trước thất bại';
+        setError(errorMessage);
         return;
       }
-      // Navigate to confirm page with previewId returned from API
-      const extractPreviewId = (r: any): string => {
-        const d = (r && typeof r === 'object' && 'data' in r) ? (r as any).data : r;
-        if (typeof d === 'string') return d;
-        if (d && typeof d === 'object') {
-          if (typeof d.orderPreviewId === 'string') return d.orderPreviewId;
-          if (typeof d.previewId === 'string') return d.previewId;
-          if (typeof d.id === 'string') return d.id;
+      
+      // Extract preview ID and shipping options
+      let previewId: any = res.data;
+      let shippingDetails: any[] = [];
+      
+      if (res.data && typeof res.data === 'object') {
+        previewId = (res.data as any).orderPreviewId || (res.data as any).previewId || (res.data as any).id;
+        shippingDetails = (res.data as any).shippingDetails || [];
+      }
+      
+      console.log('Full response data:', JSON.stringify(res.data, null, 2));
+      console.log('Shipping details extracted:', shippingDetails);
+      
+      if (previewId && typeof previewId === 'string' && previewId.trim() !== '') {
+        console.log('Setting order preview ID:', previewId);
+        setOrderPreviewId(previewId);
+        
+        if (shippingDetails && shippingDetails.length > 0) {
+          console.log('Setting shipping options:', shippingDetails);
+          setShippingOptions(shippingDetails);
+          // Try multiple possible ID fields
+          const firstShippingId = shippingDetails[0]?.id || shippingDetails[0]?.priceTableId || shippingDetails[0]?.shippingDetailId;
+          console.log('First shipping option ID:', firstShippingId);
+          if (firstShippingId) {
+            setSelectedShippingId(String(firstShippingId));
+          }
+        } else {
+          console.log('No shipping options, navigating to confirm page');
+          navigate(`/order/confirm?previewId=${encodeURIComponent(previewId)}`);
         }
-        return '';
-      };
-      const previewId = extractPreviewId(res);
-      if (previewId) {
-        navigate(`/order/confirm?previewId=${encodeURIComponent(previewId)}`);
       } else {
-        setError('Không lấy được mã bản xem trước đơn hàng. Vui lòng thử lại.');
+        console.error('Invalid preview ID:', previewId);
+        setError(`Không lấy được mã bản xem trước đơn hàng. Preview ID: ${previewId}`);
       }
     } catch (e: any) {
       setError(e?.message || 'Không thể tạo bản xem trước');
@@ -177,6 +332,14 @@ export default function PreviewOrderPage() {
           <div className="mb-4 text-red-600 text-sm">{error}</div>
         )}
 
+        {/* Debug info - remove in production */}
+        <div className="mb-4 text-xs bg-gray-100 p-2 rounded hidden">
+          <div>Shipping Options Count: {shippingOptions.length}</div>
+          <div>Selected Shipping ID: {selectedShippingId || 'None'}</div>
+          <div>Order Preview ID: {orderPreviewId || 'None'}</div>
+          <div>Address Selected: {selectedAddressId || 'None'}</div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <Card>
@@ -203,6 +366,8 @@ export default function PreviewOrderPage() {
 
                 <div className="space-y-3">
                   <div className="text-sm text-gray-500">Chọn địa chỉ giao hàng</div>
+             
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <div className="text-xs text-gray-500 mb-1">Loại địa chỉ</div>
@@ -215,7 +380,9 @@ export default function PreviewOrderPage() {
                           setSelectedAddressId(first?.id ?? null);
                         } else {
                           const firstFarm = farmProfiles.find(f => f.address?.id);
-                          setSelectedAddressId(firstFarm?.address?.id ?? null);
+                          if (firstFarm?.address?.id) {
+                            setSelectedAddressId(firstFarm.address.id);
+                          }
                         }
                       }}>
                         <SelectTrigger className="w-full">
@@ -235,11 +402,21 @@ export default function PreviewOrderPage() {
                           <SelectValue placeholder={addressType === 'home' ? 'Chọn địa chỉ nhà' : 'Chọn địa chỉ trang trại'} />
                         </SelectTrigger>
                         <SelectContent>
-                          {addressType === 'home' && userAddresses.map((addr) => (
-                            <SelectItem key={addr.id} value={String(addr.id)}>
-                              {formatAddress(addr) || 'Địa chỉ không tên'}
-                            </SelectItem>
-                          ))}
+                          {addressType === 'home' && (
+                            <>
+                              {userAddresses.length === 0 ? (
+                                <SelectItem value="no-address" disabled>
+                                  Không có địa chỉ nhà nào
+                                </SelectItem>
+                              ) : (
+                                userAddresses.map((addr) => (
+                                  <SelectItem key={addr.id} value={String(addr.id)}>
+                                    {formatAddress(addr) || 'Địa chỉ không tên'}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </>
+                          )}
                           {addressType === 'farm' && farmProfiles.filter(f => f.status !== 'Deleted' && f.address?.id).map((farm) => (
                             <SelectItem key={`farm-${farm.id}`} value={String(farm.address!.id)}>
                               {farm.farmName} — {formatAddress(farm.address!)}
@@ -249,6 +426,33 @@ export default function PreviewOrderPage() {
                       </Select>
                     </div>
                   </div>
+                  
+                  {/* Button to create address when none exists */}
+                  {addressType === 'home' && userAddresses.length === 0 && (
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={() => navigate('/profile')}
+                      >
+                        + Thêm địa chỉ nhà
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {addressType === 'farm' && farmProfiles.filter(f => f.status !== 'Deleted' && f.address?.id).length === 0 && (
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={() => navigate('/create-farm')}
+                      >
+                        + Tạo địa chỉ trang trại
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
@@ -287,16 +491,22 @@ export default function PreviewOrderPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='Banking'} onChange={() => setOrderPaymentMethod('Banking')} />
+                    <input type="radio" name="pm" checked={orderPaymentMethod==='Banking'} onChange={() => {
+                      setOrderPaymentMethod('Banking');
+                      setOrderPreviewId(null);
+                      setShippingOptions([]);
+                      setSelectedShippingId(null);
+                    }} />
                     <span>Chuyển khoản (Banking)</span>
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='COD'} onChange={() => setOrderPaymentMethod('COD')} />
+                    <input type="radio" name="pm" checked={orderPaymentMethod==='COD'} onChange={() => {
+                      setOrderPaymentMethod('COD');
+                      setOrderPreviewId(null);
+                      setShippingOptions([]);
+                      setSelectedShippingId(null);
+                    }} />
                     <span>Thanh toán khi nhận hàng (COD)</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="pm" checked={orderPaymentMethod==='Wallet'} onChange={() => setOrderPaymentMethod('Wallet')} />
-                    <span>Ví nội bộ</span>
                   </label>
                 </div>
 
@@ -307,14 +517,16 @@ export default function PreviewOrderPage() {
                     <span className="text-gray-600">Tạm tính</span>
                     <span className="font-semibold">{currency(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phí vận chuyển</span>
-                    <span className="font-semibold">{shipping === 0 ? 'Miễn phí' : currency(shipping)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">VAT (8%)</span>
-                    <span className="font-semibold">{currency(vat)}</span>
-                  </div>
+             
+                  
+                  {/* Show shipping only when shipping options are available and selected */}
+                  {selectedShippingPrice > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Phí vận chuyển</span>
+                      <span className="font-semibold">{currency(selectedShippingPrice)}</span>
+                    </div>
+                  )}
+                 
                   <Separator />
                   <div className="flex justify-between text-base">
                     <span className="font-bold">Tổng cộng</span>
@@ -322,9 +534,112 @@ export default function PreviewOrderPage() {
                   </div>
                 </div>
 
-                <Button className="w-full bg-green-600 hover:bg-green-700" disabled={submitting || !selectedAddressId} onClick={handleSubmitPreview}>
+                <Button 
+                  className="w-full bg-green-600 hover:bg-green-700" 
+                  disabled={submitting || !selectedAddressId || cartItems.length === 0} 
+                  onClick={handleSubmitPreview}
+                >
                   {submitting ? <Spinner variant="circle-filled" size={16} /> : 'Tạo bản xem trước'}
                 </Button>
+                
+                {/* Shipping Options */}
+                {shippingOptions.length > 0 && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-semibold text-blue-800 mb-3">Chọn phương thức giao hàng</h3>
+                    
+                    {/* Show updated total when shipping is selected */}
+                    {selectedShippingPrice > 0 && (
+                      <div className="mb-4 p-3 bg-white rounded-lg border border-green-300">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Tổng tiền thanh toán:</span>
+                          <span className="text-xl font-bold text-green-700">{currency(total)}</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-3">
+                      {shippingOptions.map((option, index) => {
+                        // Get the ID field - try multiple possible field names
+                        const optionId = option.id || option.priceTableId || option.shippingDetailId || index;
+                        const optionIdString = String(optionId);
+                        
+                        return (
+                        <div 
+                          key={optionIdString || `shipping-option-${index}`}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedShippingId === optionIdString
+                              ? 'border-green-500 bg-green-50' 
+                              : 'border-gray-200 hover:border-blue-300'
+                          }`}
+                          onClick={() => setSelectedShippingId(optionIdString)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <input 
+                                type="radio" 
+                                checked={selectedShippingId === optionIdString}
+                                onChange={() => setSelectedShippingId(optionIdString)}
+                                className="text-green-600"
+                              />
+                              <div className="flex items-center space-x-2">
+                                {option.carrierLogo && (
+                                  <img 
+                                    src={option.carrierLogo} 
+                                    alt={option.carrierName}
+                                    className="w-8 h-8 object-contain"
+                                  />
+                                )}
+                                <div>
+                                  <div className="font-medium text-gray-900">{option.carrierName}</div>
+                                  <div className="text-sm text-gray-600">{option.service}</div>
+                                  <div className="text-xs text-gray-500">{option.expected}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-green-600">
+                                {currency(option.totalAmount)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="mt-4 flex space-x-2">
+                      <Button 
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        disabled={!selectedShippingId || shippingLoading}
+                        onClick={() => {
+                          if (selectedShippingId) {
+                            // Tạo order từ preview với shipping option đã chọn
+                            handleCreateOrderFromPreview(selectedShippingId);
+                          }
+                        }}
+                      >
+                        {shippingLoading ? (
+                          <>
+                            <Spinner variant="circle-filled" size={16} className="mr-2" />
+                            Đang tạo đơn hàng...
+                          </>
+                        ) : (
+                          'Xác nhận đơn hàng'
+                        )}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setShippingOptions([]);
+                          setSelectedShippingId(null);
+                        }}
+                      >
+                        Hủy
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
                 <Button variant="outline" className="w-full" onClick={() => navigate('/cart')}>Quay lại giỏ hàng</Button>
               </CardContent>
             </Card>

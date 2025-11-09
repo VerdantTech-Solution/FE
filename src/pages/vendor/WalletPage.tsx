@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import VendorSidebar from './VendorSidebar';
+import CreateBankDialog from '@/components/bank/CreateBankDialog';
+import BankAccountsList from '@/components/bank/BankAccountsList';
 import { 
   Bell,
   ArrowUpRight,
@@ -12,17 +14,41 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
+import { 
+  getSupportedBanks, 
+  getVendorBankAccounts,
+  type SupportedBank,
+  type VendorBankAccount
+} from '@/api/vendorbankaccounts';
+import { useWallet } from '@/hooks/useWallet';
 
 
-const WalletBalance = () => {
+interface WalletBalanceProps {
+  balance: number;
+  loading: boolean;
+}
+
+const WalletBalance = ({ balance, loading }: WalletBalanceProps) => {
+  // Format số tiền với dấu phẩy ngăn cách
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN').format(amount);
+  };
+
   return (
     <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-green-100 text-sm">Số dư ví</p>
-            <p className="text-3xl font-bold mt-2">₫125,000,000</p>
-            <p className="text-green-100 text-sm mt-1">+12.5% so với tháng trước</p>
+            {loading ? (
+              <div className="flex items-center mt-2">
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                <p className="text-3xl font-bold">Đang tải...</p>
+              </div>
+            ) : (
+              <p className="text-3xl font-bold mt-2">₫{formatCurrency(balance)}</p>
+            )}
+            <p className="text-green-100 text-sm mt-1">Số dư khả dụng</p>
           </div>
           <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
             <Wallet size={32} />
@@ -202,13 +228,64 @@ const WithdrawForm = () => {
 };
 
 const WalletPage = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
+  const [banks, setBanks] = useState<SupportedBank[]>([]);
+  const [vendorBankAccounts, setVendorBankAccounts] = useState<VendorBankAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  
+  // Use wallet hook để quản lý wallet
+  const userId = user?.id ? Number(user.id) : undefined;
+  const { balance, loading: walletLoading, refreshWallet } = useWallet(userId);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
+
+  // Load vendor bank accounts
+  const loadVendorBankAccounts = async () => {
+    const userId = Number(user?.id);
+    if (!userId) return;
+
+    try {
+      setLoadingAccounts(true);
+      const accounts = await getVendorBankAccounts(userId);
+      setVendorBankAccounts(accounts || []);
+    } catch (err) {
+      console.error('Load vendor bank accounts error:', err);
+      setVendorBankAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      loadVendorBankAccounts();
+      loadBanks();
+    }
+  }, [user?.id]);
+
+  const loadBanks = async () => {
+    try {
+      const banksData = await getSupportedBanks();
+      setBanks(banksData);
+    } catch (err) {
+      console.error('Load banks error:', err);
+    }
+  };
+
+  const handleOpenBankDialog = () => {
+    setIsBankDialogOpen(true);
+  };
+
+  const handleBankAccountSuccess = () => {
+    loadVendorBankAccounts();
+    refreshWallet(); // Refresh wallet sau khi thêm/xóa bank account
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -244,14 +321,32 @@ const WalletPage = () => {
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
-          <WalletBalance />
+          <WalletBalance balance={balance} loading={walletLoading} />
           <TransactionStats />
+          
+          {/* Ngân hàng của bạn */}
+          <BankAccountsList
+            accounts={vendorBankAccounts}
+            banks={banks}
+            loading={loadingAccounts}
+            onAddBank={handleOpenBankDialog}
+            onDeleteSuccess={handleBankAccountSuccess}
+          />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <RecentTransactions />
             <WithdrawForm />
           </div>
         </main>
       </div>
+
+      {/* Bank Setup Dialog */}
+      <CreateBankDialog
+        open={isBankDialogOpen}
+        onOpenChange={setIsBankDialogOpen}
+        userId={Number(user?.id) || 0}
+        onSuccess={handleBankAccountSuccess}
+      />
     </div>
   );
 };

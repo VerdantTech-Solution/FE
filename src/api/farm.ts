@@ -31,9 +31,9 @@ export interface CreateFarmProfileRequest {
   province?: string;
   district?: string;
   commune?: string;
-  provinceCode?: number;
-  districtCode?: number;
-  communeCode?: string; // Must be string according to API spec
+  provinceCode?: string;
+  districtCode?: string;
+  communeCode?: string;
   latitude?: number;
   longitude?: number;
   primaryCrops?: string;
@@ -59,7 +59,7 @@ export interface CreateFarmProfileResponse {
       createdAt: string;
       updatedAt: string;
       deletedAt: string | null;
-      addresses: any[];
+      userAddresses: any[];
     };
     farmName: string;
     farmSizeHectares: number;
@@ -69,8 +69,8 @@ export interface CreateFarmProfileResponse {
       province: string;
       district: string;
       commune: string;
-      provinceCode: number;
-      districtCode: number;
+      provinceCode: string;
+      districtCode: string;
       communeCode: string;
       latitude: number;
       longitude: number;
@@ -110,7 +110,7 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
   try {
     console.log('Creating farm profile with data:', data);
     
-    // Clean up the data - ensure communeCode is string
+    // Clean up the data - ensure all codes are strings
     const cleanData = {
       farmName: data.farmName.trim(),
       farmSizeHectares: data.farmSizeHectares,
@@ -118,9 +118,9 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
       ...(data.province && { province: data.province }),
       ...(data.district && { district: data.district }),
       ...(data.commune && { commune: data.commune }),
-      ...(data.provinceCode && data.provinceCode > 0 && { provinceCode: data.provinceCode }),
-      ...(data.districtCode && data.districtCode > 0 && { districtCode: data.districtCode }),
-      ...(data.communeCode && { communeCode: String(data.communeCode) }), // Ensure communeCode is string
+      ...(data.provinceCode && { provinceCode: String(data.provinceCode) }),
+      ...(data.districtCode && { districtCode: String(data.districtCode) }),
+      ...(data.communeCode && { communeCode: String(data.communeCode) }),
       ...(data.latitude && data.latitude !== 0 && { latitude: data.latitude }),
       ...(data.longitude && data.longitude !== 0 && { longitude: data.longitude }),
       ...(data.primaryCrops && { primaryCrops: data.primaryCrops.trim() }),

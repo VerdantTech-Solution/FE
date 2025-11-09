@@ -17,10 +17,20 @@ import {
   Activity,
   MoreHorizontal,
   RefreshCw,
-  UserPlus
+  UserPlus,
+  CheckCircle2
 } from "lucide-react";
 import { getAllUsers, createStaff } from "@/api/user";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { UserResponse } from "@/api/user";
 
 export const UserManamentPage = () => {
@@ -40,6 +50,9 @@ export const UserManamentPage = () => {
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  // Success dialog state
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [createdUserName, setCreatedUserName] = useState('');
   // Luôn tạo staff, không cần state cho role
 
   // Edit user dialog states
@@ -58,44 +71,10 @@ export const UserManamentPage = () => {
       setLoading(true);
       setError(null);
       const usersData = await getAllUsers();
-
-      // Debug log để kiểm tra dữ liệu
-      console.log('Users data received:', usersData);
-      console.log('Type of usersData:', typeof usersData);
-      console.log('Is Array:', Array.isArray(usersData));
-
-      if (Array.isArray(usersData)) {
-        setUsers(usersData);
-      } else {
-        console.error('Expected array but got:', typeof usersData, usersData);
-
-        // Fallback: sử dụng dữ liệu mẫu nếu API trả về sai định dạng
-        const fallbackUsers: UserResponse[] = [
-          {
-            id: "1",
-            fullName: "Nguyễn Văn A",
-            email: "nguyenvana@example.com",
-            phoneNumber: "0123456789",
-            role: "Admin",
-            status: "active"
-          },
-          {
-            id: "2",
-            fullName: "Trần Thị B",
-            email: "tranthib@example.com",
-            phoneNumber: "0987654321",
-            role: "customer",
-            status: "active"
-          }
-        ];
-
-        setUsers(fallbackUsers);
-        console.warn('Using fallback data due to unexpected API response format');
-      }
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
-      setError(`Không thể tải danh sách người dùng: ${errorMessage}. Vui lòng thử lại sau.`);
-      console.error('Error fetching users:', err);
+      setError(`Không thể tải danh sách người dùng: ${errorMessage}.`);
     } finally {
       setLoading(false);
     }
@@ -116,13 +95,15 @@ export const UserManamentPage = () => {
         fullName: newFullName,
         phoneNumber: newPhone
       });
-      window.alert('Tạo tài khoản nhân viên thành công. Mật khẩu đã được gửi qua email.');
       
+      // Hiển thị success dialog
+      setCreatedUserName(newFullName || newEmail);
       setIsCreateOpen(false);
       setNewEmail('');
       setNewFullName('');
       setNewPhone('');
       await fetchUsers();
+      setSuccessDialogOpen(true);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Tạo nhân viên thất bại';
       setCreateError(message);
@@ -695,6 +676,38 @@ export const UserManamentPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Success Alert Dialog */}
+      <AlertDialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center justify-center mb-4">
+              <div className="rounded-full bg-green-100 p-3">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center text-xl font-semibold">
+              Tạo nhân viên thành công!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-2">
+              <p>
+                Tài khoản nhân viên <strong>{createdUserName}</strong> đã được tạo thành công.
+              </p>
+              <p className="text-sm text-blue-600 mt-2">
+                💡 Mật khẩu đã được tự động gửi qua email.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction
+              onClick={() => setSuccessDialogOpen(false)}
+              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

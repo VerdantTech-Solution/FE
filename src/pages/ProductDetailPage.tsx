@@ -449,8 +449,8 @@ export const ProductDetailPage = () => {
               <div className="mt-6">
                 <ProductSpecifications
                   specifications={product.specifications}
-                  dimensionsCm={product.dimensionsCm}
-                  weightkg={product.weightkg}
+                  dimensionsCm={product.dimensionsCm as { width: number; height: number; length: number } | undefined}
+                  weightkg={product.weightKg}
                   warrantyMonths={product.warrantyMonths}
                   energyEfficiencyRating={product.energyEfficiencyRating}
                   categoryName={product.category}

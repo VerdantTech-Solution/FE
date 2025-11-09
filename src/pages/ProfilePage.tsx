@@ -13,6 +13,14 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import BankAccountsList from "@/components/bank/BankAccountsList";
+import CreateBankDialog from "@/components/bank/CreateBankDialog";
+import { 
+  getSupportedBanks, 
+  getVendorBankAccounts,
+  type SupportedBank,
+  type VendorBankAccount
+} from "@/api/vendorbankaccounts";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -84,8 +92,8 @@ export const ProfilePage = () => {
     latitude: 0,
     longitude: 0,
     isDeleted: false,
-    provinceCode: 0,
-    districtCode: 0,
+    provinceCode: "",
+    districtCode: "",
     communeCode: "",
   });
   const [addressFormErrors, setAddressFormErrors] = useState<{[key: string]: string}>({});
@@ -94,13 +102,56 @@ export const ProfilePage = () => {
   const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
   const [deleteAddressDialogOpen, setDeleteAddressDialogOpen] = useState(false);
   const [pendingDeleteAddress, setPendingDeleteAddress] = useState<UserAddress | null>(null);
+  
+  // Bank Accounts state for refund
+  const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
+  const [banks, setBanks] = useState<SupportedBank[]>([]);
+  const [userBankAccounts, setUserBankAccounts] = useState<VendorBankAccount[]>([]);
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
     if (user?.id) {
       fetchLatestUserData();
+      loadUserBankAccounts();
+      loadBanks();
     }
   }, [user?.id]);
+  
+  // Load user bank accounts
+  const loadUserBankAccounts = async () => {
+    const userId = Number(user?.id);
+    if (!userId) return;
+
+    try {
+      setLoadingBankAccounts(true);
+      const accounts = await getVendorBankAccounts(userId);
+      setUserBankAccounts(accounts || []);
+    } catch (err) {
+      console.error('Load user bank accounts error:', err);
+      setUserBankAccounts([]);
+    } finally {
+      setLoadingBankAccounts(false);
+    }
+  };
+
+  // Load supported banks
+  const loadBanks = async () => {
+    try {
+      const banksData = await getSupportedBanks();
+      setBanks(banksData);
+    } catch (err) {
+      console.error('Load banks error:', err);
+    }
+  };
+
+  const handleOpenBankDialog = () => {
+    setIsBankDialogOpen(true);
+  };
+
+  const handleBankAccountSuccess = () => {
+    loadUserBankAccounts();
+  };
 
   // Cập nhật avatarUrl khi user thay đổi
   useEffect(() => {
@@ -136,8 +187,8 @@ export const ProfilePage = () => {
         }
 
         // Lấy danh sách địa chỉ từ profile
-        if (Array.isArray((userData as any).addresses)) {
-          setUserAddresses((userData as any).addresses as UserAddress[]);
+        if (Array.isArray((userData as any).userAddresses)) {
+          setUserAddresses((userData as any).userAddresses as UserAddress[]);
         }
 
       }
@@ -181,9 +232,9 @@ export const ProfilePage = () => {
     );
   }
 
-  const handleMapSelect = (lat: number, lng: number) => {
-    setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-  };
+  // const handleMapSelect = (lat: number, lng: number) => {
+  //   setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+  // };
 
   const resetAddressForm = () => {
     setAddressForm({
@@ -194,8 +245,8 @@ export const ProfilePage = () => {
       latitude: 0,
       longitude: 0,
       isDeleted: false,
-      provinceCode: 0,
-      districtCode: 0,
+      provinceCode: "",
+      districtCode: "",
       communeCode: "",
     });
     setAddressFormErrors({});
@@ -278,8 +329,8 @@ export const ProfilePage = () => {
         if (response.status) {
           // Success - refresh addresses from server
           const refreshed = await getUserProfile();
-          if (Array.isArray((refreshed as any).addresses)) {
-            setUserAddresses((refreshed as any).addresses as UserAddress[]);
+          if (Array.isArray((refreshed as any).userAddresses)) {
+            setUserAddresses((refreshed as any).userAddresses as UserAddress[]);
           }
           window.location.reload();
         } else {
@@ -323,9 +374,9 @@ export const ProfilePage = () => {
           province: addr.province,
           district: addr.district,
           commune: addr.commune,
-          provinceCode: addr.provinceCode ?? 0,
-          districtCode: addr.districtCode ?? 0,
-          communeCode: addr.communeCode ?? "", // Fixed: should be string, not number
+          provinceCode: addr.provinceCode ?? "",
+          districtCode: addr.districtCode ?? "",
+          communeCode: addr.communeCode ?? "",
           latitude: addr.latitude,
           longitude: addr.longitude,
           isDeleted: true,
@@ -369,8 +420,8 @@ export const ProfilePage = () => {
       latitude: addr.latitude || 0,
       longitude: addr.longitude || 0,
       isDeleted: addr.isDeleted ?? false,
-      provinceCode: addr.provinceCode || 0,
-      districtCode: addr.districtCode || 0,
+      provinceCode: addr.provinceCode || "",
+      districtCode: addr.districtCode || "",
       communeCode: addr.communeCode || "",
     });
     setEditingAddressId(addr.id ?? null);
@@ -378,21 +429,21 @@ export const ProfilePage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-      },
-      () => {
-        // ignore errors silently here
-      }
-    );
-  };
+  // const handleUseCurrentLocation = () => {
+  //   if (!navigator.geolocation) {
+  //     return;
+  //   }
+  //   navigator.geolocation.getCurrentPosition(
+  //     (pos) => {
+  //       const lat = pos.coords.latitude;
+  //       const lng = pos.coords.longitude;
+  //       setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+  //     },
+  //     () => {
+  //       // ignore errors silently here
+  //     }
+  //   );
+  // };
 
   const openAddAddressDialog = () => {
     resetAddressForm();
@@ -697,6 +748,26 @@ export const ProfilePage = () => {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Bank Accounts Section for Refund */}
+        {!isEditing && (
+          <motion.div 
+            className="mt-6" 
+            initial={{ y: 12, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <BankAccountsList
+              accounts={userBankAccounts}
+              banks={banks}
+              loading={loadingBankAccounts}
+              onAddBank={handleOpenBankDialog}
+              onDeleteSuccess={handleBankAccountSuccess}
+              title="Tài khoản ngân hàng để hoàn tiền"
+              description="Thêm tài khoản để nhận hoàn tiền khi cần"
+            />
+          </motion.div>
+        )}
       </div>
     </motion.div>
 
@@ -776,17 +847,17 @@ export const ProfilePage = () => {
                 onCityChange={(value, code) => setAddressForm((prev) => ({
                   ...prev,
                   city: value,
-                  provinceCode: code ? parseInt(code) || 0 : 0,
+                  provinceCode: code || "",
                   // reset when city changes
                   district: '',
-                  districtCode: 0,
+                  districtCode: "",
                   ward: '',
                   communeCode: "",
                 }))}
                 onDistrictChange={(value, code) => setAddressForm((prev) => ({
                   ...prev,
                   district: value,
-                  districtCode: code ? parseInt(code) || 0 : 0,
+                  districtCode: code || "",
                   // reset when district changes
                   ward: '',
                   communeCode: "",
@@ -858,6 +929,14 @@ export const ProfilePage = () => {
         </AlertFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Bank Account Dialog */}
+    <CreateBankDialog
+      open={isBankDialogOpen}
+      onOpenChange={setIsBankDialogOpen}
+      userId={Number(user?.id) || 0}
+      onSuccess={handleBankAccountSuccess}
+    />
     </>
   );
 };

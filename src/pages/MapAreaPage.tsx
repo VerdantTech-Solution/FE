@@ -221,30 +221,31 @@ export const MapAreaPage = ({
   };
 
 
-  // Lấy vị trí hiện tại
-  const getCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      showAlert("Không hỗ trợ định vị", "Trình duyệt không hỗ trợ định vị địa lý.");
-      return;
-    }
+  // Lấy vị trí hiện tại (tạm thời không sử dụng)
+  // Uncomment and use this function if needed for geolocation feature
+  // const getCurrentLocation = useCallback(() => {
+  //   if (!navigator.geolocation) {
+  //     showAlert("Không hỗ trợ định vị", "Trình duyệt không hỗ trợ định vị địa lý.");
+  //     return;
+  //   }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        setCurrentLocation(location);
-        setMapCenter(location);
-        setMapZoom(15); // Zoom gần hơn khi lấy vị trí hiện tại
-        console.log('Đã lấy vị trí hiện tại:', location);
-      },
-      (error) => {
-        console.error("Lỗi khi lấy vị trí:", error);
-        showAlert("Không thể lấy vị trí", "Vui lòng kiểm tra quyền truy cập vị trí và thử lại.");
-      }
-    );
-  }, [showAlert]);
+  //   navigator.geolocation.getCurrentPosition(
+  //     (position) => {
+  //       const location = {
+  //         lat: position.coords.latitude,
+  //         lng: position.coords.longitude
+  //       };
+  //       setCurrentLocation(location);
+  //       setMapCenter(location);
+  //       setMapZoom(15); // Zoom gần hơn khi lấy vị trí hiện tại
+  //       console.log('Đã lấy vị trí hiện tại:', location);
+  //     },
+  //     (error) => {
+  //       console.error("Lỗi khi lấy vị trí:", error);
+  //       showAlert("Không thể lấy vị trí", "Vui lòng kiểm tra quyền truy cập vị trí và thử lại.");
+  //     }
+  //   );
+  // }, [showAlert]);
 
   // Tìm kiếm địa điểm bằng tên với độ chính xác cao hơn
   const searchLocation = useCallback(async () => {

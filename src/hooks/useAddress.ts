@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCities, getDistricts, getWards, type City, type District, type Ward, type Province, type Commune } from '@/api/address';
+import { getCities, getDistricts, getWards, type City, type District, type Ward } from '@/api/address';
 
 export interface AddressData {
   cities: City[];
@@ -100,7 +100,7 @@ export const useAddress = () => {
     if (!district) return;
 
     try {
-      const wards = await getWards(district.districtId);
+      const wards = await getWards(district.districtCode);
       setAddressData(prev => ({
         ...prev,
         wards,
@@ -163,7 +163,7 @@ export const useAddress = () => {
           
           // Wait for wards to load, then find ward
           setTimeout(async () => {
-            const wards = await getWards(district.districtId);
+            const wards = await getWards(district.districtCode);
             const ward = wards.find(w => 
               w.name === wardName || 
               w.name.includes(wardName) ||

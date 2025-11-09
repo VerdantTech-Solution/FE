@@ -1,7 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 
 // Simple context to share collapsed state with all sidebar subcomponents
 const SidebarContext = React.createContext<{ collapsed: boolean }>({ collapsed: false })

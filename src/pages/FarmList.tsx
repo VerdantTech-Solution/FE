@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, MoreHorizontal, Edit } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { getFarmProfilesByUserId, type FarmProfile } from "@/api/farm";

@@ -57,7 +57,7 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({
   const onSubmit = async (data: ChangePasswordForm) => {
     setIsLoading(true);
     try {
-      const response = await changePassword(email, data.oldPassword, data.newPassword);
+      await changePassword(email, data.oldPassword, data.newPassword);
       setIsSuccess(true);
       toast.success('Đổi mật khẩu thành công!');
       form.reset();

@@ -24,3 +24,6 @@ export * from './co2';
 
 // Export order API
 export * from './order';
+
+// Export PayOS API
+export * from './payos';

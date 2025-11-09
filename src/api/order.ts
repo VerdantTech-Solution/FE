@@ -34,7 +34,7 @@ export const createOrderPreview = async (
 
 // ===== Create Order From Preview =====
 export interface CreateOrderFromPreviewRequest {
-  shippingDetailId: string;
+  priceTableId: number;
 }
 
 export interface OrderProductSummary {
@@ -44,9 +44,10 @@ export interface OrderProductSummary {
   slug?: string;
   description?: string;
   unitPrice: number;
-  images?: string[] | null;
+  images?: any;
   warrantyMonths?: number;
   ratingAverage?: number;
+  categoryId?: number;
 }
 
 export interface OrderDetailItem {
@@ -98,6 +99,10 @@ export interface OrderEntity {
   updatedAt: string;
   address: OrderAddress;
   orderDetails: OrderDetailItem[];
+  width?: number;
+  height?: number;
+  length?: number;
+  weight?: number;
 }
 
 export type CreateOrderFromPreviewResponse = CreateOrderPreviewResponse<OrderEntity>;
@@ -106,8 +111,85 @@ export const createOrderFromPreview = async (
   orderPreviewId: string,
   payload: CreateOrderFromPreviewRequest
 ): Promise<CreateOrderFromPreviewResponse> => {
+  console.log('Creating order from preview:', {
+    orderPreviewId,
+    payload,
+    url: `/api/Order/${orderPreviewId}`
+  });
+  
   const response = await apiClient.post(`/api/Order/${orderPreviewId}`, payload);
+  
+  console.log('Order creation API response:', response);
+  
   return response as unknown as CreateOrderFromPreviewResponse;
+};
+
+// ===== Get All Orders =====
+export interface OrderCustomer {
+  id: number;
+  email: string;
+  role: string;
+  fullName: string;
+  phoneNumber: string;
+  isVerified: boolean;
+  avatarUrl: string | null;
+  status: string;
+  lastLoginAt: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  userAddresses?: any[];
+}
+
+export interface OrderWithCustomer extends OrderEntity {
+  customer: OrderCustomer;
+}
+
+export interface GetAllOrdersResponse {
+  status: boolean;
+  statusCode: string;
+  data: {
+    data: OrderWithCustomer[];
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    totalRecords: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+  errors: string[];
+}
+
+export const getAllOrders = async (
+  page: number = 1,
+  pageSize: number = 10,
+  status?: string
+): Promise<GetAllOrdersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  
+  if (status) {
+    params.append('status', status);
+  }
+  
+  const response = await apiClient.get(`/api/Order?${params.toString()}`);
+  return response as unknown as GetAllOrdersResponse;
+};
+
+// ===== Get Orders By User ID =====
+export const getOrdersByUser = async (
+  userId: number,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<GetAllOrdersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  const response = await apiClient.get(`/api/Order/user/${userId}?${params.toString()}`);
+  return response as unknown as GetAllOrdersResponse;
 };
 
 // ===== Get My Orders =====
@@ -116,6 +198,16 @@ export type GetMyOrdersResponse = CreateOrderPreviewResponse<OrderEntity[]>;
 export const getMyOrders = async (): Promise<GetMyOrdersResponse> => {
   const response = await apiClient.get('/api/Order/me');
   return response as unknown as GetMyOrdersResponse;
+};
+
+// ===== Get Order By ID =====
+export type GetOrderByIdResponse = CreateOrderPreviewResponse<OrderWithCustomer>;
+
+export const getOrderById = async (
+  orderId: number
+): Promise<GetOrderByIdResponse> => {
+  const response = await apiClient.get(`/api/Order/${orderId}`);
+  return response as unknown as GetOrderByIdResponse;
 };
 
 // ===== Update Order =====
@@ -131,6 +223,37 @@ export const updateOrder = async (
   payload: UpdateOrderRequest
 ): Promise<UpdateOrderResponse> => {
   const response = await apiClient.patch(`/api/Order/${orderId}`, payload);
+  return response as unknown as UpdateOrderResponse;
+};
+
+// ===== Update Order Status =====
+export interface UpdateOrderStatusRequest {
+  status: "Pending" | "Paid" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded";
+  cancelledReason?: string;
+}
+
+export const updateOrderStatus = async (
+  orderId: number,
+  payload: UpdateOrderStatusRequest
+): Promise<UpdateOrderResponse> => {
+  const response = await apiClient.put(`/api/Order/${orderId}`, payload);
+  return response as unknown as UpdateOrderResponse;
+};
+
+// ===== Ship Order =====
+export interface ShipOrderItem {
+  productId: number;
+  serialNumber?: string;
+  lotNumber?: string;
+}
+
+export type ShipOrderRequest = ShipOrderItem[];
+
+export const shipOrder = async (
+  orderId: number,
+  payload: ShipOrderRequest
+): Promise<UpdateOrderResponse> => {
+  const response = await apiClient.post(`/api/Order/${orderId}/ship`, payload);
   return response as unknown as UpdateOrderResponse;
 };
 

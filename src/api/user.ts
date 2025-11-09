@@ -9,7 +9,7 @@ export interface UserResponse {
   role: string;
   avatarUrl?: string;
   status?: string;
-  addresses?: UserAddress[];
+  userAddresses?: UserAddress[];
   [key: string]: unknown;
 }
 
@@ -28,8 +28,8 @@ export interface UserAddress {
   province: string;
   district: string;
   commune: string;
-  provinceCode?: number;
-  districtCode?: number;
+  provinceCode?: string;
+  districtCode?: string;
   communeCode?: string;
   latitude: number;
   longitude: number;
@@ -45,8 +45,8 @@ export interface CreateAddressRequest {
   province: string;
   district: string;
   commune: string;
-  provinceCode?: number;
-  districtCode?: number;
+  provinceCode?: string;
+  districtCode?: string;
   communeCode?: string;
   latitude: number;
   longitude: number;
@@ -58,8 +58,8 @@ export interface UpdateAddressRequest {
   province: string;
   district: string;
   commune: string;
-  provinceCode?: number;
-  districtCode?: number;
+  provinceCode?: string;
+  districtCode?: string;
   communeCode?: string;
   latitude: number;
   longitude: number;
@@ -116,31 +116,14 @@ export const deleteUser = async (userId: string): Promise<void> => {
   }
 };
 
-// API lấy danh sách tất cả users (cho admin)
+// API lấy danh sách tất cả users (cho admin) - fetch 1 lần, lọc client
 export const getAllUsers = async (): Promise<UserResponse[]> => {
-  try {
-    const response = await apiClient.get('/api/User');
-    console.log('Get all users response:', response);
-
-    const raw: any = response;
-    const possibleKeys = ['data', 'users', 'items'];
-
-    if (Array.isArray(raw)) {
-      return raw as UserResponse[];
-    }
-
-    for (const key of possibleKeys) {
-      if (raw?.[key] && Array.isArray(raw[key])) {
-        return raw[key] as UserResponse[];
-      }
-    }
-
-    console.warn('Unexpected response structure:', raw);
-    return [];
-  } catch (error) {
-    console.error('Get all users error:', error);
-    throw error;
-  }
+  const response = await apiClient.get('/api/User', { params: { page: 1, pageSize: 100 } });
+  const raw: any = response;
+  if (raw?.data?.data && Array.isArray(raw.data.data)) return raw.data.data as UserResponse[];
+  if (Array.isArray(raw)) return raw as UserResponse[];
+  if (Array.isArray(raw?.data)) return raw.data as UserResponse[];
+  return [];
 };
 
 
