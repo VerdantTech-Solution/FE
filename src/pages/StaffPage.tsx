@@ -14,7 +14,7 @@ import {
   SidebarSectionTitle,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User } from "lucide-react";
+import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign } from "lucide-react";
 import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
@@ -24,8 +24,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
 import { MonitoringPage } from "./staff/MonitoringPage";
 import { StaffProfile } from "./staff/StaffProfile";
+import { CashoutManagementPanel } from "./staff/CashoutManagementPanel";
 
-type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "settings" | "profile";
+type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "cashout" | "settings" | "profile";
 
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
@@ -67,6 +68,7 @@ export const StaffPage: React.FC = () => {
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "equipment"} onClick={() => setSelectedMenu("equipment")} icon={<Shield className="w-5 h-5" />}>Thiết bị</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh mục sản phẩm</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "cashout"} onClick={() => setSelectedMenu("cashout")} icon={<DollarSign className="w-5 h-5" />}>Quản lý rút tiền</SidebarNavItem>
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Hệ thống</SidebarSectionTitle>
@@ -122,6 +124,9 @@ export const StaffPage: React.FC = () => {
           )}
           {selectedMenu === "monitoring" && (
             <MonitoringPage/>
+          )}
+          {selectedMenu === "cashout" && (
+            <CashoutManagementPanel />
           )}
           {selectedMenu === "profile" && (
             <StaffProfile/>

@@ -50,6 +50,11 @@ const StatusBadge = ({ status }: { status: string }) => {
       variant: 'default',
       className: 'bg-yellow-100 text-yellow-800 border-yellow-300'
     },
+    'Processing': {
+      label: 'Đang xử lý',
+      variant: 'default',
+      className: 'bg-blue-100 text-blue-800 border-blue-300'
+    },
     'Approved': {
       label: 'Đã duyệt',
       variant: 'default',
@@ -193,7 +198,7 @@ const CashoutRequestManagementPage = () => {
               <p className="text-gray-600 mt-1">Xem và theo dõi trạng thái yêu cầu rút tiền của bạn</p>
             </div>
             <div className="flex items-center gap-3">
-              {cashoutRequest && cashoutRequest.status === 'Pending' && (
+              {cashoutRequest && (cashoutRequest.status === 'Pending' || cashoutRequest.status === 'Processing') && (
                 <Button 
                   variant="destructive" 
                   onClick={() => setShowDeleteDialog(true)}
@@ -237,7 +242,7 @@ const CashoutRequestManagementPage = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center space-x-2">
                     <FileText className="w-6 h-6 text-green-600" />
-                    <span>Yêu cầu rút tiền #{cashoutRequest.id}</span>
+                    <span>Yêu cầu rút tiền </span>
                   </CardTitle>
                   <StatusBadge status={cashoutRequest.status} />
                 </div>
@@ -324,6 +329,20 @@ const CashoutRequestManagementPage = () => {
                         <p className="font-medium text-yellow-900">Yêu cầu đang chờ xử lý</p>
                         <p className="text-sm text-yellow-700 mt-1">
                           Yêu cầu rút tiền của bạn đang được xem xét bởi quản trị viên. Vui lòng chờ thông báo.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {cashoutRequest.status === 'Processing' && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-blue-900">Yêu cầu đang được xử lý</p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Yêu cầu rút tiền của bạn đang được xử lý. Vui lòng chờ thông báo.
                         </p>
                       </div>
                     </div>

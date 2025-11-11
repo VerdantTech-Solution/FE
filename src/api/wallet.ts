@@ -88,9 +88,7 @@ export const createCashoutRequest = async (request: CashoutRequest): Promise<Cas
     
     return response;
   } catch (error: any) {
-    // Note: apiClient interceptor rejects with error.response?.data
-    // So error here is already the response data, not the full axios error
-    // But we need to handle both cases
+
     
     // Case 1: Error is already the response data (from interceptor)
     if (error && typeof error === 'object' && 'status' in error) {
@@ -144,12 +142,35 @@ export interface CashoutRequestData {
   reason?: string;
   notes?: string;
   createdAt: string;
+  updatedAt?: string;
+  processedAt?: string | null;
+  processedBy?: number | null;
+  vendorId?: number;
+  vendor?: Vendor | null;
+  user?: Vendor | null; // Alternative field name from API
 }
 
 export interface GetCashoutRequestResponse {
   status: boolean;
   statusCode: string;
   data: CashoutRequestData | null;
+  errors: string[];
+}
+
+export interface CashoutRequestsPage {
+  data: CashoutRequestData[];
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface GetCashoutRequestsResponse {
+  status: boolean;
+  statusCode: string;
+  data: CashoutRequestsPage | null;
   errors: string[];
 }
 
@@ -241,6 +262,118 @@ export const deletePendingCashoutRequest = async (): Promise<DeleteCashoutReques
       errors: [error?.message || error?.toString() || 'Không thể xóa yêu cầu rút tiền']
     };
     
+    return errorResponse;
+  }
+};
+
+/**
+ * Get cashout request history for a vendor - Lấy lịch sử yêu cầu rút tiền của vendor
+ * @param userId - ID của vendor
+ * @param page - Số trang (mặc định: 1)
+ * @param pageSize - Số lượng mỗi trang (mặc định: 10)
+ * @returns Response với danh sách yêu cầu rút tiền có phân trang
+ */
+export const getVendorCashoutHistory = async (
+  userId: number,
+  page = 1,
+  pageSize = 10
+): Promise<GetCashoutRequestsResponse> => {
+  try {
+    const response = await apiClient.get<GetCashoutRequestsResponse>(
+      `/api/Wallet/${userId}/cashout-requests`,
+      {
+        params: {
+          page,
+          pageSize,
+        },
+      }
+    ) as unknown as GetCashoutRequestsResponse;
+
+    return response;
+  } catch (error: any) {
+    if (error && typeof error === 'object') {
+      if ('status' in error && 'statusCode' in error) {
+        return error as GetCashoutRequestsResponse;
+      }
+
+      if ('errors' in error || 'message' in error) {
+        return {
+          status: false,
+          statusCode: (error as any).statusCode || 'Error',
+          data: null,
+          errors: Array.isArray((error as any).errors)
+            ? (error as any).errors
+            : [(error as any).message || 'Không thể tải lịch sử yêu cầu rút tiền'],
+        };
+      }
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tải lịch sử yêu cầu rút tiền'],
+    };
+  }
+};
+
+export interface ProcessCashoutManualRequest {
+  status: 'Completed' | 'Failed' | 'Cancelled';
+  gatewayPaymentId?: string;
+  cancelReason?: string;
+}
+
+export interface ProcessCashoutManualResponse {
+  status: boolean;
+  statusCode: string;
+  data: string;
+  errors: string[];
+}
+
+/**
+ * Process cashout request manually - Xử lý yêu cầu rút tiền thủ công
+ * Chỉ Admin/Staff mới có quyền
+ * @param userId - ID của vendor
+ * @param request - Request data với status và các thông tin cần thiết
+ * @returns Response với status và message
+ */
+export const processCashoutManual = async (
+  userId: number,
+  request: ProcessCashoutManualRequest
+): Promise<ProcessCashoutManualResponse> => {
+  try {
+    const response = await apiClient.post<ProcessCashoutManualResponse>(
+      `/api/Wallet/${userId}/process-cashout-manual`,
+      request
+    ) as unknown as ProcessCashoutManualResponse;
+
+    return response;
+  } catch (error: any) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as ProcessCashoutManualResponse;
+    }
+
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as ProcessCashoutManualResponse;
+    }
+
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: ProcessCashoutManualResponse = {
+        status: false,
+        statusCode: error.statusCode || 'Error',
+        data: '',
+        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể xử lý yêu cầu rút tiền']
+      };
+      return errorResponse;
+    }
+
+    const errorResponse: ProcessCashoutManualResponse = {
+      status: false,
+      statusCode: 'Error',
+      data: '',
+      errors: [error?.message || error?.toString() || 'Không thể xử lý yêu cầu rút tiền']
+    };
+
     return errorResponse;
   }
 };
