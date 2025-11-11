@@ -66,11 +66,6 @@ const WithdrawRequestDialog = ({
       return;
     }
 
-    if (amountNum < 10000) {
-      setError('Số tiền rút tối thiểu là 10,000 ₫');
-      return;
-    }
-
     try {
       setLoading(true);
       setError('');
@@ -119,8 +114,6 @@ const WithdrawRequestDialog = ({
     }
   };
 
-  const selectedBankAccount = bankAccounts.find(acc => acc.id === selectedBankAccountId);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -157,7 +150,7 @@ const WithdrawRequestDialog = ({
                 ) : (
                   bankAccounts.map((account) => (
                     <SelectItem key={account.id} value={String(account.id)}>
-                      {account.bankName} - {account.accountNumber} ({account.accountHolder})
+                      {account.bankCode} - {account.accountNumber} ({account.accountHolder})
                     </SelectItem>
                   ))
                 )}
@@ -187,12 +180,8 @@ const WithdrawRequestDialog = ({
                   setError('');
                 }
               }}
-              min="10000"
               max={balance}
             />
-            <p className="text-xs text-gray-500">
-              Số tiền tối thiểu: 10,000 ₫
-            </p>
           </div>
 
           {/* Lý do */}
