@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, X } from 'lucide-react';
+import { Search, X, CheckCircle } from 'lucide-react';
 import { 
   getSupportedBanks, 
   createVendorBankAccount, 
@@ -20,10 +29,10 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
   const [banks, setBanks] = useState<SupportedBank[]>([]);
   const [selectedBank, setSelectedBank] = useState<SupportedBank | null>(null);
   const [accountNumber, setAccountNumber] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
   const loadBanks = async () => {
     try {
@@ -64,10 +73,6 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
       setError('Vui lòng nhập số tài khoản');
       return;
     }
-    if (!accountHolder.trim()) {
-      setError('Vui lòng nhập tên chủ tài khoản');
-      return;
-    }
 
     try {
       setLoading(true);
@@ -75,14 +80,12 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
 
       await createVendorBankAccount(userId, {
         bankCode: selectedBank.bin,
-        accountNumber: accountNumber.trim(),
-        accountHolder: accountHolder.trim()
+        accountNumber: accountNumber.trim()
       });
 
       // Reset form và đóng dialog
       setSelectedBank(null);
       setAccountNumber('');
-      setAccountHolder('');
       setSearchQuery('');
       setError('');
       onOpenChange(false);
@@ -90,7 +93,8 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
       // Gọi callback để reload danh sách
       onSuccess();
       
-      alert('Thiết lập ngân hàng thành công!');
+      // Show success dialog
+      setIsSuccessDialogOpen(true);
     } catch (err: any) {
       setError(err?.message || 'Có lỗi xảy ra khi thiết lập ngân hàng');
       console.error(err);
@@ -105,12 +109,12 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
       setSelectedBank(null);
       setSearchQuery('');
       setAccountNumber('');
-      setAccountHolder('');
       setError('');
     }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
@@ -210,7 +214,6 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
                 onClick={() => {
                   setSelectedBank(null);
                   setAccountNumber('');
-                  setAccountHolder('');
                   setError('');
                 }}
                 className="text-gray-600 hover:text-gray-900"
@@ -234,19 +237,6 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
                   className="h-11"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tên chủ tài khoản <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  placeholder="Nhập tên chủ tài khoản (viết hoa, không dấu)"
-                  value={accountHolder}
-                  onChange={(e) => setAccountHolder(e.target.value)}
-                  disabled={loading}
-                  className="h-11"
-                />
-              </div>
             </div>
 
             {/* Action Buttons */}
@@ -256,7 +246,6 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
                 onClick={() => {
                   setSelectedBank(null);
                   setAccountNumber('');
-                  setAccountHolder('');
                   setError('');
                 }}
                 disabled={loading}
@@ -283,6 +272,32 @@ const CreateBankDialog = ({ open, onOpenChange, userId, onSuccess }: CreateBankD
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Success AlertDialog */}
+    <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+      <AlertDialogContent className="sm:max-w-[400px]">
+        <AlertDialogHeader>
+          <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-7 h-7 text-green-600" />
+          </div>
+          <AlertDialogTitle className="text-xl font-bold text-center">
+            Thành công!
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-center">
+            Thiết lập ngân hàng thành công.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction
+            onClick={() => setIsSuccessDialogOpen(false)}
+            className="bg-green-600 hover:bg-green-700 text-white w-full"
+          >
+            Đóng
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 

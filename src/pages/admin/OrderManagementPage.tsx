@@ -6,10 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, Download } from "lucide-react";
-import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
-import { getProductById } from "@/api/product";
+import { Search, Eye, Package, CheckCircle, Clock, XCircle, Download } from "lucide-react";
+import { getAllOrders, getOrderById, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
+import DetailOrder from "@/components/order/DetailOrder";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
@@ -37,11 +36,6 @@ export const OrderManagementPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [showCancelReason, setShowCancelReason] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [newStatus, setNewStatus] = useState<string>("");
   const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
   const [shipItems, setShipItems] = useState<Array<{ productId: number; categoryId?: number; productName: string; quantity: number; serialNumber: string; lotNumber: string }>>([]);
   const [isShipping, setIsShipping] = useState(false);
@@ -90,43 +84,13 @@ export const OrderManagementPage: React.FC = () => {
     fetchOrders();
   }, [currentPage, pageSize, statusFilter]);
 
-  // Reset newStatus when order changes
-  useEffect(() => {
-    if (selectedOrder) {
-      setNewStatus(selectedOrder.status);
-      setShowCancelReason(false);
-      setCancelReason("");
-    }
-  }, [selectedOrder]);
-
-  const handleViewOrder = async (order: OrderWithCustomer) => {
+  const handleViewOrder = (order: OrderWithCustomer) => {
+    setSelectedOrder(order);
     setIsDetailDialogOpen(true);
-    
-    // Show basic info first with safe defaults
-    setSelectedOrder({
-      ...order,
-      address: order.address || {} as any,
-      customer: order.customer || {} as any,
-      orderDetails: order.orderDetails || []
-    });
-    
-    // Fetch full order details from API
-    setIsLoadingOrderDetails(true);
-    try {
-      console.log("Fetching order details for order ID:", order.id);
-      const response = await getOrderById(order.id);
-      console.log("Order details response:", response);
-      
-      if (response.status && response.data) {
-        setSelectedOrder(response.data); // Update with full details
-      } else {
-        console.error("Failed to fetch order details:", response.errors);
-      }
-    } catch (error) {
-      console.error("Error fetching order details:", error);
-    } finally {
-      setIsLoadingOrderDetails(false);
-    }
+  };
+
+  const handleOrderUpdated = async () => {
+    await fetchOrders();
   };
 
   const handleStatusChange = (status: OrderStatus) => {
@@ -138,100 +102,6 @@ export const OrderManagementPage: React.FC = () => {
     setCurrentPage(page);
   };
 
-  const handleUpdateStatus = async () => {
-    if (!selectedOrder || !newStatus) return;
-
-    // If cancelling, check for reason
-    if (newStatus === "Cancelled" && !cancelReason.trim()) {
-      setShowCancelReason(true);
-      return;
-    }
-
-    setIsUpdatingStatus(true);
-    try {
-      const payload: any = { status: newStatus };
-      if (newStatus === "Cancelled" && cancelReason) {
-        payload.cancelledReason = cancelReason;
-      }
-
-      console.log("Sending payload:", payload);
-      const response = await updateOrderStatus(selectedOrder.id, payload);
-      console.log("Response:", response);
-      
-      if (response.status) {
-        // Refresh the order details
-        const orderResponse = await getOrderById(selectedOrder.id);
-        if (orderResponse.status && orderResponse.data) {
-          setSelectedOrder(orderResponse.data);
-        }
-        
-        // Refresh the list
-        await fetchOrders();
-        
-        setShowCancelReason(false);
-        setCancelReason("");
-        setNewStatus("");
-        alert("Cập nhật trạng thái đơn hàng thành công!");
-      } else {
-        console.error("Failed to update order status:", response.errors);
-        alert(`Không thể cập nhật trạng thái đơn hàng: ${response.errors?.join(", ") || "Unknown error"}`);
-      }
-    } catch (error: any) {
-      console.error("Error updating order status:", error);
-      alert(`Có lỗi xảy ra: ${error?.response?.data?.errors?.join(", ") || error.message || "Unknown error"}`);
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const handleNewStatusChange = (value: string) => {
-    setNewStatus(value);
-    if (value === "Cancelled") {
-      setShowCancelReason(true);
-    } else if (value === "Shipped") {
-      // Open ship dialog if order is not already shipped
-      if (selectedOrder && selectedOrder.status !== "Shipped" && selectedOrder.status !== "Delivered") {
-        handleOpenShipDialog();
-        return;
-      }
-    } else {
-      setShowCancelReason(false);
-      setCancelReason("");
-    }
-  };
-
-  const handleOpenShipDialog = async () => {
-    if (!selectedOrder || !selectedOrder.orderDetails) return;
-    
-    // Fetch categoryId for each product if not present
-    const items = await Promise.all(
-      selectedOrder.orderDetails.map(async (detail) => {
-        let categoryId = detail.product.categoryId;
-        
-        // If categoryId is not in order details, fetch from product API
-        if (!categoryId) {
-          try {
-            const product = await getProductById(detail.product.id);
-            categoryId = product.categoryId;
-          } catch (error) {
-            console.error(`Failed to fetch category for product ${detail.product.id}:`, error);
-          }
-        }
-        
-        return {
-          productId: detail.product.id,
-          categoryId: categoryId,
-          productName: detail.product.productName,
-          quantity: detail.quantity,
-          serialNumber: "",
-          lotNumber: "",
-        };
-      })
-    );
-    
-    setShipItems(items);
-    setIsShipDialogOpen(true);
-  };
 
   const handleShipOrder = async () => {
     if (!selectedOrder) return;
@@ -275,7 +145,6 @@ export const OrderManagementPage: React.FC = () => {
         
         setIsShipDialogOpen(false);
         setShipItems([]);
-        setNewStatus("");
         alert("Đã gửi đơn hàng thành công!");
       } else {
         console.error("Failed to ship order:", response.errors);
@@ -287,16 +156,6 @@ export const OrderManagementPage: React.FC = () => {
     } finally {
       setIsShipping(false);
     }
-  };
-
-  const getStatusSteps = () => {
-    return [
-      { status: "Pending", label: "Chờ xử lý", icon: Clock },
-      { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
-      { status: "Processing", label: "Đang xử lý", icon: Loader2 },
-      { status: "Shipped", label: "Đã vận chuyển", icon: Truck },
-      { status: "Delivered", label: "Đã giao hàng", icon: CheckCircle },
-    ];
   };
 
   const formatPrice = (price: number) => {
@@ -573,312 +432,12 @@ export const OrderManagementPage: React.FC = () => {
       )}
 
       {/* Order Detail Dialog */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="px-[15px] py-[10px] max-w-3xl max-h-[90vh] overflow-x-hidden overflow-y-auto ">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              Chi tiết đơn hàng #{selectedOrder?.id}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedOrder ? (
-            <div className="space-y-6">
-              {/* Customer Info */}
-              {selectedOrder.customer && (
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Package className="w-5 h-5" />
-                    Thông tin khách hàng
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-500">Tên khách hàng:</span>
-                      <p className="font-medium">{selectedOrder.customer.fullName || "N/A"}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Email:</span>
-                      <p className="font-medium">{selectedOrder.customer.email || "N/A"}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Số điện thoại:</span>
-                      <p className="font-medium">{selectedOrder.customer.phoneNumber || "N/A"}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Trạng thái xác minh:</span>
-                      <p className="font-medium">
-                        {selectedOrder.customer.isVerified ? (
-                          <Badge className="bg-green-100 text-green-700">Đã xác minh</Badge>
-                        ) : (
-                          <Badge className="bg-yellow-100 text-yellow-700">Chưa xác minh</Badge>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              {/* Order Info */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Truck className="w-5 h-5" />
-                  Thông tin đơn hàng
-                </h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-500">Trạng thái:</span>
-                    <p>{getStatusBadge(selectedOrder.status)}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Phương thức thanh toán:</span>
-                    <p className="font-medium">{selectedOrder.orderPaymentMethod}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Phương thức vận chuyển:</span>
-                    <p className="font-medium">{selectedOrder.shippingMethod}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Mã vận đơn:</span>
-                    <p className="font-medium">{selectedOrder.trackingNumber || "Chưa có"}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Ngày tạo:</span>
-                    <p className="font-medium">{formatDate(selectedOrder.createdAt)}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Cập nhật lần cuối:</span>
-                    <p className="font-medium">{formatDate(selectedOrder.updatedAt)}</p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Status Step Indicator */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Loader2 className="w-5 h-5" />
-                  Tiến trình đơn hàng
-                </h3>
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-6">
-                    {getStatusSteps().map((step, index) => {
-                      const currentIndex = getStatusSteps().findIndex(s => s.status === selectedOrder.status);
-                      const isCompleted = index <= currentIndex;
-                      const isCurrent = step.status === selectedOrder.status;
-                      const Icon = step.icon;
-                      
-                      return (
-                        <div key={step.status} className="flex flex-col items-center flex-1">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                            isCompleted 
-                              ? "bg-green-500 text-white" 
-                              : isCurrent 
-                                ? "bg-blue-500 text-white animate-pulse" 
-                                : "bg-gray-200 text-gray-400"
-                          }`}>
-                            <Icon className="w-6 h-6" />
-                          </div>
-                          <p className={`text-xs mt-2 text-center ${isCompleted ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                            {step.label}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </Card>
-
-              {/* Update Status Control */}
-              <Card className="p-4 border-blue-200">
-                <h3 className="font-semibold mb-3">Cập nhật trạng thái</h3>
-                
-                {showCancelReason ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">Lý do hủy đơn hàng</label>
-                      <Textarea
-                        value={cancelReason}
-                        onChange={(e) => setCancelReason(e.target.value)}
-                        placeholder="Nhập lý do hủy đơn hàng..."
-                        rows={3}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleUpdateStatus}
-                        disabled={!cancelReason.trim() || isUpdatingStatus}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        {isUpdatingStatus ? "Đang xử lý..." : "Xác nhận hủy"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowCancelReason(false);
-                          setCancelReason("");
-                          setNewStatus("");
-                        }}
-                      >
-                        Hủy
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Select value={newStatus || selectedOrder.status} onValueChange={handleNewStatusChange}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Pending">Chờ xử lý</SelectItem>
-                          <SelectItem value="Paid">Đã thanh toán</SelectItem>
-                          <SelectItem value="Processing">Đang xử lý</SelectItem>
-                          <SelectItem value="Shipped">Đã vận chuyển</SelectItem>
-                          <SelectItem value="Delivered">Đã giao hàng</SelectItem>
-                          <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
-                          <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        onClick={handleUpdateStatus}
-                        disabled={!newStatus || isUpdatingStatus || newStatus === selectedOrder.status}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {isUpdatingStatus ? "Đang xử lý..." : "Cập nhật"}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">Chọn trạng thái mới và nhấn "Cập nhật" để thay đổi</p>
-                  </div>
-                )}
-              </Card>
-
-              {/* Address */}
-              {selectedOrder.address && (
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <MapPin className="w-5 h-5" />
-                    Địa chỉ giao hàng
-                  </h3>
-                  <div className="text-sm">
-                    <p className="font-medium">{selectedOrder.address.locationAddress || "Chưa có địa chỉ"}</p>
-                    <p className="text-gray-600">
-                      {[
-                        selectedOrder.address.commune,
-                        selectedOrder.address.district,
-                        selectedOrder.address.province
-                      ].filter(Boolean).join(", ") || "Chưa có thông tin"}
-                    </p>
-                  </div>
-                </Card>
-              )}
-
-              {/* Order Items */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Sản phẩm ({selectedOrder.orderDetails?.length || 0})
-                </h3>
-                {isLoadingOrderDetails ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-2 text-gray-600">Đang tải sản phẩm...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedOrder.orderDetails && selectedOrder.orderDetails.length > 0 ? (
-                      selectedOrder.orderDetails.map((item) => (
-                        <div key={item.id} className="flex items-start gap-4 border-b pb-3 last:border-0">
-                          {/* Product Image */}
-                          {item.product.images && item.product.images.length > 0 && (
-                            <div className="w-20 h-20 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
-                              <img 
-                                src={item.product.images[0]} 
-                                alt={item.product.productName}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{item.product.productName}</p>
-                            <p className="text-xs text-gray-500">Mã sản phẩm: {item.product.productCode}</p>
-                            {item.product.description && (
-                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.product.description}</p>
-                            )}
-                            {item.product.warrantyMonths && (
-                              <p className="text-xs text-green-600 mt-1">
-                                Bảo hành: {item.product.warrantyMonths} tháng
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right min-w-[100px]">
-                            <p className="font-medium text-gray-900">{formatPrice(item.unitPrice)}</p>
-                            <p className="text-xs text-gray-500">Số lượng: x{item.quantity}</p>
-                            {item.discountAmount > 0 && (
-                              <p className="text-xs text-green-600">Giảm: -{formatPrice(item.discountAmount)}</p>
-                            )}
-                          </div>
-                          <div className="text-right min-w-[120px]">
-                            <p className="font-semibold text-gray-900">{formatPrice(item.subtotal)}</p>
-                            <p className="text-xs text-gray-400">Tổng</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        Không có sản phẩm trong đơn hàng
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-
-              {/* Price Summary */}
-              <Card className="p-4 bg-gray-50">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  Tổng kết
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tạm tính:</span>
-                    <span>{formatPrice(selectedOrder.subtotal)}</span>
-                  </div>
-                  {selectedOrder.discountAmount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Giảm giá:</span>
-                      <span>-{formatPrice(selectedOrder.discountAmount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Thuế:</span>
-                    <span>{formatPrice(selectedOrder.taxAmount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phí vận chuyển:</span>
-                    <span>{formatPrice(selectedOrder.shippingFee)}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-gray-300">
-                    <span className="text-lg font-bold">Tổng cộng:</span>
-                    <span className="text-lg font-bold">{formatPrice(selectedOrder.totalAmount)}</span>
-                  </div>
-                </div>
-              </Card>
-
-              {selectedOrder.notes && (
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Ghi chú</h3>
-                  <p className="text-sm text-gray-600">{selectedOrder.notes}</p>
-                </Card>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-600">Đang tải thông tin đơn hàng...</p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DetailOrder
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        order={selectedOrder}
+        onOrderUpdated={handleOrderUpdated}
+      />
 
       {/* Ship Order Dialog */}
       <Dialog open={isShipDialogOpen} onOpenChange={setIsShipDialogOpen}>
@@ -948,7 +507,6 @@ export const OrderManagementPage: React.FC = () => {
                 onClick={() => {
                   setIsShipDialogOpen(false);
                   setShipItems([]);
-                  setNewStatus("");
                 }}
                 disabled={isShipping}
               >

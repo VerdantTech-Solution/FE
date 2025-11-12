@@ -29,4 +29,6 @@ export const PATH_NAMES = {
   // PayOS routes
   PAYOS_CANCEL: '/payos/cancel',
   PAYOS_RETURN: '/payos/return',
+  // Ticket routes
+  TICKET: '/ticket',
 };

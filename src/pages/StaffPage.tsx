@@ -14,7 +14,7 @@ import {
   SidebarSectionTitle,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign } from "lucide-react";
+import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign, MessageSquare } from "lucide-react";
 import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
@@ -25,8 +25,9 @@ import { useNavigate } from "react-router";
 import { MonitoringPage } from "./staff/MonitoringPage";
 import { StaffProfile } from "./staff/StaffProfile";
 import { CashoutManagementPanel } from "./staff/CashoutManagementPanel";
+import { SupportRequestManagementPanel } from "./staff/SupportRequestManagementPanel";
 
-type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "cashout" | "settings" | "profile";
+type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "cashout" | "support" | "settings" | "profile";
 
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
@@ -69,6 +70,7 @@ export const StaffPage: React.FC = () => {
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "equipment"} onClick={() => setSelectedMenu("equipment")} icon={<Shield className="w-5 h-5" />}>Thiết bị</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh mục sản phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "cashout"} onClick={() => setSelectedMenu("cashout")} icon={<DollarSign className="w-5 h-5" />}>Quản lý rút tiền</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "support"} onClick={() => setSelectedMenu("support")} icon={<MessageSquare className="w-5 h-5" />}>Yêu cầu hỗ trợ</SidebarNavItem>
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Hệ thống</SidebarSectionTitle>
@@ -127,6 +129,9 @@ export const StaffPage: React.FC = () => {
           )}
           {selectedMenu === "cashout" && (
             <CashoutManagementPanel />
+          )}
+          {selectedMenu === "support" && (
+            <SupportRequestManagementPanel />
           )}
           {selectedMenu === "profile" && (
             <StaffProfile/>

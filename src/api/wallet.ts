@@ -32,11 +32,6 @@ export interface WalletResponse {
   errors: string[];
 }
 
-/**
- * Process wallet credits - Trả về số dư trong wallet của vendor
- * @param userId - ID của vendor
- * @returns Wallet data với balance
- */
 export const processWalletCredits = async (userId: number): Promise<WalletData> => {
   try {
     const response = await apiClient.post<WalletResponse>(
@@ -68,12 +63,6 @@ export interface CashoutRequestResponse {
   errors: string[];
 }
 
-/**
- * Create cashout request - Tạo yêu cầu rút tiền từ ví
- * Vendor chỉ được tạo 1 yêu cầu pending tại một thời điểm
- * @param request - Cashout request data
- * @returns Response với status và message
- */
 export const createCashoutRequest = async (request: CashoutRequest): Promise<CashoutRequestResponse> => {
   try {
     const response = await apiClient.post<CashoutRequestResponse>(
@@ -174,7 +163,48 @@ export interface GetCashoutRequestsResponse {
   errors: string[];
 }
 
+export const getAllCashoutRequest = async (
+  page = 1,
+  pageSize = 10
+): Promise<GetCashoutRequestsResponse> => {
+  try {
+    const response = await apiClient.get<GetCashoutRequestsResponse>(
+      '/api/Wallet/cashout-requests',
+      {
+        params: {
+          page,
+          pageSize,
+        },
+      }
+    ) as unknown as GetCashoutRequestsResponse;
 
+    return response;
+  } catch (error: any) {
+    if (error && typeof error === 'object') {
+      if ('status' in error && 'statusCode' in error) {
+        return error as GetCashoutRequestsResponse;
+      }
+
+      if ('errors' in error || 'message' in error) {
+        return {
+          status: false,
+          statusCode: (error as any).statusCode || 'Error',
+          data: null,
+          errors: Array.isArray((error as any).errors)
+            ? (error as any).errors
+            : [(error as any).message || 'Không thể tải danh sách yêu cầu rút tiền'],
+        };
+      }
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tải danh sách yêu cầu rút tiền'],
+    };
+  }
+};
 
 export const getPendingCashoutRequest = async (userId: number): Promise<GetCashoutRequestResponse> => {
   try {
@@ -223,11 +253,6 @@ export interface DeleteCashoutRequestResponse {
   errors: string[];
 }
 
-/**
- * Delete pending cashout request - Xóa yêu cầu rút tiền đang pending
- * Chỉ vendor sở hữu yêu cầu mới có thể xóa
- * @returns Response với status và message
- */
 export const deletePendingCashoutRequest = async (): Promise<DeleteCashoutRequestResponse> => {
   try {
     const response = await apiClient.delete<DeleteCashoutRequestResponse>(
@@ -266,13 +291,6 @@ export const deletePendingCashoutRequest = async (): Promise<DeleteCashoutReques
   }
 };
 
-/**
- * Get cashout request history for a vendor - Lấy lịch sử yêu cầu rút tiền của vendor
- * @param userId - ID của vendor
- * @param page - Số trang (mặc định: 1)
- * @param pageSize - Số lượng mỗi trang (mặc định: 10)
- * @returns Response với danh sách yêu cầu rút tiền có phân trang
- */
 export const getVendorCashoutHistory = async (
   userId: number,
   page = 1,
@@ -330,13 +348,6 @@ export interface ProcessCashoutManualResponse {
   errors: string[];
 }
 
-/**
- * Process cashout request manually - Xử lý yêu cầu rút tiền thủ công
- * Chỉ Admin/Staff mới có quyền
- * @param userId - ID của vendor
- * @param request - Request data với status và các thông tin cần thiết
- * @returns Response với status và message
- */
 export const processCashoutManual = async (
   userId: number,
   request: ProcessCashoutManualRequest

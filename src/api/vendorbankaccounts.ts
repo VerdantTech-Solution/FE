@@ -18,7 +18,6 @@ export interface SupportedBanksResponse {
 export interface CreateBankAccountRequest {
   bankCode: string;
   accountNumber: string;
-  accountHolder: string;
 }
 
 export interface CreateBankAccountResponse {
@@ -34,6 +33,7 @@ export interface VendorBankAccount {
   bankCode: string;
   accountNumber: string;
   accountHolder: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -86,12 +86,22 @@ export const getVendorBankAccounts = async (userId: number): Promise<VendorBankA
   }
 };
 
-// Xóa tài khoản ngân hàng của vendor
-export const deleteVendorBankAccount = async (accountId: number): Promise<void> => {
+export interface DeactivateBankAccountResponse {
+  status: boolean;
+  statusCode: string;
+  data: string;
+  errors: string[];
+}
+
+// Vô hiệu hóa tài khoản ngân hàng của vendor (soft delete)
+export const deleteVendorBankAccount = async (accountId: number): Promise<DeactivateBankAccountResponse> => {
   try {
-    await apiClient.delete(`/api/UserBankAccounts/${accountId}`);
+    const response = await apiClient.patch<DeactivateBankAccountResponse>(
+      `/api/UserBankAccounts/${accountId}/deactivate`
+    ) as unknown as DeactivateBankAccountResponse;
+    return response;
   } catch (error) {
-    console.error('Delete vendor bank account error:', error);
+    console.error('Deactivate vendor bank account error:', error);
     throw error;
   }
 };

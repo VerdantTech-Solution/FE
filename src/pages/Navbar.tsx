@@ -23,10 +23,9 @@ const Navbar = () => {
   const navigation = [
     { name: "Trang chủ", href: "/" },
     { name: "Về chúng tôi", href: "/about" },
-    { name: "Dịch vụ", href: "/services" },
      { name: "Chợ", href: "/marketplace" },
-    { name: "Dự án", href: "/projects" },
     { name: "Bài viết", href: "/articles" },
+    { name: "Trung tâm hỗ trợ", href: "/ticket" },
    
   ];
   

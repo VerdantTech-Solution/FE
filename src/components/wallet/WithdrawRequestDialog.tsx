@@ -1,12 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { AlertCircle, Info } from 'lucide-react';
+import { AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { createCashoutRequest, type CashoutRequest } from '@/api/wallet';
 import type { VendorBankAccount } from '@/api/vendorbankaccounts';
 
@@ -31,6 +40,7 @@ const WithdrawRequestDialog = ({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
   // Format số tiền với dấu phẩy ngăn cách
   const formatCurrency = (amount: number): string => {
@@ -88,7 +98,7 @@ const WithdrawRequestDialog = ({
         // Success
         onOpenChange(false);
         onSuccess();
-        alert('Yêu cầu rút tiền đã được tạo thành công!');
+        setIsSuccessDialogOpen(true);
       } else {
         // Handle error from response
         const errorMessage = response.errors?.[0] || 'Không thể tạo yêu cầu rút tiền';
@@ -115,6 +125,7 @@ const WithdrawRequestDialog = ({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
@@ -260,6 +271,32 @@ const WithdrawRequestDialog = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Success AlertDialog */}
+    <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+      <AlertDialogContent className="sm:max-w-[400px]">
+        <AlertDialogHeader>
+          <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-7 h-7 text-green-600" />
+          </div>
+          <AlertDialogTitle className="text-xl font-bold text-center">
+            Thành công!
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-center">
+            Yêu cầu rút tiền đã được tạo thành công. Vui lòng chờ xử lý.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction
+            onClick={() => setIsSuccessDialogOpen(false)}
+            className="bg-green-600 hover:bg-green-700 text-white w-full"
+          >
+            Đóng
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
