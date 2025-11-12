@@ -4,15 +4,12 @@ import {
   Plus,
   Minus,
   ShieldCheck,
-  BadgePercent,
   Package,
-  X,
   ArrowLeft,
   CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import {
@@ -101,8 +98,6 @@ export const CartPage = () => {
   const [cartResponse, setCartResponse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [coupon, setCoupon] = useState<string>("");
-  const [appliedCoupon, setAppliedCoupon] = useState<string>("");
   const [updatingItem, setUpdatingItem] = useState<number | null>(null);
   const [removingItem, setRemovingItem] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -263,15 +258,7 @@ export const CartPage = () => {
     () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [items]
   );
-  const discount = useMemo(() => {
-    // Simple demo: SALE10 = 10% off on subtotal (cap 100k)
-    if (appliedCoupon.toUpperCase() === "SALE10") {
-      return Math.min(Math.round(subtotal * 0.1), 100000);
-    }
-    return 0;
-  }, [appliedCoupon, subtotal]);
-
-  const total = Math.max(0, subtotal - discount);
+  const total = subtotal;
 
   const updateQty = useCallback(async (id: number, delta: number) => {
     try {
@@ -355,16 +342,6 @@ export const CartPage = () => {
     setDeleteDialogOpen(false);
     await removeItem(id);
     setPendingDeleteId(null);
-  };
-
-
-  const applyCoupon = () => {
-    setAppliedCoupon(coupon.trim());
-  };
-
-  const removeCoupon = () => {
-    setAppliedCoupon("");
-    setCoupon("");
   };
 
 
@@ -615,46 +592,11 @@ export const CartPage = () => {
                   <CardTitle className="text-xl font-bold text-gray-900">Tóm tắt đơn hàng</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 text-sm font-medium text-gray-700">
-                      <BadgePercent className="h-4 w-4 text-green-700" />
-                      <span>Mã ưu đãi</span>
-                    </div>
-                    {appliedCoupon ? (
-                      <div className="flex items-center justify-between rounded-lg border-2 border-green-200 px-4 py-3 bg-green-50 text-green-800">
-                        <span className="font-semibold">{appliedCoupon}</span>
-                        <Button variant="ghost" size="sm" onClick={removeCoupon} aria-label="Xóa mã" className="text-green-600 hover:text-green-800">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <Input
-                          value={coupon}
-                          onChange={(e) => setCoupon(e.target.value)}
-                          placeholder="Nhập mã (vd: SALE10)"
-                          className="flex-1"
-                        />
-                        <Button onClick={applyCoupon} className="bg-green-600 hover:bg-green-700 px-6">
-                          Áp dụng
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm text-gray-700">
                       <span>Tạm tính</span>
                       <span className="font-semibold">{currency(subtotal)}</span>
                     </div>
-                    {discount > 0 && (
-                      <div className="flex items-center justify-between text-sm text-gray-700">
-                        <span>Giảm giá</span>
-                        <span className="font-semibold text-green-700">- {currency(discount)}</span>
-                      </div>
-                    )}
                   </div>
 
                   <Separator />

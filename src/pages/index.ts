@@ -32,6 +32,7 @@ export * from './CreateFarmPage';
 export * from './UpdateFarmPage';
 export * from './FarmDetailPage';
 export * from './vendor';
+export { default as TicketPage } from './TicketPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';

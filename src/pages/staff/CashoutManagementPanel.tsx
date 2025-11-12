@@ -37,13 +37,12 @@ import {
   X,
 } from "lucide-react";
 import {
-  getPendingCashoutRequest,
+  getAllCashoutRequest,
   processCashoutManual,
   type CashoutRequestData,
   type CashoutRequestsPage,
   type ProcessCashoutManualRequest,
 } from "@/api/wallet";
-import { getAllUsers, type UserResponse } from "@/api/user";
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", {
@@ -62,12 +61,22 @@ const formatDateTime = (value?: string) => {
 };
 
 const getStatusBadgeClass = (status?: string) => {
-  switch (status) {
-    case "Approved":
+  if (!status) return "bg-yellow-100 text-yellow-700";
+  
+  const normalizedStatus = status.toLowerCase();
+  
+  switch (normalizedStatus) {
+    case "completed":
       return "bg-green-100 text-green-700";
-    case "Rejected":
+    case "failed":
       return "bg-red-100 text-red-700";
-    case "Processing":
+    case "cancelled":
+      return "bg-red-100 text-red-700";
+    case "approved":
+      return "bg-green-100 text-green-700";
+    case "rejected":
+      return "bg-red-100 text-red-700";
+    case "processing":
       return "bg-blue-100 text-blue-700";
     default:
       return "bg-yellow-100 text-yellow-700";
@@ -116,6 +125,7 @@ export const CashoutManagementPanel: React.FC = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState<string | null>(null);
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
   const fetchCashoutRequests = useCallback(
     async (
@@ -131,54 +141,33 @@ export const CashoutManagementPanel: React.FC = () => {
         }
         setError(null);
 
-        // Lấy danh sách tất cả users (đặc biệt là vendors)
-        const allUsers = await getAllUsers();
-        const vendorUsers = allUsers.filter(user => 
-          user.role?.toLowerCase() === 'vendor' || user.role?.toLowerCase() === 'farmer'
-        );
+        // Gọi API để lấy tất cả cashout requests với phân trang
+        const response = await getAllCashoutRequest(page, size);
 
-        // Gọi getPendingCashoutRequest cho từng vendor
-        const promises = vendorUsers.map(async (user) => {
-          try {
-            const userId = Number(user.id);
-            const response = await getPendingCashoutRequest(userId);
-            
-            if (response && isStatusTrue(response.status) && response.data) {
-              // Thêm user info vào request data
-              const requestData: CashoutRequestData = {
-                ...response.data,
-                user: user as any,
-                vendorId: userId,
-              };
-              return requestData;
-            }
-            return null;
-          } catch (err) {
-            // Bỏ qua lỗi cho từng user (có thể user không có pending request)
-            return null;
-          }
-        });
-
-        const results = await Promise.all(promises);
-        const validRequests = results.filter((req): req is CashoutRequestData => req !== null);
-
-        // Client-side pagination
-        const totalRecords = validRequests.length;
-        const totalPages = Math.ceil(totalRecords / size);
-        const startIndex = (page - 1) * size;
-        const endIndex = startIndex + size;
-        const paginatedRequests = validRequests.slice(startIndex, endIndex);
-
-        setRequests(paginatedRequests);
-        setPaginationMeta({
-          data: paginatedRequests,
-          currentPage: page,
-          pageSize: size,
-          totalPages: totalPages,
-          totalRecords: totalRecords,
-          hasNextPage: page < totalPages,
-          hasPreviousPage: page > 1,
-        });
+        if (response && isStatusTrue(response.status) && response.data) {
+          const paginationData = response.data;
+          setRequests(paginationData.data || []);
+          setPaginationMeta({
+            data: paginationData.data || [],
+            currentPage: paginationData.currentPage || page,
+            pageSize: paginationData.pageSize || size,
+            totalPages: paginationData.totalPages || 1,
+            totalRecords: paginationData.totalRecords || 0,
+            hasNextPage: paginationData.hasNextPage || false,
+            hasPreviousPage: paginationData.hasPreviousPage || false,
+          });
+        } else {
+          // Nếu không có data hoặc status false
+          const errorMessage = response?.errors?.[0] || "Không thể tải danh sách yêu cầu rút tiền";
+          setError(errorMessage);
+          setRequests([]);
+          setPaginationMeta((prev) => ({
+            ...prev,
+            data: [],
+            currentPage: page,
+            pageSize: size,
+          }));
+        }
       } catch (err: any) {
         const errorMessage =
           err?.errors?.[0] ||
@@ -309,9 +298,9 @@ export const CashoutManagementPanel: React.FC = () => {
       const response = await processCashoutManual(vendorId, requestData);
 
       if (response.status) {
-        alert('Xử lý yêu cầu rút tiền thành công!');
         handleCloseProcessDialog();
         await fetchCashoutRequests(currentPage, pageSize, { skipLoading: true });
+        setIsSuccessDialogOpen(true);
       } else {
         const errorMessage = response.errors && response.errors.length > 0
           ? response.errors.join(', ')
@@ -733,6 +722,31 @@ export const CashoutManagementPanel: React.FC = () => {
                   Xác nhận xử lý
                 </>
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Success AlertDialog */}
+      <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+        <AlertDialogContent className="sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-7 h-7 text-green-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-center">
+              Thành công!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Yêu cầu rút tiền đã được xử lý thành công.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setIsSuccessDialogOpen(false)}
+              className="bg-green-600 hover:bg-green-700 text-white w-full"
+            >
+              Đóng
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
