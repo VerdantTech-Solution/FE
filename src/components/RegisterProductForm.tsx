@@ -36,7 +36,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     proposedProductName: '',
     description: '',
     unitPrice: 0,
-    energyEfficiencyRating: '',
+    energyEfficiencyRating: undefined,
     specifications: {},
     manualFile: null,
     images: [],
@@ -224,7 +224,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
           proposedProductName: '',
           description: '',
           unitPrice: 0,
-          energyEfficiencyRating: '',
+          energyEfficiencyRating: undefined,
           specifications: {},
           manualFile: null,
           images: [],
@@ -505,10 +505,13 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                   </Label>
                   <Input
                     id="energyEfficiencyRating"
-                    value={formData.energyEfficiencyRating}
-                    onChange={(e) => handleInputChange('energyEfficiencyRating', e.target.value)}
+                    type="number"
+                    value={formData.energyEfficiencyRating ?? ''}
+                    onChange={(e) => handleInputChange('energyEfficiencyRating', e.target.value ? parseFloat(e.target.value) : undefined)}
                     placeholder="8"
                     disabled={isLoading}
+                    min="0"
+                    max="5"
                   />
                 </div>
               </div>

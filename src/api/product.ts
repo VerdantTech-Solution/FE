@@ -14,7 +14,9 @@ export interface ProductRegistration {
     [key: string]: string;
   };
   manualUrls?: string;
-  images?: string;
+  images?: string | ProductImage[] | string[]; // Có thể là string, array of objects, hoặc array of strings
+  productImages?: MediaLinkItemDTO[]; // ✅ Backend trả về trong field này (từ HydrateMediaAsync)
+  certificateFiles?: MediaLinkItemDTO[]; // Certificates từ backend
   warrantyMonths: number;
   weightKg: number;
   dimensionsCm: {
@@ -28,6 +30,15 @@ export interface ProductRegistration {
   createdAt: string;
   updatedAt: string;
   approvedAt?: string;
+}
+
+// MediaLinkItemDTO từ backend (từ HydrateMediaAsync)
+export interface MediaLinkItemDTO {
+  id: number;
+  imagePublicId: string;
+  imageUrl: string;
+  purpose: string;
+  sortOrder: number;
 }
 
 export interface CreateProductCategoryRequest {
@@ -419,7 +430,22 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
       },
     });
     
-    console.log('Register product response:', response);
+    console.log('=== Register product response ===');
+    console.log('Full response:', JSON.stringify(response, null, 2));
+    console.log('Response type:', typeof response);
+    console.log('Is array:', Array.isArray(response));
+    if (response && typeof response === 'object') {
+      console.log('Response keys:', Object.keys(response));
+      if ('images' in response) {
+        console.log('Images field:', response.images);
+        console.log('Images type:', typeof response.images);
+        console.log('Images is array:', Array.isArray(response.images));
+      }
+      if ('id' in response) {
+        console.log('Product Registration ID:', response.id);
+      }
+    }
+    console.log('================================');
     return response;
   } catch (error: any) {
     console.error('Register product error:', error);
@@ -441,20 +467,261 @@ export const getProductRegistrations = async (): Promise<ProductRegistration[]> 
   try {
     const response = await apiClient.get('/api/ProductRegistrations');
     console.log('Get product registrations response:', response);
+    console.log('Response type:', typeof response);
+    console.log('Is array:', Array.isArray(response));
     
     // apiClient đã unwrap response.data do interceptor
     if (response && Array.isArray(response)) {
+      // Log first item để xem structure
+      if (response.length > 0) {
+        console.log('=== First ProductRegistration item ===');
+        console.log('Full item:', JSON.stringify(response[0], null, 2));
+        console.log('All keys:', Object.keys(response[0]));
+        console.log('Images field:', response[0].images);
+        console.log('Images type:', typeof response[0].images);
+        console.log('Images is array:', Array.isArray(response[0].images));
+        if (response[0].images) {
+          if (typeof response[0].images === 'string') {
+            console.log('Images is string, value:', response[0].images);
+          } else if (Array.isArray(response[0].images)) {
+            console.log('Images is array, length:', response[0].images.length);
+            console.log('First image item:', response[0].images[0]);
+            console.log('First image item type:', typeof response[0].images[0]);
+            if (response[0].images[0] && typeof response[0].images[0] === 'object') {
+              console.log('First image item keys:', Object.keys(response[0].images[0]));
+            }
+          }
+        }
+        // Kiểm tra các field có thể chứa media links
+        const possibleFields = ['mediaLinks', 'media_links', 'imageUrls', 'ImageUrls', 'MediaLinks'];
+        for (const field of possibleFields) {
+          if (field in response[0]) {
+            console.log(`Found field "${field}":`, (response[0] as any)[field]);
+          }
+        }
+        console.log('=====================================');
+      }
       return response;
     }
     
     // Fallback nếu response có cấu trúc khác
     if (response && response.data && Array.isArray(response.data)) {
+      if (response.data.length > 0) {
+        console.log('First registration item (from data):', response.data[0]);
+        console.log('First registration images field (from data):', response.data[0].images);
+      }
       return response.data;
     }
     
     return [];
   } catch (error) {
     console.error('Get product registrations error:', error);
+    throw error;
+  }
+};
+
+// API lấy chi tiết product registration theo ID
+export const getProductRegistrationById = async (id: number): Promise<ProductRegistration> => {
+  try {
+    const response = await apiClient.get(`/api/ProductRegistrations/${id}`);
+    console.log(`Get product registration ${id} response:`, response);
+    
+    // apiClient đã unwrap response.data do interceptor, response là data trực tiếp
+    if (response && typeof response === 'object' && 'id' in response) {
+      const registration = response as unknown as ProductRegistration;
+      console.log(`=== ProductRegistration ${id} detail ===`);
+      console.log('Full response:', JSON.stringify(registration, null, 2));
+      console.log('All keys:', Object.keys(registration));
+      console.log('Images field:', registration.images);
+      console.log('Images type:', typeof registration.images);
+      console.log('Images is array:', Array.isArray(registration.images));
+      if (registration.images) {
+        if (typeof registration.images === 'string') {
+          console.log('Images is string, value:', registration.images);
+        } else if (Array.isArray(registration.images)) {
+          console.log('Images is array, length:', registration.images.length);
+          if (registration.images.length > 0) {
+            console.log('First image item:', registration.images[0]);
+            console.log('First image item type:', typeof registration.images[0]);
+            if (registration.images[0] && typeof registration.images[0] === 'object') {
+              console.log('First image item keys:', Object.keys(registration.images[0]));
+            }
+          }
+        }
+      }
+      // Kiểm tra các field có thể chứa media links
+      const possibleFields = ['mediaLinks', 'media_links', 'imageUrls', 'ImageUrls', 'MediaLinks'];
+      for (const field of possibleFields) {
+        if (field in registration) {
+          console.log(`Found field "${field}":`, (registration as any)[field]);
+        }
+      }
+      console.log('======================================');
+      return registration;
+    }
+    
+    // Fallback nếu response có cấu trúc khác
+    if (response && typeof response === 'object' && 'data' in response) {
+      const data = (response as { data: ProductRegistration }).data;
+      console.log(`Registration ${id} images field (from data):`, data.images);
+      return data;
+    }
+    
+    throw new Error('Invalid response format');
+  } catch (error) {
+    console.error(`Get product registration ${id} error:`, error);
+    throw error;
+  }
+};
+
+// Interface cho MediaLink (theo database schema)
+export interface MediaLink {
+  id: number;
+  ownerType: string; // Từ database: 'product_registrations', 'products', 'product_reviews', etc.
+  ownerId: number;  // ID của ProductRegistration
+  imageUrl: string; // URL đầy đủ của ảnh trên Cloudinary
+  imagePublicId: string; // Public ID trên Cloudinary
+  purpose?: string; // Có thể là 'none' hoặc các giá trị khác
+  sortOrder?: number; // Thứ tự sắp xếp
+  createdAt?: string; // Timestamp
+}
+
+// API lấy media links theo owner_type và owner_id
+// Đơn giản hóa: chỉ thử endpoint format cơ bản nhất
+export const getMediaLinks = async (
+  ownerType: string,
+  ownerId: number
+): Promise<MediaLink[]> => {
+  // Thử endpoint format cơ bản nhất (snake_case - đúng với database)
+  // Từ database: owner_type = 'product_registrations', owner_id = ProductRegistration.id
+  const endpoints = [
+    `/api/MediaLinks?owner_type=${ownerType}&owner_id=${ownerId}`, // ✅ Ưu tiên: snake_case
+    `/api/MediaLinks?ownerType=${ownerType}&ownerId=${ownerId}`,   // camelCase (fallback)
+  ];
+  
+  for (const endpoint of endpoints) {
+    try {
+      const response = await apiClient.get(endpoint);
+      
+      // apiClient đã unwrap response.data do interceptor
+      if (response && Array.isArray(response) && response.length > 0) {
+        // Map snake_case từ database sang camelCase cho interface
+        const mapped = response.map((item: any) => ({
+          id: item.id,
+          ownerType: item.owner_type || item.ownerType,
+          ownerId: item.owner_id || item.ownerId,
+          imageUrl: item.image_url || item.imageUrl,
+          imagePublicId: item.image_public_id || item.imagePublicId,
+          purpose: item.purpose,
+          sortOrder: item.sort_order || item.sortOrder,
+          createdAt: item.created_at || item.createdAt
+        })) as MediaLink[];
+        
+        console.log(`✅ Found ${mapped.length} media links for ${ownerType}:${ownerId} via ${endpoint}`);
+        return mapped;
+      }
+      
+      // Fallback nếu response có cấu trúc khác
+      if (response && typeof response === 'object' && 'data' in response) {
+        const data = (response as { data: any }).data;
+        if (Array.isArray(data) && data.length > 0) {
+          // Map snake_case từ database sang camelCase cho interface
+          const mapped = data.map((item: any) => ({
+            id: item.id,
+            ownerType: item.owner_type || item.ownerType,
+            ownerId: item.owner_id || item.ownerId,
+            imageUrl: item.image_url || item.imageUrl,
+            imagePublicId: item.image_public_id || item.imagePublicId,
+            purpose: item.purpose,
+            sortOrder: item.sort_order || item.sortOrder,
+            createdAt: item.created_at || item.createdAt
+          })) as MediaLink[];
+          
+          console.log(`✅ Found ${mapped.length} media links in data field for ${ownerType}:${ownerId} via ${endpoint}`);
+          return mapped;
+        }
+      }
+    } catch (error: any) {
+      // Chỉ log lỗi cho endpoint đầu tiên để debug
+      if (endpoint === endpoints[0]) {
+        console.log(`❌ Endpoint ${endpoint} failed:`, error?.message || error);
+      }
+      // Thử endpoint tiếp theo
+      continue;
+    }
+  }
+  
+  return [];
+};
+
+// Interface for updating product registration status
+export interface UpdateProductRegistrationStatusRequest {
+  id: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  approvedBy: number;
+}
+
+// API cập nhật trạng thái đăng ký sản phẩm (duyệt/từ chối)
+export const updateProductRegistrationStatus = async (
+  id: number,
+  data: Omit<UpdateProductRegistrationStatusRequest, 'id'>
+): Promise<ProductRegistration> => {
+  try {
+    const payload: UpdateProductRegistrationStatusRequest = {
+      id,
+      status: data.status,
+      rejectionReason: data.rejectionReason,
+      approvedBy: data.approvedBy,
+    };
+    
+    const response = await apiClient.patch(`/api/ProductRegistrations/${id}/status`, payload);
+    console.log('Update product registration status response:', response);
+    console.log('Response type:', typeof response);
+    
+    // apiClient đã unwrap response.data do interceptor, response là data trực tiếp
+    // Nếu response là ProductRegistration object (có id và các field cần thiết)
+    if (response && typeof response === 'object' && !Array.isArray(response) && 'id' in response && 'status' in response) {
+      return response as unknown as ProductRegistration;
+    }
+    
+    // Nếu response có cấu trúc { data: ProductRegistration }
+    if (response && typeof response === 'object' && !Array.isArray(response) && 'data' in response) {
+      const data = (response as { data: any }).data;
+      if (data && typeof data === 'object' && 'id' in data) {
+        return data as ProductRegistration;
+      }
+    }
+    
+    // Nếu response là empty/null/undefined/string/empty object, API có thể chỉ trả về success
+    // Fetch lại registration để lấy data mới nhất
+    const isEmptyResponse = !response || 
+                           (typeof response === 'string' && (response as string).trim() === '') ||
+                           (typeof response === 'object' && !Array.isArray(response) && Object.keys(response).length === 0);
+    
+    if (isEmptyResponse || typeof response === 'string') {
+      console.log('Response is empty or string, fetching updated registration...');
+      const updatedRegistrations = await getProductRegistrations();
+      const found = updatedRegistrations.find(reg => reg.id === id);
+      if (found) {
+        return found;
+      }
+      // Nếu không tìm thấy, throw error
+      throw new Error('Không thể lấy thông tin đăng ký sau khi cập nhật');
+    }
+    
+    // Nếu response có cấu trúc khác (có thể là success message object)
+    // Vẫn fetch lại để đảm bảo có data
+    console.log('Response format unexpected, fetching updated registration...');
+    const updatedRegistrations = await getProductRegistrations();
+    const found = updatedRegistrations.find(reg => reg.id === id);
+    if (found) {
+      return found;
+    }
+    
+    throw new Error('Invalid response format');
+  } catch (error) {
+    console.error('Update product registration status error:', error);
     throw error;
   }
 };
