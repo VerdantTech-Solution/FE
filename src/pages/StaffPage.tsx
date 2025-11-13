@@ -26,8 +26,9 @@ import { MonitoringPage } from "./staff/MonitoringPage";
 import { StaffProfile } from "./staff/StaffProfile";
 import { CashoutManagementPanel } from "./staff/CashoutManagementPanel";
 import { SupportRequestManagementPanel } from "./staff/SupportRequestManagementPanel";
+import { BalanceManagement } from "./staff/BalanceManagement";
 
-type ViewKey = "warehouse" | "users" | "orders" | "equipment" | "monitoring" | "cashout" | "support" | "settings" | "profile";
+type ViewKey = "warehouse" | "users" | "orders" | "balance" | "monitoring" | "cashout" | "support" | "settings" | "profile";
 
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
@@ -67,8 +68,9 @@ export const StaffPage: React.FC = () => {
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "equipment"} onClick={() => setSelectedMenu("equipment")} icon={<Shield className="w-5 h-5" />}>Thiết bị</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh mục sản phẩm</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "balance"} onClick={() => setSelectedMenu("balance")} icon={<Shield className="w-5 h-5" />}>Số dư tài khoản</SidebarNavItem>
+              
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "cashout"} onClick={() => setSelectedMenu("cashout")} icon={<DollarSign className="w-5 h-5" />}>Quản lý rút tiền</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "support"} onClick={() => setSelectedMenu("support")} icon={<MessageSquare className="w-5 h-5" />}>Yêu cầu hỗ trợ</SidebarNavItem>
             </SidebarSection>
@@ -126,6 +128,9 @@ export const StaffPage: React.FC = () => {
           )}
           {selectedMenu === "monitoring" && (
             <MonitoringPage/>
+          )}
+          {selectedMenu === "balance" && (
+            <BalanceManagement />
           )}
           {selectedMenu === "cashout" && (
             <CashoutManagementPanel />
