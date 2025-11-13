@@ -31,6 +31,9 @@ const BankAccountsList = ({ accounts, banks, loading, onAddBank, onDeleteSuccess
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Filter chỉ hiển thị tài khoản active
+  const activeAccounts = accounts.filter(account => account.isActive === true);
+
   // Map bankCode to bank info
   const getBankInfo = (bankCode: string) => {
     return banks.find(b => b.bin === bankCode || b.code === bankCode);
@@ -45,13 +48,27 @@ const BankAccountsList = ({ accounts, banks, loading, onAddBank, onDeleteSuccess
     if (!deletingId) return;
 
     try {
-      await deleteVendorBankAccount(deletingId);
-      setShowDeleteDialog(false);
-      setShowSuccessDialog(true);
-      onDeleteSuccess();
+      const response = await deleteVendorBankAccount(deletingId);
+      
+      if (response.status) {
+        setShowDeleteDialog(false);
+        setShowSuccessDialog(true);
+        onDeleteSuccess();
+      } else {
+        const errorMsg = response.errors?.join(", ") || response.errors?.[0] || 'Có lỗi xảy ra khi vô hiệu hóa tài khoản ngân hàng';
+        setShowDeleteDialog(false);
+        setErrorMessage(errorMsg);
+        setShowErrorDialog(true);
+      }
     } catch (error: any) {
       setShowDeleteDialog(false);
-      setErrorMessage(error?.message || 'Có lỗi xảy ra khi xóa tài khoản ngân hàng');
+      const errorMsg = 
+        error?.response?.data?.errors?.join(", ") ||
+        error?.response?.data?.errors?.[0] ||
+        error?.response?.data?.message ||
+        error?.message || 
+        'Có lỗi xảy ra khi vô hiệu hóa tài khoản ngân hàng';
+      setErrorMessage(errorMsg);
       setShowErrorDialog(true);
     } finally {
       setDeletingId(null);
@@ -101,7 +118,7 @@ const BankAccountsList = ({ accounts, banks, loading, onAddBank, onDeleteSuccess
               <span className="text-sm text-gray-500">Đang tải...</span>
             </div>
           </div>
-        ) : accounts.length === 0 ? (
+        ) : activeAccounts.length === 0 ? (
           <div className="text-center py-12 px-4">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 mb-4">
               <Building2 className="text-blue-500" size={32} />
@@ -119,7 +136,7 @@ const BankAccountsList = ({ accounts, banks, loading, onAddBank, onDeleteSuccess
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {accounts.map((account) => {
+            {activeAccounts.map((account) => {
               const bankInfo = getBankInfo(account.bankCode);
               return (
                 <div

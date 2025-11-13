@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { googleLogin } from "@/api/auth";
+import { toast } from "sonner";
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -109,8 +110,114 @@ export const LoginPage = () => {
       }
     } catch (error: unknown) {
       console.error("Login error:", error);
-      // Xử lý lỗi đăng nhập
-      console.log("Login failed, please try again");
+      
+      let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";
+      
+      if (error && typeof error === 'object') {
+        // Check if error has response.data structure (from axios)
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+          const errorData = error.response.data as any;
+          const errorText = errorData?.errors?.[0] || errorData?.message || '';
+          const statusCode = (error.response as any).status;
+          
+          // Check for wrong password (401 Unauthorized or message about password)
+          if (
+            statusCode === 401 ||
+            errorText.toLowerCase().includes('password') ||
+            errorText.toLowerCase().includes('mật khẩu') ||
+            errorText.toLowerCase().includes('incorrect password') ||
+            errorText.toLowerCase().includes('sai mật khẩu') ||
+            errorText.toLowerCase().includes('invalid password') ||
+            errorText.toLowerCase().includes('wrong password')
+          ) {
+            errorMessage = 'Sai mật khẩu';
+          }
+          // Check for account not found (404 Not Found or message about user/account not found)
+          else if (
+            statusCode === 404 ||
+            errorText.toLowerCase().includes('not found') ||
+            errorText.toLowerCase().includes('không tìm thấy') ||
+            errorText.toLowerCase().includes('user not found') ||
+            errorText.toLowerCase().includes('account not found') ||
+            errorText.toLowerCase().includes('tài khoản không tồn tại') ||
+            errorText.toLowerCase().includes('email không tồn tại')
+          ) {
+            errorMessage = 'Không tìm thấy tài khoản';
+          }
+          // Use error message from API if available
+          else if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        // Check if error is directly the response data structure
+        else if ('statusCode' in error || 'errors' in error || 'message' in error) {
+          const errorData = error as any;
+          const errorText = errorData?.errors?.[0] || errorData?.message || '';
+          const statusCode = errorData?.statusCode;
+          
+          // Check for wrong password
+          if (
+            statusCode === 401 ||
+            errorText.toLowerCase().includes('password') ||
+            errorText.toLowerCase().includes('mật khẩu') ||
+            errorText.toLowerCase().includes('incorrect password') ||
+            errorText.toLowerCase().includes('sai mật khẩu') ||
+            errorText.toLowerCase().includes('invalid password') ||
+            errorText.toLowerCase().includes('wrong password')
+          ) {
+            errorMessage = 'Sai mật khẩu';
+          }
+          // Check for account not found
+          else if (
+            statusCode === 404 ||
+            errorText.toLowerCase().includes('not found') ||
+            errorText.toLowerCase().includes('không tìm thấy') ||
+            errorText.toLowerCase().includes('user not found') ||
+            errorText.toLowerCase().includes('account not found') ||
+            errorText.toLowerCase().includes('tài khoản không tồn tại') ||
+            errorText.toLowerCase().includes('email không tồn tại')
+          ) {
+            errorMessage = 'Không tìm thấy tài khoản';
+          }
+          // Use error message from API if available
+          else if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        // Check if error has message property
+        else if ('message' in error) {
+          const message = String(error.message).toLowerCase();
+          
+          // Check for wrong password
+          if (
+            message.includes('password') ||
+            message.includes('mật khẩu') ||
+            message.includes('incorrect password') ||
+            message.includes('sai mật khẩu') ||
+            message.includes('invalid password') ||
+            message.includes('wrong password')
+          ) {
+            errorMessage = 'Sai mật khẩu';
+          }
+          // Check for account not found
+          else if (
+            message.includes('not found') ||
+            message.includes('không tìm thấy') ||
+            message.includes('user not found') ||
+            message.includes('account not found') ||
+            message.includes('tài khoản không tồn tại') ||
+            message.includes('email không tồn tại')
+          ) {
+            errorMessage = 'Không tìm thấy tài khoản';
+          }
+          // Use original message
+          else {
+            errorMessage = String(error.message);
+          }
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -320,25 +427,17 @@ export const LoginPage = () => {
                </div>
 
               {/* Social Login */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <GoogleLogin
-                    onSuccess={handleGoogleLogin}
-                    onError={() => alert("Đăng nhập Google thất bại")}
-                    width="100%"
-                    size="medium"
-                    text="signin_with"
-                    locale="vi"
-                    shape="rectangular"
-                    theme="outline"
-                  />
-                </div>
-                <Button variant="outline" className="w-full bg-transparent border border-gray-200 hover:border-gray-300 py-2 h-10 text-xs">
-                  <svg className="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  Facebook
-                </Button>
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleLogin}
+                  onError={() => alert("Đăng nhập Google thất bại")}
+                  width="100%"
+                  size="medium"
+                  text="signin_with"
+                  locale="vi"
+                  shape="rectangular"
+                  theme="outline"
+                />
               </div>
             </CardContent>
 

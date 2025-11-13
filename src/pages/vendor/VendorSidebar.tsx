@@ -4,7 +4,8 @@ import {
   Square, 
   CreditCard, 
   User,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
 
 const VendorSidebar = () => {
@@ -35,6 +36,12 @@ const VendorSidebar = () => {
       label: "Yêu cầu rút tiền", 
       icon: FileText, 
       path: "/vendor/cashout-requests" 
+    },
+    { 
+      id: "cashout-history", 
+      label: "Lịch sử rút tiền", 
+      icon: History, 
+      path: "/vendor/cashout-history" 
     },
     { 
       id: "vendor-info", 
