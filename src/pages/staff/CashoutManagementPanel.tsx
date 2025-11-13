@@ -35,6 +35,7 @@ import {
   CheckCircle,
   XCircle,
   X,
+  Zap,
 } from "lucide-react";
 import {
   getAllCashoutRequest,
@@ -43,6 +44,12 @@ import {
   type CashoutRequestsPage,
   type ProcessCashoutManualRequest,
 } from "@/api/wallet";
+import { usePayOSProcessing } from "./hooks/usePayOSProcessing";
+import {
+  PayOSConfirmDialog,
+  PayOSSuccessDialog,
+  PayOSErrorDialog,
+} from "./components/PayOSDialogs";
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", {
@@ -126,6 +133,16 @@ export const CashoutManagementPanel: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState<string | null>(null);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  
+  // PayOS processing hook
+  const payOSProcessing = usePayOSProcessing({
+    onSuccess: () => {
+      fetchCashoutRequests(currentPage, pageSize, { skipLoading: true });
+    },
+    onError: (error) => {
+      setError(error);
+    },
+  });
 
   const fetchCashoutRequests = useCallback(
     async (
@@ -314,6 +331,7 @@ export const CashoutManagementPanel: React.FC = () => {
       setIsProcessing(false);
     }
   };
+
 
   return (
     <div className="space-y-6">
@@ -537,15 +555,36 @@ export const CashoutManagementPanel: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 text-sm">
                         {isPendingStatus(request.status) && (request.vendorId || request.user?.id) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenProcessDialog(request)}
-                            className="gap-1"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            Xử lý
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => payOSProcessing.handleOpenPayOSConfirmDialog(request)}
+                              disabled={payOSProcessing.isProcessingPayOS && payOSProcessing.processingPayOSId === request.id}
+                              className="gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                            >
+                              {payOSProcessing.isProcessingPayOS && payOSProcessing.processingPayOSId === request.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Đang xử lý...
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="h-4 w-4" />
+                                  PayOS
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenProcessDialog(request)}
+                              className="gap-1"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Thủ công
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -751,6 +790,30 @@ export const CashoutManagementPanel: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PayOS Dialogs */}
+      <PayOSConfirmDialog
+        open={payOSProcessing.isPayOSConfirmDialogOpen}
+        onOpenChange={payOSProcessing.handleClosePayOSConfirmDialog}
+        request={payOSProcessing.selectedPayOSRequest}
+        isProcessing={payOSProcessing.isProcessingPayOS}
+        onConfirm={payOSProcessing.handleProcessCashoutPayOS}
+        onCancel={payOSProcessing.handleClosePayOSConfirmDialog}
+      />
+
+      <PayOSSuccessDialog
+        open={payOSProcessing.isPayOSSuccessDialogOpen}
+        onOpenChange={payOSProcessing.closePayOSSuccessDialog}
+        data={payOSProcessing.payOSSuccessData}
+        onClose={payOSProcessing.closePayOSSuccessDialog}
+      />
+
+      <PayOSErrorDialog
+        open={payOSProcessing.isPayOSErrorDialogOpen}
+        onOpenChange={payOSProcessing.closePayOSErrorDialog}
+        error={payOSProcessing.payOSError}
+        onClose={payOSProcessing.closePayOSErrorDialog}
+      />
     </div>
   );
 };

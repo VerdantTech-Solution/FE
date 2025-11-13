@@ -119,6 +119,7 @@ export interface BankAccount {
   bankCode: string;
   accountNumber: string;
   accountHolder: string;
+  ToAccountName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -383,6 +384,135 @@ export const processCashoutManual = async (
       statusCode: 'Error',
       data: '',
       errors: [error?.message || error?.toString() || 'Không thể xử lý yêu cầu rút tiền']
+    };
+
+    return errorResponse;
+  }
+};
+
+// Process Cashout via PayOS (Automatic)
+export interface Transaction {
+  id: number;
+  transactionType: string;
+  amount: number;
+  currency: string;
+  status: string;
+  note: string;
+  gatewayPaymentId: string;
+  createdAt: string;
+  completedAt: string;
+  updatedAt: string;
+}
+
+export interface ProcessedBankAccount {
+  id: number;
+  bankCode: string;
+  accountNumber: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProcessedCashoutData {
+  id: number;
+  vendor: Vendor | null;
+  transaction: Transaction;
+  bankAccount: ProcessedBankAccount;
+  toAccountName: string;
+  status: string;
+  notes: string | null;
+  processedBy: Vendor;
+  createdAt: string;
+  processedAt: string;
+  updatedAt: string;
+}
+
+export interface ProcessCashoutResponse {
+  status: boolean;
+  statusCode: string;
+  data: ProcessedCashoutData;
+  errors: string[];
+}
+
+export const processCashout = async (
+  userId: number
+): Promise<ProcessCashoutResponse> => {
+  try {
+    const response = await apiClient.post<ProcessCashoutResponse>(
+      `/api/Wallet/${userId}/process-cashout`,
+      {}
+    ) as unknown as ProcessCashoutResponse;
+
+    return response;
+  } catch (error: any) {
+    // Check for 429 Too Many Requests error from multiple sources
+    const errorMessageString = error?.message || error?.toString() || '';
+    const errorString = typeof errorMessageString === 'string' ? errorMessageString : '';
+    
+    const isTooManyRequests = 
+      error?.response?.status === 429 ||
+      error?.status === 429 ||
+      error?.statusCode === 429 ||
+      error?.statusCode === 'TooManyRequests' ||
+      errorString.includes('429') ||
+      errorString.includes('Too Many Requests') ||
+      errorString.includes('TooManyRequests') ||
+      (error?.response?.data && typeof error.response.data === 'object' && (
+        error.response.data.statusCode === 429 ||
+        error.response.data.statusCode === 'TooManyRequests' ||
+        (typeof error.response.data.message === 'string' && (
+          error.response.data.message.includes('429') ||
+          error.response.data.message.includes('Too Many Requests')
+        ))
+      )) ||
+      (error?.errors && Array.isArray(error.errors) && error.errors.some((err: any) => 
+        (typeof err === 'string' && (err.includes('429') || err.includes('Too Many Requests')))
+      ));
+
+    // Custom message for 429 error
+    const errorMessage = isTooManyRequests
+      ? 'Thao tác quá nhiều, vui lòng thử lại sau'
+      : (error?.message || 'Không thể xử lý yêu cầu rút tiền qua PayOS');
+
+    if (error && typeof error === 'object' && 'status' in error) {
+      // If it's already a ProcessCashoutResponse but with 429 error, update the message
+      if (isTooManyRequests && 'errors' in error && Array.isArray(error.errors)) {
+        return {
+          ...(error as ProcessCashoutResponse),
+          errors: [errorMessage]
+        };
+      }
+      return error as ProcessCashoutResponse;
+    }
+
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      // If it's a response data with 429 error, update the message
+      if (isTooManyRequests && 'errors' in error.response.data && Array.isArray(error.response.data.errors)) {
+        return {
+          ...(error.response.data as ProcessCashoutResponse),
+          errors: [errorMessage]
+        };
+      }
+      return error.response.data as ProcessCashoutResponse;
+    }
+
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: ProcessCashoutResponse = {
+        status: false,
+        statusCode: isTooManyRequests ? 'TooManyRequests' : (error.statusCode || 'Error'),
+        data: {} as ProcessedCashoutData,
+        errors: Array.isArray(error.errors) 
+          ? (isTooManyRequests ? [errorMessage] : error.errors)
+          : [errorMessage]
+      };
+      return errorResponse;
+    }
+
+    const errorResponse: ProcessCashoutResponse = {
+      status: false,
+      statusCode: isTooManyRequests ? 'TooManyRequests' : 'Error',
+      data: {} as ProcessedCashoutData,
+      errors: [errorMessage]
     };
 
     return errorResponse;
