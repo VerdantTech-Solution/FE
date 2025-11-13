@@ -6,8 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getOrdersByUser, type OrderWithCustomer } from '@/api/order';
-import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { getOrdersByUser, updateOrderStatus, type OrderWithCustomer } from '@/api/order';
+import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
+import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -89,6 +94,24 @@ const getProductImageUrl = (images: any): string | undefined => {
   return String(images);
 };
 
+const renderStaticStars = (rating: number) =>
+  Array.from({ length: 5 }, (_, index) => (
+    <Star
+      key={index}
+      className={`h-4 w-4 ${index < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+    />
+  ));
+
+const canConfirmDelivery = (status: string) => {
+  const normalized = status.toLowerCase();
+  return ['shipped', 'processing', 'paid', 'confirmed'].includes(normalized);
+};
+
+type ReviewUploadImage = {
+  file: File;
+  preview: string;
+};
+
 export default function OrderHistoryPage() {
   const [searchParams] = useSearchParams();
   const userIdParam = searchParams.get('userId');
@@ -116,6 +139,20 @@ export default function OrderHistoryPage() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
+  const [reviewsByOrder, setReviewsByOrder] = useState<Record<number, ProductReview[]>>({});
+  const [reviewsLoading, setReviewsLoading] = useState<Record<number, boolean>>({});
+  const [reviewTarget, setReviewTarget] = useState<{
+    order: OrderWithCustomer;
+    detail: OrderWithCustomer['orderDetails'][number];
+  } | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewImages, setReviewImages] = useState<ReviewUploadImage[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSuccessMessage, setReviewSuccessMessage] = useState<string | null>(null);
+  const [confirmingOrders, setConfirmingOrders] = useState<Record<number, boolean>>({});
+  const [statusNotification, setStatusNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadOrders = async (page: number = 1) => {
     try {
@@ -147,6 +184,12 @@ export default function OrderHistoryPage() {
     loadOrders(1);
   }, [selectedStatus, userId, pageSize]);
 
+  useEffect(() => {
+    if (!statusNotification) return;
+    const timeout = setTimeout(() => setStatusNotification(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [statusNotification]);
+
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status);
     setCurrentPage(1);
@@ -163,8 +206,165 @@ export default function OrderHistoryPage() {
     loadOrders(1);
   };
 
+  const fetchOrderReviews = async (orderId: number) => {
+    setReviewsLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const response = await getProductReviewsByOrderId(orderId);
+      const list = response?.data && Array.isArray(response.data) ? response.data : [];
+      setReviewsByOrder(prev => ({ ...prev, [orderId]: list }));
+    } catch (err) {
+      console.error('Error fetching product reviews for order', orderId, err);
+      setReviewsByOrder(prev => ({ ...prev, [orderId]: [] }));
+    } finally {
+      setReviewsLoading(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
   const toggleExpanded = (orderId: number) => {
-    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+    const willExpand = !expandedOrders[orderId];
+    setExpandedOrders(prev => ({ ...prev, [orderId]: willExpand }));
+    if (willExpand && !reviewsByOrder[orderId] && !reviewsLoading[orderId]) {
+      fetchOrderReviews(orderId);
+    }
+  };
+
+  const resetReviewState = () => {
+    setReviewRating(5);
+    setReviewComment('');
+    setReviewImages(prev => {
+      prev.forEach(img => URL.revokeObjectURL(img.preview));
+      return [];
+    });
+    setReviewError(null);
+    setReviewSuccessMessage(null);
+    setReviewSubmitting(false);
+  };
+
+  const openReviewDialog = (
+    order: OrderWithCustomer,
+    detail: OrderWithCustomer['orderDetails'][number]
+  ) => {
+    setReviewTarget({ order, detail });
+    resetReviewState();
+  };
+
+  const closeReviewDialog = () => {
+    setReviewTarget(null);
+    resetReviewState();
+  };
+
+  const handleReviewImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const currentCount = reviewImages.length;
+    const remainingSlots = 5 - currentCount;
+    if (remainingSlots <= 0) {
+      setReviewError('Bạn chỉ có thể tải lên tối đa 5 hình ảnh cho mỗi đánh giá.');
+      return;
+    }
+
+    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+
+    const oversized = selectedFiles.find(file => file.size > 5 * 1024 * 1024);
+    if (oversized) {
+      setReviewError(`Ảnh ${oversized.name} vượt quá dung lượng 5MB.`);
+      return;
+    }
+
+    const invalidType = selectedFiles.find(file => !file.type.startsWith('image/'));
+    if (invalidType) {
+      setReviewError(`File ${invalidType.name} không phải là hình ảnh.`);
+      return;
+    }
+
+    setReviewError(null);
+
+    const uploads: ReviewUploadImage[] = selectedFiles.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
+    setReviewImages(prev => [...prev, ...uploads]);
+  };
+
+  const handleRemoveReviewImage = (index: number) => {
+    setReviewImages(prev => {
+      const target = prev[index];
+      if (target) {
+        URL.revokeObjectURL(target.preview);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTarget) return;
+    if (reviewRating < 1 || reviewRating > 5) {
+      setReviewError('Vui lòng chọn số sao hợp lệ.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError(null);
+    setReviewSuccessMessage(null);
+
+    try {
+      const payload = {
+        orderId: reviewTarget.order.id,
+        productId: reviewTarget.detail.product.id,
+        orderDetailId: reviewTarget.detail.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+        images: reviewImages.length > 0 ? reviewImages.map(image => image.file) : undefined,
+      };
+
+      const response = await createProductReview(payload);
+
+      if (response?.status === false) {
+        const message =
+          response.errors?.[0] || 'Không thể gửi đánh giá. Vui lòng thử lại sau.';
+        setReviewError(message);
+        return;
+      }
+
+      setReviewSuccessMessage('Gửi đánh giá thành công! Cảm ơn bạn đã chia sẻ.');
+      await fetchOrderReviews(reviewTarget.order.id);
+      // reload orders to update e.g. statuses optional?
+      setTimeout(() => {
+        closeReviewDialog();
+      }, 1200);
+    } catch (err: any) {
+      console.error('Submit review error:', err);
+      const message =
+        err?.errors?.[0] ||
+        err?.message ||
+        'Không thể gửi đánh giá. Vui lòng thử lại sau.';
+      setReviewError(message);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleConfirmOrderDelivered = async (orderId: number) => {
+    setConfirmingOrders(prev => ({ ...prev, [orderId]: true }));
+    setStatusNotification(null);
+    try {
+      const response = await updateOrderStatus(orderId, { status: 'Delivered' });
+      if (response?.status === false) {
+        const message = response.errors?.[0] || 'Không thể cập nhật trạng thái đơn hàng.';
+        throw new Error(message);
+      }
+      setStatusNotification({ type: 'success', text: 'Xác nhận đã nhận hàng thành công.' });
+      await loadOrders(currentPage);
+      if (expandedOrders[orderId]) {
+        await fetchOrderReviews(orderId);
+      }
+    } catch (err: any) {
+      console.error('Confirm order delivered error:', err);
+      const message = err?.errors?.[0] || err?.message || 'Không thể cập nhật trạng thái đơn hàng.';
+      setStatusNotification({ type: 'error', text: message });
+    } finally {
+      setConfirmingOrders(prev => ({ ...prev, [orderId]: false }));
+    }
   };
 
   if (loading && orders.length === 0) {
@@ -227,6 +427,23 @@ export default function OrderHistoryPage() {
           </div>
         </div>
 
+        {statusNotification && (
+          <div
+            className={`mb-6 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
+              statusNotification.type === 'success'
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-red-200 bg-red-50 text-red-600'
+            }`}
+          >
+            {statusNotification.type === 'success' ? (
+              <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            )}
+            <span>{statusNotification.text}</span>
+          </div>
+        )}
+
         {/* Error */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -260,16 +477,36 @@ export default function OrderHistoryPage() {
                 <Card className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-wrap items-center gap-3">
                           <CardTitle className="text-lg">Đơn hàng #{order.id}</CardTitle>
                           <Badge className={`px-3 py-1 ${getStatusColor(order.status)}`}>
                             {getStatusText(order.status)}
                           </Badge>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900">{currency(order.totalAmount)}</p>
-                          <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
+                        <div className="flex flex-col items-end gap-2 sm:items-end sm:flex-row sm:gap-3">
+                          {canConfirmDelivery(order.status) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleConfirmOrderDelivered(order.id)}
+                              disabled={confirmingOrders[order.id]}
+                              className="flex items-center gap-2"
+                            >
+                              {confirmingOrders[order.id] ? (
+                                <>
+                                  <Spinner variant="circle-filled" size={16} className="text-green-600" />
+                                  Đang cập nhật...
+                                </>
+                              ) : (
+                                'Đã nhận hàng'
+                              )}
+                            </Button>
+                          )}
+                          <div className="text-right">
+                            <p className="text-lg font-semibold text-gray-900">{currency(order.totalAmount)}</p>
+                            <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-start gap-4 overflow-x-auto">
@@ -351,38 +588,108 @@ export default function OrderHistoryPage() {
                     <div className="mt-6 pt-6 border-t border-gray-200">
                       <h4 className="text-sm font-medium text-gray-700 mb-3">Sản phẩm</h4>
                       <div className="space-y-2">
-                        {order.orderDetails.map((detail) => (
-                          <div key={detail.id} className="flex items-center justify-between py-2">
-                            <div className="flex items-center gap-3">
-                              {detail.product.images && detail.product.images.length > 0 && (
-                                <img
-                                  src={Array.isArray(detail.product.images) 
-                                    ? ((typeof detail.product.images[0] === 'object' && 'imageUrl' in detail.product.images[0]) ? (detail.product.images[0] as any).imageUrl : String(Array.isArray(detail.product.images) && detail.product.images[0] ? detail.product.images[0] : detail.product.images))
+                        {reviewsLoading[order.id] && (
+                          <div className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                            <Spinner variant="circle-filled" size={18} className="text-green-600" />
+                            <span>Đang tải đánh giá sản phẩm...</span>
+                          </div>
+                        )}
+                        {order.orderDetails.map((detail) => {
+                          const orderReviews = reviewsByOrder[order.id] || [];
+                          const reviewForDetail = orderReviews.find(
+                            (review) =>
+                              review.orderDetailId === detail.id ||
+                              review.productId === detail.product.id
+                          );
+                          const isDelivered = order.status.toLowerCase() === 'delivered';
+
+                          return (
+                            <div key={detail.id} className="py-3 border-b border-gray-100 last:border-0">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div className="flex items-start gap-3">
+                                  {detail.product.images && detail.product.images.length > 0 ? (
+                                    <img
+                                      src={
+                                        Array.isArray(detail.product.images)
+                                          ? typeof detail.product.images[0] === 'object' &&
+                                            detail.product.images[0] !== null &&
+                                            'imageUrl' in detail.product.images[0]
+                                            ? (detail.product.images[0] as any).imageUrl
+                                            : String(detail.product.images[0])
                                     : detail.product.images
                                   }
                                   alt={detail.product.productName}
-                                  className="w-12 h-12 object-cover rounded-lg"
+                                      className="w-14 h-14 object-cover rounded-lg border"
                                 />
+                                  ) : (
+                                    <div className="w-14 h-14 rounded-lg bg-gray-100 border" />
                               )}
                               <div>
                                 <p className="font-medium text-gray-900">{detail.product.productName}</p>
                                 <p className="text-sm text-gray-500">
                                   {currency(detail.unitPrice)} × {detail.quantity}
                                 </p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                                      Thành tiền: {currency(detail.subtotal)}
+                                    </p>
+                                    {detail.discountAmount > 0 && (
+                                      <p className="text-xs text-green-600">
+                                        -{currency(detail.discountAmount)} (giảm giá)
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-2 min-w-[180px]">
+                                  {reviewForDetail ? (
+                                    <div className="flex flex-col items-end gap-2">
+                                      <div className="flex items-center gap-1">
+                                        {renderStaticStars(reviewForDetail.rating)}
+                                        <span className="text-sm font-medium text-gray-700">
+                                          {reviewForDetail.rating}/5
+                                        </span>
+                                      </div>
+                                      <Button variant="outline" size="sm" disabled>
+                                        Đã đánh giá
+                                      </Button>
+                                    </div>
+                                  ) : isDelivered ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => openReviewDialog(order, detail)}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      Đánh giá sản phẩm
+                                    </Button>
+                                  ) : (
+                                    <div className="text-xs text-gray-500">
+                                      Đánh giá sẽ khả dụng sau khi đơn hàng hoàn tất giao
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+
+                              {reviewForDetail?.comment && (
+                                <div className="mt-3 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                                  {reviewForDetail.comment}
+                                </div>
+                              )}
+
+                              {reviewForDetail?.images && reviewForDetail.images.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-3">
+                                  {reviewForDetail.images.map((image, index) => (
+                                    <img
+                                      key={image.imagePublicId || `${reviewForDetail.id}-${index}`}
+                                      src={image.imageUrl}
+                                      alt={`Đánh giá ${detail.product.productName} ${index + 1}`}
+                                      className="h-16 w-16 rounded-md object-cover border"
+                                    />
+                                  ))}
                             </div>
-                            <div className="text-right">
-                              <p className="font-medium text-gray-900">
-                                {currency(detail.subtotal)}
-                              </p>
-                              {detail.discountAmount > 0 && (
-                                <p className="text-sm text-green-600">
-                                  -{currency(detail.discountAmount)}
-                                </p>
                               )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -474,6 +781,171 @@ export default function OrderHistoryPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!reviewTarget} onOpenChange={(open) => (open ? null : closeReviewDialog())}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Đánh giá sản phẩm</DialogTitle>
+            <DialogDescription>
+              Chia sẻ trải nghiệm của bạn sau khi nhận hàng để giúp những người mua khác.
+            </DialogDescription>
+          </DialogHeader>
+
+        {reviewTarget && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-4 rounded-lg border border-gray-200 p-4">
+              <img
+                src={
+                  getProductImageUrl(reviewTarget.detail.product.images) ||
+                  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=120&h=120&fit=crop'
+                }
+                alt={reviewTarget.detail.product.productName}
+                className="h-16 w-16 rounded-md object-cover"
+              />
+              <div>
+                <p className="font-semibold text-gray-900">
+                  {reviewTarget.detail.product.productName}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Số lượng: {reviewTarget.detail.quantity} · Đơn giá:{' '}
+                  {currency(reviewTarget.detail.unitPrice)}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Chấm điểm</Label>
+              <div className="mt-2 flex items-center gap-2">
+                {Array.from({ length: 5 }, (_, index) => {
+                  const value = index + 1;
+                  const active = value <= reviewRating;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setReviewRating(value)}
+                      className="focus:outline-none transition-transform hover:scale-105"
+                    >
+                      <Star
+                        className={`h-7 w-7 ${
+                          active ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+                <span className="text-sm text-gray-600">{reviewRating} / 5</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reviewComment" className="text-sm font-medium text-gray-700">
+                Nhận xét của bạn
+              </Label>
+              <Textarea
+                id="reviewComment"
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Sản phẩm có đáp ứng mong đợi của bạn không? Chia sẻ thêm về chất lượng, đóng gói hay dịch vụ nhé."
+                className="min-h-[120px]"
+                disabled={reviewSubmitting}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="reviewImages" className="text-sm font-medium text-gray-700">
+                  Hình ảnh sản phẩm (tùy chọn)
+                </Label>
+                <span className="text-xs text-gray-500">Tối đa 5 ảnh, mỗi ảnh ≤ 5MB</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="reviewImages"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => handleReviewImageUpload(e.target.files)}
+                  disabled={reviewImages.length >= 5}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('reviewImages')?.click()}
+                  disabled={reviewImages.length >= 5}
+                  className="flex items-center gap-2"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  Thêm ảnh
+                </Button>
+              </div>
+              {reviewImages.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {reviewImages.map((image, index) => (
+                    <div
+                      key={image.preview}
+                      className="relative h-20 w-20 overflow-hidden rounded-md border"
+                    >
+                      <img
+                        src={image.preview}
+                        alt={`Hình ảnh ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                        onClick={() => handleRemoveReviewImage(index)}
+                        aria-label="Xóa hình ảnh"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {reviewError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {reviewError}
+              </div>
+            )}
+            {reviewSuccessMessage && (
+              <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                {reviewSuccessMessage}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeReviewDialog}
+                disabled={reviewSubmitting}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmitReview}
+                disabled={reviewSubmitting}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {reviewSubmitting ? (
+                  <>
+                    <Spinner variant="circle-filled" size={16} className="mr-2" />
+                    Đang gửi...
+                  </>
+                ) : (
+                  'Gửi đánh giá'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

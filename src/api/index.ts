@@ -27,3 +27,6 @@ export * from './order';
 
 // Export PayOS API
 export * from './payos';
+
+// Export product review API
+export * from './productReview';

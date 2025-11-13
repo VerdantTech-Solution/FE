@@ -17,13 +17,16 @@ import {
   Phone,
   Mail,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  MessageCircle
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getProductById, type Product, type ProductImage } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { useCart } from '@/contexts/CartContext';
 import ProductSpecifications from '@/components/ProductSpecifications';
+import { getProductReviewsByProductId, type ProductReview } from '@/api/productReview';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // Helper function to get image URLs from product
 const getProductImages = (product: Product): string[] => {
@@ -106,6 +109,35 @@ const infoVariants = {
   }
 };
 
+const renderReviewStars = (rating: number) =>
+  Array.from({ length: 5 }, (_, index) => (
+    <Star
+      key={index}
+      className={`h-4 w-4 ${index < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+    />
+  ));
+
+const formatReviewDate = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return dateString;
+  }
+};
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return 'U';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
 export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -119,6 +151,9 @@ export const ProductDetailPage = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showErrorMessage, setShowErrorMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -141,6 +176,30 @@ export const ProductDetailPage = () => {
     };
 
     fetchProduct();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const numericId = parseInt(id, 10);
+    if (Number.isNaN(numericId)) return;
+
+    const fetchReviews = async () => {
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+        const response = await getProductReviewsByProductId(numericId);
+        const list = response?.data && Array.isArray(response.data) ? response.data : [];
+        setReviews(list);
+      } catch (err: any) {
+        console.error('Error fetching product reviews:', err);
+        setReviews([]);
+        setReviewsError(err?.errors?.[0] || err?.message || 'Không thể tải đánh giá sản phẩm.');
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    fetchReviews();
   }, [id]);
 
   const handleAddToCart = async () => {
@@ -208,6 +267,13 @@ export const ProductDetailPage = () => {
     // TODO: Implement contact vendor functionality
     console.log('Contact vendor');
   };
+
+  const reviewCount = reviews.length;
+  const averageRatingValue =
+    reviewCount > 0
+      ? reviews.reduce((total, current) => total + (current.rating || 0), 0) / reviewCount
+      : product?.ratingAverage ?? 0;
+  const formattedAverageRating = averageRatingValue > 0 ? averageRatingValue.toFixed(1) : '0.0';
 
   if (loading) {
     return (
@@ -399,9 +465,12 @@ export const ProductDetailPage = () => {
                 <div className="flex items-center">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
                   <span className="ml-1 text-sm text-gray-600">
-                    {product.ratingAverage || '4.5'} ({product.viewCount || 0} lượt xem)
+                    {formattedAverageRating}/5 ({reviewCount || 0} đánh giá)
                   </span>
                 </div>
+              <Badge variant="outline" className="text-gray-600 border-gray-200">
+                {product.viewCount || 0} lượt xem
+              </Badge>
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   Mã: {product.productCode}
                 </Badge>
@@ -597,6 +666,102 @@ export const ProductDetailPage = () => {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Product Reviews */}
+        <motion.div 
+          variants={infoVariants}
+          className="mt-12"
+        >
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-green-600" />
+                  Đánh giá từ khách hàng
+                </span>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold text-gray-900">
+                      {formattedAverageRating}
+                    </span>
+                    <span>/5</span>
+                  </div>
+                  <div>{reviewCount} đánh giá</div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {reviewsLoading ? (
+                <div className="flex items-center justify-center py-8 text-gray-600">
+                  <Spinner variant="circle-filled" size={32} className="text-green-600 mr-3" />
+                  <span>Đang tải đánh giá sản phẩm...</span>
+                </div>
+              ) : reviewsError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {reviewsError}
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-600">
+                  Hiện chưa có đánh giá nào cho sản phẩm này. Hãy là người đầu tiên chia sẻ trải nghiệm sau khi mua hàng!
+                </div>
+              ) : (
+                reviews.map((review) => {
+                  const customerName = review.customer?.fullName || 'Khách hàng ẩn danh';
+                  const initials = getInitials(customerName);
+                  return (
+                    <div
+                      key={review.id}
+                      className="rounded-lg border border-gray-100 px-4 py-4 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                        <Avatar className="size-12">
+                          <AvatarImage src={review.customer?.avatarUrl || undefined} alt={customerName} />
+                          <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 space-y-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="font-semibold text-gray-900">{customerName}</p>
+                              <p className="text-xs text-gray-500">{formatReviewDate(review.createdAt)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                {renderReviewStars(review.rating)}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">
+                                {review.rating}/5
+                              </span>
+                            </div>
+                          </div>
+
+                          {review.comment && (
+                            <p className="text-sm leading-relaxed text-gray-700">
+                              {review.comment}
+                            </p>
+                          )}
+
+                          {review.images && review.images.length > 0 && (
+                            <div className="flex flex-wrap gap-3">
+                              {review.images.map((image, index) => (
+                                <img
+                                  key={image.imagePublicId || `${review.id}-${index}`}
+                                  src={image.imageUrl}
+                                  alt={`Đánh giá của ${customerName} - ${index + 1}`}
+                                  className="h-20 w-20 rounded-lg border object-cover"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
         </motion.div>
