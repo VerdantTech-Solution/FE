@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { BadgeCheck, CheckCircle2, CircleDashed, Filter, Search, Users, Loader2 } from "lucide-react";
+import { BadgeCheck, CheckCircle2, CircleDashed, Filter, Search, Users, Loader2, Eye, FileText, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   getProductRegistrations, 
   updateProductRegistrationStatus,
   getMediaLinks,
+  getProductRegistrationById,
   type ProductRegistration,
   type MediaLink
 } from "@/api/product";
@@ -44,6 +45,12 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
   const [selectedRegistrationId, setSelectedRegistrationId] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Detail dialog states
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedRegistrationDetail, setSelectedRegistrationDetail] = useState<ProductRegistration | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   // Parse images từ ProductRegistration response
   const parseImagesFromRegistration = (registration: ProductRegistration): MediaLink[] => {
@@ -328,6 +335,24 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
     }
   };
 
+  // Handle view details
+  const handleViewDetails = async (id: number) => {
+    setDetailDialogOpen(true);
+    setLoadingDetail(true);
+    setDetailError(null);
+    setSelectedRegistrationDetail(null);
+    
+    try {
+      const detail = await getProductRegistrationById(id);
+      setSelectedRegistrationDetail(detail);
+    } catch (err: any) {
+      console.error('Error fetching registration detail:', err);
+      setDetailError(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi tải chi tiết đăng ký');
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   // Format price
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -578,6 +603,14 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                       <div className="flex gap-2">
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(reg.id)}
+                          title="Xem chi tiết"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
                           className="bg-green-600 hover:bg-green-700"
                           onClick={() => handleApprove(reg.id)}
                           disabled={isProcessed || isProcessing}
@@ -653,6 +686,233 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
               ) : (
                 'Xác nhận từ chối'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết đăng ký sản phẩm</DialogTitle>
+            <DialogDescription>
+              Xem tất cả thông tin chi tiết của sản phẩm đăng ký
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetail ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-2 text-gray-600">Đang tải chi tiết...</span>
+            </div>
+          ) : detailError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{detailError}</p>
+            </div>
+          ) : selectedRegistrationDetail ? (
+            <div className="space-y-6 py-4">
+              {/* Status Badge */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Trạng thái:</span>
+                {selectedRegistrationDetail.status === "Pending" && (
+                  <span className="text-xs rounded bg-yellow-100 text-yellow-700 px-2 py-1">
+                    Chờ duyệt
+                  </span>
+                )}
+                {selectedRegistrationDetail.status === "Approved" && (
+                  <span className="text-xs rounded bg-green-100 text-green-700 px-2 py-1">
+                    Đã duyệt
+                  </span>
+                )}
+                {selectedRegistrationDetail.status === "Rejected" && (
+                  <span className="text-xs rounded bg-red-100 text-red-700 px-2 py-1">
+                    Từ chối
+                  </span>
+                )}
+              </div>
+
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Tên sản phẩm</Label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.proposedProductName}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Mã sản phẩm</Label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.proposedProductCode}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Giá</Label>
+                  <p className="mt-1 text-sm text-gray-900 font-semibold">{formatPrice(selectedRegistrationDetail.unitPrice)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Danh mục</Label>
+                  <p className="mt-1 text-sm text-gray-900">Category {selectedRegistrationDetail.categoryId}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Bảo hành</Label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.warrantyMonths} tháng</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Trọng lượng</Label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.weightKg} kg</p>
+                </div>
+                {selectedRegistrationDetail.dimensionsCm && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Kích thước (cm)</Label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedRegistrationDetail.dimensionsCm.Width ?? selectedRegistrationDetail.dimensionsCm.width ?? '-'} x {' '}
+                      {selectedRegistrationDetail.dimensionsCm.Height ?? selectedRegistrationDetail.dimensionsCm.height ?? '-'} x {' '}
+                      {selectedRegistrationDetail.dimensionsCm.Length ?? selectedRegistrationDetail.dimensionsCm.length ?? '-'}
+                    </p>
+                  </div>
+                )}
+                {selectedRegistrationDetail.energyEfficiencyRating && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Mức tiết kiệm năng lượng</Label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.energyEfficiencyRating}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Mô tả</Label>
+                <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">
+                  {selectedRegistrationDetail.description || 'Không có mô tả'}
+                </p>
+              </div>
+
+              {/* Specifications */}
+              {selectedRegistrationDetail.specifications && Object.keys(selectedRegistrationDetail.specifications).length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Thông số kỹ thuật</Label>
+                  <div className="mt-2 space-y-2">
+                    {Object.entries(selectedRegistrationDetail.specifications).map(([key, value]) => (
+                      <div key={key} className="flex gap-4 text-sm">
+                        <span className="text-gray-600 font-medium w-32">{key}:</span>
+                        <span className="text-gray-900 flex-1">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Product Images */}
+              {(() => {
+                const detailImages = selectedRegistrationDetail.productImages || [];
+                const parsedImages = parseImagesFromRegistration(selectedRegistrationDetail);
+                const allImages = detailImages.length > 0 
+                  ? detailImages.map(img => img.imageUrl)
+                  : parsedImages.map(img => img.imageUrl);
+                
+                return allImages.length > 0 ? (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Hình ảnh sản phẩm</Label>
+                    <div className="grid grid-cols-3 gap-4">
+                      {allImages.map((src, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                          <img
+                            src={src}
+                            alt={`${selectedRegistrationDetail.proposedProductName} ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300?text=No+Image';
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Certificate Files */}
+              {selectedRegistrationDetail.certificateFiles && selectedRegistrationDetail.certificateFiles.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Giấy chứng nhận ({selectedRegistrationDetail.certificateFiles.length})
+                  </Label>
+                  <div className="space-y-3">
+                    {selectedRegistrationDetail.certificateFiles.map((cert, idx) => (
+                      <div key={cert.id || idx} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {cert.purpose || `Giấy chứng nhận ${idx + 1}`}
+                            </p>
+                            <p className="text-xs text-gray-500">ID: {cert.id}</p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(cert.imageUrl, '_blank')}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Xem/Tải
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual URLs */}
+              {selectedRegistrationDetail.manualUrls && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Link hướng dẫn sử dụng</Label>
+                  <div className="mt-2 space-y-1">
+                    {selectedRegistrationDetail.manualUrls.split(',').map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline block"
+                      >
+                        {url.trim()}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Rejection Reason */}
+              {selectedRegistrationDetail.status === "Rejected" && selectedRegistrationDetail.rejectionReason && (
+                <div className="rounded-md bg-red-50 border border-red-200 p-4">
+                  <Label className="text-sm font-medium text-red-700">Lý do từ chối</Label>
+                  <p className="mt-1 text-sm text-red-600">{selectedRegistrationDetail.rejectionReason}</p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Ngày tạo</Label>
+                  <p className="mt-1 text-sm text-gray-600">{formatDate(selectedRegistrationDetail.createdAt)}</p>
+                </div>
+                {selectedRegistrationDetail.approvedAt && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Ngày duyệt</Label>
+                    <p className="mt-1 text-sm text-gray-600">{formatDate(selectedRegistrationDetail.approvedAt)}</p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Cập nhật lần cuối</Label>
+                  <p className="mt-1 text-sm text-gray-600">{formatDate(selectedRegistrationDetail.updatedAt)}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+              Đóng
             </Button>
           </DialogFooter>
         </DialogContent>

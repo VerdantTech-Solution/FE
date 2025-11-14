@@ -7,7 +7,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, AlertCircle } from "lucide-react";
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
 
@@ -45,6 +54,10 @@ export const OrderManagementPanel: React.FC = () => {
   const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
   const [shipItems, setShipItems] = useState<Array<{ productId: number; categoryId?: number; productName: string; quantity: number; serialNumber: string; lotNumber: string }>>([]);
   const [isShipping, setIsShipping] = useState(false);
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const stats = useMemo<OrderStats>(() => {
     return {
@@ -171,14 +184,28 @@ export const OrderManagementPanel: React.FC = () => {
         setShowCancelReason(false);
         setCancelReason("");
         setNewStatus("");
-        alert("Cập nhật trạng thái đơn hàng thành công!");
+        
+        // Show success dialog
+        setSuccessMessage("Cập nhật trạng thái đơn hàng thành công!");
+        setIsSuccessDialogOpen(true);
       } else {
         console.error("Failed to update order status:", response.errors);
-        alert(`Không thể cập nhật trạng thái đơn hàng: ${response.errors?.join(", ") || "Unknown error"}`);
+        // Get error message from API response
+        const apiErrorMessage = response.errors?.join(", ") || response.errors?.[0] || "Không thể cập nhật trạng thái đơn hàng";
+        setErrorMessage(apiErrorMessage);
+        setIsErrorDialogOpen(true);
       }
     } catch (error: any) {
       console.error("Error updating order status:", error);
-      alert(`Có lỗi xảy ra: ${error?.response?.data?.errors?.join(", ") || error.message || "Unknown error"}`);
+      // Extract error message from various possible formats
+      const apiErrorMessage =
+        error?.response?.data?.errors?.join(", ") ||
+        error?.response?.data?.errors?.[0] ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Có lỗi xảy ra khi cập nhật trạng thái đơn hàng";
+      setErrorMessage(apiErrorMessage);
+      setIsErrorDialogOpen(true);
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -246,7 +273,8 @@ export const OrderManagementPanel: React.FC = () => {
     });
 
     if (hasErrors) {
-      alert("Vui lòng điền đầy đủ thông tin: Máy móc (category ID = 1) cần số seri, các loại khác cần số lô");
+      setErrorMessage("Vui lòng điền đầy đủ thông tin: Máy móc (category ID = 1) cần số seri, các loại khác cần số lô");
+      setIsErrorDialogOpen(true);
       return;
     }
 
@@ -276,14 +304,28 @@ export const OrderManagementPanel: React.FC = () => {
         setIsShipDialogOpen(false);
         setShipItems([]);
         setNewStatus("");
-        alert("Đã gửi đơn hàng thành công!");
+        
+        // Show success dialog
+        setSuccessMessage("Đã gửi đơn hàng thành công!");
+        setIsSuccessDialogOpen(true);
       } else {
         console.error("Failed to ship order:", response.errors);
-        alert(`Không thể gửi đơn hàng: ${response.errors?.join(", ") || "Unknown error"}`);
+        // Get error message from API response
+        const apiErrorMessage = response.errors?.join(", ") || response.errors?.[0] || "Không thể gửi đơn hàng";
+        setErrorMessage(apiErrorMessage);
+        setIsErrorDialogOpen(true);
       }
     } catch (error: any) {
       console.error("Error shipping order:", error);
-      alert(`Có lỗi xảy ra: ${error?.response?.data?.errors?.join(", ") || error.message || "Unknown error"}`);
+      // Extract error message from various possible formats
+      const apiErrorMessage =
+        error?.response?.data?.errors?.join(", ") ||
+        error?.response?.data?.errors?.[0] ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Có lỗi xảy ra khi gửi đơn hàng";
+      setErrorMessage(apiErrorMessage);
+      setIsErrorDialogOpen(true);
     } finally {
       setIsShipping(false);
     }
@@ -293,8 +335,8 @@ export const OrderManagementPanel: React.FC = () => {
     return [
       { status: "Pending", label: "Chờ xử lý", icon: Clock },
       { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
-      { status: "Processing", label: "Đang xử lý", icon: Loader2 },
-      { status: "Shipped", label: "Đã vận chuyển", icon: Truck },
+      { status: "Processing", label: "Đang đóng gói", icon: Loader2 },
+      { status: "Shipped", label: "Đã gửi", icon: Truck },
       { status: "Delivered", label: "Đã giao hàng", icon: CheckCircle },
     ];
   };
@@ -727,8 +769,8 @@ export const OrderManagementPanel: React.FC = () => {
                         <SelectContent>
                           <SelectItem value="Pending">Chờ xử lý</SelectItem>
                           <SelectItem value="Paid">Đã thanh toán</SelectItem>
-                          <SelectItem value="Processing">Đang xử lý</SelectItem>
-                          <SelectItem value="Shipped">Đã vận chuyển</SelectItem>
+                          <SelectItem value="Processing">Đang đóng gói</SelectItem>
+                          <SelectItem value="Shipped">Đã gửi</SelectItem>
                           <SelectItem value="Delivered">Đã giao hàng</SelectItem>
                           <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
                           <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
@@ -962,6 +1004,66 @@ export const OrderManagementPanel: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Success AlertDialog */}
+      <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+        <AlertDialogContent className="sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-7 h-7 text-green-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-center">
+              Thành công!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              {successMessage || "Thao tác đã được thực hiện thành công."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                setIsSuccessDialogOpen(false);
+                setSuccessMessage("");
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white w-full"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Error AlertDialog */}
+      <AlertDialog open={isErrorDialogOpen} onOpenChange={setIsErrorDialogOpen}>
+        <AlertDialogContent className="sm:max-w-[450px]">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 w-14 h-14 bg-red-50 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-7 h-7 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-center">
+              Lỗi
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              <div className="mt-4">
+                <p className="text-sm text-gray-700 whitespace-pre-line">
+                  {errorMessage || "Có lỗi xảy ra. Vui lòng thử lại."}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                setIsErrorDialogOpen(false);
+                setErrorMessage("");
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white w-full"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

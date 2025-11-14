@@ -379,7 +379,12 @@ const RegistrationManagementPage = () => {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Kích thước (cm)</p>
-                      <p className="font-medium text-gray-900">{`${selected.dimensionsCm.Width} x ${selected.dimensionsCm.Height} x ${selected.dimensionsCm.Length}`}</p>
+                      <p className="font-medium text-gray-900">
+                        {selected.dimensionsCm 
+                          ? `${selected.dimensionsCm.Width ?? selected.dimensionsCm.width ?? '-'} x ${selected.dimensionsCm.Height ?? selected.dimensionsCm.height ?? '-'} x ${selected.dimensionsCm.Length ?? selected.dimensionsCm.length ?? '-'}`
+                          : '-'
+                        }
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -19,10 +19,13 @@ export interface ProductRegistration {
   certificateFiles?: MediaLinkItemDTO[]; // Certificates từ backend
   warrantyMonths: number;
   weightKg: number;
-  dimensionsCm: {
-    Width: number;
-    Height: number;
-    Length: number;
+  dimensionsCm?: {
+    Width?: number;
+    Height?: number;
+    Length?: number;
+    width?: number;  // Hỗ trợ cả camelCase từ backend
+    height?: number;
+    length?: number;
   };
   status: 'Pending' | 'Approved' | 'Rejected';
   rejectionReason?: string;

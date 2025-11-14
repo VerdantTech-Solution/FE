@@ -33,6 +33,7 @@ export * from './UpdateFarmPage';
 export * from './FarmDetailPage';
 export * from './vendor';
 export { default as TicketPage } from './TicketPage';
+export * from './ChatPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';
