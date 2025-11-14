@@ -74,7 +74,7 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
     return [
       { status: "Pending", label: "Chờ xử lý", icon: Clock },
       { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
-      { status: "Processing", label: "Đang xử lý", icon: Loader2 },
+      { status: "Processing", label: "Đang đóng gói", icon: Loader2 },
       { status: "Shipped", label: "Đã vận chuyển", icon: Truck },
       { status: "Delivered", label: "Đã giao hàng", icon: CheckCircle },
     ];
@@ -144,9 +144,14 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
 
       if (response.status) {
         // Refresh the order details
-        const orderResponse = await getOrderById(selectedOrder.id);
-        if (orderResponse.status && orderResponse.data) {
-          setSelectedOrder(orderResponse.data);
+        try {
+          const orderResponse = await getOrderById(selectedOrder.id);
+          if (orderResponse.status && orderResponse.data) {
+            setSelectedOrder(orderResponse.data);
+            setNewStatus(orderResponse.data.status);
+          }
+        } catch (refreshError) {
+          console.error("Error refreshing order details:", refreshError);
         }
 
         // Notify parent to refresh list
@@ -155,27 +160,67 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
         // Reset form
         setShowCancelReason(false);
         setCancelReason("");
-        setNewStatus("");
         setUpdateError(null);
 
         // Show success dialog
         setIsSuccessDialogOpen(true);
       } else {
-        // Get error message from API response
-        const apiErrorMessage = response.errors?.join(", ") || response.errors?.[0] || "Không thể cập nhật trạng thái đơn hàng";
+        // Get error message from API response - format: { errors: ["message1", "message2"] }
+        let apiErrorMessage = "Không thể cập nhật trạng thái đơn hàng";
+        
+        if (response.errors && Array.isArray(response.errors) && response.errors.length > 0) {
+          // Lấy tất cả error messages và join lại
+          apiErrorMessage = response.errors.join(", ");
+        } else if (response.errors && response.errors[0]) {
+          apiErrorMessage = String(response.errors[0]);
+        }
+        
+        console.log("API error response:", response);
+        console.log("Extracted error message:", apiErrorMessage);
+        
         setUpdateError(apiErrorMessage);
         setErrorMessage(apiErrorMessage);
         setIsErrorDialogOpen(true);
       }
     } catch (error: any) {
       console.error("Error updating order status:", error);
+      console.error("Error details:", {
+        response: error?.response,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      
       // Extract error message from various possible formats
-      const apiErrorMessage =
-        error?.response?.data?.errors?.join(", ") ||
-        error?.response?.data?.errors?.[0] ||
-        error?.response?.data?.message ||
-        error?.message ||
-        "Có lỗi xảy ra khi cập nhật trạng thái đơn hàng";
+      let apiErrorMessage = "Có lỗi xảy ra khi cập nhật trạng thái đơn hàng";
+      
+      // Kiểm tra error.response.data (format từ axios khi API trả về lỗi)
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        
+        // Format 1: errorData.errors là array (format chính từ API)
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          apiErrorMessage = errorData.errors.join(", ");
+        }
+        // Format 2: errorData.errors[0] (single error)
+        else if (errorData.errors && errorData.errors[0]) {
+          apiErrorMessage = String(errorData.errors[0]);
+        }
+        // Format 3: errorData.message
+        else if (errorData.message) {
+          apiErrorMessage = String(errorData.message);
+        }
+        // Format 4: errorData là string trực tiếp
+        else if (typeof errorData === 'string') {
+          apiErrorMessage = errorData;
+        }
+      }
+      // Kiểm tra error.message (nếu không có response.data)
+      else if (error?.message) {
+        apiErrorMessage = String(error.message);
+      }
+      
+      console.log("Final error message to display:", apiErrorMessage);
+      
       setUpdateError(apiErrorMessage);
       setErrorMessage(apiErrorMessage);
       setIsErrorDialogOpen(true);
@@ -377,7 +422,7 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
                       <SelectContent>
                         <SelectItem value="Pending">Chờ xử lý</SelectItem>
                         <SelectItem value="Paid">Đã thanh toán</SelectItem>
-                        <SelectItem value="Processing">Đang xử lý</SelectItem>
+                        <SelectItem value="Processing">Đang đóng gói</SelectItem>
                         <SelectItem value="Shipped">Đã vận chuyển</SelectItem>
                         <SelectItem value="Delivered">Đã giao hàng</SelectItem>
                         <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>

@@ -227,8 +227,10 @@ export const updateOrder = async (
 };
 
 // ===== Update Order Status =====
+export type OrderStatus = "Pending" | "Paid" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded";
+
 export interface UpdateOrderStatusRequest {
-  status: "Pending" | "Paid" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded";
+  status: OrderStatus;
   cancelledReason?: string;
 }
 
@@ -236,8 +238,14 @@ export const updateOrderStatus = async (
   orderId: number,
   payload: UpdateOrderStatusRequest
 ): Promise<UpdateOrderResponse> => {
-  const response = await apiClient.put(`/api/Order/${orderId}`, payload);
-  return response as unknown as UpdateOrderResponse;
+  try {
+    const response = await apiClient.put(`/api/Order/${orderId}`, payload);
+    return response as unknown as UpdateOrderResponse;
+  } catch (error: any) {
+    console.error('Update order status error:', error);
+    // Re-throw để component có thể xử lý
+    throw error;
+  }
 };
 
 // ===== Ship Order =====

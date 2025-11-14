@@ -17,7 +17,7 @@ export const SimpleRoleRedirect = () => {
     // Chỉ xử lý khi không còn loading và đã xác thực
     if (!loading && isAuthenticated && user) {
       const role = user.role;
-      const target = role === 'Admin' ? '/admin' : role === 'Staff' ? '/staff' : null;
+      const target = role === 'Admin' ? '/admin' : role === 'Staff' ? '/staff' : role === 'Vendor' ? '/vendor' : null;
       console.log('SimpleRoleRedirect: role =', role, 'target =', target);
       
       if (target) {

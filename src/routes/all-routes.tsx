@@ -1,5 +1,5 @@
 import { PATH_NAMES } from "@/constants";
-import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, PayOSCancelPage, PayOSReturnPage, TicketPage } from "@/pages";
+import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, PayOSCancelPage, PayOSReturnPage, TicketPage, ChatPage } from "@/pages";
 import OrderHistoryPage from "@/pages/OrderHistoryPage";
 import UpdateFarmPage from "@/pages/UpdateFarmPage";
 
@@ -24,4 +24,5 @@ export const allRoutes = [
   { path: `${PATH_NAMES.UPDATE_FARM}/:id`, component: <UpdateFarmPage /> },
   { path: `${PATH_NAMES.FARM_DETAIL}/:id`, component: <FarmDetailPage /> },
   { path: PATH_NAMES.TICKET, component: <TicketPage /> },
+  { path: '/chat', component: <ChatPage /> },
 ];
