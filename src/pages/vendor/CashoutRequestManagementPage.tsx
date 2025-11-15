@@ -177,7 +177,9 @@ const CashoutRequestManagementPage = () => {
         <VendorSidebar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <Spinner variant="circle-filled" size={60} className="text-green-600 mx-auto mb-4" />
+            <div className="flex justify-center mb-6">
+          <Spinner variant="circle-filled" size={60} className="text-green-600" />
+        </div>
             <p className="text-gray-600">Đang tải thông tin yêu cầu rút tiền...</p>
           </div>
         </div>
