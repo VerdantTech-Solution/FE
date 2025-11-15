@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useCart } from "@/contexts/CartContext";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const Navbar = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -192,6 +193,9 @@ const Navbar = () => {
           >
             {isAuthenticated ? (
               <>
+                {/* Notification Bell */}
+                <NotificationBell />
+                
                 {/* Cart icon - desktop */}
                 <Button
                   variant="ghost"
@@ -368,6 +372,9 @@ const Navbar = () => {
                 whileHover="hover"
                 whileTap="tap"
               >
+                {/* Notification Bell - mobile */}
+                <NotificationBell />
+                
                 {/* Cart icon - mobile */}
                 <Button
                   variant="ghost"
