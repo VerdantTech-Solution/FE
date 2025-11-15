@@ -371,9 +371,11 @@ export default function OrderHistoryPage() {
     return (
       <div className="min-h-screen bg-gray-50 mt-[100px] flex items-center justify-center">
         <div className="text-center">
-          <Spinner variant="circle-filled" size={60} className="text-green-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">Đang tải...</h3>
-          <p className="text-gray-500">Vui lòng chờ trong giây lát</p>
+          <div className="flex justify-center mb-6">
+            <Spinner variant="circle-filled" size={60} className="text-green-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Đang tải...</h3>
+          <p className="text-sm text-gray-500">Vui lòng chờ trong giây lát</p>
         </div>
       </div>
     );

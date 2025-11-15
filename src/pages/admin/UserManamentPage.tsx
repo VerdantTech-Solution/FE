@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { UserResponse } from "@/api/user";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 export const UserManamentPage = () => {
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -221,11 +222,13 @@ export const UserManamentPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Đang tải danh sách người dùng...</p>
+      <div className="text-center">
+      <div className="flex justify-center mb-6">
+          <Spinner variant="circle-filled" size={60} className="text-green-600" />
         </div>
+        <p className="text-gray-600">Đang tải danh sách người dùng...</p>
       </div>
+    </div>
     );
   }
 

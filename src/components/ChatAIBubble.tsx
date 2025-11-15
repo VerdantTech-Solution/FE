@@ -4,7 +4,8 @@ import { MessageCircle, X, Send, History, Bot, User, Trash2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -50,6 +51,20 @@ const getAIResponse = (userMessage: string): string => {
 export const ChatAIBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  
+  // Ẩn chat button ở trang Login, SignUp, Vendor, Staff và Admin
+  // Hoặc khi user có role Staff, Admin, Vendor (kể cả ở trang loading)
+  const shouldHideChat = 
+    location.pathname === '/login' || 
+    location.pathname === '/signup' ||
+    location.pathname.startsWith('/vendor') ||
+    location.pathname.startsWith('/staff') ||
+    location.pathname.startsWith('/admin') ||
+    user?.role === 'Staff' ||
+    user?.role === 'Admin' ||
+    user?.role === 'Vendor';
   
   // Load current conversation from localStorage
   const loadCurrentConversation = (): Message[] => {
@@ -293,6 +308,11 @@ export const ChatAIBubble = () => {
       minute: '2-digit',
     }).format(date);
   };
+
+  // Ẩn chat button ở trang Login và SignUp
+  if (shouldHideChat) {
+    return null;
+  }
 
   return (
     <>

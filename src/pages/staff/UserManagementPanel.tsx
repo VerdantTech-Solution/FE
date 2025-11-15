@@ -203,7 +203,9 @@ export const UserManagementPanel: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Spinner variant="circle-filled" size={60} className="text-green-600 mx-auto mb-4" />
+        <div className="flex justify-center mb-6">
+            <Spinner variant="circle-filled" size={60} className="text-green-600" />
+          </div>
           <p className="text-gray-600">Đang tải danh sách người dùng...</p>
         </div>
       </div>

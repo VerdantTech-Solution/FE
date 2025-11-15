@@ -235,12 +235,8 @@ export const MarketplacePage = () => {
           </div>
 
           {/* Spinner chính */}
-          <div className="mb-6">
-            <Spinner 
-              variant="circle-filled" 
-              size={60} 
-              className="text-green-600 mx-auto"
-            />
+          <div className="flex justify-center mb-6">
+            <Spinner variant="circle-filled" size={60} className="text-green-600" />
           </div>
           
           {/* Tiêu đề */}
