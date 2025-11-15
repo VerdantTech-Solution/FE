@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign, MessageSquare } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
 import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
@@ -100,6 +101,9 @@ export const StaffPage: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {/* Notification Bell */}
+              <NotificationBell />
+              
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">{user?.fullName || 'Staff'}</p>
                 <p className="text-xs text-gray-500">{user?.email}</p>
