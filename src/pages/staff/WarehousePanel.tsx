@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BadgeCheck, CheckCircle2, CircleDashed, Filter, Search, Users, Loader2, Eye, FileText, Download } from "lucide-react";
@@ -51,6 +52,19 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
   const [selectedRegistrationDetail, setSelectedRegistrationDetail] = useState<ProductRegistration | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [resultAlert, setResultAlert] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    variant: "success" | "error";
+  }>({
+    open: false,
+    title: "",
+    description: "",
+    variant: "success",
+  });
 
   // Parse images từ ProductRegistration response
   const parseImagesFromRegistration = (registration: ProductRegistration): MediaLink[] => {
@@ -272,7 +286,12 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
   // Handle approve
   const handleApprove = async (id: number) => {
     if (!user?.id) {
-      alert('Không tìm thấy thông tin người dùng');
+      setResultAlert({
+        open: true,
+        title: "Không thể duyệt",
+        description: "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
+        variant: "error",
+      });
       return;
     }
 
@@ -285,10 +304,20 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
       
       // Refresh data
       await fetchRegistrations();
-      alert('Duyệt đăng ký sản phẩm thành công!');
+      setResultAlert({
+        open: true,
+        title: "Duyệt thành công",
+        description: "Đăng ký sản phẩm đã được duyệt thành công.",
+        variant: "success",
+      });
     } catch (err: any) {
       console.error('Error approving registration:', err);
-      alert(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi duyệt đăng ký');
+      setResultAlert({
+        open: true,
+        title: "Không thể duyệt",
+        description: err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi duyệt đăng ký',
+        variant: "error",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -304,12 +333,22 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
   // Handle reject - submit
   const handleRejectSubmit = async () => {
     if (!selectedRegistrationId || !user?.id) {
-      alert('Không tìm thấy thông tin cần thiết');
+      setResultAlert({
+        open: true,
+        title: "Không thể từ chối",
+        description: "Không tìm thấy thông tin cần thiết.",
+        variant: "error",
+      });
       return;
     }
 
     if (!rejectionReason.trim()) {
-      alert('Vui lòng nhập lý do từ chối');
+      setResultAlert({
+        open: true,
+        title: "Thiếu lý do",
+        description: "Vui lòng nhập lý do từ chối.",
+        variant: "error",
+      });
       return;
     }
 
@@ -326,10 +365,20 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
       setRejectDialogOpen(false);
       setSelectedRegistrationId(null);
       setRejectionReason("");
-      alert('Từ chối đăng ký sản phẩm thành công!');
+      setResultAlert({
+        open: true,
+        title: "Đã từ chối",
+        description: "Đăng ký sản phẩm đã bị từ chối thành công.",
+        variant: "success",
+      });
     } catch (err: any) {
       console.error('Error rejecting registration:', err);
-      alert(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi từ chối đăng ký');
+      setResultAlert({
+        open: true,
+        title: "Không thể từ chối",
+        description: err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi từ chối đăng ký',
+        variant: "error",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -546,7 +595,15 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                     <div className="grid grid-cols-3 gap-2">
                       {images.length > 0 ? (
                         images.slice(0, 3).map((src, idx) => (
-                          <div key={idx} className="h-20 rounded-md overflow-hidden bg-gray-100">
+                          <button
+                            key={idx}
+                            type="button"
+                            className="h-20 rounded-md overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            onClick={() => {
+                              setImagePreview({ url: src, name: reg.proposedProductName ?? `Image ${idx + 1}` });
+                              setImageDialogOpen(true);
+                            }}
+                          >
                             <img
                               src={src}
                               alt={`${reg.proposedProductName} ${idx + 1}`}
@@ -555,11 +612,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                                 console.error(`Failed to load image ${idx} for registration ${reg.id}:`, src);
                                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image';
                               }}
-                              onLoad={() => {
-                                console.log(`Successfully loaded image ${idx} for registration ${reg.id}:`, src);
-                              }}
                             />
-                          </div>
+                          </button>
                         ))
                       ) : (
                         // Hiển thị placeholder nếu không có images
@@ -917,6 +971,47 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{imagePreview?.name ?? 'Xem hình ảnh'}</DialogTitle>
+          </DialogHeader>
+          <div className="w-full">
+            {imagePreview ? (
+              <img
+                src={imagePreview.url}
+                alt={imagePreview.name}
+                className="w-full h-auto rounded-lg object-contain"
+              />
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                Không có hình ảnh
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Result Alert Dialog */}
+      <AlertDialog open={resultAlert.open} onOpenChange={(open) => setResultAlert((prev) => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={resultAlert.variant === "success" ? "text-green-700" : "text-red-700"}>
+              {resultAlert.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {resultAlert.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setResultAlert((prev) => ({ ...prev, open: false }))}>
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

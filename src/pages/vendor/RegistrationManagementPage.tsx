@@ -13,12 +13,23 @@ import {
   X,
   Clock,
   Loader2,
-  Plus
+  Plus,
+  Star,
+  AlertCircle,
+  CheckCircle2,
+  ArrowLeft,
+  ArrowRight,
+  Package,
+  FileText,
+  Trash2,
+  Upload
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
-import { useState, useEffect } from 'react';
-import { getProductRegistrations } from '@/api/product';
+import { useState, useEffect, useCallback } from 'react';
+import { getProductRegistrations, getProductRegistrationById, getAllProducts, getProductById, type Product } from '@/api/product';
+import { getProductReviewsByProductId, type ProductReviewWithReply } from '@/api/productReview';
 import type { ProductRegistration } from '@/api/product';
 import { PATH_NAMES } from '@/constants';
 
@@ -104,6 +115,15 @@ const RegistrationFilters = () => {
       </div>
     </div>
   );
+};
+
+const renderStars = (rating: number) => {
+  return Array.from({ length: 5 }, (_, index) => (
+    <Star
+      key={index}
+      className={`h-4 w-4 ${index < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+    />
+  ));
 };
 
 const RegistrationTable = ({ registrations, loading, onView }: { registrations: ProductRegistration[], loading: boolean, onView: (registration: ProductRegistration) => void }) => {
@@ -223,6 +243,13 @@ const RegistrationManagementPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<ProductRegistration | null>(null);
+  const [detailData, setDetailData] = useState<ProductRegistration | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [productInfo, setProductInfo] = useState<Product | null>(null);
+  const [productLoading, setProductLoading] = useState(false);
+  const [productError, setProductError] = useState<string | null>(null);
+  const [productReviews, setProductReviews] = useState<ProductReviewWithReply[]>([]);
 
   const fetchRegistrations = async () => {
     try {
@@ -247,14 +274,93 @@ const RegistrationManagementPage = () => {
     navigate('/login');
   };
 
+  const findMatchingProduct = useCallback(async (registration: ProductRegistration): Promise<Product | null> => {
+    // Try to detect productId field if backend provides it
+    const registrationAny = registration as any;
+    const possibleProductId = registrationAny?.productId || registrationAny?.approvedProductId;
+    if (possibleProductId) {
+      try {
+        const product = await getProductById(Number(possibleProductId));
+        return product;
+      } catch (err) {
+        console.warn('Unable to fetch product by ID', err);
+      }
+    }
+
+    // Fallback: fetch product list and find by product code
+    try {
+      const allProducts = await getAllProducts({ page: 1, pageSize: 500 });
+      const matched = allProducts.find(
+        (p) =>
+          p.productCode?.toLowerCase() === registration.proposedProductCode.toLowerCase() ||
+          p.productName?.toLowerCase() === registration.proposedProductName.toLowerCase()
+      );
+      return matched ?? null;
+    } catch (err) {
+      console.warn('Unable to fetch product list for matching', err);
+      return null;
+    }
+  }, []);
+
+  const loadProductExtras = useCallback(async (registration: ProductRegistration) => {
+    setProductLoading(true);
+    setProductError(null);
+    setProductInfo(null);
+    setProductReviews([]);
+
+    try {
+      const product = await findMatchingProduct(registration);
+      setProductInfo(product);
+
+      if (product) {
+        const reviewRes = await getProductReviewsByProductId(product.id);
+        setProductReviews(reviewRes.data ?? []);
+      }
+    } catch (err: any) {
+      setProductError(err?.message || 'Không thể tải thông tin sản phẩm thực tế');
+    } finally {
+      setProductLoading(false);
+    }
+  }, [findMatchingProduct]);
+
+  const loadRegistrationDetail = useCallback(async (registration: ProductRegistration) => {
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetailData(null);
+
+    try {
+      const detail = await getProductRegistrationById(registration.id);
+      setDetailData(detail);
+      await loadProductExtras(detail);
+    } catch (err: any) {
+      setDetailError(err?.response?.data?.message || err?.message || 'Không thể tải chi tiết đăng ký');
+      setDetailData(registration);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [loadProductExtras]);
+
   const handleView = (registration: ProductRegistration) => {
     setSelected(registration);
     setDetailOpen(true);
+    loadRegistrationDetail(registration);
   };
 
   const handleRegisterNewProduct = () => {
     navigate(PATH_NAMES.VENDOR_REGISTER_PRODUCT);
   };
+
+  useEffect(() => {
+    if (!detailOpen) {
+      setDetailData(null);
+      setDetailError(null);
+      setProductInfo(null);
+      setProductReviews([]);
+      setProductError(null);
+      setProductLoading(false);
+      setDetailLoading(false);
+    }
+  }, [detailOpen]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -316,79 +422,225 @@ const RegistrationManagementPage = () => {
           <RegistrationTable registrations={registrations} loading={loading} onView={handleView} />
 
           <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Chi tiết đơn đăng ký</DialogTitle>
                 <DialogDescription>
-                  Thông tin đầy đủ về đơn đăng ký sản phẩm
+                  Thông tin đầy đủ về sản phẩm, chứng chỉ và phản hồi khách hàng
                 </DialogDescription>
               </DialogHeader>
-              {selected && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Mã sản phẩm đề xuất</p>
-                      <p className="font-medium text-gray-900">{selected.proposedProductCode}</p>
+
+              {detailLoading ? (
+                <div className="flex items-center justify-center py-12 text-gray-600">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  Đang tải chi tiết...
+                </div>
+              ) : detailError ? (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                  <p className="text-sm text-red-600">{detailError}</p>
+                </div>
+              ) : detailData ? (
+                <Tabs defaultValue="info" className="mt-4">
+                  <TabsList className="grid grid-cols-3 w-full">
+                    <TabsTrigger value="info">Thông tin</TabsTrigger>
+                    <TabsTrigger value="certs">Chứng chỉ</TabsTrigger>
+                    <TabsTrigger value="reviews">
+                      Đánh giá ({productReviews.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="info" className="space-y-6 mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Mã sản phẩm đề xuất</p>
+                        <p className="font-medium text-gray-900">{detailData.proposedProductCode}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Tên sản phẩm đề xuất</p>
+                        <p className="font-medium text-gray-900">{detailData.proposedProductName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Giá</p>
+                        <p className="font-medium text-gray-900">{detailData.unitPrice.toLocaleString('vi-VN')} VNĐ</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Trạng thái</p>
+                        <p className="font-medium text-gray-900">{detailData.status}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Ngày tạo</p>
+                        <p className="font-medium text-gray-900">{new Date(detailData.createdAt).toLocaleString('vi-VN')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Xếp hạng năng lượng</p>
+                        <p className="font-medium text-gray-900">{detailData.energyEfficiencyRating || '-'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Tên sản phẩm đề xuất</p>
-                      <p className="font-medium text-gray-900">{selected.proposedProductName}</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Bảo hành (tháng)</p>
+                        <p className="font-medium text-gray-900">{detailData.warrantyMonths}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Khối lượng (kg)</p>
+                        <p className="font-medium text-gray-900">{detailData.weightKg}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Kích thước (cm)</p>
+                        <p className="font-medium text-gray-900">
+                          {detailData.dimensionsCm 
+                            ? `${detailData.dimensionsCm.Width ?? detailData.dimensionsCm.width ?? '-'} x ${detailData.dimensionsCm.Height ?? detailData.dimensionsCm.height ?? '-'} x ${detailData.dimensionsCm.Length ?? detailData.dimensionsCm.length ?? '-'}`
+                            : '-'
+                          }
+                        </p>
+                      </div>
                     </div>
+
                     <div>
-                      <p className="text-sm text-gray-500">Giá</p>
-                      <p className="font-medium text-gray-900">{selected.unitPrice.toLocaleString('vi-VN')} VNĐ</p>
+                      <p className="text-sm text-gray-500">Mô tả</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">{detailData.description || '-'}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Trạng thái</p>
-                      <p className="font-medium text-gray-900">{selected.status}</p>
+
+                    {detailData.specifications && Object.keys(detailData.specifications).length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-2">Thông số kỹ thuật</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {Object.entries(detailData.specifications).map(([k, v]) => (
+                            <div key={k} className="flex items-start justify-between gap-4 text-sm">
+                              <span className="text-gray-600">{k}</span>
+                              <span className="font-medium text-gray-900">{v as string}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border p-4 bg-gray-50">
+                      {productLoading ? (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Đang tải thông tin sản phẩm đã duyệt...
+                        </div>
+                      ) : productError ? (
+                        <div className="flex items-start gap-2 text-sm text-red-600">
+                          <AlertCircle className="h-4 w-4 mt-0.5" />
+                          {productError}
+                        </div>
+                      ) : productInfo ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500">Hoa hồng đã được staff thiết lập</p>
+                            <p className="text-2xl font-semibold text-green-600">
+                              { (productInfo.commissionRate * 100).toFixed(2) }%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Mã sản phẩm thực tế</p>
+                            <p className="text-lg font-semibold text-gray-900">{productInfo.productCode}</p>
+                            <p className="text-sm text-gray-500">{productInfo.productName}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">
+                          Sản phẩm chưa được duyệt nên chưa có thông tin hoa hồng.
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Ngày tạo</p>
-                      <p className="font-medium text-gray-900">{new Date(selected.createdAt).toLocaleString('vi-VN')}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Năng lượng</p>
-                      <p className="font-medium text-gray-900">{selected.energyEfficiencyRating || '-'}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Mô tả</p>
-                    <p className="text-gray-900">{selected.description || '-'}</p>
-                  </div>
-                  {selected.specifications && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Thông số kỹ thuật</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {Object.entries(selected.specifications).map(([k, v]) => (
-                          <div key={k} className="flex items-start justify-between gap-4">
-                            <span className="text-gray-600">{k}</span>
-                            <span className="font-medium text-gray-900">{v as string}</span>
+                  </TabsContent>
+
+                  <TabsContent value="certs" className="mt-6">
+                    {detailData.certificateFiles && detailData.certificateFiles.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {detailData.certificateFiles.map((cert, idx) => (
+                          <div key={cert.id || idx} className="border rounded-lg p-4 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {cert.purpose || `Chứng chỉ #${idx + 1}`}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">ID: {cert.id}</p>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => window.open(cert.imageUrl, '_blank')} className="gap-2">
+                              <FileText className="h-4 w-4" />
+                              Xem
+                            </Button>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Bảo hành (tháng)</p>
-                      <p className="font-medium text-gray-900">{selected.warrantyMonths}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Khối lượng (kg)</p>
-                      <p className="font-medium text-gray-900">{selected.weightKg}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Kích thước (cm)</p>
-                      <p className="font-medium text-gray-900">
-                        {selected.dimensionsCm 
-                          ? `${selected.dimensionsCm.Width ?? selected.dimensionsCm.width ?? '-'} x ${selected.dimensionsCm.Height ?? selected.dimensionsCm.height ?? '-'} x ${selected.dimensionsCm.Length ?? selected.dimensionsCm.length ?? '-'}`
-                          : '-'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="flex flex-col items-center gap-3">
+                          <span className="text-4xl">🏅</span>
+                          <p>Không có chứng chỉ nào</p>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="reviews" className="mt-6">
+                    {!productInfo ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <p>Sản phẩm chưa được duyệt nên chưa có đánh giá.</p>
+                      </div>
+                    ) : productLoading ? (
+                      <div className="flex items-center justify-center py-12 text-gray-600">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        Đang tải đánh giá...
+                      </div>
+                    ) : productReviews.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <p>Chưa có đánh giá nào cho sản phẩm này.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {productReviews.map((review) => (
+                          <Card key={review.id}>
+                            <CardContent className="pt-6 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    {renderStars(review.rating)}
+                                    <span className="text-sm font-medium text-gray-700">{review.rating}/5</span>
+                                  </div>
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {review.customer?.fullName || `Khách hàng #${review.customerId}`}
+                                  </p>
+                                </div>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(review.createdAt).toLocaleString('vi-VN')}
+                                </span>
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-gray-700">{review.comment}</p>
+                              )}
+                              {review.images && review.images.length > 0 && (
+                                <div className="flex gap-2 flex-wrap">
+                                  {review.images.map((img, idx) => (
+                                    <img
+                                      key={idx}
+                                      src={img.imageUrl}
+                                      alt={`Review ${idx + 1}`}
+                                      className="w-16 h-16 rounded object-cover border"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              {review.reply && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+                                  <p className="font-medium">Phản hồi từ staff:</p>
+                                  <p>{review.reply}</p>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              ) : null}
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDetailOpen(false)}>Đóng</Button>
               </DialogFooter>

@@ -321,6 +321,118 @@ export const getProductById = async (id: number): Promise<Product> => {
   }
 };
 
+// API cập nhật sản phẩm
+export interface UpdateProductRequest {
+  commissionRate?: number;
+  isActive?: boolean;
+  unitPrice?: number;
+  stockQuantity?: number;
+  discountPercentage?: number;
+}
+
+export const updateProduct = async (
+  id: number,
+  data: UpdateProductRequest
+): Promise<Product> => {
+  try {
+    const response = await apiClient.patch(`/api/Product/${id}`, data);
+    
+    let productData = null;
+    
+    if (response.data) {
+      productData = response.data;
+    } else if (response && typeof response === 'object' && 'id' in response) {
+      productData = response;
+    }
+    
+    if (!productData) {
+      throw new Error('Failed to update product');
+    }
+    
+    return transformProductData(productData);
+  } catch (error) {
+    console.error('Update product error:', error);
+    throw error;
+  }
+};
+
+// API cập nhật hoa hồng sản phẩm
+export interface UpdateProductCommissionRequest {
+  commissionRate: number; // 0.05 = 5%, 0.1 = 10%, etc.
+}
+
+export interface UpdateProductCommissionResponse {
+  id: number;
+  commissionRate: number;
+}
+
+export const updateProductCommission = async (
+  id: number,
+  data: UpdateProductCommissionRequest
+): Promise<UpdateProductCommissionResponse> => {
+  try {
+    const response = await apiClient.patch(`/api/Product/${id}/emission`, {
+      commissionRate: data.commissionRate
+    });
+    
+    console.log('Update product commission response:', response);
+    console.log('Response type:', typeof response);
+    
+    // apiClient đã unwrap response.data do interceptor, response là data trực tiếp
+    // Response có thể là:
+    // 1. Object với id và commissionRate
+    // 2. String (success message)
+    // 3. Empty object hoặc null
+    // 4. Object với data field
+    
+    if (response && typeof response === 'object' && !Array.isArray(response)) {
+      // Trường hợp 1: Response có id và commissionRate trực tiếp
+      if ('id' in response && 'commissionRate' in response) {
+        return response as UpdateProductCommissionResponse;
+      }
+      
+      // Trường hợp 2: Response có data field
+      if ('data' in response && response.data && typeof response.data === 'object') {
+        if ('id' in response.data && 'commissionRate' in response.data) {
+          return response.data as UpdateProductCommissionResponse;
+        }
+      }
+      
+      // Trường hợp 3: Response là empty object hoặc chỉ có message - coi như thành công
+      // Trả về object với id và commissionRate từ request
+      if (Object.keys(response).length === 0 || 'message' in response || 'status' in response) {
+        return {
+          id: id,
+          commissionRate: data.commissionRate
+        };
+      }
+    }
+    
+    // Trường hợp 4: Response là string hoặc null - coi như thành công
+    if (typeof response === 'string' || response === null || response === undefined) {
+      return {
+        id: id,
+        commissionRate: data.commissionRate
+      };
+    }
+    
+    // Nếu không match bất kỳ trường hợp nào, throw error
+    console.error('Unexpected response format:', response);
+    throw new Error('Invalid response format');
+  } catch (error: any) {
+    console.error('Update product commission error:', error);
+    // Nếu error có message, throw với message đó
+    if (error?.message) {
+      throw error;
+    }
+    // Nếu error có errors array, throw với message đầu tiên
+    if (error?.errors && Array.isArray(error.errors) && error.errors.length > 0) {
+      throw new Error(error.errors[0]);
+    }
+    throw new Error('Không thể cập nhật hoa hồng. Vui lòng thử lại.');
+  }
+};
+
 // Interface for product registration (matches backend API)
 export interface RegisterProductRequest {
   vendorId: number;
