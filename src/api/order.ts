@@ -31,6 +31,19 @@ export const createOrderPreview = async (
   return response as unknown as CreateOrderPreviewResponse;
 };
 
+// ===== Shipping Option =====
+export interface ShippingOption {
+  id?: number | string;
+  priceTableId?: number | string;
+  shippingDetailId?: number | string;
+  carrierName?: string;
+  carrierLogo?: string;
+  service?: string;
+  expected?: string;
+  expectedTxt?: string;
+  totalAmount: number;
+}
+
 
 // ===== Create Order From Preview =====
 export interface CreateOrderFromPreviewRequest {

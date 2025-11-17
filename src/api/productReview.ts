@@ -126,4 +126,29 @@ export const getProductReviewsByProductId = async (
   };
 };
 
+// Reply to review
+export interface ReplyProductReviewRequest {
+  reply: string;
+}
+
+export interface ProductReviewWithReply extends ProductReview {
+  reply?: string | null;
+  repliedAt?: string | null;
+  repliedBy?: number | null;
+}
+
+export const replyProductReview = async (
+  reviewId: number,
+  payload: ReplyProductReviewRequest
+): Promise<ProductReviewResponse<ProductReviewWithReply>> => {
+  const response = await apiClient.post(`/api/ProductReview/${reviewId}/reply`, payload);
+  const raw = response as any;
+  return {
+    status: typeof raw?.status === 'boolean' ? raw.status : undefined,
+    statusCode: raw?.statusCode,
+    errors: raw?.errors,
+    data: normalizeReview(raw) as ProductReviewWithReply | null,
+  };
+};
+
 

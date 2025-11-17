@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getOrdersByUser, updateOrderStatus, type OrderWithCustomer } from '@/api/order';
 import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
-import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2 } from 'lucide-react';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -102,10 +102,6 @@ const renderStaticStars = (rating: number) =>
     />
   ));
 
-const canConfirmDelivery = (status: string) => {
-  const normalized = status.toLowerCase();
-  return ['shipped', 'processing', 'paid', 'confirmed'].includes(normalized);
-};
 
 type ReviewUploadImage = {
   file: File;
@@ -151,8 +147,12 @@ export default function OrderHistoryPage() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSuccessMessage, setReviewSuccessMessage] = useState<string | null>(null);
-  const [confirmingOrders, setConfirmingOrders] = useState<Record<number, boolean>>({});
-  const [statusNotification, setStatusNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [returnOrderDialogOpen, setReturnOrderDialogOpen] = useState(false);
+  const [returningOrderId, setReturningOrderId] = useState<number | null>(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [returning, setReturning] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [returnSuccess, setReturnSuccess] = useState<string | null>(null);
 
   const loadOrders = async (page: number = 1) => {
     try {
@@ -184,11 +184,6 @@ export default function OrderHistoryPage() {
     loadOrders(1);
   }, [selectedStatus, userId, pageSize]);
 
-  useEffect(() => {
-    if (!statusNotification) return;
-    const timeout = setTimeout(() => setStatusNotification(null), 4000);
-    return () => clearTimeout(timeout);
-  }, [statusNotification]);
 
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status);
@@ -344,26 +339,56 @@ export default function OrderHistoryPage() {
     }
   };
 
-  const handleConfirmOrderDelivered = async (orderId: number) => {
-    setConfirmingOrders(prev => ({ ...prev, [orderId]: true }));
-    setStatusNotification(null);
+  const handleOpenReturnDialog = (orderId: number) => {
+    setReturningOrderId(orderId);
+    setReturnReason('');
+    setReturnError(null);
+    setReturnSuccess(null);
+    setReturnOrderDialogOpen(true);
+  };
+
+  const handleCloseReturnDialog = () => {
+    setReturnOrderDialogOpen(false);
+    setReturningOrderId(null);
+    setReturnReason('');
+    setReturnError(null);
+    setReturnSuccess(null);
+  };
+
+  const handleReturnOrder = async () => {
+    if (!returningOrderId) return;
+    if (!returnReason.trim()) {
+      setReturnError('Vui lòng nhập lý do hoàn hàng');
+      return;
+    }
+
+    setReturning(true);
+    setReturnError(null);
+    setReturnSuccess(null);
+
     try {
-      const response = await updateOrderStatus(orderId, { status: 'Delivered' });
+      const response = await updateOrderStatus(returningOrderId, {
+        status: 'Refunded',
+        cancelledReason: returnReason.trim()
+      });
+
       if (response?.status === false) {
-        const message = response.errors?.[0] || 'Không thể cập nhật trạng thái đơn hàng.';
-        throw new Error(message);
+        const message = response.errors?.[0] || 'Không thể hoàn hàng. Vui lòng thử lại sau.';
+        setReturnError(message);
+        return;
       }
-      setStatusNotification({ type: 'success', text: 'Xác nhận đã nhận hàng thành công.' });
+
+      setReturnSuccess('Yêu cầu hoàn hàng đã được gửi thành công. Chúng tôi sẽ xử lý trong thời gian sớm nhất.');
       await loadOrders(currentPage);
-      if (expandedOrders[orderId]) {
-        await fetchOrderReviews(orderId);
-      }
+      setTimeout(() => {
+        handleCloseReturnDialog();
+      }, 2000);
     } catch (err: any) {
-      console.error('Confirm order delivered error:', err);
-      const message = err?.errors?.[0] || err?.message || 'Không thể cập nhật trạng thái đơn hàng.';
-      setStatusNotification({ type: 'error', text: message });
+      console.error('Return order error:', err);
+      const message = err?.errors?.[0] || err?.message || 'Không thể hoàn hàng. Vui lòng thử lại sau.';
+      setReturnError(message);
     } finally {
-      setConfirmingOrders(prev => ({ ...prev, [orderId]: false }));
+      setReturning(false);
     }
   };
 
@@ -429,22 +454,6 @@ export default function OrderHistoryPage() {
           </div>
         </div>
 
-        {statusNotification && (
-          <div
-            className={`mb-6 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
-              statusNotification.type === 'success'
-                ? 'border-green-200 bg-green-50 text-green-700'
-                : 'border-red-200 bg-red-50 text-red-600'
-            }`}
-          >
-            {statusNotification.type === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            )}
-            <span>{statusNotification.text}</span>
-          </div>
-        )}
 
         {/* Error */}
         {error && (
@@ -487,22 +496,14 @@ export default function OrderHistoryPage() {
                           </Badge>
                         </div>
                         <div className="flex flex-col items-end gap-2 sm:items-end sm:flex-row sm:gap-3">
-                          {canConfirmDelivery(order.status) && (
+                          {order.status.toLowerCase() === 'delivered' && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleConfirmOrderDelivered(order.id)}
-                              disabled={confirmingOrders[order.id]}
-                              className="flex items-center gap-2"
+                              onClick={() => handleOpenReturnDialog(order.id)}
+                              className="flex items-center gap-2 border-orange-300 text-orange-600 hover:bg-orange-50"
                             >
-                              {confirmingOrders[order.id] ? (
-                                <>
-                                  <Spinner variant="circle-filled" size={16} className="text-green-600" />
-                                  Đang cập nhật...
-                                </>
-                              ) : (
-                                'Đã nhận hàng'
-                              )}
+                              Hoàn hàng
                             </Button>
                           )}
                           <div className="text-right">
@@ -946,6 +947,71 @@ export default function OrderHistoryPage() {
             </div>
           </div>
         )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Return Order Dialog */}
+      <Dialog open={returnOrderDialogOpen} onOpenChange={(open) => (open ? null : handleCloseReturnDialog())}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Yêu cầu hoàn hàng</DialogTitle>
+            <DialogDescription>
+              Vui lòng cung cấp lý do hoàn hàng để chúng tôi có thể xử lý yêu cầu của bạn.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="returnReason" className="text-sm font-medium text-gray-700">
+                Lý do hoàn hàng <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="returnReason"
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                placeholder="VD: Sản phẩm bị lỗi, không đúng mô tả, không vừa ý..."
+                className="min-h-[120px]"
+                disabled={returning}
+              />
+            </div>
+
+            {returnError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {returnError}
+              </div>
+            )}
+            {returnSuccess && (
+              <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                {returnSuccess}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseReturnDialog}
+                disabled={returning}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                onClick={handleReturnOrder}
+                disabled={returning || !returnReason.trim()}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {returning ? (
+                  <>
+                    <Spinner variant="circle-filled" size={16} className="mr-2" />
+                    Đang gửi...
+                  </>
+                ) : (
+                  'Gửi yêu cầu'
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -39,7 +39,6 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     energyEfficiencyRating: undefined,
     specifications: {},
     manualFile: null,
-    images: [],
     warrantyMonths: 0,
     weightKg: 0,
     dimensionsCm: {
@@ -48,6 +47,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
       length: 0
     }
   });
+  const [imageUrls, setImageUrls] = useState<string[]>(['']);
 
   // Fetch categories when dialog opens
   useEffect(() => {
@@ -170,6 +170,19 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     setSpecifications(newSpecs);
   };
 
+  const addImageUrlInput = () => {
+    setImageUrls((prev) => [...prev, '']);
+  };
+
+  const removeImageUrlInput = (index: number) => {
+    if (imageUrls.length === 1) return;
+    setImageUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateImageUrl = (index: number, value: string) => {
+    setImageUrls((prev) => prev.map((url, i) => (i === index ? value : url)));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -199,6 +212,10 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         }
       });
 
+      const cleanedImageUrls = imageUrls
+        .map((url) => url.trim())
+        .filter((url) => url.length > 0);
+
       const payload = {
         ...formData,
         vendorId: 0, // This will be set by backend based on auth
@@ -209,6 +226,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         warrantyMonths: parseInt((formData.warrantyMonths || 0).toString()),
         weightKg: parseFloat((formData.weightKg || 0).toString()),
         specifications: specificationsDict,
+        images: cleanedImageUrls,
       };
       
       await registerProduct(payload as RegisterProductRequest);
@@ -237,6 +255,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
           }
         });
         setSpecifications([{ key: '', value: '' }]);
+        setImageUrls(['']);
         onProductRegistered?.();
       }, 3000);
       
@@ -656,16 +675,47 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
 
               {/* Images */}
               <div className="space-y-2">
-                <Label htmlFor="images" className="text-sm font-medium">
-                  Link hình ảnh
-                </Label>
-                <Input
-                  id="images"
-                  value={Array.isArray(formData.images) ? '' : (formData.images || '')}
-                  onChange={(e) => handleInputChange('images', e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  disabled={isLoading}
-                />
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Link hình ảnh</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addImageUrlInput}
+                    disabled={isLoading}
+                    className="h-8"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Thêm link
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {imageUrls.map((url, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        value={url}
+                        onChange={(e) => updateImageUrl(index, e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        disabled={isLoading}
+                      />
+                      {imageUrls.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeImageUrlInput(index)}
+                          disabled={isLoading}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  Bạn có thể thêm nhiều đường link ảnh (tối đa 5MB mỗi ảnh nếu là link Google Drive/CDN).
+                </p>
               </div>
 
               {/* Buttons */}

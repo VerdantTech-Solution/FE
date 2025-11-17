@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getUserProfile, type UserAddress } from '@/api/user';
 import { getFarmProfilesByUserId, type FarmProfile } from '@/api/farm';
 import { getCart, type CartItem } from '@/api/cart';
-import { createOrderPreview, type CreateOrderPreviewRequest } from '@/api/order';
+import { createOrderPreview, type CreateOrderPreviewRequest, type ShippingOption } from '@/api/order';
 import { redirectToPayOS } from '@/api/payos';
 import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,7 +34,7 @@ export default function PreviewOrderPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   
   // Shipping options state
-  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [orderPreviewId, setOrderPreviewId] = useState<string | null>(null);
@@ -516,7 +516,12 @@ export default function PreviewOrderPage() {
                                 <div>
                                   <div className="font-medium text-gray-900">{option.carrierName}</div>
                                   <div className="text-sm text-gray-600">{option.service}</div>
-                                  <div className="text-xs text-gray-500">{option.expected}</div>
+                                  {option.expectedTxt && (
+                                    <div className="text-xs text-gray-500">{option.expectedTxt}</div>
+                                  )}
+                                  {!option.expectedTxt && option.expected && (
+                                    <div className="text-xs text-gray-500">{option.expected}</div>
+                                  )}
                                 </div>
                               </div>
                             </div>

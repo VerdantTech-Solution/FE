@@ -153,6 +153,10 @@ export const RegisterProductPage = () => {
     }
   };
 
+  const removeImageFile = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const updateSpecification = (index: number, field: 'key' | 'value', value: string) => {
     const newSpecs = [...specifications];
     newSpecs[index][field] = value;
@@ -642,14 +646,41 @@ export const RegisterProductPage = () => {
                   multiple
                   onChange={(e) => {
                     const files = Array.from(e.target.files || []);
-                    setImageFiles(files);
+                    setImageFiles((prev) => [...prev, ...files]);
+                    if (e.target) {
+                      e.target.value = '';
+                    }
                   }}
                 />
                 {imageFiles.length > 0 && (
-                  <p className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    {imageFiles.length} hình ảnh đã chọn
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-green-600 flex items-center gap-1">
+                      <CheckCircle2 size={14} />
+                      {imageFiles.length} hình ảnh đã chọn
+                    </p>
+                    <div className="space-y-1 bg-gray-50 rounded-lg p-2 max-h-48 overflow-y-auto">
+                      {imageFiles.map((file, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="flex items-center justify-between text-sm text-gray-700 bg-white rounded-md px-3 py-2 border"
+                        >
+                          <span className="truncate flex-1 pr-2">{file.name}</span>
+                          <span className="text-xs text-gray-500 mr-2">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeImageFile(index)}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
