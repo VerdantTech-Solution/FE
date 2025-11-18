@@ -33,3 +33,6 @@ export * from './payos';
 
 // Export product review API
 export * from './productReview';
+
+// Export forum API
+export * from './forum';

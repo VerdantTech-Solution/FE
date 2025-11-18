@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import type { Notification } from '@/types/notification.types';
 import { NotificationReferenceType, ConnectionState } from '@/types/notification.types';
@@ -16,6 +16,7 @@ export const NotificationBell = () => {
     connectionState,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
   } = useNotifications();
   const navigate = useNavigate();
 
@@ -50,14 +51,23 @@ export const NotificationBell = () => {
     setIsOpen(false);
   };
 
+  const handleDeleteNotification = async (e: React.MouseEvent, notificationId: number) => {
+    e.stopPropagation(); // Prevent triggering the notification click
+    await deleteNotification(notificationId);
+  };
+
   const handleNavigation = (notification: Notification) => {
+    if (!notification.referenceType) {
+      return;
+    }
+
     const routes: Record<NotificationReferenceType, string> = {
       [NotificationReferenceType.Order]: `/order/history`,
       [NotificationReferenceType.Payment]: `/order/history`,
       [NotificationReferenceType.Request]: `/ticket`,
       [NotificationReferenceType.ProductRegistration]: `/profile`,
       [NotificationReferenceType.Cashout]: `/profile`,
-      [NotificationReferenceType.ForumPost]: `/articles`,
+      [NotificationReferenceType.ForumPost]: `/forum`,
       [NotificationReferenceType.ChatbotConversation]: `/chat`,
       [NotificationReferenceType.EnvironmentalData]: `/farmlist`,
     };
@@ -154,7 +164,7 @@ export const NotificationBell = () => {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+                      className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 relative group ${
                         !notification.isRead ? 'bg-blue-50/50' : ''
                       }`}
                       onClick={() => handleNotificationClick(notification)}
@@ -162,12 +172,24 @@ export const NotificationBell = () => {
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
-                            <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">
+                            <h4 className="font-semibold text-sm text-gray-900 line-clamp-1 flex-1">
                               {notification.title}
                             </h4>
-                            {!notification.isRead && (
-                              <span className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0 mt-1.5" />
-                            )}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {!notification.isRead && (
+                                <span className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0 mt-1.5" />
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                onClick={(e) => handleDeleteNotification(e, notification.id)}
+                                aria-label="Xóa thông báo"
+                                title="Xóa thông báo"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                           <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                             {notification.message}

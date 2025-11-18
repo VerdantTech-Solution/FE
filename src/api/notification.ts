@@ -116,3 +116,13 @@ export const markAllNotificationsAsRead = async (
   return response as unknown as NotificationStatusResponse;
 };
 
+export const deleteNotification = async (
+  notificationId: number
+): Promise<NotificationStatusResponse> => {
+  const response = await apiClient.delete<NotificationStatusResponse>(
+    `/api/Notification/${notificationId}`
+  );
+  
+  return response as unknown as NotificationStatusResponse;
+};
+

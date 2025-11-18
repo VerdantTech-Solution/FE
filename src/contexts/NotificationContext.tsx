@@ -5,7 +5,7 @@ import type { Notification } from '@/types/notification.types';
 import { ConnectionState } from '@/types/notification.types';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
-import { getNotificationsByUser, revertNotificationReadStatus } from '@/api/notification';
+import { getNotificationsByUser, revertNotificationReadStatus, deleteNotification } from '@/api/notification';
 
 interface NotificationContextType {
   notifications: Notification[];
@@ -13,6 +13,7 @@ interface NotificationContextType {
   connectionState: ConnectionState;
   markAsRead: (notificationId: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: number) => Promise<void>;
   clearNotifications: () => void;
   isConnected: boolean;
 }
@@ -205,6 +206,24 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   }, [notifications]);
 
+  // Delete notification
+  const handleDeleteNotification = useCallback(async (notificationId: number) => {
+    try {
+      const response = await deleteNotification(notificationId);
+      
+      if (response.status) {
+        // Remove from local state
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+        toast.success('Đã xóa thông báo');
+      } else {
+        throw new Error(response.errors?.[0] || 'Failed to delete notification');
+      }
+    } catch (err) {
+      console.error('[NotificationContext] Error deleting notification:', err);
+      toast.error('Không thể xóa thông báo');
+    }
+  }, []);
+
   // Clear notifications
   const clearNotifications = useCallback(() => {
     setNotifications([]);
@@ -219,6 +238,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     connectionState,
     markAsRead,
     markAllAsRead,
+    deleteNotification: handleDeleteNotification,
     clearNotifications,
     isConnected,
   };
