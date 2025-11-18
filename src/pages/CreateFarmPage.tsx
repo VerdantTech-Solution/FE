@@ -10,13 +10,23 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText } from "lucide-react";
+import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText, Plus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createFarmProfile, type CreateFarmProfileRequest } from "@/api";
+import { createFarmProfile, type CreateFarmProfileRequest, type CropInfo } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
 import MapAreaPage from "./MapAreaPage";
 import StepIndicator from "@/components/StepIndicator";
 import AddressSelector from "@/components/AddressSelector";
+
+type CropFormValues = {
+  cropName: string;
+  plantingDate: string;
+};
+
+const createEmptyCrop = (): CropFormValues => ({
+  cropName: "",
+  plantingDate: "",
+});
 
 export const CreateFarmPage = () => {
   const { user } = useAuth();
@@ -25,7 +35,7 @@ export const CreateFarmPage = () => {
   // const [message, setMessage] = useState<string | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [successData, setSuccessData] = useState<{farmName: string, farmSize: string} | null>(null);
+  const [successData, setSuccessData] = useState<{farmName: string, farmSize: string, crops: CropFormValues[]} | null>(null);
 
   // Ẩn loading sau khi component mount
   useEffect(() => {
@@ -48,7 +58,7 @@ export const CreateFarmPage = () => {
     communeCode: "",
     latitude: "",
     longitude: "",
-    primaryCrops: "",
+    crops: [createEmptyCrop()],
   });
 
   const steps = [
@@ -96,6 +106,31 @@ export const CreateFarmPage = () => {
     // Area updated from map
   }, []);
 
+  const handleCropChange = useCallback((index: number, field: keyof CropFormValues, value: string) => {
+    setForm((prev) => {
+      const updated = [...prev.crops];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, crops: updated };
+    });
+  }, []);
+
+  const addCropField = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      crops: [...prev.crops, createEmptyCrop()],
+    }));
+  }, []);
+
+  const removeCropField = useCallback((index: number) => {
+    setForm((prev) => {
+      if (prev.crops.length === 1) {
+        return { ...prev, crops: [createEmptyCrop()] };
+      }
+      const updated = prev.crops.filter((_, i) => i !== index);
+      return { ...prev, crops: updated.length ? updated : [createEmptyCrop()] };
+    });
+  }, []);
+
   const nextStep = () => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
@@ -135,13 +170,23 @@ export const CreateFarmPage = () => {
                  !Number.isNaN(Number(form.farmSizeHectares)) && Number(form.farmSizeHectares) > 0);
       case 2:
         // Bước 2: Bắt buộc nhập đầy đủ các trường thông tin
+        const hasValidCrop = form.crops.some(
+          (crop) => crop.cropName.trim() && crop.plantingDate
+        );
+        const hasIncompleteCrop = form.crops.some(
+          (crop) =>
+            (crop.cropName.trim() && !crop.plantingDate) ||
+            (!crop.cropName.trim() && crop.plantingDate)
+        );
+
         return !!(
           form.farmName.trim() &&
-          form.primaryCrops.trim() &&
           form.locationAddress.trim() &&
           form.city.trim() &&
           form.district.trim() &&
-          form.ward.trim()
+          form.ward.trim() &&
+          hasValidCrop &&
+          !hasIncompleteCrop
         );
       case 3:
         return true;
@@ -159,6 +204,13 @@ export const CreateFarmPage = () => {
     setSubmitting(true);
     
     try {
+      const preparedCrops: CropInfo[] = form.crops
+        .filter((crop) => crop.cropName.trim() && crop.plantingDate)
+        .map((crop) => ({
+          cropName: crop.cropName.trim(),
+          plantingDate: crop.plantingDate,
+        }));
+
       const payload: CreateFarmProfileRequest = {
         farmName: form.farmName,
         farmSizeHectares: Number(form.farmSizeHectares) || 0,
@@ -171,7 +223,7 @@ export const CreateFarmPage = () => {
         communeCode: form.communeCode || undefined,
         latitude: form.latitude === "" ? undefined : Number(form.latitude),
         longitude: form.longitude === "" ? undefined : Number(form.longitude),
-        primaryCrops: form.primaryCrops || undefined,
+        crops: preparedCrops.length ? preparedCrops : undefined,
       };
 
       const res = await createFarmProfile(payload);
@@ -182,7 +234,8 @@ export const CreateFarmPage = () => {
       // Set success data and show alert
       setSuccessData({
         farmName: form.farmName,
-        farmSize: form.farmSizeHectares
+        farmSize: form.farmSizeHectares,
+        crops: preparedCrops,
       });
       setShowSuccessAlert(true);
       
@@ -199,7 +252,7 @@ export const CreateFarmPage = () => {
         communeCode: "",
         latitude: "",
         longitude: "",
-        primaryCrops: "",
+        crops: [createEmptyCrop()],
       });
       
       // Reset to first step
@@ -210,6 +263,17 @@ export const CreateFarmPage = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const formatPlantingDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
 
   const renderStepContent = () => {
@@ -364,7 +428,16 @@ export const CreateFarmPage = () => {
           </motion.div>
         );
 
-      case 2:
+      case 2: {
+        const hasValidCropEntry = form.crops.some(
+          (crop) => crop.cropName.trim() && crop.plantingDate
+        );
+        const hasIncompleteCropEntry = form.crops.some(
+          (crop) =>
+            (crop.cropName.trim() && !crop.plantingDate) ||
+            (!crop.cropName.trim() && crop.plantingDate)
+        );
+
         return (
           <motion.div
             key="step2"
@@ -407,17 +480,69 @@ export const CreateFarmPage = () => {
                 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cây trồng chính <span className="text-red-500">*</span>
+                    Danh sách cây trồng <span className="text-red-500">*</span>
                   </label>
-                  <Input 
-                    value={form.primaryCrops} 
-                    onChange={handleChange('primaryCrops')} 
-                    placeholder="Lúa, ngô, sắn..." 
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Nhập nhiều loại, phân tách bằng dấu phẩy
+                  <p className="text-xs text-gray-500 mb-4">
+                    Nhập từng loại cây trồng và ngày trồng cụ thể. Cần ít nhất một cây trồng có đầy đủ thông tin.
                   </p>
+                  <div className="space-y-4">
+                    {form.crops.map((crop, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border border-gray-200 rounded-lg bg-white shadow-sm"
+                      >
+                        <div className="md:col-span-3">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Tên cây trồng
+                          </label>
+                          <Input
+                            value={crop.cropName}
+                            onChange={(e) => handleCropChange(index, 'cropName', e.target.value)}
+                            placeholder="Ví dụ: Lúa"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Ngày trồng
+                          </label>
+                          <Input
+                            type="date"
+                            value={crop.plantingDate}
+                            onChange={(e) => handleCropChange(index, 'plantingDate', e.target.value)}
+                          />
+                        </div>
+                        {form.crops.length > 1 && (
+                          <div className="md:col-span-5 flex justify-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => removeCropField(index)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Xoá
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addCropField}
+                    className="mt-4 gap-2 border-dashed border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Thêm cây trồng
+                  </Button>
+                  {(!hasValidCropEntry || hasIncompleteCropEntry) && (
+                    <p className="mt-2 text-xs text-red-500">
+                      {hasIncompleteCropEntry
+                        ? 'Vui lòng nhập đầy đủ tên và ngày trồng cho mỗi cây.'
+                        : 'Cần ít nhất một cây trồng có đầy đủ thông tin.'}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -521,8 +646,16 @@ export const CreateFarmPage = () => {
             </div>
           </motion.div>
         );
+      }
 
-      case 3:
+      case 3: {
+        const completedCrops = form.crops
+          .filter((crop) => crop.cropName.trim() && crop.plantingDate)
+          .map((crop) => ({
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+          }));
+
         return (
           <motion.div
             key="step3"
@@ -594,10 +727,23 @@ export const CreateFarmPage = () => {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Cây trồng chính</label>
-                    <p className="text-sm text-gray-900">
-                      {form.primaryCrops || "Chưa nhập"}
-                    </p>
+                    <label className="text-sm font-medium text-gray-600">Danh sách cây trồng</label>
+                    {completedCrops.length > 0 ? (
+                      <ul className="mt-2 space-y-1 text-sm text-gray-900">
+                        {completedCrops.map((crop, idx) => (
+                          <li key={`${crop.cropName}-${idx}`} className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 py-1 rounded-md bg-white border border-emerald-200 text-emerald-700 font-semibold">
+                              {crop.cropName}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Ngày trồng: {formatPlantingDate(crop.plantingDate)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-400">Chưa nhập</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Địa chỉ</label>
@@ -663,10 +809,15 @@ export const CreateFarmPage = () => {
                   <div className={`w-2 h-2 rounded-full ${user ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
                   <span><strong>Chủ sở hữu:</strong> {user ? 'Đã xác định' : 'Chưa đăng nhập'}</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${completedCrops.length ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                  <span><strong>Cây trồng:</strong> {completedCrops.length ? `${completedCrops.length} loại` : 'Chưa nhập'}</span>
+                </div>
               </div>
             </div>
           </motion.div>
         );
+      }
 
       default:
         return null;
@@ -820,6 +971,18 @@ export const CreateFarmPage = () => {
                 <div className="font-semibold text-emerald-800 mb-2">Thông tin trang trại:</div>
                 <div><strong>Tên trang trại:</strong> {successData?.farmName}</div>
                 <div><strong>Diện tích:</strong> {successData?.farmSize} ha</div>
+                {successData?.crops?.length ? (
+                  <div className="mt-3 text-left">
+                    <div className="font-semibold text-emerald-800 mb-1">Cây trồng:</div>
+                    <ul className="text-sm text-emerald-900 space-y-1 list-disc list-inside">
+                      {successData.crops.map((crop, idx) => (
+                        <li key={`${crop.cropName}-${idx}`}>
+                          {crop.cropName} • {formatPlantingDate(crop.plantingDate)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
               <div className="text-sm">
                 Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!

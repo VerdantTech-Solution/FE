@@ -1,6 +1,5 @@
 import { apiClient } from './apiClient';
 
-// Interface cho Address theo API schema
 export interface Address {
   id: number;
   locationAddress: string;
@@ -11,13 +10,22 @@ export interface Address {
   longitude: number;
 }
 
-// Interface cho Farm Profile theo API schema
+export interface CropInfo {
+  cropName: string;
+  plantingDate: string;
+}
+
 export interface FarmProfile {
   id?: number;
   farmName: string;
   farmSizeHectares: number;
   address?: Address;
+  /**
+   * @deprecated Thuộc tính cũ, giữ lại để tương thích ngược.
+   * Vui lòng sử dụng `crops` để hiển thị chi tiết cây trồng.
+   */
   primaryCrops?: string;
+  crops?: CropInfo[];
   status?: 'Active' | 'Maintenance' | 'Deleted';
   createdAt?: string;
   updatedAt?: string;
@@ -36,6 +44,10 @@ export interface CreateFarmProfileRequest {
   communeCode?: string;
   latitude?: number;
   longitude?: number;
+  crops?: CropInfo[];
+  /**
+   * @deprecated Thuộc tính cũ, giữ lại để tương thích ngược.
+   */
   primaryCrops?: string;
   status?: 'Active' | 'Maintenance' | 'Deleted';
 }
@@ -80,7 +92,11 @@ export interface CreateFarmProfileResponse {
       deletedAt: string | null;
     };
     status: string;
-    primaryCrops: string;
+    /**
+     * @deprecated Thuộc tính cũ.
+     */
+    primaryCrops?: string;
+    crops?: CropInfo[];
     createdAt: string;
     updatedAt: string;
   };
@@ -123,7 +139,14 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
       ...(data.communeCode && { communeCode: String(data.communeCode) }),
       ...(data.latitude && data.latitude !== 0 && { latitude: data.latitude }),
       ...(data.longitude && data.longitude !== 0 && { longitude: data.longitude }),
-      ...(data.primaryCrops && { primaryCrops: data.primaryCrops.trim() }),
+      ...(data.crops && data.crops.length > 0 && {
+        crops: data.crops
+          .filter((crop) => crop.cropName.trim() && crop.plantingDate)
+          .map((crop) => ({
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+          })),
+      }),
     };
     
     console.log('Cleaned farm profile data:', cleanData);
