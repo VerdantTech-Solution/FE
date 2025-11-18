@@ -31,4 +31,7 @@ export const PATH_NAMES = {
   PAYOS_RETURN: '/payos/return',
   // Ticket routes
   TICKET: '/ticket',
+  // Forum routes
+  FORUM: '/articles',
+  FORUM_DETAIL: '/article',
 };

@@ -66,9 +66,8 @@ class NotificationService {
       this.updateConnectionState(ConnectionState.Connected);
       console.log("[SignalR] ✅ Connected successfully");
       
-      // Test ping
-      const pingResult = await this.connection.invoke<string>("Ping");
-      console.log("[SignalR] 🏓 Ping result:", pingResult);
+      // Note: Ping method removed - server doesn't implement it
+      // If needed, can be called manually via ping() method
     } catch (err) {
       this.updateConnectionState(ConnectionState.Disconnected);
       console.error("[SignalR] ❌ Connection failed:", err);
