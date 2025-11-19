@@ -11,8 +11,12 @@ export interface Address {
 }
 
 export interface CropInfo {
+  id?: number;
   cropName: string;
   plantingDate: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface FarmProfile {

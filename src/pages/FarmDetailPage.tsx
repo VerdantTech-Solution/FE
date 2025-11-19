@@ -66,7 +66,7 @@ const FarmDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="ai">
-          <FarmAISuggestions />
+          {id ? <FarmAISuggestions farmId={Number(id)} /> : null}
         </TabsContent>
 
         <TabsContent value="CO2">
@@ -130,8 +130,31 @@ const FarmDetailPage = () => {
             <Separator />
             <div className="space-y-2">
               <div className="text-sm text-gray-600 font-semibold">Cây trồng chính</div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">{farm?.primaryCrops || 'Chưa xác định'}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {farm?.crops && farm.crops.length > 0 ? (
+                  farm.crops.map((crop, index) => (
+                    <div key={crop.id || index} className="flex items-center gap-1">
+                      <span className={`px-2 py-1 rounded-md text-xs border ${
+                        crop.isActive 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                      }`}>
+                        {crop.cropName}
+                      </span>
+                      {crop.plantingDate && (
+                        <span className="text-xs text-gray-500">
+                          ({new Date(crop.plantingDate).toLocaleDateString('vi-VN')})
+                        </span>
+                      )}
+                    </div>
+                  ))
+                ) : farm?.primaryCrops ? (
+                  <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
+                    {farm.primaryCrops}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">Chưa xác định</span>
+                )}
               </div>
             </div>
           </CardContent>

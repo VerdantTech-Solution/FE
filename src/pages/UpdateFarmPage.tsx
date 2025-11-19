@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, X, Loader2, Crop } from 'lucide-react';
-import { updateFarmProfile, getFarmProfileById, type FarmProfile, type CreateFarmProfileRequest } from '@/api/farm';
+import { ArrowLeft, Save, X, Loader2, Crop, Plus, Trash2 } from 'lucide-react';
+import { updateFarmProfile, getFarmProfileById, type FarmProfile, type CreateFarmProfileRequest, type CropInfo } from '@/api/farm';
 import { toast } from 'sonner';
 import MapAreaPage from './MapAreaPage';
 import AddressSelector from '@/components/AddressSelector';
@@ -48,6 +48,7 @@ const UpdateFarmPage = () => {
     primaryCrops: '',
   });
   
+  const [crops, setCrops] = useState<CropInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -67,6 +68,18 @@ const UpdateFarmPage = () => {
         
         setFarmData(farm);
         
+        // Load crops from farm data
+        if (farm?.crops && Array.isArray(farm.crops) && farm.crops.length > 0) {
+          setCrops(farm.crops.map(crop => ({
+            id: crop.id,
+            cropName: crop.cropName,
+            plantingDate: crop.plantingDate,
+            isActive: crop.isActive ?? true,
+          })));
+        } else {
+          setCrops([]);
+        }
+        
         // Populate form with existing data - handle different response structures
         const farmAny = farm as any; // Type assertion to handle different API response structures
         const formData = {
@@ -82,11 +95,12 @@ const UpdateFarmPage = () => {
           latitude: farm?.address?.latitude || farmAny?.latitude || farmAny?.lat || 0,
           longitude: farm?.address?.longitude || farmAny?.longitude || farmAny?.lng || 0,
           status: farm?.status || 'Active',
-          primaryCrops: farm?.primaryCrops || farmAny?.primary_crops || farmAny?.crops || '',
+          primaryCrops: farm?.primaryCrops || farmAny?.primary_crops || '',
         };
         
         console.log('Processed form data:', formData);
         console.log('Farm name specifically:', formData.farmName);
+        console.log('Crops loaded:', farm?.crops);
         
         setFormData(formData);
         
@@ -169,6 +183,25 @@ const UpdateFarmPage = () => {
       return;
     }
 
+    // Validate crops
+    if (crops.length > 0) {
+      const invalidCrops = crops.filter(crop => !crop.cropName.trim());
+      if (invalidCrops.length > 0) {
+        toast.error('Vui lòng nhập tên cây trồng cho tất cả các mục');
+        return;
+      }
+      
+      // Check for duplicate crop ids (only for existing crops with id > 0)
+      const existingCropIds = crops
+        .filter(crop => crop.id && crop.id > 0)
+        .map(crop => crop.id);
+      const duplicateIds = existingCropIds.filter((id, index) => existingCropIds.indexOf(id) !== index);
+      if (duplicateIds.length > 0) {
+        toast.error('Có crops trùng lặp. Vui lòng kiểm tra lại.');
+        return;
+      }
+    }
+
     try {
       setIsSaving(true);
       
@@ -185,8 +218,22 @@ const UpdateFarmPage = () => {
         communeCode: formData.communeCode ? String(formData.communeCode) : undefined,
         latitude: formData.latitude,
         longitude: formData.longitude,
-        primaryCrops: formData.primaryCrops.trim(),
         status: formData.status,
+        // Send crops array instead of primaryCrops
+        // Always send crops array (even if empty) to handle deletion
+        // Only include id for existing crops (id > 0), omit id for new crops to avoid tracking conflicts
+        crops: crops.map(crop => {
+          const cropData: any = {
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+            isActive: crop.isActive ?? true,
+          };
+          // Only include id if it exists and is greater than 0 (existing crop)
+          if (crop.id && crop.id > 0) {
+            cropData.id = crop.id;
+          }
+          return cropData;
+        }),
       };
 
       // Fix rule: Province and ProvinceCode must both exist or both be null
@@ -300,20 +347,7 @@ const UpdateFarmPage = () => {
                       />
                     </div>
 
-                    {/* Primary Crops */}
-                    <div className="space-y-2">
-                      <Label htmlFor="primaryCrops" className="text-sm font-medium text-gray-700">
-                        Loại cây trồng chính
-                      </Label>
-                      <Input
-                        id="primaryCrops"
-                        type="text"
-                        value={formData.primaryCrops}
-                        onChange={(e) => handleInputChange('primaryCrops', e.target.value)}
-                        className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Ví dụ: Lúa, Ngô, Rau xanh..."
-                      />
-                    </div>
+                    {/* Crops Management - Removed, will add below */}
 
                     {/* Status */}
                     <div className="space-y-2">
@@ -354,6 +388,102 @@ const UpdateFarmPage = () => {
                       />
                       <p className="text-xs text-gray-500">Tự động từ vùng đã chọn trên bản đồ</p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Crops Management Section */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                    🌾 Quản lý cây trồng
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {crops.map((crop, index) => (
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-600">Tên cây trồng</Label>
+                          <Input
+                            value={crop.cropName}
+                            onChange={(e) => {
+                              const newCrops = [...crops];
+                              newCrops[index].cropName = e.target.value;
+                              setCrops(newCrops);
+                            }}
+                            className="h-10 text-sm"
+                            placeholder="Ví dụ: Lúa, Ngô..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-600">Ngày trồng</Label>
+                          <Input
+                            type="date"
+                            value={crop.plantingDate}
+                            onChange={(e) => {
+                              const newCrops = [...crops];
+                              newCrops[index].plantingDate = e.target.value;
+                              setCrops(newCrops);
+                            }}
+                            className="h-10 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-600">Trạng thái</Label>
+                          <Select
+                            value={crop.isActive ? 'true' : 'false'}
+                            onValueChange={(value) => {
+                              const newCrops = [...crops];
+                              newCrops[index].isActive = value === 'true';
+                              setCrops(newCrops);
+                            }}
+                          >
+                            <SelectTrigger className="h-10 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="true">Đang hoạt động</SelectItem>
+                              <SelectItem value="false">Không hoạt động</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newCrops = crops.filter((_, i) => i !== index);
+                              setCrops(newCrops);
+                            }}
+                            className="w-full h-10 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setCrops([...crops, {
+                          cropName: '',
+                          plantingDate: new Date().toISOString().split('T')[0],
+                          isActive: true,
+                        }]);
+                      }}
+                      className="w-full h-11 border-dashed border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Thêm cây trồng
+                    </Button>
+                    
+                    {crops.length === 0 && (
+                      <div className="text-center py-4 text-sm text-gray-500">
+                        Chưa có cây trồng nào. Nhấn "Thêm cây trồng" để bắt đầu.
+                      </div>
+                    )}
                   </div>
                 </div>
 
