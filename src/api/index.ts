@@ -36,3 +36,6 @@ export * from './productReview';
 
 // Export forum API
 export * from './forum';
+
+// Export AI suggestions API
+export * from './aiSuggestions';
