@@ -9,6 +9,16 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { createCO2FootprintForFarm, getCO2DataByFarmId, deleteCO2RecordById, type CO2Record } from '@/api/co2';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 //
 
@@ -19,6 +29,17 @@ const CO2Info: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string>('');
   const [records, setRecords] = useState<CO2Record[]>([]);
+  
+  // AlertDialog states
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteSuccessOpen, setDeleteSuccessOpen] = useState(false);
+  const [deleteErrorOpen, setDeleteErrorOpen] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string>('');
+  const [createSuccessOpen, setCreateSuccessOpen] = useState(false);
+  const [createErrorOpen, setCreateErrorOpen] = useState(false);
+  const [createErrorMessage, setCreateErrorMessage] = useState<string>('');
+  const [createSuccessMessage, setCreateSuccessMessage] = useState<string>('');
+  const [recordToDelete, setRecordToDelete] = useState<CO2Record | null>(null);
 
   const { id: routeFarmId } = useParams<{ id: string }>();
   const farmIdNum = routeFarmId ? Number(routeFarmId) : NaN;
@@ -108,7 +129,8 @@ const CO2Info: React.FC = () => {
 
   const handleCreateFootprint = async () => {
     if (Number.isNaN(farmIdNum)) {
-      setSubmitMessage('Không xác định được trang trại. Vui lòng mở từ trang chi tiết trang trại.');
+      setCreateErrorMessage('Không xác định được trang trại. Vui lòng mở từ trang chi tiết trang trại.');
+      setCreateErrorOpen(true);
       return;
     }
 
@@ -121,13 +143,15 @@ const CO2Info: React.FC = () => {
     const maxByOneYear = toDateOnly(oneYearAfterStartStr);
 
     if (startDate >= endDate) {
-      setSubmitMessage('Ngày bắt đầu phải nhỏ hơn ngày kết thúc');
+      setCreateErrorMessage('Ngày bắt đầu phải nhỏ hơn ngày kết thúc');
+      setCreateErrorOpen(true);
       return;
     }
     
     // Khoảng tối đa 1 năm kể từ ngày bắt đầu
     if (endDate > maxByOneYear) {
-      setSubmitMessage('Khoảng thời gian tối đa là 1 năm kể từ ngày bắt đầu');
+      setCreateErrorMessage('Khoảng thời gian tối đa là 1 năm kể từ ngày bắt đầu');
+      setCreateErrorOpen(true);
       return;
     }
 
@@ -149,9 +173,12 @@ const CO2Info: React.FC = () => {
         phosphateFertilizer: phosphateFertilizer === '' ? undefined : Number(phosphateFertilizer),
       };
       const res = await createCO2FootprintForFarm(farmIdNum, payload);
-      if (res?.status) {
-        const adjustedMsg = endDate > toDateOnly(todayStr) ? ' (đã tự động điều chỉnh ngày kết thúc về hôm nay) ' : '';
-        setSubmitMessage(`Tạo CO2 footprint thành công${adjustedMsg}`);
+      // Kiểm tra cả status và statusCode để đảm bảo tương thích
+      const isSuccess = res?.status === true || (res?.statusCode >= 200 && res?.statusCode < 300);
+      
+      if (isSuccess) {
+        const adjustedMsg = endDate > toDateOnly(todayStr) ? ' (đã tự động điều chỉnh ngày kết thúc về hôm nay)' : '';
+        setCreateSuccessMessage(`Tạo CO2 footprint thành công${adjustedMsg}`);
         setOpen(false);
         // reset nhẹ các trường số
         setMeasurementStartDate(yesterdayStr);
@@ -164,13 +191,75 @@ const CO2Info: React.FC = () => {
         setNpkFertilizer('');
         setUreaFertilizer('');
         setPhosphateFertilizer('');
+        
+        // Reload data trong background, không ảnh hưởng đến success dialog
+        const fetchData = async () => {
+          try {
+            const res = await getCO2DataByFarmId(farmIdNum);
+            if (res?.status || (res?.statusCode >= 200 && res?.statusCode < 300)) {
+              setRecords(res.data || []);
+            }
+          } catch (e) {
+            // Silent fail - không ảnh hưởng đến success message
+            console.error('Failed to reload CO2 data:', e);
+          }
+        };
+        fetchData();
+        
+        // Hiển thị success dialog sau khi đã reset form
+        setCreateSuccessOpen(true);
       } else {
-        setSubmitMessage(res?.errors?.join(', ') || 'Không thể tạo CO2 footprint');
+        setCreateErrorMessage(res?.errors?.join(', ') || 'Không thể tạo CO2 footprint');
+        setCreateErrorOpen(true);
       }
-    } catch (error: unknown) {
-      setSubmitMessage('Lỗi khi tạo CO2 footprint');
+    } catch (error: any) {
+      // Xử lý error từ interceptor (có thể là ApiResponseWrapper)
+      if (error && typeof error === 'object' && 'errors' in error) {
+        setCreateErrorMessage(Array.isArray(error.errors) ? error.errors.join(', ') : 'Không thể tạo CO2 footprint');
+      } else if (error?.response?.data?.errors) {
+        setCreateErrorMessage(Array.isArray(error.response.data.errors) ? error.response.data.errors.join(', ') : 'Không thể tạo CO2 footprint');
+      } else {
+        setCreateErrorMessage(error?.message || 'Lỗi khi tạo CO2 footprint');
+      }
+      setCreateErrorOpen(true);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteClick = (record: CO2Record) => {
+    setRecordToDelete(record);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!recordToDelete) return;
+    setDeleteConfirmOpen(false);
+    try {
+      const res = await deleteCO2RecordById(recordToDelete.id);
+      // Kiểm tra cả status và statusCode để đảm bảo tương thích
+      const isSuccess = res?.status === true || (res?.statusCode >= 200 && res?.statusCode < 300);
+      
+      if (isSuccess) {
+        setRecords(prev => prev.filter(r => r.id !== recordToDelete.id));
+        setDeleteSuccessOpen(true);
+        setRecordToDelete(null);
+      } else {
+        setDeleteErrorMessage(res?.errors?.join(', ') || 'Xóa thất bại');
+        setDeleteErrorOpen(true);
+        setRecordToDelete(null);
+      }
+    } catch (e: any) {
+      // Xử lý error từ interceptor (có thể là ApiResponseWrapper)
+      if (e && typeof e === 'object' && 'errors' in e) {
+        setDeleteErrorMessage(Array.isArray(e.errors) ? e.errors.join(', ') : 'Xóa thất bại');
+      } else if (e?.response?.data?.errors) {
+        setDeleteErrorMessage(Array.isArray(e.response.data.errors) ? e.response.data.errors.join(', ') : 'Xóa thất bại');
+      } else {
+        setDeleteErrorMessage(e?.message || 'Xóa thất bại');
+      }
+      setDeleteErrorOpen(true);
+      setRecordToDelete(null);
     }
   };
 
@@ -236,11 +325,11 @@ const CO2Info: React.FC = () => {
                 <Input
                   type="date"
                   value={measurementEndDate || todayStr}
-                  min={measurementStartDate || yesterdayStr}
+                  min="1900-01-01"
                   max={endMaxStr}
                   onChange={(e) => setMeasurementEndDate(e.target.value)}
                 />
-                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác. Không vượt quá 1 năm kể từ ngày bắt đầu.</span>
+                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác, kể cả ngày trong quá khứ. Không vượt quá 1 năm kể từ ngày bắt đầu.</span>
               </div>
 
               
@@ -341,22 +430,7 @@ const CO2Info: React.FC = () => {
           <Button
             variant="destructive"
             className="ml-auto"
-            onClick={async () => {
-              if (!latestRecord) return;
-              const ok = window.confirm('Xóa dữ liệu CO2 này? Hành động này không thể hoàn tác.');
-              if (!ok) return;
-              try {
-                const res = await deleteCO2RecordById(latestRecord.id);
-                if (res?.status) {
-                  // reload list
-                  setRecords(prev => prev.filter(r => r.id !== latestRecord.id));
-                } else {
-                  alert(res?.errors?.join(', ') || 'Xóa thất bại');
-                }
-              } catch (e: any) {
-                alert(e?.errors?.join(', ') || 'Xóa thất bại');
-              }
-            }}
+            onClick={() => handleDeleteClick(latestRecord)}
           >
             Xóa bản ghi
           </Button>
@@ -493,8 +567,83 @@ const CO2Info: React.FC = () => {
       {/* Ẩn phần hấp thụ nếu chưa có dữ liệu */}
       
 
-     
+      {/* AlertDialog cho xác nhận xóa */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa dữ liệu CO2 này? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
+      {/* AlertDialog cho thành công khi xóa */}
+      <AlertDialog open={deleteSuccessOpen} onOpenChange={setDeleteSuccessOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-green-600">Thành công</AlertDialogTitle>
+            <AlertDialogDescription>
+              Đã xóa bản ghi CO2 thành công.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDeleteSuccessOpen(false)}>Đóng</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog cho lỗi khi xóa */}
+      <AlertDialog open={deleteErrorOpen} onOpenChange={setDeleteErrorOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Lỗi</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteErrorMessage || 'Xóa thất bại'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDeleteErrorOpen(false)}>Đóng</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog cho thành công khi tạo */}
+      <AlertDialog open={createSuccessOpen} onOpenChange={setCreateSuccessOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-green-600">Thành công</AlertDialogTitle>
+            <AlertDialogDescription>
+              {createSuccessMessage || 'Tạo CO2 footprint thành công'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setCreateSuccessOpen(false)}>Đóng</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog cho lỗi khi tạo */}
+      <AlertDialog open={createErrorOpen} onOpenChange={setCreateErrorOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Lỗi</AlertDialogTitle>
+            <AlertDialogDescription>
+              {createErrorMessage || 'Không thể tạo CO2 footprint'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setCreateErrorOpen(false)}>Đóng</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
    
     </div>
   );

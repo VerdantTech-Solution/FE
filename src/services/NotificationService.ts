@@ -1,10 +1,11 @@
 import * as signalR from "@microsoft/signalr";
 import type { 
   Notification, 
-  NotificationCallback
+  NotificationCallback,
+  ConnectionState
 } from "@/types/notification.types";
 import { 
-  ConnectionState 
+  CONNECTION_STATES 
 } from "@/types/notification.types";
 
 /**
@@ -16,11 +17,11 @@ class NotificationService {
   private hubUrl: string;
   private listeners: NotificationCallback[] = [];
   private connectionStateCallbacks: ((state: ConnectionState) => void)[] = [];
-  private currentState: ConnectionState = ConnectionState.Disconnected;
+  private currentState: ConnectionState = CONNECTION_STATES.Disconnected;
 
   constructor(token: string, hubUrl?: string) {
     this.token = token;
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://sep490.onrender.com";
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://verdanttechbe-bpbaaghrg5ggexds.southeastasia-01.azurewebsites.net";
     this.hubUrl = hubUrl || `${baseUrl}/hubs/notification`;
   }
 
@@ -33,7 +34,7 @@ class NotificationService {
       return;
     }
 
-    this.updateConnectionState(ConnectionState.Connecting);
+    this.updateConnectionState(CONNECTION_STATES.Connecting);
 
     // Tạo connection với cấu hình
     this.connection = new signalR.HubConnectionBuilder()
@@ -63,13 +64,13 @@ class NotificationService {
     // Kết nối
     try {
       await this.connection.start();
-      this.updateConnectionState(ConnectionState.Connected);
+      this.updateConnectionState(CONNECTION_STATES.Connected);
       console.log("[SignalR] ✅ Connected successfully");
       
       // Note: Ping method removed - server doesn't implement it
       // If needed, can be called manually via ping() method
     } catch (err) {
-      this.updateConnectionState(ConnectionState.Disconnected);
+      this.updateConnectionState(CONNECTION_STATES.Disconnected);
       console.error("[SignalR] ❌ Connection failed:", err);
       throw err;
     }
@@ -83,7 +84,7 @@ class NotificationService {
 
     try {
       await this.connection.stop();
-      this.updateConnectionState(ConnectionState.Disconnected);
+      this.updateConnectionState(CONNECTION_STATES.Disconnected);
       console.log("[SignalR] Disconnected");
     } catch (err) {
       console.error("[SignalR] Disconnect error:", err);
@@ -125,19 +126,19 @@ class NotificationService {
 
     // Khi reconnecting
     this.connection.onreconnecting((error) => {
-      this.updateConnectionState(ConnectionState.Reconnecting);
+      this.updateConnectionState(CONNECTION_STATES.Reconnecting);
       console.warn("[SignalR] 🔄 Reconnecting...", error?.message);
     });
 
     // Khi reconnected
     this.connection.onreconnected((connectionId) => {
-      this.updateConnectionState(ConnectionState.Connected);
+      this.updateConnectionState(CONNECTION_STATES.Connected);
       console.log("[SignalR] ✅ Reconnected:", connectionId);
     });
 
     // Khi connection bị đóng
     this.connection.onclose((error) => {
-      this.updateConnectionState(ConnectionState.Disconnected);
+      this.updateConnectionState(CONNECTION_STATES.Disconnected);
       console.error("[SignalR] ❌ Connection closed:", error?.message);
     });
   }

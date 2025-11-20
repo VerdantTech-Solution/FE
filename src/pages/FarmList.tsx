@@ -3,10 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, MoreHorizontal, Edit } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { getFarmProfilesByUserId, type FarmProfile } from "@/api/farm";
+import { getFarmProfilesByUserId, updateFarmProfile, type FarmProfile } from "@/api/farm";
 import { useAuth } from "@/contexts/AuthContext";
 
 type FarmStatus = "Active" | "Maintenance" | "Deleted";
@@ -17,10 +27,23 @@ interface FarmItem {
   location: string;
   areaHectare: number;
   type: string;
+  cropNames: string[];
   createdAt: string; // Ngày tạo trang trại
   status: FarmStatus;
   imageUrl: string;
 }
+
+interface DeleteDialogState {
+  open: boolean;
+  farm: FarmItem | null;
+  loading: boolean;
+}
+
+const initialDeleteDialog: DeleteDialogState = {
+  open: false,
+  farm: null,
+  loading: false,
+};
 
 // Helper function to convert FarmProfile to FarmItem
 const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
@@ -50,12 +73,22 @@ const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
   
   const createdAt = farm.createdAt || new Date().toISOString();
   
+  const cropNames = (farm.crops || [])
+    .filter((crop) => crop.cropName?.trim())
+    .map((crop) => crop.cropName.trim());
+
+  const primaryCropDisplay =
+    (cropNames.length > 0 && cropNames.join(", ")) ||
+    farm.primaryCrops ||
+    "Chưa xác định";
+
   return {
     id: farm.id || 0,
     name: farm.farmName,
     location,
     areaHectare: farm.farmSizeHectares,
-    type: farm.primaryCrops || 'Chưa xác định',
+    type: primaryCropDisplay,
+    cropNames,
     createdAt,
     status: farm.status || 'Active',
     imageUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1200&auto=format&fit=crop",
@@ -98,6 +131,7 @@ export const FarmList = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>(initialDeleteDialog);
 
   // Fetch farms data
   useEffect(() => {
@@ -145,6 +179,38 @@ export const FarmList = () => {
     fetchFarms();
   }, [user?.id]);
 
+  const openDeleteDialog = (farm: FarmItem) => {
+    setDeleteDialog({
+      open: true,
+      farm,
+      loading: false,
+    });
+  };
+
+  const closeDeleteDialog = () => setDeleteDialog(initialDeleteDialog);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.farm) {
+      return;
+    }
+
+    setDeleteDialog((prev) => ({ ...prev, loading: true }));
+    try {
+      await updateFarmProfile(deleteDialog.farm.id, { status: "Deleted" });
+      // Update the farm status in the list instead of removing it
+      setFarms((prev) => 
+        prev.map((farm) => 
+          farm.id === deleteDialog.farm!.id 
+            ? { ...farm, status: "Deleted" as FarmStatus }
+            : farm
+        )
+      );
+      closeDeleteDialog();
+    } catch (err) {
+      console.error("Error deleting farm:", err);
+      setDeleteDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
 
 
   const filtered = useMemo(() => {
@@ -219,6 +285,7 @@ export const FarmList = () => {
   }
 
   return (
+    <>
     <motion.div
       className="relative max-w-[100%] mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-[80px]"
       initial={{ opacity: 0 }}
@@ -328,7 +395,7 @@ export const FarmList = () => {
                          {farm.name}
                        </div>
                        <div className="text-xs text-gray-500">
-                         Sản xuất {farm.type.toLowerCase()}
+                         Cây trồng: {farm.cropNames.length > 0 ? farm.cropNames.join(", ") : farm.type}
                        </div>
                      </td>
                      <td className="px-3 py-3">
@@ -360,21 +427,28 @@ export const FarmList = () => {
                            <p>Thời tiết & AI</p>
                            </Button>
                          </motion.div>
-                         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-                           <Button 
-                             variant="default" 
-                             size="sm" 
-                             className="gap-1 text-xs px-2 py-1 h-7 bg-blue-600 hover:bg-blue-700 text-white"
-                             onClick={() => navigate(`/update-farm/${farm.id}`)}
-                           >
-                             <Edit className="h-3 w-3" />
-                           </Button>
-                         </motion.div>
-                         <motion.div whileHover={{ rotate: 90 }} whileTap={{ rotate: 0 }}>
-                           <Button variant="ghost" size="icon" aria-label="Hành động" className="h-7 w-7">
-                             <MoreHorizontal className="h-3 w-3" />
-                           </Button>
-                         </motion.div>
+                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="gap-1 text-xs px-2 py-1 h-7 bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => navigate(`/update-farm/${farm.id}`)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Xóa trang trại"
+                            className="h-7 w-7 text-red-600 hover:text-red-700"
+                            onClick={() => openDeleteDialog(farm)}
+                            disabled={deleteDialog.loading && deleteDialog.farm?.id === farm.id}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </motion.div>
                        </div>
                      </td>
                    </motion.tr>
@@ -415,6 +489,42 @@ export const FarmList = () => {
         </CardContent>
       </Card>
     </motion.div>
+
+    <AlertDialog
+      open={deleteDialog.open}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeDeleteDialog();
+        }
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Xoá trang trại</AlertDialogTitle>
+          <AlertDialogDescription>
+            Bạn chắc chắn muốn xoá trang trại "{deleteDialog.farm?.name}"? Hành động này sẽ đánh dấu trang trại là đã xóa.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={(event) => {
+              event.preventDefault();
+              closeDeleteDialog();
+            }}
+            disabled={deleteDialog.loading}
+          >
+            Hủy
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteConfirm}
+            disabled={deleteDialog.loading}
+          >
+            {deleteDialog.loading ? "Đang xử lý..." : "Xóa"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 

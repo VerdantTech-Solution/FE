@@ -206,7 +206,7 @@ const UpdateFarmPage = () => {
       setIsSaving(true);
       
       // Ensure province and ProvinceCode follow API rule (both present or both null)
-      const updateData: CreateFarmProfileRequest = {
+      const updateData: Partial<CreateFarmProfileRequest> = {
         farmName: formData.farmName.trim(),
         farmSizeHectares: formData.farmSizeHectares,
         locationAddress: formData.locationAddress.trim(),
@@ -219,21 +219,13 @@ const UpdateFarmPage = () => {
         latitude: formData.latitude,
         longitude: formData.longitude,
         status: formData.status,
-        // Send crops array instead of primaryCrops
-        // Always send crops array (even if empty) to handle deletion
-        // Only include id for existing crops (id > 0), omit id for new crops to avoid tracking conflicts
-        crops: crops.map(crop => {
-          const cropData: any = {
-            cropName: crop.cropName.trim(),
-            plantingDate: crop.plantingDate,
-            isActive: crop.isActive ?? true,
-          };
-          // Only include id if it exists and is greater than 0 (existing crop)
-          if (crop.id && crop.id > 0) {
-            cropData.id = crop.id;
-          }
-          return cropData;
-        }),
+        // Send crops array - always include id (0 for new crops, existing id for existing crops)
+        crops: crops.map(crop => ({
+          id: crop.id && crop.id > 0 ? crop.id : 0, // Use 0 for new crops
+          cropName: crop.cropName.trim(),
+          plantingDate: crop.plantingDate,
+          isActive: crop.isActive ?? true,
+        })),
       };
 
       // Fix rule: Province and ProvinceCode must both exist or both be null
@@ -246,13 +238,31 @@ const UpdateFarmPage = () => {
         return;
       }
 
-      await updateFarmProfile(Number(id), updateData);
+      const response = await updateFarmProfile(Number(id), updateData);
       
-      toast.success('Cập nhật trang trại thành công!');
-      navigate('/farmlist');
-    } catch (error) {
+      // Check response status
+      if (response.status) {
+        toast.success('Cập nhật trang trại thành công!');
+        navigate('/farmlist');
+      } else {
+        // Show errors from API
+        const errorMessages = response.errors && response.errors.length > 0 
+          ? response.errors.join(', ') 
+          : 'Có lỗi xảy ra khi cập nhật trang trại';
+        toast.error(errorMessages);
+      }
+    } catch (error: any) {
       console.error('Error updating farm:', error);
-      toast.error('Có lỗi xảy ra khi cập nhật trang trại');
+      
+      // Handle error response
+      if (error && typeof error === 'object' && 'errors' in error) {
+        const errorMessages = Array.isArray(error.errors) && error.errors.length > 0
+          ? error.errors.join(', ')
+          : 'Có lỗi xảy ra khi cập nhật trang trại';
+        toast.error(errorMessages);
+      } else {
+        toast.error(error?.message || 'Có lỗi xảy ra khi cập nhật trang trại');
+      }
     } finally {
       setIsSaving(false);
     }

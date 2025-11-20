@@ -11,12 +11,10 @@ import {
   ThumbsDown,
   MessageCircle,
   Calendar,
-  User,
   Tag,
   Pin,
   Loader2,
-  AlertCircle,
-  Image as ImageIcon
+  AlertCircle
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { Textarea } from '@/components/ui/textarea';

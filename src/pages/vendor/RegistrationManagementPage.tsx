@@ -16,13 +16,7 @@ import {
   Plus,
   Star,
   AlertCircle,
-  CheckCircle2,
-  ArrowLeft,
-  ArrowRight,
-  Package,
-  FileText,
-  Trash2,
-  Upload
+  FileText
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -242,7 +236,6 @@ const RegistrationManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [selected, setSelected] = useState<ProductRegistration | null>(null);
   const [detailData, setDetailData] = useState<ProductRegistration | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -341,7 +334,6 @@ const RegistrationManagementPage = () => {
   }, [loadProductExtras]);
 
   const handleView = (registration: ProductRegistration) => {
-    setSelected(registration);
     setDetailOpen(true);
     loadRegistrationDetail(registration);
   };
