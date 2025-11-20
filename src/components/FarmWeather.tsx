@@ -159,10 +159,7 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
           )}
         </div>
 
-        <div className="rounded-xl border p-4 bg-amber-50 text-amber-800 border-amber-200 text-sm">
-          <div className="font-medium mb-1">Cảnh báo thời tiết</div>
-          Dự báo mưa vào thứ 6 và thứ 2. Nên chuẩn bị biện pháp che chắn cho cây trồng và kiểm tra hệ thống thoát nước.
-        </div>
+     
       </CardContent>
     </Card>
   );
