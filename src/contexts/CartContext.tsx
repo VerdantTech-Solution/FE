@@ -1,99 +1,77 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { getCartCount } from '@/api/cart';
+import { useAppDispatch, useAppSelector } from '@/state/hooks';
+import { fetchCart, selectCartCount, selectCartStatus } from '@/state/slices/cartSlice';
 
-interface CartContextType {
+interface UseCartReturn {
   cartCount: number;
   refreshCart: () => Promise<void>;
   isLoading: boolean;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+// eslint-disable-next-line react-refresh/only-export-components
+export const useCart = (): UseCartReturn => {
+  const dispatch = useAppDispatch();
+  const cartCount = useAppSelector(selectCartCount);
+  const status = useAppSelector(selectCartStatus);
 
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
+  const refreshCart = useCallback(async () => {
+    await dispatch(fetchCart()).unwrap();
+  }, [dispatch]);
+
+  return {
+    cartCount,
+    refreshCart,
+    isLoading: status === 'loading',
+  };
 };
 
 interface CartProviderProps {
   children: ReactNode;
 }
 
-export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
-  const [cartCount, setCartCount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
+export const CartProvider = ({ children }: CartProviderProps) => {
+  const dispatch = useAppDispatch();
+  const lastRefreshRef = useRef(0);
+  const isRefreshingRef = useRef(false);
 
-  const refreshCart = useCallback(async () => {
+  const debouncedRefresh = useCallback(() => {
     const now = Date.now();
-    const timeSinceLastRefresh = now - lastRefreshTime;
-    
-    // Prevent multiple simultaneous calls
-    if (isLoading) {
-      console.log('Cart refresh already in progress, skipping...');
+
+    if (isRefreshingRef.current) {
       return;
     }
 
-    // Debounce: only refresh if at least 1 second has passed since last refresh
+    const timeSinceLastRefresh = now - lastRefreshRef.current;
     if (timeSinceLastRefresh < 1000) {
-      console.log('Cart refresh too soon, skipping...');
       return;
     }
 
-    try {
-      setIsLoading(true);
-      setLastRefreshTime(now);
-      const count = await getCartCount();
-      setCartCount(count);
-      console.log('Cart count updated:', count);
-    } catch (error: any) {
-      console.error('Error fetching cart count:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        status: error?.status,
-        statusCode: error?.statusCode,
-        data: error?.data,
-        response: error?.response
+    isRefreshingRef.current = true;
+    dispatch(fetchCart())
+      .finally(() => {
+        lastRefreshRef.current = Date.now();
+        isRefreshingRef.current = false;
+      })
+      .catch((error) => {
+        console.error('[CartProvider] Failed to refresh cart', error);
       });
-      setCartCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, lastRefreshTime]);
+  }, [dispatch]);
 
-  // Load cart count on mount
   useEffect(() => {
-    refreshCart();
-  }, [refreshCart]);
+    debouncedRefresh();
+  }, [debouncedRefresh]);
 
-  // Listen for cart updates
   useEffect(() => {
     const handleCartUpdate = () => {
-      try {
-        refreshCart();
-      } catch (error) {
-        console.error('Error in cart update handler:', error);
-      }
+      debouncedRefresh();
     };
 
     window.addEventListener('cart:updated', handleCartUpdate);
     return () => {
       window.removeEventListener('cart:updated', handleCartUpdate);
     };
-  }, [refreshCart]);
+  }, [debouncedRefresh]);
 
-  const value: CartContextType = {
-    cartCount,
-    refreshCart,
-    isLoading,
-  };
-
-  return (
-    <CartContext.Provider value={value}>
-      {children}
-    </CartContext.Provider>
-  );
+  return <>{children}</>;
 };
