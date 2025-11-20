@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import NotificationService from '@/services/NotificationService';
-import type { Notification } from '@/types/notification.types';
-import { ConnectionState } from '@/types/notification.types';
+import type { Notification, ConnectionState } from '@/types/notification.types';
+import { CONNECTION_STATES } from '@/types/notification.types';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 import { getNotificationsByUser, revertNotificationReadStatus, deleteNotification } from '@/api/notification';
@@ -35,7 +35,7 @@ interface NotificationProviderProps {
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
+  const [connectionState, setConnectionState] = useState<ConnectionState>(CONNECTION_STATES.Disconnected);
   const { isAuthenticated } = useAuth();
   const serviceRef = useRef<NotificationService | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -49,7 +49,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         serviceRef.current = null;
       }
       setNotifications([]);
-      setConnectionState(ConnectionState.Disconnected);
+      setConnectionState(CONNECTION_STATES.Disconnected);
       return;
     }
 
@@ -230,7 +230,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
-  const isConnected = connectionState === ConnectionState.Connected;
+  const isConnected = connectionState === CONNECTION_STATES.Connected;
 
   const value: NotificationContextType = {
     notifications,

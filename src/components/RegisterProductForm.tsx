@@ -212,11 +212,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         }
       });
 
-      const cleanedImageUrls = imageUrls
-        .map((url) => url.trim())
-        .filter((url) => url.length > 0);
-
-      const payload = {
+      const payload: RegisterProductRequest = {
         ...formData,
         vendorId: 0, // This will be set by backend based on auth
         categoryId: formData.categoryId || 1,
@@ -226,7 +222,6 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         warrantyMonths: parseInt((formData.warrantyMonths || 0).toString()),
         weightKg: parseFloat((formData.weightKg || 0).toString()),
         specifications: specificationsDict,
-        images: cleanedImageUrls,
       };
       
       await registerProduct(payload as RegisterProductRequest);

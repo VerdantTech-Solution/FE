@@ -223,16 +223,91 @@ export const getFarmProfileById = async (id: number): Promise<FarmProfile> => {
 };
 
 /**
- * Cập nhật farm profile
- * API endpoint: PUT /api/FarmProfile/{id}
+ * Interface cho response cập nhật farm profile
  */
-export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProfileRequest>): Promise<FarmProfile> => {
+export interface UpdateFarmProfileResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: string;
+  errors: string[];
+}
+
+/**
+ * Cập nhật farm profile
+ * API endpoint: PATCH /api/FarmProfile/{id}
+ */
+export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProfileRequest>): Promise<UpdateFarmProfileResponse> => {
   try {
-    const response = await apiClient.patch(`/api/FarmProfile/${id}`, data);
-    return ((response as any)?.data ?? response) as FarmProfile;
-  } catch (error) {
+    console.log('Updating farm profile with data:', { id, data });
+    
+    // Clean up the data - ensure all codes are strings and crops have proper format
+    const cleanData: any = {
+      ...(data.farmName && { farmName: data.farmName.trim() }),
+      ...(data.farmSizeHectares !== undefined && { farmSizeHectares: data.farmSizeHectares }),
+      ...(data.locationAddress && { locationAddress: data.locationAddress.trim() }),
+      ...(data.province && { province: data.province.trim() }),
+      ...(data.district && { district: data.district.trim() }),
+      ...(data.commune && { commune: data.commune.trim() }),
+      ...(data.provinceCode && { provinceCode: String(data.provinceCode) }),
+      ...(data.districtCode && { districtCode: String(data.districtCode) }),
+      ...(data.communeCode && { communeCode: String(data.communeCode) }),
+      ...(data.latitude !== undefined && data.latitude !== 0 && { latitude: data.latitude }),
+      ...(data.longitude !== undefined && data.longitude !== 0 && { longitude: data.longitude }),
+      ...(data.status && { status: data.status }),
+      // Process crops - ensure id is always present (0 for new crops)
+      ...(data.crops !== undefined && {
+        crops: data.crops.map((crop) => ({
+          id: crop.id ?? 0, // Always include id, use 0 for new crops
+          cropName: crop.cropName.trim(),
+          plantingDate: crop.plantingDate,
+          isActive: crop.isActive ?? true,
+        })),
+      }),
+    };
+    
+    console.log('Cleaned update data:', cleanData);
+    
+    const response = await apiClient.patch(`/api/FarmProfile/${id}`, cleanData);
+    console.log('Update farm profile response:', response);
+    
+    // apiClient interceptor returns response.data, so response is already the data
+    const raw: any = response;
+    
+    // Check if response matches expected format
+    if (raw && typeof raw === 'object' && 'status' in raw) {
+      return raw as UpdateFarmProfileResponse;
+    }
+    
+    // Fallback: wrap response in expected format
+    return {
+      status: true,
+      statusCode: "OK",
+      data: typeof raw === 'string' ? raw : JSON.stringify(raw),
+      errors: [],
+    } as UpdateFarmProfileResponse;
+  } catch (error: any) {
     console.error('Error updating farm profile:', error);
-    throw error;
+    
+    // Handle error response from interceptor
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as UpdateFarmProfileResponse;
+    }
+    
+    // Handle axios error response
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as UpdateFarmProfileResponse;
+    }
+    
+    // Create error response
+    const errorResponse: UpdateFarmProfileResponse = {
+      status: false,
+      statusCode: error?.response?.status || 'Error',
+      data: '',
+      errors: error?.response?.data?.errors || 
+              (error?.message ? [error.message] : ['Không thể cập nhật trang trại']),
+    };
+    
+    throw errorResponse;
   }
 };
 
@@ -242,7 +317,7 @@ export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProf
  */
 export const deleteFarmProfile = async (id: number): Promise<{ message: string }> => {
   try {
-    const response = await apiClient.delete(`/api/FarmProfile/${id}`);
+    const response = await apiClient.patch(`/api/FarmProfile/${id}`);
     return ((response as any)?.data ?? response) as { message: string };
   } catch (error) {
     console.error('Error deleting farm profile:', error);

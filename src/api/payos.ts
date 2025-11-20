@@ -37,7 +37,6 @@ export const redirectToPayOS = async (orderId: number, description?: string): Pr
     // Extract payment link or payment info from response
     // Backend might return different structures
     let paymentLink: string = '';
-    let paymentInfo: any = null;
     
     if (typeof response === 'string') {
       // Response is already a string (the payment URL)
@@ -52,8 +51,6 @@ export const redirectToPayOS = async (orderId: number, description?: string): Pr
           paymentLink = data;
         } else if (typeof data === 'object' && data !== null) {
           // Data is an object - could be payment info or payment link
-          paymentInfo = data;
-          
           // Try to find payment URL in various possible properties
           if (typeof data.url === 'string') {
             paymentLink = data.url;

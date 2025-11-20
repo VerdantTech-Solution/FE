@@ -121,9 +121,11 @@ export default function PayOSReturnPage() {
                   </div>
                 )}
                 
-                {order && (
+                {(order || amount) && (
                   <div className="text-2xl font-bold text-green-600 mt-2">
-                    {order.totalAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                    {order
+                      ? order.totalAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+                      : formatCurrency(amount)}
                   </div>
                 )}
               </div>

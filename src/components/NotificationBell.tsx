@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
-import type { Notification } from '@/types/notification.types';
-import { NotificationReferenceType, ConnectionState } from '@/types/notification.types';
+import type { Notification, NotificationReferenceType } from '@/types/notification.types';
+import { NOTIFICATION_REFERENCE_TYPES, CONNECTION_STATES } from '@/types/notification.types';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { format } from 'date-fns';
@@ -62,14 +62,14 @@ export const NotificationBell = () => {
     }
 
     const routes: Record<NotificationReferenceType, string> = {
-      [NotificationReferenceType.Order]: `/order/history`,
-      [NotificationReferenceType.Payment]: `/order/history`,
-      [NotificationReferenceType.Request]: `/ticket`,
-      [NotificationReferenceType.ProductRegistration]: `/profile`,
-      [NotificationReferenceType.Cashout]: `/profile`,
-      [NotificationReferenceType.ForumPost]: `/forum`,
-      [NotificationReferenceType.ChatbotConversation]: `/chat`,
-      [NotificationReferenceType.EnvironmentalData]: `/farmlist`,
+      [NOTIFICATION_REFERENCE_TYPES.Order]: `/order/history`,
+      [NOTIFICATION_REFERENCE_TYPES.Payment]: `/order/history`,
+      [NOTIFICATION_REFERENCE_TYPES.Request]: `/ticket`,
+      [NOTIFICATION_REFERENCE_TYPES.ProductRegistration]: `/profile`,
+      [NOTIFICATION_REFERENCE_TYPES.Cashout]: `/profile`,
+      [NOTIFICATION_REFERENCE_TYPES.ForumPost]: `/forum`,
+      [NOTIFICATION_REFERENCE_TYPES.ChatbotConversation]: `/chat`,
+      [NOTIFICATION_REFERENCE_TYPES.EnvironmentalData]: `/farmlist`,
     };
 
     const route = routes[notification.referenceType];
@@ -80,12 +80,12 @@ export const NotificationBell = () => {
 
   const getConnectionIndicatorColor = () => {
     switch (connectionState) {
-      case ConnectionState.Connected:
+      case CONNECTION_STATES.Connected:
         return 'bg-green-500';
-      case ConnectionState.Connecting:
-      case ConnectionState.Reconnecting:
+      case CONNECTION_STATES.Connecting:
+      case CONNECTION_STATES.Reconnecting:
         return 'bg-yellow-500';
-      case ConnectionState.Disconnected:
+      case CONNECTION_STATES.Disconnected:
         return 'bg-red-500';
       default:
         return 'bg-gray-400';
@@ -94,13 +94,13 @@ export const NotificationBell = () => {
 
   const getConnectionIndicatorTitle = () => {
     switch (connectionState) {
-      case ConnectionState.Connected:
+      case CONNECTION_STATES.Connected:
         return 'Đã kết nối';
-      case ConnectionState.Connecting:
+      case CONNECTION_STATES.Connecting:
         return 'Đang kết nối...';
-      case ConnectionState.Reconnecting:
+      case CONNECTION_STATES.Reconnecting:
         return 'Đang kết nối lại...';
-      case ConnectionState.Disconnected:
+      case CONNECTION_STATES.Disconnected:
         return 'Mất kết nối';
       default:
         return 'Không xác định';
