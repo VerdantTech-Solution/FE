@@ -28,8 +28,20 @@ import { CashoutManagementPanel } from "./staff/CashoutManagementPanel";
 import { SupportRequestManagementPanel } from "./staff/SupportRequestManagementPanel";
 import { BalanceManagement } from "./staff/BalanceManagement";
 import { ProductManagementPanel } from "./staff/ProductManagementPanel";
+import { PostManagementPanel } from "./staff/PostManagementPanel";
 
-type ViewKey = "warehouse" | "users" | "orders" | "balance" | "monitoring" | "cashout" | "support" | "settings" | "profile" | "products";
+type ViewKey =
+  | "warehouse"
+  | "users"
+  | "orders"
+  | "balance"
+  | "monitoring"
+  | "cashout"
+  | "support"
+  | "settings"
+  | "profile"
+  | "products"
+  | "posts";
 
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
@@ -67,6 +79,8 @@ export const StaffPage: React.FC = () => {
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản lý sản phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "users"} onClick={() => setSelectedMenu("users")} icon={<Users className="w-5 h-5" />}>Quản Lý Người Dùng</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "orders"} onClick={() => setSelectedMenu("orders")} icon={<ListFilter className="w-5 h-5" />}>Quản Lý Đơn Hàng</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "posts"} onClick={() => setSelectedMenu("posts")} icon={<MessageSquare className="w-5 h-5" />}>Quản lý bài viết</SidebarNavItem>
+            
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
@@ -128,12 +142,16 @@ export const StaffPage: React.FC = () => {
           {selectedMenu === "users" && (
             <UserManagementPanel />
           )}
+            {selectedMenu === "posts" && (
+            <PostManagementPanel />
+          )}
           {selectedMenu === "orders" && (
             <OrderManagementPanel />
           )}
           {selectedMenu === "monitoring" && (
             <MonitoringPage/>
           )}
+        
           {selectedMenu === "balance" && (
             <BalanceManagement />
           )}
