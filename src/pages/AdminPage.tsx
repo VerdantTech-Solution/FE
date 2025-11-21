@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import logo2 from "@/assets/logo2.jpg";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
-import { LogOut, Users } from "lucide-react";
+import { LogOut, Users, ShoppingBag, ListFilter, PackagePlus, Shield, DollarSign, MessageSquare, BookOpen } from "lucide-react";
 import { 
   Sidebar, 
   SidebarHeader, 
@@ -24,8 +24,7 @@ import {
   Settings,
   BarChart,
   Target,
-  Activity,
-  Package
+  Activity
 } from "lucide-react";
 
 // Import admin pages
@@ -34,14 +33,39 @@ import {
   AnalyticsPage, 
   EquipmentPage, 
   MonitoringPageAdmin, 
-  SettingsPage, 
-  UserManamentPage,
-  OrderManagementPage
+  SettingsPage
 } from "./admin";
+import {
+  WarehousePanel,
+  ProductManagementPanel,
+  UserManagementPanel as StaffUserManagementPanel,
+  OrderManagementPanel as StaffOrderManagementPanel,
+  MonitoringPage as StaffMonitoringPage,
+  CashoutManagementPanel,
+  SupportRequestManagementPanel,
+  BalanceManagement,
+  PostManagementPanel,
+} from "./staff";
+
+type AdminView =
+  | 'overview'
+  | 'analytics'
+  | 'monitoring'
+  | 'equipment'
+  | 'settings'
+  | 'warehouse'
+  | 'products'
+  | 'users'
+  | 'orders'
+  | 'posts'
+  | 'categories'
+  | 'balance'
+  | 'cashout'
+  | 'support';
 
 export const AdminPage = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
-  const [selectedView, setSelectedView] = useState('overview');
+  const [selectedView, setSelectedView] = useState<AdminView>('overview');
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -104,7 +128,7 @@ export const AdminPage = () => {
         initial="hidden"
         animate="visible"
       >
-        <Sidebar className="fixed left-0 top-0 z-30" collapsed={collapsed}>
+        <Sidebar className="fixed left-0 top-0 z-30 h-screen overflow-y-auto" collapsed={collapsed}>
           <SidebarHeader>
             <SidebarHeaderTitle>
               <motion.div 
@@ -127,11 +151,102 @@ export const AdminPage = () => {
           
           <SidebarNav>
             <SidebarSection>
-              <SidebarSectionTitle>Chính</SidebarSectionTitle>
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
+              <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'warehouse'}
+                  onClick={() => setSelectedView('warehouse')}
+                  icon={<Home className="w-5 h-5" />}
+                >
+                  Quản Lý Nhập Kho
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'products'}
+                  onClick={() => setSelectedView('products')}
+                  icon={<ShoppingBag className="w-5 h-5" />}
+                >
+                  Quản lý sản phẩm
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'users'}
+                  onClick={() => setSelectedView('users')}
+                  icon={<Users className="w-5 h-5" />}
+                >
+                  Quản Lý Người Dùng
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'orders'}
+                  onClick={() => setSelectedView('orders')}
+                  icon={<ListFilter className="w-5 h-5" />}
+                >
+                  Quản Lý Đơn Hàng
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'posts'}
+                  onClick={() => setSelectedView('posts')}
+                  icon={<BookOpen className="w-5 h-5" />}
+                >
+                  Quản lý bài viết
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'categories'}
+                  onClick={() => setSelectedView('categories')}
+                  icon={<PackagePlus className="w-5 h-5" />}
+                >
+                  Danh mục sản phẩm
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'balance'}
+                  onClick={() => setSelectedView('balance')}
+                  icon={<Shield className="w-5 h-5" />}
+                >
+                  Số dư tài khoản
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'cashout'}
+                  onClick={() => setSelectedView('cashout')}
+                  icon={<DollarSign className="w-5 h-5" />}
+                >
+                  Quản lý rút tiền
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'support'}
+                  onClick={() => setSelectedView('support')}
+                  icon={<MessageSquare className="w-5 h-5" />}
+                >
+                  Yêu cầu hỗ trợ
+                </SidebarNavItem>
+              </motion.div>
+            </SidebarSection>
+            
+            <SidebarSection>
+              <SidebarSectionTitle>Chung</SidebarSectionTitle>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                 <SidebarNavItem
                   collapsed={collapsed}
                   active={selectedView === 'overview'}
@@ -141,38 +256,7 @@ export const AdminPage = () => {
                   Tổng quan
                 </SidebarNavItem>
               </motion.div>
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'usermanament'}
-                  onClick={() => setSelectedView('usermanament')}
-                  icon={<Users className="w-5 h-5" />}
-                >
-                  Quản Lý Người Dùng
-                </SidebarNavItem>
-              </motion.div>
-              
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'orders'}
-                  onClick={() => setSelectedView('orders')}
-                  icon={<Package className="w-5 h-5" />}
-                >
-                  Quản Lý Đơn Hàng
-                </SidebarNavItem>
-              </motion.div>
-              
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                 <SidebarNavItem
                   collapsed={collapsed}
                   active={selectedView === 'analytics'}
@@ -182,14 +266,17 @@ export const AdminPage = () => {
                   Phân tích
                 </SidebarNavItem>
               </motion.div>
-            </SidebarSection>
-            
-            <SidebarSection>
-              <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'monitoring'}
+                  onClick={() => setSelectedView('monitoring')}
+                  icon={<Activity className="w-5 h-5" />}
+                >
+                  Giám sát hệ thống
+                </SidebarNavItem>
+              </motion.div>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                 <SidebarNavItem
                   collapsed={collapsed}
                   active={selectedView === 'equipment'}
@@ -199,28 +286,7 @@ export const AdminPage = () => {
                   Thiết bị
                 </SidebarNavItem>
               </motion.div>
-              
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'monitoring'}
-                  onClick={() => setSelectedView('monitoring')}
-                  icon={<Activity className="w-5 h-5" />}
-                >
-                  Giám sát
-                </SidebarNavItem>
-              </motion.div>
-            </SidebarSection>
-            
-            <SidebarSection>
-              <SidebarSectionTitle>Hệ thống</SidebarSectionTitle>
-              <motion.div
-                whileHover={{ x: 5 }}
-                transition={{ duration: 0.2 }}
-              >
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                 <SidebarNavItem
                   collapsed={collapsed}
                   active={selectedView === 'settings'}
@@ -269,12 +335,19 @@ export const AdminPage = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.7, duration: 0.5 }}
               >
+                {selectedView === 'warehouse' && 'Quản Lý Nhập Kho'}
+                {selectedView === 'products' && 'Quản lý sản phẩm'}
+                {selectedView === 'users' && 'Quản Lý Người Dùng'}
+                {selectedView === 'orders' && 'Quản Lý Đơn Hàng'}
+                {selectedView === 'posts' && 'Quản lý bài viết'}
+                {selectedView === 'categories' && 'Danh mục sản phẩm'}
+                {selectedView === 'balance' && 'Số dư tài khoản'}
+                {selectedView === 'cashout' && 'Quản lý rút tiền'}
+                {selectedView === 'support' && 'Yêu cầu hỗ trợ'}
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}
-                {selectedView === 'usermanament' && 'Quản lý người dùng'}
-                {selectedView === 'orders' && 'Quản lý đơn hàng'}
                 {selectedView === 'analytics' && 'Phân tích dữ liệu'}
-                {selectedView === 'equipment' && 'Quản lý thiết bị'}
                 {selectedView === 'monitoring' && 'Giám sát hệ thống'}
+                {selectedView === 'equipment' && 'Quản lý thiết bị'}
                 {selectedView === 'settings' && 'Cài đặt hệ thống'}
               </motion.h1>
               <motion.p 
@@ -346,15 +419,37 @@ export const AdminPage = () => {
           key={selectedView}
         >
           <AnimatePresence mode="wait">
-               {selectedView === 'usermanament' && (
+            {selectedView === 'warehouse' && (
               <motion.div
-                key="usermanament"
+                key="warehouse"
                 variants={pageVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
               >
-                <UserManamentPage />
+                <WarehousePanel />
+              </motion.div>
+            )}
+            {selectedView === 'products' && (
+              <motion.div
+                key="products"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <ProductManagementPanel />
+              </motion.div>
+            )}
+            {selectedView === 'users' && (
+              <motion.div
+                key="users"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <StaffUserManagementPanel />
               </motion.div>
             )}
             {selectedView === 'orders' && (
@@ -365,7 +460,62 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <OrderManagementPage />
+                <StaffOrderManagementPanel />
+              </motion.div>
+            )}
+            {selectedView === 'posts' && (
+              <motion.div
+                key="posts"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <PostManagementPanel />
+              </motion.div>
+            )}
+            {selectedView === 'categories' && (
+              <motion.div
+                key="categories"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <StaffMonitoringPage />
+              </motion.div>
+            )}
+            {selectedView === 'balance' && (
+              <motion.div
+                key="balance"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <BalanceManagement />
+              </motion.div>
+            )}
+            {selectedView === 'cashout' && (
+              <motion.div
+                key="cashout"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <CashoutManagementPanel />
+              </motion.div>
+            )}
+            {selectedView === 'support' && (
+              <motion.div
+                key="support"
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <SupportRequestManagementPanel />
               </motion.div>
             )}
             {selectedView === 'overview' && (

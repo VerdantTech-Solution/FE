@@ -3,3 +3,7 @@ export * from './OrderManagementPanel';
 export * from './CashoutManagementPanel';
 export * from './SupportRequestManagementPanel';
 export * from './ProductManagementPanel';
+export * from './WarehousePanel';
+export * from './UserManagementPanel';
+export * from './BalanceManagement';
+export * from './PostManagementPanel';
