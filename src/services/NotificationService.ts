@@ -7,6 +7,21 @@ import type {
 import { 
   CONNECTION_STATES 
 } from "@/types/notification.types";
+import { API_BASE_URL } from "@/api/apiClient";
+
+const DEFAULT_SIGNALR_PATH = "/hubs/notification";
+
+const normalizeHubUrl = (explicitHubUrl?: string): string => {
+  const envHubUrl = import.meta.env.VITE_SIGNALR_HUB_URL?.trim();
+  const candidate = explicitHubUrl?.trim() || envHubUrl;
+
+  if (candidate) {
+    return candidate.replace(/\/+$/, "");
+  }
+
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  return `${base}${DEFAULT_SIGNALR_PATH}`;
+};
 
 /**
  * Service quản lý kết nối SignalR và nhận thông báo real-time
@@ -21,8 +36,7 @@ class NotificationService {
 
   constructor(token: string, hubUrl?: string) {
     this.token = token;
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://verdanttechbe-bpbaaghrg5ggexds.southeastasia-01.azurewebsites.net";
-    this.hubUrl = hubUrl || `${baseUrl}/hubs/notification`;
+    this.hubUrl = normalizeHubUrl(hubUrl);
   }
 
   /**
