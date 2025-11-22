@@ -18,6 +18,7 @@ import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, D
 import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
+import { InventoryManagementPanel } from "./staff/InventoryManagementPanel";
 import { UserManagementPanel } from "./staff/UserManagementPanel";
 import { OrderManagementPanel } from "./staff/OrderManagementPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -63,7 +64,7 @@ export const StaffPage: React.FC = () => {
           <SidebarNav>
             <SidebarSection>
               <SidebarSectionTitle>Chính</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Kho</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản lý sản phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "users"} onClick={() => setSelectedMenu("users")} icon={<Users className="w-5 h-5" />}>Quản Lý Người Dùng</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "orders"} onClick={() => setSelectedMenu("orders")} icon={<ListFilter className="w-5 h-5" />}>Quản Lý Đơn Hàng</SidebarNavItem>
@@ -120,7 +121,7 @@ export const StaffPage: React.FC = () => {
         {/* Content */}
         <div className="p-8">
           {selectedMenu === "warehouse" && (
-            <WarehousePanel onStatsChange={setStats} />
+            <InventoryManagementPanel />
           )}
               {selectedMenu === "products" && (
             <ProductManagementPanel />
