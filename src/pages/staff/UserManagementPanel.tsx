@@ -3,9 +3,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Search, Trash2, RefreshCw, Edit2, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Search, Trash2, RefreshCw, Edit2, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal, Building2, Eye, FileText, MapPin } from "lucide-react";
 import { getAllUsers, updateUser, deleteUser, type UserResponse } from "@/api/user";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { VendorManagementPanel } from "./VendorManagementPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -237,23 +239,39 @@ export const UserManagementPanel: React.FC = () => {
         className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
       >
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Quản lý người dùng</h2>
-          <p className="text-sm text-gray-500">Quản lý tài khoản và quyền truy cập của người dùng</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => {
-              setCurrentPage(1);
-              fetchUsers();
-            }}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Làm mới
-          </Button>
+          <h2 className="text-2xl font-semibold text-gray-900">Quản lý người dùng & Vendor</h2>
+          <p className="text-sm text-gray-500">Quản lý tài khoản, quyền truy cập và thông tin vendor</p>
         </div>
       </motion.div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Quản lý người dùng
+          </TabsTrigger>
+          <TabsTrigger value="vendors" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Quản lý Vendor
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Users Tab Content */}
+        <TabsContent value="users" className="space-y-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              onClick={() => {
+                setCurrentPage(1);
+                fetchUsers();
+              }}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Làm mới
+            </Button>
+          </div>
 
       {/* Stats Cards */}
       <motion.div
@@ -637,6 +655,13 @@ export const UserManagementPanel: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+
+        {/* Vendors Tab Content */}
+        <TabsContent value="vendors" className="space-y-6">
+          <VendorManagementPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

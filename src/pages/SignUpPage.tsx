@@ -3,15 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { signUpUser, sendVerificationEmail, googleLogin } from "@/api/auth";
 import { useNavigate } from "react-router";
-import { User, Mail, Phone, Lock, Eye, EyeOff, UserPlus } from "lucide-react";
+import { User, Mail, Phone, Lock, Eye, EyeOff, UserPlus, Building2 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { GoogleLogin } from "@react-oauth/google";
 import type { CredentialResponse } from "@react-oauth/google";
+import { VendorSignUpForm } from "@/components/VendorSignUpForm";
 
 
 export const SignUpPage = () => {
@@ -251,7 +253,7 @@ export const SignUpPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-2xl">
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-2xl font-bold text-green-600 mb-2">
@@ -267,8 +269,21 @@ export const SignUpPage = () => {
             <CardDescription className="text-center">Tạo tài khoản mới để bắt đầu hành trình</CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <Tabs defaultValue="customer" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="customer" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Đăng ký tài khoản
+              </TabsTrigger>
+              <TabsTrigger value="vendor" className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Đăng ký làm Vendor
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="customer">
+              <CardContent className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
               {/* Full Name Field */}
               <div className="space-y-2">
                 <Label htmlFor="fullName">Họ và tên</Label>
@@ -423,7 +438,13 @@ export const SignUpPage = () => {
                 theme="outline"
               />
             </div>
-          </CardContent>
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="vendor">
+              <VendorSignUpForm />
+            </TabsContent>
+          </Tabs>
 
           <CardFooter>
             <p className="text-center text-sm text-muted-foreground w-full">
