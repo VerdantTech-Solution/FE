@@ -159,12 +159,13 @@ export const getBatchInventories = async (params?: {
 
     // Case 2: Response has data property with array
     if (response && response.data && Array.isArray(response.data)) {
+      const paginatedResponse = response as any;
       return {
         data: response.data,
-        currentPage: response.currentPage ?? params?.page ?? 1,
-        pageSize: response.pageSize ?? params?.pageSize ?? 20,
-        totalPages: response.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: response.totalRecords ?? response.data.length,
+        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+        pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
+        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
+        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
       };
     }
 
@@ -238,12 +239,13 @@ export const getBatchInventoriesByProduct = async (
     }
 
     if (response && response.data && Array.isArray(response.data)) {
+      const paginatedResponse = response as any;
       return {
         data: response.data,
-        currentPage: response.currentPage ?? params?.page ?? 1,
-        pageSize: response.pageSize ?? params?.pageSize ?? 20,
-        totalPages: response.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: response.totalRecords ?? response.data.length,
+        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+        pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
+        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
+        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
       };
     }
 
@@ -292,12 +294,13 @@ export const getBatchInventoriesByVendor = async (
     }
 
     if (response && response.data && Array.isArray(response.data)) {
+      const paginatedResponse = response as any;
       return {
         data: response.data,
-        currentPage: response.currentPage ?? params?.page ?? 1,
-        pageSize: response.pageSize ?? params?.pageSize ?? 20,
-        totalPages: response.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: response.totalRecords ?? response.data.length,
+        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+        pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
+        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
+        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
       };
     }
 
@@ -453,12 +456,13 @@ export const getExportInventories = async (params?: {
 
     // Case 2: Response has data property with array
     if (response && response.data && Array.isArray(response.data)) {
+      const paginatedResponse = response as any;
       return {
         data: response.data,
-        currentPage: response.currentPage ?? params?.page ?? 1,
-        pageSize: response.pageSize ?? params?.pageSize ?? 20,
-        totalPages: response.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: response.totalRecords ?? response.data.length,
+        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+        pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
+        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
+        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
       };
     }
 
