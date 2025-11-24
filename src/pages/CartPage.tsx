@@ -363,10 +363,10 @@ export const CartPage = () => {
             </div>
           ) : (
             <Button 
-              onClick={fetchCart}
+              onClick={() => fetchCart()}
               className="bg-green-600 hover:bg-green-700"
             >
-              Thử lại
+            Thử lại
             </Button>
           )}
         </div>

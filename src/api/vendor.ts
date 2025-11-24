@@ -124,7 +124,9 @@ export const signUpVendor = async (data: VendorSignUpRequest): Promise<VendorPro
     });
     
     console.log('Vendor SignUp API response:', response);
-    return response as VendorProfileResponse;
+    //return response as VendorProfileResponse;
+    return response.data as VendorProfileResponse;
+
     
   } catch (error: unknown) {
     console.error('Vendor SignUp API error:', error);
@@ -280,10 +282,11 @@ export const getVendorById = async (id: number): Promise<VendorProfileResponse> 
     console.log('Get vendor by ID API response:', response);
     
     // Handle response structure - might be wrapped in data property
-    const payload = (response as any) || {};
-    const vendorData = payload.data || payload;
-    
-    return vendorData as VendorProfileResponse;
+    //const payload = (response as any) || {};
+    //const vendorData = payload.data || payload;   
+    //return vendorData as VendorProfileResponse;
+    return response.data as VendorProfileResponse;
+
     
   } catch (error: unknown) {
     console.error('Get vendor by ID API error:', error);
@@ -369,7 +372,9 @@ export const approveVendor = async (id: number, verifiedBy: number): Promise<{ m
     });
     
     console.log('Approve vendor API response:', response);
-    return response as { message: string };
+    //return response as { message: string };
+    return response.data as { message: string };
+
     
   } catch (error: unknown) {
     console.error('Approve vendor API error:', error);
@@ -411,7 +416,8 @@ export const rejectVendor = async (id: number, verifiedBy: number, rejectionReas
     });
     
     console.log('Reject vendor API response:', response);
-    return response as { message: string };
+    //return response as { message: string };
+    return response.data as { message: string };
     
   } catch (error: unknown) {
     console.error('Reject vendor API error:', error);
@@ -456,10 +462,11 @@ export const updateVendorProfile = async (id: number, data: UpdateVendorProfileR
     console.log('Update vendor profile API response:', response);
     
     // Handle response structure - might be wrapped in data property
-    const payload = (response as any) || {};
-    const vendorData = payload.data || payload;
-    
-    return vendorData as VendorProfileResponse;
+    //const payload = (response as any) || {};
+    //const vendorData = payload.data || payload;
+    //return vendorData as VendorProfileResponse;
+    return response.data as VendorProfileResponse;
+
     
   } catch (error: unknown) {
     console.error('Update vendor profile API error:', error);
@@ -497,7 +504,8 @@ export const deleteVendorAccount = async (userId: number): Promise<{ message: st
     const response = await apiClient.delete(`/api/VendorProfiles/account/${userId}`);
     
     console.log('Delete vendor account API response:', response);
-    return response as { message: string };
+    //return response as { message: string };
+    return response.data as { message: string };
     
   } catch (error: unknown) {
     console.error('Delete vendor account API error:', error);

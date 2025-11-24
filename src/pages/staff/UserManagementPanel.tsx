@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Search, Trash2, RefreshCw, Edit2, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal, Building2, Eye, FileText, MapPin } from "lucide-react";
+import { Search, Trash2, RefreshCw, Edit2, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal, Building2} from "lucide-react";
 import { getAllUsers, updateUser, deleteUser, type UserResponse } from "@/api/user";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VendorManagementPanel } from "./VendorManagementPanel";
