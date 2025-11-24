@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import bg from "@/assets/xephunthuoc.jpg";
 
 const HeroSection = () => {
   const scrollToContent = () => {
@@ -16,7 +17,7 @@ const HeroSection = () => {
         <div 
           className="w-full h-full bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url('/src/assets/xephunthuoc.jpg')`
+            backgroundImage: `url(${bg})`
           }}
         />
         {/* Overlay */}
