@@ -40,28 +40,11 @@ const currency = (v: number) =>
   v.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
 
 // Constants
-// const IMAGE_BASE_URL = 'https://sep490.onrender.com/images/'; // Commented out for hardcoded images
 const PLACEHOLDER_IMAGE = '/placeholder-product.jpg';
 
-// Hardcoded images for testing
-const HARDCODED_IMAGES = [
-  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop', // Farm equipment
-  'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop', // Tractor
-  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop', // Agriculture
-  'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop', // Machinery
-  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop'  // Equipment
-];
-
-// Helper function to get image URL
-const getImageUrl = (_images: string | undefined, productId: number): string => {
-  // Use hardcoded images for now
-  const hardcodedImage = HARDCODED_IMAGES[productId % HARDCODED_IMAGES.length];
-  return hardcodedImage;
-  
-  // Original logic commented out for now
-  /*
+// Helper function to get image URL from processed images string
+const getImageUrl = (images: string | undefined): string => {
   if (!images || images.trim() === '') {
-    console.log('No images provided, using placeholder');
     return PLACEHOLDER_IMAGE;
   }
   
@@ -70,27 +53,21 @@ const getImageUrl = (_images: string | undefined, productId: number): string => 
     const firstImage = images.split(',')[0].trim();
     
     if (!firstImage) {
-      console.log('Empty first image, using placeholder');
       return PLACEHOLDER_IMAGE;
     }
     
-    console.log('Processing image:', firstImage);
-    
     // If images is already a full URL, use it directly
     if (firstImage.startsWith('http://') || firstImage.startsWith('https://')) {
-      console.log('Using full URL:', firstImage);
       return firstImage;
     }
     
-    // If images is a relative path, add base URL
-    const fullUrl = `${IMAGE_BASE_URL}${firstImage}`;
-    console.log('Using relative path with base URL:', fullUrl);
-    return fullUrl;
+    // If images is a relative path, return as is (should be handled by backend)
+    // Most imageUrl from API should be full URLs
+    return firstImage;
   } catch (error) {
     console.warn('Error processing image URL:', error);
     return PLACEHOLDER_IMAGE;
   }
-  */
 };
 
 export const CartPage = () => {
@@ -109,9 +86,11 @@ export const CartPage = () => {
   }, [updatingItem]);
 
   // Fetch cart data from API
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(async ({ withLoader = true }: { withLoader?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (withLoader) {
+        setLoading(true);
+      }
       setError(null);
       console.log('Starting API call...');
       console.log('Auth token:', localStorage.getItem('authToken'));
@@ -175,7 +154,9 @@ export const CartPage = () => {
         setError(err?.message || 'Không thể tải giỏ hàng');
       }
     } finally {
-      setLoading(false);
+      if (withLoader) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -187,7 +168,7 @@ export const CartPage = () => {
   useEffect(() => {
     const handleCartUpdate = () => {
       console.log('Cart update event received, refreshing cart...');
-      fetchCart();
+      fetchCart({ withLoader: false });
     };
 
     window.addEventListener('cart:updated', handleCartUpdate);
@@ -280,7 +261,7 @@ export const CartPage = () => {
         console.log('Quantity is 1 and minus clicked. Removing item:', id);
         setRemovingItem(id);
         await updateCartItem(id, 0);
-        await fetchCart();
+        await fetchCart({ withLoader: false });
         window.dispatchEvent(new CustomEvent('cart:updated'));
         setRemovingItem(null);
         setUpdatingItem(null);
@@ -293,7 +274,7 @@ export const CartPage = () => {
       await updateCartItem(id, newQuantity);
       
       // Refresh cart data
-      await fetchCart();
+      await fetchCart({ withLoader: false });
       
       // Dispatch event to update cart count in Navbar
       window.dispatchEvent(new CustomEvent('cart:updated'));
@@ -317,7 +298,7 @@ export const CartPage = () => {
       await updateCartItem(id, 0);
       
       // Refresh cart data
-      await fetchCart();
+      await fetchCart({ withLoader: false });
       
       // Dispatch event to update cart count in Navbar
       window.dispatchEvent(new CustomEvent('cart:updated'));
@@ -478,7 +459,7 @@ export const CartPage = () => {
                   <CardContent className="p-6">
                     <div className="flex gap-6">
                       <img
-                        src={getImageUrl(item.images, item.productId)}
+                        src={getImageUrl(item.images)}
                         alt={item.productName}
                         className="w-32 h-32 object-cover rounded-xl shadow-sm"
                         onError={(e) => {

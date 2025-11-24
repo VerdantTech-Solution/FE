@@ -15,6 +15,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
+// Constants
+const PLACEHOLDER_IMAGE = '/placeholder-product.jpg';
+
+// Helper function to get image URL from cart item images
+const getImageUrl = (images: CartItem['images']): string => {
+  if (!images) {
+    return PLACEHOLDER_IMAGE;
+  }
+  
+  try {
+    let imageUrl = '';
+    
+    // Handle different image formats
+    if (typeof images === 'string') {
+      // If images is a string (comma-separated URLs)
+      const firstImage = images.split(',')[0].trim();
+      imageUrl = firstImage || '';
+    } else if (Array.isArray(images) && images.length > 0) {
+      // If images is an array of CartImage objects
+      const firstImage = images[0];
+      if (typeof firstImage === 'string') {
+        imageUrl = firstImage;
+      } else if (firstImage && typeof firstImage === 'object' && 'imageUrl' in firstImage) {
+        imageUrl = (firstImage as any).imageUrl || '';
+      }
+    }
+    
+    // Validate and return image URL
+    if (!imageUrl || imageUrl.trim() === '') {
+      return PLACEHOLDER_IMAGE;
+    }
+    
+    // If images is already a full URL, use it directly
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    // Return as is (should be handled by backend)
+    return imageUrl;
+  } catch (error) {
+    console.warn('Error processing image URL:', error);
+    return PLACEHOLDER_IMAGE;
+  }
+};
+
 export default function PreviewOrderPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -579,9 +624,24 @@ export default function PreviewOrderPage() {
                   <div className="text-sm text-gray-600">Không có sản phẩm nào.</div>
                 ) : (
                   cartItems.map((it) => (
-                    <div key={it.productId} className="flex items-center justify-between">
-                      <div className="text-gray-800">{it.productName} x {it.quantity}</div>
-                      <div className="font-semibold">{currency(it.unitPrice * it.quantity)}</div>
+                    <div key={it.productId} className="flex items-center gap-4">
+                      <img
+                        src={getImageUrl(it.images)}
+                        alt={it.productName}
+                        className="w-20 h-20 object-cover rounded-lg shadow-sm flex-shrink-0"
+                        onError={(e) => {
+                          // Fallback to placeholder if image fails to load
+                          e.currentTarget.src = PLACEHOLDER_IMAGE;
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900">{it.productName}</div>
+                        <div className="text-sm text-gray-600">Số lượng: {it.quantity}</div>
+                        <div className="text-sm text-gray-500 mt-1">{currency(it.unitPrice)} / sản phẩm</div>
+                      </div>
+                      <div className="font-semibold text-gray-900 text-right">
+                        {currency(it.unitPrice * it.quantity)}
+                      </div>
                     </div>
                   ))
                 )}
