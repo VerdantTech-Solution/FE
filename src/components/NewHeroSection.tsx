@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useState, useRef } from 'react';
+import canhdep from "@/assets/canhdep.jpg";
 
 const NewHeroSection = () => {
   const [email, setEmail] = useState('');
@@ -27,7 +28,7 @@ const NewHeroSection = () => {
         <div 
           className="w-full h-full bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url('/src/assets/canhdep.jpg')`
+            backgroundImage: `url(${canhdep})`
           }}
         />
         {/* Overlay */}
