@@ -16,8 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign, MessageSquare, ShoppingBag } from "lucide-react";
 import logo2 from "@/assets/logo2.jpg";
-import { WarehousePanel } from "./staff/WarehousePanel";
-import type { WarehouseStats } from "./staff/WarehousePanel";
+//import type { WarehouseStats } from "./staff/WarehousePanel";
 import { InventoryManagementPanel } from "./staff/InventoryManagementPanel";
 import { UserManagementPanel } from "./staff/UserManagementPanel";
 import { OrderManagementPanel } from "./staff/OrderManagementPanel";
@@ -47,7 +46,7 @@ type ViewKey =
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
   const [collapsed, setCollapsed] = useState(false);
-  const [, setStats] = useState<WarehouseStats>({ total: 0, pending: 0, approved: 0, rejected: 0 });
+  //const [, setStats] = useState<WarehouseStats>({ total: 0, pending: 0, approved: 0, rejected: 0 });
   
   const { logout, user } = useAuth();
   const navigate = useNavigate();

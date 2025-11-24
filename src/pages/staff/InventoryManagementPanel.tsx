@@ -41,7 +41,7 @@ import {
 import { getAllProducts, type Product } from "@/api/product";
 
 export const InventoryManagementPanel: React.FC = () => {
-  const { user } = useAuth();
+  //const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"import" | "export" | "history">("import");
   
   // Import states
@@ -52,7 +52,8 @@ export const InventoryManagementPanel: React.FC = () => {
   const [selectedInventory, setSelectedInventory] = useState<BatchInventory | null>(null);
   const [importInventories, setImportInventories] = useState<BatchInventory[]>([]);
   const [importLoading, setImportLoading] = useState(false);
-  const [importPage, setImportPage] = useState(1);
+  //const [importPage, setImportPage] = useState(1);
+  const [importPage] = useState(1);
   const [filterProductId, setFilterProductId] = useState<number | null>(null);
   const [filterVendorId, setFilterVendorId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -61,7 +62,8 @@ export const InventoryManagementPanel: React.FC = () => {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportInventories, setExportInventories] = useState<ExportInventory[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
-  const [exportPage, setExportPage] = useState(1);
+  //const [exportPage, setExportPage] = useState(1);
+   const [exportPage] = useState(1);
   
   // Form states
   const [products, setProducts] = useState<Product[]>([]);
