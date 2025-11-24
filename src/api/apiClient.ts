@@ -1,7 +1,24 @@
 import axios, { AxiosError, type AxiosResponse } from "axios"
 
+const DEFAULT_API_BASE_URL = "https://verdanttechbe-bpbaaghrg5ggexds.southeastasia-01.azurewebsites.net"
+const SWAGGER_SUFFIX_REGEX = /\/swagger\/index\.html.*$/i
+
+const normalizeBaseUrl = (value?: string): string => {
+    if (!value) return DEFAULT_API_BASE_URL
+
+    const trimmed = value.trim()
+    if (!trimmed) return DEFAULT_API_BASE_URL
+
+    const withoutSwagger = trimmed.replace(SWAGGER_SUFFIX_REGEX, "")
+    const withoutTrailingSlash = withoutSwagger.replace(/\/+$/, "")
+
+    return withoutTrailingSlash || DEFAULT_API_BASE_URL
+}
+
+export const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL)
+
 export const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || "https://verdanttechbe-bpbaaghrg5ggexds.southeastasia-01.azurewebsites.net",
+    baseURL: API_BASE_URL,
     headers: {
         "Content-Type": "application/json",
     },

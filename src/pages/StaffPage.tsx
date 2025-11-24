@@ -29,8 +29,20 @@ import { CashoutManagementPanel } from "./staff/CashoutManagementPanel";
 import { SupportRequestManagementPanel } from "./staff/SupportRequestManagementPanel";
 import { BalanceManagement } from "./staff/BalanceManagement";
 import { ProductManagementPanel } from "./staff/ProductManagementPanel";
+import { PostManagementPanel } from "./staff/PostManagementPanel";
 
-type ViewKey = "warehouse" | "users" | "orders" | "balance" | "monitoring" | "cashout" | "support" | "settings" | "profile" | "products";
+type ViewKey =
+  | "warehouse"
+  | "users"
+  | "orders"
+  | "balance"
+  | "monitoring"
+  | "cashout"
+  | "support"
+  | "settings"
+  | "profile"
+  | "products"
+  | "posts";
 
 export const StaffPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
@@ -64,22 +76,24 @@ export const StaffPage: React.FC = () => {
           <SidebarNav>
             <SidebarSection>
               <SidebarSectionTitle>Chính</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Kho</SidebarNavItem>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản lý sản phẩm</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản Lý Sản Phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "users"} onClick={() => setSelectedMenu("users")} icon={<Users className="w-5 h-5" />}>Quản Lý Người Dùng</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "orders"} onClick={() => setSelectedMenu("orders")} icon={<ListFilter className="w-5 h-5" />}>Quản Lý Đơn Hàng</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "posts"} onClick={() => setSelectedMenu("posts")} icon={<MessageSquare className="w-5 h-5" />}>Quản Lý Bài Viết</SidebarNavItem>
+            
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh mục sản phẩm</SidebarNavItem>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "balance"} onClick={() => setSelectedMenu("balance")} icon={<Shield className="w-5 h-5" />}>Số dư tài khoản</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh Mục Sản Phẩm</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "balance"} onClick={() => setSelectedMenu("balance")} icon={<Shield className="w-5 h-5" />}>Số Dư Tài Khoản</SidebarNavItem>
               
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "cashout"} onClick={() => setSelectedMenu("cashout")} icon={<DollarSign className="w-5 h-5" />}>Quản lý rút tiền</SidebarNavItem>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "support"} onClick={() => setSelectedMenu("support")} icon={<MessageSquare className="w-5 h-5" />}>Yêu cầu hỗ trợ</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "cashout"} onClick={() => setSelectedMenu("cashout")} icon={<DollarSign className="w-5 h-5" />}>Quản Lý Rút Tiền</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "support"} onClick={() => setSelectedMenu("support")} icon={<MessageSquare className="w-5 h-5" />}>Yêu Cầu Hỗ Trợ</SidebarNavItem>
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Hệ thống</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "profile"} onClick={() => setSelectedMenu("profile")} icon={<User className="w-5 h-5" />}>Hồ sơ</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "profile"} onClick={() => setSelectedMenu("profile")} icon={<User className="w-5 h-5" />}>Hồ Sơ</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "settings"} onClick={() => setSelectedMenu("settings")} icon={<Settings className="w-5 h-5" />}>Cài đặt</SidebarNavItem>
             </SidebarSection>
           </SidebarNav>
@@ -129,12 +143,16 @@ export const StaffPage: React.FC = () => {
           {selectedMenu === "users" && (
             <UserManagementPanel />
           )}
+            {selectedMenu === "posts" && (
+            <PostManagementPanel />
+          )}
           {selectedMenu === "orders" && (
             <OrderManagementPanel />
           )}
           {selectedMenu === "monitoring" && (
             <MonitoringPage/>
           )}
+        
           {selectedMenu === "balance" && (
             <BalanceManagement />
           )}

@@ -64,8 +64,8 @@ export const createCO2FootprintForFarm = async (
   payload: CreateCO2FootprintRequest
 ): Promise<ApiResponseWrapper<string>> => {
   try {
-    const { data } = await apiClient.post<ApiResponseWrapper<string>>(`/api/CO2/farm/${farmId}`, payload);
-    return data;
+    const response = await apiClient.post<ApiResponseWrapper<string>>(`/api/CO2/farm/${farmId}`, payload);
+    return response as unknown as ApiResponseWrapper<string>;
   } catch (error) {
     console.error('Create CO2 footprint error:', error);
     throw error;
@@ -78,8 +78,8 @@ export const getCO2DataByFarmId = async (
   farmId: number
 ): Promise<ApiResponseWrapper<CO2Record[]>> => {
   try {
-    const { data } = await apiClient.get<ApiResponseWrapper<CO2Record[]>>(`/api/CO2/farm/${farmId}`);
-    return data;
+    const response = await apiClient.get<ApiResponseWrapper<CO2Record[]>>(`/api/CO2/farm/${farmId}`);
+    return response as unknown as ApiResponseWrapper<CO2Record[]>;
   } catch (error) {
     console.error('Get CO2 data error:', error);
     throw error;
@@ -91,8 +91,8 @@ export const deleteCO2RecordById = async (
   id: number
 ): Promise<ApiResponseWrapper<string>> => {
   try {
-    const { data } = await apiClient.delete<ApiResponseWrapper<string>>(`/api/CO2/${id}`);
-    return data;
+    const response = await apiClient.delete<ApiResponseWrapper<string>>(`/api/CO2/${id}`);
+    return response as unknown as ApiResponseWrapper<string>;
   } catch (error) {
     console.error('Delete CO2 record error:', error);
     throw error;
