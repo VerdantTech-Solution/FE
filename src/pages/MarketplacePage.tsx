@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck } from "lucide-react";
+import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getAllProducts, type Product } from '@/api/product';
+import { getAllProducts, type Product, getProductCategories, type ProductCategory } from '@/api/product';
 import { addToCart } from '@/api/cart';
 
 // Animation variants
@@ -69,14 +68,17 @@ const searchVariants = {
 
 export const MarketplacePage = () => {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
+  const [selectedParentCategory, setSelectedParentCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [pageLoading, setPageLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 
   const fetchProducts = async () => {
     try {
@@ -96,8 +98,22 @@ export const MarketplacePage = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const categoriesData = await getProductCategories();
+      // Chỉ lấy categories đang active
+      const activeCategories = categoriesData.filter(cat => cat.isActive);
+      setCategories(activeCategories);
+    } catch (err: any) {
+      console.error('Error fetching categories:', err);
+      // Nếu lỗi, vẫn tiếp tục với empty array
+      setCategories([]);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const handleAddToCart = async (productId: number, event: React.MouseEvent) => {
@@ -260,19 +276,50 @@ export const MarketplacePage = () => {
     );
   }
 
-  const categories = [
-    { id: 'all', name: 'Tất cả', icon: '🚜' },
-    { id: 'drones', name: 'Drone & UAV', icon: '🛸' },
-    { id: 'tools', name: 'Dụng cụ làm nông', icon: '🔧' },
-    { id: 'machines', name: 'Máy móc nông nghiệp', icon: '⚙️' },
-    { id: 'fertilizers', name: 'Phân bón & Thuốc', icon: '🧪' },
-    { id: 'seeds', name: 'Hạt giống & Cây con', icon: '🌱' },
-    { id: 'irrigation', name: 'Hệ thống tưới tiêu', icon: '💧' },
-  ];
+  // Tách categories thành parent và subcategories
+  // Kiểm tra cả parent object và parentId (nếu có)
+  const parentCategories = categories.filter(cat => {
+    // Nếu có parent object và nó null hoặc undefined
+    if (cat.parent === null || cat.parent === undefined) {
+      // Kiểm tra thêm parentId nếu có trong object
+      const parentId = (cat as any).parentId || (cat as any).parent_id;
+      return parentId === null || parentId === undefined;
+    }
+    return false;
+  });
+  
 
   const filteredProducts = products.filter(product => {
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    // Filter by categoryId
+    const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory;
+    
+    // Filter by search query - tìm trong tên sản phẩm, mô tả, và category name
+    if (searchQuery === '') {
+      return matchesCategory;
+    }
+    
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Tìm trong tên sản phẩm
+    const matchesName = product.name?.toLowerCase().includes(searchLower) || 
+                       product.productName?.toLowerCase().includes(searchLower);
+    
+    // Tìm trong mô tả
+    const matchesDescription = product.description?.toLowerCase().includes(searchLower) || false;
+    
+    // Tìm theo category name của sản phẩm
+    const productCategory = categories.find(c => c.id === product.categoryId);
+    const matchesCategoryName = productCategory?.name.toLowerCase().includes(searchLower) || false;
+    
+    // Tìm theo category name nếu đang filter theo category cụ thể
+    let matchesSelectedCategoryName = false;
+    if (selectedCategory !== 'all') {
+      const selectedCat = categories.find(c => c.id === selectedCategory);
+      matchesSelectedCategoryName = selectedCat?.name.toLowerCase().includes(searchLower) || false;
+    }
+    
+    const matchesSearch = matchesName || matchesDescription || matchesCategoryName || matchesSelectedCategoryName;
+    
     return matchesCategory && matchesSearch;
   });
 
@@ -307,25 +354,172 @@ export const MarketplacePage = () => {
               Cung cấp đầy đủ dụng cụ, máy móc và thiết bị hiện đại cho nông nghiệp thông minh
             </motion.p>
             
-            {/* Search Bar */}
+            {/* Search Bar with Category Dropdown */}
             <motion.div 
-              className="max-w-3xl mx-auto relative"
+              className="max-w-5xl mx-auto relative px-4"
               variants={searchVariants}
             >
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-6 h-6" />
-              <Input
-                type="text"
-                placeholder="Tìm kiếm dụng cụ, máy móc nông nghiệp..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-14 pr-6 py-4 text-lg border-2 border-white/30 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl text-white placeholder:text-white/70 focus:border-white/50 focus:bg-white/30 transition-all duration-300"
-              />
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <Button 
-                  className="bg-white/20 hover:bg-white/30 text-white border border-white/30 px-6 py-2 rounded-xl backdrop-blur-sm transition-all duration-300"
-                >
-                  Tìm kiếm
-                </Button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Category Dropdown Button */}
+                <div className="relative">
+                  <Button
+                    onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                    className="bg-white hover:bg-gray-50 text-gray-800 border-2 border-white px-5 sm:px-7 py-5 sm:py-5 rounded-2xl shadow-lg transition-all duration-300 flex items-center gap-3 w-full sm:w-auto sm:min-w-[220px] justify-between text-base font-semibold"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Menu className="w-6 h-6" />
+                      <span>
+                        {selectedCategory === 'all' 
+                          ? 'Danh mục' 
+                          : categories.find(c => c.id === selectedCategory)?.name || 'Danh mục'}
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-6 h-6 transition-transform duration-300 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                  
+                  {/* Category Dropdown Menu */}
+                  <AnimatePresence>
+                    {isCategoryDropdownOpen && (
+                      <>
+                        {/* Backdrop */}
+                        <motion.div
+                          className="fixed inset-0 z-40"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => setIsCategoryDropdownOpen(false)}
+                        />
+                        {/* Dropdown Content */}
+                        <motion.div
+                          className="absolute top-full left-0 mt-3 w-[320px] bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-50 overflow-hidden max-h-[80vh] overflow-y-auto"
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="p-4">
+                            <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase">Danh mục sản phẩm</h3>
+                            <div className="space-y-1">
+                              {/* Option "Tất cả" */}
+                              <button
+                                onClick={() => {
+                                  setSelectedCategory('all');
+                                  setSelectedParentCategory(null);
+                                  setSearchQuery(''); // Clear search khi chọn "Tất cả"
+                                  setIsCategoryDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 ${
+                                  selectedCategory === 'all'
+                                    ? 'bg-green-600 text-white shadow-md'
+                                    : 'text-gray-700 hover:bg-white hover:text-green-600'
+                                }`}
+                              >
+                                <span className="font-medium text-sm">Tất cả</span>
+                                {selectedCategory === 'all' && (
+                                  <ChevronDown className="w-4 h-4 ml-auto rotate-90" />
+                                )}
+                              </button>
+                              
+                              {/* Parent Categories với subcategories inline */}
+                              {parentCategories.map((category) => {
+                                // Kiểm tra xem category này có subcategories không
+                                const categorySubCategories = categories.filter(cat => {
+                                  // Kiểm tra parent object
+                                  if (cat.parent && typeof cat.parent === 'object' && (cat.parent as any).id === category.id) {
+                                    return true;
+                                  }
+                                  // Kiểm tra parentId
+                                  const parentId = (cat as any).parentId || (cat as any).parent_id;
+                                  return parentId === category.id;
+                                });
+                                
+                                const isExpanded = selectedParentCategory === category.id;
+                                
+                                return (
+                                  <div key={category.id}>
+                                    <button
+                                      onClick={() => {
+                                        if (categorySubCategories.length > 0) {
+                                          // Nếu có subcategories, toggle hiển thị chúng
+                                          setSelectedParentCategory(isExpanded ? null : category.id);
+                                        } else {
+                                          // Nếu không có subcategories, chọn category này
+                                          setSelectedCategory(category.id);
+                                          setSearchQuery('');
+                                          setIsCategoryDropdownOpen(false);
+                                        }
+                                      }}
+                                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 ${
+                                        selectedCategory === category.id && categorySubCategories.length === 0
+                                          ? 'bg-green-600 text-white shadow-md'
+                                          : 'text-gray-700 hover:bg-white hover:text-green-600'
+                                      }`}
+                                    >
+                                      <span className="font-medium text-sm">{category.name}</span>
+                                      {categorySubCategories.length > 0 && (
+                                        <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                      )}
+                                      {selectedCategory === category.id && categorySubCategories.length === 0 && (
+                                        <ChevronDown className="w-4 h-4 ml-auto rotate-90" />
+                                      )}
+                                    </button>
+                                    
+                                    {/* Subcategories hiển thị inline bên dưới parent */}
+                                    {isExpanded && categorySubCategories.length > 0 && (
+                                      <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-2">
+                                        {categorySubCategories.map((subCategory) => (
+                                          <button
+                                            key={subCategory.id}
+                                            onClick={() => {
+                                              setSelectedCategory(subCategory.id);
+                                              setSelectedParentCategory(null);
+                                              setSearchQuery(''); // Clear search khi chọn category
+                                              setIsCategoryDropdownOpen(false);
+                                            }}
+                                            className={`w-full text-left px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-3 ${
+                                              selectedCategory === subCategory.id
+                                                ? 'bg-green-600 text-white shadow-md'
+                                                : 'text-gray-700 hover:bg-white hover:text-green-600'
+                                            }`}
+                                          >
+                                            <span className="font-medium text-sm">{subCategory.name}</span>
+                                            {selectedCategory === subCategory.id && (
+                                              <ChevronDown className="w-4 h-4 ml-auto rotate-90" />
+                                            )}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+                
+                {/* Search Input */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
+                  <Input
+                    type="text"
+                    placeholder="Tìm kiếm dụng cụ, máy móc nông nghiệp..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-16 pr-36 py-5 text-lg border-2 border-white bg-white rounded-2xl shadow-lg text-gray-800 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white transition-all duration-300 w-full font-medium"
+                  />
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700 text-white border-0 px-7 py-3 rounded-xl shadow-md transition-all duration-300 font-semibold"
+                    >
+                      Tìm kiếm
+                    </Button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -349,37 +543,6 @@ export const MarketplacePage = () => {
           </motion.div>
         )}
 
-        {/* Category Filters */}
-        <motion.div 
-          className="mb-8"
-          variants={itemVariants}
-        >
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Danh mục sản phẩm</h2>
-          <motion.div 
-            className="flex flex-wrap gap-3"
-            variants={containerVariants}
-          >
-            {categories.map((category) => (
-              <motion.div
-                key={category.id}
-                variants={itemVariants}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant={selectedCategory === category.id ? "default" : "outline"}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className="flex items-center gap-2 px-4 py-2"
-                >
-                  <span className="text-lg">{category.icon}</span>
-                  {category.name}
-                </Button>
-              </motion.div>
-            ))}
-          </motion.div>
-        </motion.div>
-
-        <Separator className="my-8" />
 
         {/* Products Grid */}
         <motion.div 

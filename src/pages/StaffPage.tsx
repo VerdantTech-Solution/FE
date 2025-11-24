@@ -18,6 +18,7 @@ import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, D
 import logo2 from "@/assets/logo2.jpg";
 import { WarehousePanel } from "./staff/WarehousePanel";
 import type { WarehouseStats } from "./staff/WarehousePanel";
+import { InventoryManagementPanel } from "./staff/InventoryManagementPanel";
 import { UserManagementPanel } from "./staff/UserManagementPanel";
 import { OrderManagementPanel } from "./staff/OrderManagementPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,7 +135,7 @@ export const StaffPage: React.FC = () => {
         {/* Content */}
         <div className="p-8">
           {selectedMenu === "warehouse" && (
-            <WarehousePanel onStatsChange={setStats} />
+            <InventoryManagementPanel />
           )}
               {selectedMenu === "products" && (
             <ProductManagementPanel />
