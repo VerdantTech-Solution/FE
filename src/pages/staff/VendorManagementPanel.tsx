@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Search, RefreshCw, Building2, Mail, Phone, Eye, FileText, MapPin, Calendar, CheckCircle2, XCircle, Check, X, AlertCircle } from "lucide-react";
-import { getAllVendors, getVendorById, approveVendor, rejectVendor, type VendorProfileResponse } from "@/api/vendor";
+import { Search, RefreshCw, Building2, Mail, Phone, Eye, FileText, MapPin, Calendar, CheckCircle2, XCircle, Check, X, AlertCircle, Trash2 } from "lucide-react";
+import { getAllVendors, getVendorById, approveVendor, rejectVendor, deleteVendorAccount, type VendorProfileResponse } from "@/api/vendor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -42,6 +42,11 @@ export const VendorManagementPanel: React.FC = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [pendingVendorId, setPendingVendorId] = useState<number | null>(null);
   const [pendingVendorName, setPendingVendorName] = useState("");
+
+  // Delete states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [pendingVendorUserId, setPendingVendorUserId] = useState<number | null>(null);
 
   // Alert dialog states
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
@@ -124,6 +129,13 @@ export const VendorManagementPanel: React.FC = () => {
     setRejectDialogOpen(true);
   };
 
+  const openDeleteDialog = (vendor: VendorProfileResponse) => {
+    setPendingVendorId(vendor.id);
+    setPendingVendorUserId(vendor.userId);
+    setPendingVendorName(vendor.companyName);
+    setDeleteDialogOpen(true);
+  };
+
   const handleApprove = async () => {
     if (!pendingVendorId || !user?.id) {
       showAlert("Lỗi", "Thiếu thông tin cần thiết", "error");
@@ -171,6 +183,29 @@ export const VendorManagementPanel: React.FC = () => {
       showAlert("Lỗi", errorMessage, "error");
     } finally {
       setRejectLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!pendingVendorUserId) {
+      showAlert("Lỗi", "Thiếu thông tin cần thiết", "error");
+      return;
+    }
+
+    try {
+      setDeleteLoading(true);
+      await deleteVendorAccount(pendingVendorUserId);
+      setDeleteDialogOpen(false);
+      await fetchVendors();
+      showAlert("Thành công", `Đã vô hiệu hóa tài khoản vendor "${pendingVendorName}" thành công!`, "success");
+      setPendingVendorId(null);
+      setPendingVendorUserId(null);
+      setPendingVendorName("");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Không thể xóa tài khoản vendor';
+      showAlert("Lỗi", errorMessage, "error");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -458,7 +493,7 @@ export const VendorManagementPanel: React.FC = () => {
                             className="border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700"
                             title="Duyệt vendor"
                             onClick={() => openApproveDialog(vendor)}
-                            disabled={approveLoading || rejectLoading}
+                            disabled={approveLoading || rejectLoading || deleteLoading}
                           >
                             <Check className="w-4 h-4" />
                           </Button>
@@ -468,12 +503,22 @@ export const VendorManagementPanel: React.FC = () => {
                             className="border-red-600 text-red-600 hover:bg-red-50 hover:border-red-700"
                             title="Từ chối vendor"
                             onClick={() => openRejectDialog(vendor)}
-                            disabled={approveLoading || rejectLoading}
+                            disabled={approveLoading || rejectLoading || deleteLoading}
                           >
                             <X className="w-4 h-4" />
                           </Button>
                         </>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-white border-red-600 text-red-600 hover:bg-red-50 hover:border-red-700 rounded-md"
+                        title="Vô hiệu hóa tài khoản"
+                        onClick={() => openDeleteDialog(vendor)}
+                        disabled={approveLoading || rejectLoading || deleteLoading}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </motion.div>
@@ -823,6 +868,41 @@ export const VendorManagementPanel: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Vendor Account Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-600" />
+              Xác nhận vô hiệu hóa tài khoản
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn vô hiệu hóa tài khoản vendor <strong>{pendingVendorName}</strong>? 
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? (
+                <>
+                  <Spinner className="mr-2 h-4 w-4" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Vô hiệu hóa
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Alert Dialog for Success/Error */}
       <AlertDialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>

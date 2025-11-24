@@ -491,3 +491,41 @@ export const updateVendorProfile = async (id: number, data: UpdateVendorProfileR
   }
 };
 
+// API soft delete vendor account
+export const deleteVendorAccount = async (userId: number): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.delete(`/api/VendorProfiles/account/${userId}`);
+    
+    console.log('Delete vendor account API response:', response);
+    return response as { message: string };
+    
+  } catch (error: unknown) {
+    console.error('Delete vendor account API error:', error);
+    
+    if (error && typeof error === 'object') {
+      if ('response' in error && error.response) {
+        const response = error.response as { status: number; data?: { errors?: string[]; message?: string } };
+        if (response.status === 404) {
+          throw new Error('Không tìm thấy vendor với userId này.');
+        } else if (response.status === 401) {
+          throw new Error('Không có quyền truy cập. Vui lòng đăng nhập lại.');
+        } else if (response.status === 400) {
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Dữ liệu không hợp lệ';
+          throw new Error(errorMsg);
+        } else if (response.status >= 500) {
+          throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
+        } else {
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể xóa tài khoản vendor';
+          throw new Error(errorMsg);
+        }
+      }
+      
+      if ('message' in error) {
+        throw new Error(String(error.message));
+      }
+    }
+    
+    throw new Error('Không thể xóa tài khoản vendor. Vui lòng thử lại.');
+  }
+};
+
