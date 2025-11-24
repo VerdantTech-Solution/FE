@@ -29,9 +29,11 @@ import { SupportRequestManagementPanel } from "./staff/SupportRequestManagementP
 import { BalanceManagement } from "./staff/BalanceManagement";
 import { ProductManagementPanel } from "./staff/ProductManagementPanel";
 import { PostManagementPanel } from "./staff/PostManagementPanel";
+import WarehousePanel from "./staff/WarehousePanel";
 
 type ViewKey =
   | "warehouse"
+  | "inventory"
   | "users"
   | "orders"
   | "balance"
@@ -75,7 +77,8 @@ export const StaffPage: React.FC = () => {
           <SidebarNav>
             <SidebarSection>
               <SidebarSectionTitle>Chính</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Đơn Đăng Ký</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "inventory"} onClick={() => setSelectedMenu("inventory")} icon={<PackagePlus className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản Lý Sản Phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "users"} onClick={() => setSelectedMenu("users")} icon={<Users className="w-5 h-5" />}>Quản Lý Người Dùng</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "orders"} onClick={() => setSelectedMenu("orders")} icon={<ListFilter className="w-5 h-5" />}>Quản Lý Đơn Hàng</SidebarNavItem>
@@ -134,6 +137,8 @@ export const StaffPage: React.FC = () => {
         {/* Content */}
         <div className="p-8">
           {selectedMenu === "warehouse" && (
+<WarehousePanel />          )}
+          {selectedMenu === "inventory" && (
             <InventoryManagementPanel />
           )}
               {selectedMenu === "products" && (
