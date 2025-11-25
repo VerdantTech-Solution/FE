@@ -264,7 +264,7 @@ export const getAISuggestions = async (farmId: number, signal?: AbortSignal): Pr
     
     // Nếu có ít nhất một phần dữ liệu, trả về
     if (result.suggestions || result.weatherRisks || result.soil || result.co2 || result.detailedAdvice) {
-      result.tip = 'Thực hiện các gợi ý ưu tiên cao trước để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.';
+      result.tip = 'Thực hiện các gợi ý hành động để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.';
       return result;
     }
 
@@ -285,7 +285,7 @@ export const getAISuggestions = async (farmId: number, signal?: AbortSignal): Pr
         
         return {
           suggestions,
-          tip: 'Thực hiện các gợi ý ưu tiên cao trước để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.',
+          tip: 'Thực hiện các gợi ý hành động để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.',
         };
       }
     }
@@ -294,7 +294,7 @@ export const getAISuggestions = async (farmId: number, signal?: AbortSignal): Pr
     console.warn('⚠️ [AI Suggestions] Không tìm thấy advice trong response. Trả về mảng rỗng.');
     return {
       suggestions: [],
-      tip: 'Thực hiện các gợi ý ưu tiên cao trước để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.',
+      tip: 'Thực hiện các gợi ý hành động để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.',
     };
   } catch (error: any) {
     // Kiểm tra nếu lỗi do abort (request bị hủy)

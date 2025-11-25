@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Target, Plus, Search, Filter, Edit, Trash, Eye } from "lucide-react";
 
-export const EquipmentPage = () => {
+export const AdminEquipmentPage = () => {
   const productCategories = [
     { name: 'Drone & UAV', value: 35, color: '#10B981', sales: 12500000, stock: 45, status: 'active' },
     { name: 'Máy móc nông nghiệp', value: 28, color: '#3B82F6', sales: 9800000, stock: 32, status: 'active' },

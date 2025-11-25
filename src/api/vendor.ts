@@ -280,12 +280,29 @@ export const getVendorById = async (id: number): Promise<VendorProfileResponse> 
     });
     
     console.log('Get vendor by ID API response:', response);
+    console.log('Response type:', typeof response);
+    console.log('Response keys:', response && typeof response === 'object' ? Object.keys(response) : 'N/A');
     
-    // Handle response structure - might be wrapped in data property
-    //const payload = (response as any) || {};
-    //const vendorData = payload.data || payload;   
-    //return vendorData as VendorProfileResponse;
-    return response.data as VendorProfileResponse;
+    // Handle response structure - apiClient interceptor already returns response.data
+    // So response here is already the data, but check if it's wrapped
+    let vendorData: any;
+    if (response && typeof response === 'object') {
+      // Check if response has a 'data' property (might be double-wrapped)
+      vendorData = (response as any)?.data || response;
+    } else {
+      vendorData = response;
+    }
+    
+    // Validate that we have the required fields
+    if (!vendorData || typeof vendorData !== 'object') {
+      throw new Error('Response không hợp lệ: dữ liệu trả về không phải object');
+    }
+    
+    if (!vendorData.id && !vendorData.userId) {
+      console.warn('Vendor data might be incomplete:', vendorData);
+    }
+    
+    return vendorData as VendorProfileResponse;
 
     
   } catch (error: unknown) {

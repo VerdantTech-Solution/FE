@@ -16,7 +16,7 @@ import {
   Area
 } from 'recharts';
 
-export const AnalyticsPage = () => {
+export const AdminAnalyticsPage = () => {
   // Mock data for charts
   const revenueData = [
     { month: 'T1', revenue: 12500000, growth: 12, orders: 45, customers: 23 },

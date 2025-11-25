@@ -5,6 +5,8 @@ import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { getAISuggestions, type AISuggestionsResponse, type WeatherRisk, type DetailedAdvice } from "@/api/aiSuggestions";
 import { Loader2, AlertTriangle, Droplets, Leaf, Factory, Lightbulb, TrendingUp, Shield, Sparkles } from "lucide-react";
 
+const aiSuggestionsCache = new Map<number, { data: AISuggestionsResponse; timestamp: number }>();
+
 const SuggestionItem = ({ title, subtitle, priority = "medium", done }: { title: string; subtitle: string; priority?: "high" | "medium" | "low"; done?: boolean }) => {
   const color = done ? "text-emerald-600" : priority === "high" ? "text-red-600" : priority === "low" ? "text-gray-500" : "text-amber-600";
   const badge = done ? "Đã hoàn thành" : priority === "high" ? "Ưu tiên cao" : priority === "low" ? "Ưu tiên thấp" : "Ưu tiên vừa";
@@ -55,7 +57,9 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
       const response = await getAISuggestions(farmId, controller.signal);
       if (!controller.signal.aborted) {
         setData(response);
-        setLastUpdated(new Date());
+        const timestamp = Date.now();
+        setLastUpdated(new Date(timestamp));
+        aiSuggestionsCache.set(farmId, { data: response, timestamp });
       }
     } catch (err: any) {
       if (!controller.signal.aborted) {
@@ -79,11 +83,26 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
 
   useEffect(() => {
     abortControllerRef.current?.abort();
-    setData(null);
     setError(null);
-    setHasRequested(false);
-    setLastUpdated(null);
     setLoading(false);
+
+    if (!farmId) {
+      setData(null);
+      setHasRequested(false);
+      setLastUpdated(null);
+      return;
+    }
+
+    const cached = aiSuggestionsCache.get(farmId);
+    if (cached) {
+      setData(cached.data);
+      setHasRequested(true);
+      setLastUpdated(new Date(cached.timestamp));
+    } else {
+      setData(null);
+      setHasRequested(false);
+      setLastUpdated(null);
+    }
   }, [farmId]);
 
   const hasResults =
@@ -210,23 +229,23 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
 
             {/* Weather Risks */}
             {data.weatherRisks && data.weatherRisks.length > 0 && (
-              <div className="rounded-lg border-2 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-300 p-4">
+              <div className="rounded-lg border-2 bg-gradient-to-br from-red-50 to-rose-50 border-red-300 p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="h-5 w-5 text-blue-600" />
-                  <h3 className="font-semibold text-blue-900">Cảnh báo thời tiết</h3>
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <h3 className="font-semibold text-red-900">Cảnh báo thời tiết</h3>
                 </div>
                 <div className="space-y-4">
                   {data.weatherRisks.map((risk: WeatherRisk, index) => (
-                    <div key={index} className="bg-white/70 rounded-lg p-4 border border-blue-200">
+                    <div key={index} className="bg-white/80 rounded-lg p-4 border border-red-200">
                       <div className="flex items-start gap-2 mb-2">
-                        <Shield className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                        <Shield className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                         <div className="flex-1">
-                          <div className="text-blue-900 font-semibold mb-1">{risk.time_range}</div>
-                          <div className="text-blue-800 font-medium mb-2">Rủi ro: {risk.risk}</div>
-                          <div className="text-blue-700 text-sm mb-2 leading-relaxed">{risk.impact}</div>
-                          <div className="bg-blue-100 rounded p-2 mt-2">
-                            <div className="text-blue-900 font-medium text-sm mb-1">🛡️ Biện pháp:</div>
-                            <div className="text-blue-800 text-sm leading-relaxed">{risk.mitigation}</div>
+                          <div className="text-red-900 font-semibold mb-1">{risk.time_range}</div>
+                          <div className="text-red-800 font-medium mb-2">Rủi ro: {risk.risk}</div>
+                          <div className="text-red-700 text-sm mb-2 leading-relaxed">{risk.impact}</div>
+                          <div className="bg-red-100 rounded p-2 mt-2">
+                            <div className="text-red-900 font-medium text-sm mb-1">🛡️ Biện pháp:</div>
+                            <div className="text-red-800 text-sm leading-relaxed">{risk.mitigation}</div>
                           </div>
                         </div>
                       </div>
