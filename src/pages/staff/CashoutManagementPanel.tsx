@@ -43,6 +43,7 @@ import {
   type CashoutRequestData,
   type CashoutRequestsPage,
   type ProcessCashoutManualRequest,
+  type ManualCashoutStatus,
 } from "@/api/wallet";
 import { usePayOSProcessing } from "./hooks/usePayOSProcessing";
 import {
@@ -127,12 +128,26 @@ export const CashoutManagementPanel: React.FC = () => {
   // Process dialog states
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<CashoutRequestData | null>(null);
-  const [processStatus, setProcessStatus] = useState<'Completed' | 'Failed' | 'Cancelled'>('Completed');
+  const [processStatus, setProcessStatus] = useState<ManualCashoutStatus>('Completed');
   const [gatewayPaymentId, setGatewayPaymentId] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState<string | null>(null);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  
+  const selectedVendorId = useMemo(
+    () => selectedRequest?.vendorId || selectedRequest?.user?.id || null,
+    [selectedRequest]
+  );
+  const isGatewayPaymentRequired = processStatus === 'Completed';
+  const isCancelReasonRequired = processStatus === 'Failed' || processStatus === 'Cancelled';
+  const isGatewayPaymentValid = !isGatewayPaymentRequired || gatewayPaymentId.trim().length > 0;
+  const isCancelReasonValid = !isCancelReasonRequired || cancelReason.trim().length > 0;
+  const isManualProcessDisabled =
+    isProcessing ||
+    !selectedVendorId ||
+    !isGatewayPaymentValid ||
+    !isCancelReasonValid;
   
   // PayOS processing hook
   const payOSProcessing = usePayOSProcessing({
@@ -271,8 +286,8 @@ export const CashoutManagementPanel: React.FC = () => {
     setProcessError(null);
   };
 
-  const handleProcessStatusChange = (value: string) => {
-    setProcessStatus(value as 'Completed' | 'Failed' | 'Cancelled');
+  const handleProcessStatusChange = (value: ManualCashoutStatus) => {
+    setProcessStatus(value);
     setGatewayPaymentId('');
     setCancelReason('');
     setProcessError(null);
@@ -284,20 +299,17 @@ export const CashoutManagementPanel: React.FC = () => {
       return;
     }
 
-    // Get vendorId from either vendorId field or user.id
-    const vendorId = selectedRequest.vendorId || selectedRequest.user?.id;
-    if (!vendorId) {
+    if (!selectedVendorId) {
       setProcessError('Không tìm thấy ID vendor');
       return;
     }
 
-    // Validation
-    if (processStatus === 'Completed' && !gatewayPaymentId.trim()) {
+    if (isGatewayPaymentRequired && !isGatewayPaymentValid) {
       setProcessError('Vui lòng nhập Gateway Payment ID cho trạng thái Completed');
       return;
     }
 
-    if ((processStatus === 'Failed' || processStatus === 'Cancelled') && !cancelReason.trim()) {
+    if (isCancelReasonRequired && !isCancelReasonValid) {
       setProcessError('Vui lòng nhập lý do hủy cho trạng thái Failed/Cancelled');
       return;
     }
@@ -312,7 +324,7 @@ export const CashoutManagementPanel: React.FC = () => {
         ...((processStatus === 'Failed' || processStatus === 'Cancelled') && { cancelReason: cancelReason.trim() }),
       };
 
-      const response = await processCashoutManual(vendorId, requestData);
+      const response = await processCashoutManual(selectedVendorId, requestData);
 
       if (response.status) {
         handleCloseProcessDialog();
@@ -660,36 +672,66 @@ export const CashoutManagementPanel: React.FC = () => {
           </AlertDialogHeader>
 
           <div className="space-y-4 py-4">
-
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-medium">
-                Trạng thái <span className="text-red-500">*</span>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">
+                Trạng thái xử lý <span className="text-red-500">*</span>
               </Label>
-              <Select value={processStatus} onValueChange={handleProcessStatusChange}>
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Chọn trạng thái" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Completed">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      Completed
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="Failed">
-                    <div className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-red-600" />
-                      Failed
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="Cancelled">
-                    <div className="flex items-center gap-2">
-                      <X className="h-4 w-4 text-gray-600" />
-                      Cancelled
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  {
+                    value: "Completed" as ManualCashoutStatus,
+                    title: "Completed",
+                    description: "Đã thanh toán thành công",
+                    helper: "Bắt buộc nhập Gateway Payment ID",
+                    icon: CheckCircle,
+                    accent: "text-green-600",
+                  },
+                  {
+                    value: "Failed" as ManualCashoutStatus,
+                    title: "Failed",
+                    description: "Thanh toán thất bại",
+                    helper: "Bắt buộc nhập lý do hủy",
+                    icon: XCircle,
+                    accent: "text-red-600",
+                  },
+                  {
+                    value: "Cancelled" as ManualCashoutStatus,
+                    title: "Cancelled",
+                    description: "Hủy theo yêu cầu",
+                    helper: "Bắt buộc nhập lý do hủy",
+                    icon: X,
+                    accent: "text-gray-600",
+                  },
+                ].map((option) => {
+                  const Icon = option.icon;
+                  const isActive = processStatus === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleProcessStatusChange(option.value)}
+                      className={`flex flex-1 flex-col rounded-lg border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                        isActive
+                          ? "border-green-500 bg-green-50 shadow-sm"
+                          : "border-gray-200 bg-white hover:border-green-400"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-4 w-4 ${option.accent}`} />
+                        <span className="font-semibold text-gray-900">
+                          {option.title}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {option.description}
+                      </p>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {option.helper}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {processStatus === 'Completed' && (
@@ -701,12 +743,17 @@ export const CashoutManagementPanel: React.FC = () => {
                   id="gatewayPaymentId"
                   placeholder="Nhập Gateway Payment ID"
                   value={gatewayPaymentId}
+                  aria-invalid={isGatewayPaymentRequired && !isGatewayPaymentValid}
                   onChange={(e) => {
                     setGatewayPaymentId(e.target.value);
                     setProcessError(null);
                   }}
                 />
-                <p className="text-xs text-gray-500">
+                <p
+                  className={`text-xs ${
+                    isGatewayPaymentValid ? 'text-gray-500' : 'text-red-500'
+                  }`}
+                >
                   Mã thanh toán từ gateway (bắt buộc cho trạng thái Completed)
                 </p>
               </div>
@@ -721,23 +768,31 @@ export const CashoutManagementPanel: React.FC = () => {
                   id="cancelReason"
                   placeholder="Nhập lý do hủy yêu cầu rút tiền"
                   value={cancelReason}
+                  aria-invalid={isCancelReasonRequired && !isCancelReasonValid}
                   onChange={(e) => {
                     setCancelReason(e.target.value);
                     setProcessError(null);
                   }}
                   rows={3}
                 />
-                <p className="text-xs text-gray-500">
+                <p
+                  className={`text-xs ${
+                    isCancelReasonValid ? 'text-gray-500' : 'text-red-500'
+                  }`}
+                >
                   Lý do hủy yêu cầu rút tiền (bắt buộc cho trạng thái Failed/Cancelled)
                 </p>
               </div>
             )}
 
-            {processError && (
+            {(processError || (!selectedVendorId && selectedRequest)) && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <div className="flex items-start space-x-2 text-red-600">
                   <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm">{processError}</p>
+                  <p className="text-sm">
+                    {processError ||
+                      'Không tìm thấy ID vendor hợp lệ cho yêu cầu này'}
+                  </p>
                 </div>
               </div>
             )}
@@ -747,7 +802,7 @@ export const CashoutManagementPanel: React.FC = () => {
             <AlertDialogCancel disabled={isProcessing}>Hủy</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleProcessCashout}
-              disabled={isProcessing}
+              disabled={isManualProcessDisabled}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isProcessing ? (

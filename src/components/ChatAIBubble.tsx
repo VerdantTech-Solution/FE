@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { sendChatbotMessage } from '@/api/chatbot';
 
 interface Message {
   id: string;
@@ -24,29 +25,6 @@ const SUGGESTED_QUESTIONS = [
   'Phí vận chuyển được tính như thế nào?',
   'Làm thế nào để liên hệ hỗ trợ?',
 ];
-
-const AI_RESPONSES: Record<string, string> = {
-  'đăng ký': 'Để đăng ký tài khoản, bạn có thể:\n1. Nhấn vào nút "Đăng ký" ở góc trên bên phải\n2. Điền thông tin cá nhân\n3. Xác thực email\n4. Hoàn tất đăng ký và bắt đầu sử dụng dịch vụ',
-  'mua sản phẩm': 'Để mua sản phẩm:\n1. Duyệt qua các sản phẩm tại trang "Chợ"\n2. Chọn sản phẩm bạn muốn mua\n3. Thêm vào giỏ hàng\n4. Thanh toán và xác nhận đơn hàng',
-  'thanh toán': 'Chúng tôi hỗ trợ các phương thức thanh toán:\n- Thanh toán khi nhận hàng (COD)\n- Chuyển khoản ngân hàng\n- Ví điện tử\n- Thẻ tín dụng/ghi nợ',
-  'nhà cung cấp': 'Để trở thành nhà cung cấp:\n1. Đăng ký tài khoản nhà cung cấp\n2. Cung cấp thông tin doanh nghiệp\n3. Đăng ký sản phẩm\n4. Chờ phê duyệt từ hệ thống',
-  'đổi trả': 'Chính sách đổi trả:\n- Đổi trả trong vòng 7 ngày kể từ ngày nhận hàng\n- Sản phẩm phải còn nguyên vẹn, chưa sử dụng\n- Liên hệ bộ phận hỗ trợ để được hướng dẫn',
-  'theo dõi đơn hàng': 'Bạn có thể theo dõi đơn hàng bằng cách:\n1. Đăng nhập vào tài khoản\n2. Vào mục "Đơn hàng của tôi"\n3. Xem trạng thái và thông tin chi tiết đơn hàng',
-  'vận chuyển': 'Phí vận chuyển được tính dựa trên:\n- Khoảng cách từ kho đến địa chỉ giao hàng\n- Trọng lượng và kích thước sản phẩm\n- Phương thức vận chuyển bạn chọn',
-  'liên hệ': 'Bạn có thể liên hệ hỗ trợ qua:\n- Trung tâm hỗ trợ trên website\n- Email: support@verdanttech.com\n- Hotline: 1900-xxxx\n- Chat trực tuyến với chúng tôi',
-};
-
-const getAIResponse = (userMessage: string): string => {
-  const lowerMessage = userMessage.toLowerCase();
-  
-  for (const [key, response] of Object.entries(AI_RESPONSES)) {
-    if (lowerMessage.includes(key)) {
-      return response;
-    }
-  }
-  
-  return 'Cảm ơn bạn đã liên hệ! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp bạn với:\n- Hướng dẫn sử dụng nền tảng\n- Thông tin về sản phẩm và dịch vụ\n- Hỗ trợ đơn hàng\n- Câu hỏi thường gặp\n\nVui lòng chọn một câu hỏi gợi ý bên dưới hoặc đặt câu hỏi của bạn!';
-};
 
 export const ChatAIBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -162,7 +140,7 @@ export const ChatAIBubble = () => {
     timestamp: new Date(),
   });
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
     const userMessage: Message = {
@@ -184,7 +162,7 @@ export const ChatAIBubble = () => {
     } catch (error) {
       console.error('Error loading conversations:', error);
     }
-
+    
     // Create new conversation if none exists
     if (!currentId || !conversations.find((c: any) => c.id === currentId)) {
       const newConversation = {
@@ -223,15 +201,17 @@ export const ChatAIBubble = () => {
       return conv;
     });
 
+    localStorage.setItem('chatAI_conversations', JSON.stringify(updatedConversations));
+
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const aiText = await sendChatbotMessage(userMessage.text, currentId || undefined);
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: getAIResponse(userMessage.text),
+        text: aiText,
         sender: 'ai',
         timestamp: new Date(),
       };
@@ -249,8 +229,31 @@ export const ChatAIBubble = () => {
       
       localStorage.setItem('chatAI_conversations', JSON.stringify(finalConversations));
       setMessages((prev) => [...prev, aiResponse]);
+    } catch (error: any) {
+      console.error('Error sending chat message:', error);
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: error?.message || 'Xin lỗi, tôi chưa thể phản hồi ngay lúc này. Vui lòng thử lại sau.',
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+
+      const finalConversations = updatedConversations.map((conv: any) => {
+        if (conv.id === currentId) {
+          return {
+            ...conv,
+            messages: [...conv.messages, aiResponse],
+            updatedAt: new Date(),
+          };
+        }
+        return conv;
+      });
+
+      localStorage.setItem('chatAI_conversations', JSON.stringify(finalConversations));
+      setMessages((prev) => [...prev, aiResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   const handleSuggestedQuestion = (question: string) => {
