@@ -118,12 +118,12 @@ const CO2Info: React.FC = () => {
     fetchData();
   }, [farmIdNum]);
 
-  const latestRecord = useMemo(() => {
-    if (!records || records.length === 0) return undefined;
-    // Sắp xếp theo updatedAt tạo cảm giác mới nhất
-    const sorted = [...records].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    return sorted[0];
+  const sortedRecords = useMemo(() => {
+    if (!records || records.length === 0) return [];
+    return [...records].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [records]);
+
+  const latestRecord = sortedRecords[0];
 
   
 
@@ -288,16 +288,18 @@ const CO2Info: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Nút mở form CO2 Footprint: chỉ hiện khi chưa có dữ liệu */}
-      {!loading && !loadError && (!records || records.length === 0) && (
+      {/* Nút mở form CO2 Footprint: luôn hiển thị để thêm bản ghi mới */}
+      {!loading && !loadError && (
         <div className="flex items-center gap-3">
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button variant="default">Thêm CO2 Footprint</Button>
+              <Button variant="default">
+                {records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Thêm CO2 Footprint'}
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Thêm CO2 Footprint cho trang trại</DialogTitle>
+              <DialogTitle>{records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Thêm CO2 Footprint cho trang trại'}</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -427,13 +429,6 @@ const CO2Info: React.FC = () => {
           <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">Bắt đầu: {latestRecord.measurementStartDate}</Badge>
           <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-indigo-200">Kết thúc: {latestRecord.measurementEndDate}</Badge>
           {latestRecord.notes && <Badge variant="outline" className="border-amber-200 text-amber-700">Ghi chú: {latestRecord.notes}</Badge>}
-          <Button
-            variant="destructive"
-            className="ml-auto"
-            onClick={() => handleDeleteClick(latestRecord)}
-          >
-            Xóa bản ghi
-          </Button>
         </div>
       )}
       {loading && <div className="text-sm text-gray-600">Đang tải dữ liệu...</div>}
@@ -564,8 +559,100 @@ const CO2Info: React.FC = () => {
         </div>
       )}
 
-      {/* Ẩn phần hấp thụ nếu chưa có dữ liệu */}
-      
+      {/* Lịch sử đo CO2 */}
+      {!loading && !loadError && sortedRecords.length > 0 && (
+        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Lịch sử đo CO₂</CardTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Danh sách các lần đo CO₂ gần nhất. Xóa sẽ xóa vĩnh viễn bản ghi (Hard delete) – hãy cân nhắc trước khi thao tác.
+            </p>
+          </CardHeader>
+            <CardContent className="space-y-3">
+            {sortedRecords.map((record) => (
+              <div
+                key={record.id}
+                className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-3"
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1 text-sm">
+                    <div className="font-semibold text-gray-900">
+                      {record.measurementStartDate} → {record.measurementEndDate}
+                    </div>
+                    {record.notes && (
+                      <div className="text-gray-600">Ghi chú: {record.notes}</div>
+                    )}
+                    <div className="text-gray-600 text-xs">
+                      Cập nhật: {new Date(record.updatedAt).toLocaleString('vi-VN')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 md:mt-0">
+                    <Badge variant="outline" className="border-slate-200 text-slate-600">
+                      ID #{record.id}
+                    </Badge>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteClick(record)}
+                      className="shrink-0"
+                    >
+                      Xóa bản ghi
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Chi tiết CO2 cho từng lần đo */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-gray-900">
+                      <Factory className="h-3.5 w-3.5 text-red-500" />
+                      <span>Phát thải CO₂</span>
+                    </div>
+                    <div>
+                      Tổng: <span className="font-semibold">{record.co2Footprint ?? '—'}</span> tấn CO₂
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-gray-900">
+                      <Zap className="h-3.5 w-3.5 text-yellow-500" />
+                      <span>Năng lượng</span>
+                    </div>
+                    <div>Điện: <span className="font-semibold">{record.energyUsage?.electricityKwh ?? '—'}</span> kWh</div>
+                    <div>Xăng: <span className="font-semibold">{record.energyUsage?.gasolineLiters ?? '—'}</span> lít</div>
+                    <div>Diesel: <span className="font-semibold">{record.energyUsage?.dieselLiters ?? '—'}</span> lít</div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-gray-900">
+                      <Leaf className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Đất & Thời tiết</span>
+                    </div>
+                    <div>
+                      Cát/Sét/Limon:{" "}
+                      <span className="font-semibold">
+                        {record.sandPct ?? '—'} / {record.clayPct ?? '—'} / {record.siltPct ?? '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Droplets className="h-3 w-3 text-sky-600" />
+                      <span>pH H₂O: <span className="font-semibold">{record.phh2o ?? '—'}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CloudRain className="h-3 w-3 text-sky-600" />
+                      <span>Mưa: <span className="font-semibold">{record.precipitationSum ?? '—'}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Sun className="h-3 w-3 text-amber-500" />
+                      <span>ET0 FAO: <span className="font-semibold">{record.et0FaoEvapotranspiration ?? '—'}</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* AlertDialog cho xác nhận xóa */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

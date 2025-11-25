@@ -34,7 +34,7 @@ interface OverviewPageProps {
   setSelectedPeriod: (period: string) => void;
 }
 
-export const OverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPageProps) => {
+export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPageProps) => {
   const viewOrder = (orderId: string) => {
     // Navigate to order detail page
     console.log(`Navigate to order detail: ${orderId}`);

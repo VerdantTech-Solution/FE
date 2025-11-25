@@ -1,60 +1,37 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Users,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  User,
-  Mail,
-  Phone,
-  Shield,
-  Activity,
-  MoreHorizontal,
-  RefreshCw,
-  UserPlus,
-  CheckCircle2
-} from "lucide-react";
-import { getAllUsers, createStaff } from "@/api/user";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Search, Trash2, RefreshCw, Edit2, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal, Building2, UserPlus} from "lucide-react";
+import { getAllUsers, updateUser, deleteUser, createStaff, type UserResponse } from "@/api/user";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AdminVendorManagementPanel } from "./AdminVendorManagementPanel";
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { UserResponse } from "@/api/user";
-import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { motion } from "framer-motion";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
-export const UserManamentPage = () => {
+type Role = "staff" | "admin" | "user" | "all";
+
+export const AdminUserManagementPanel: React.FC = () => {
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState('all');
+  const [query, setQuery] = useState("");
+  const [role, setRole] = useState<Role>("all");
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersPerPage] = useState(3);
-
-  // Create user dialog states
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [newFullName, setNewFullName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  // Success dialog state
-  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
-  const [createdUserName, setCreatedUserName] = useState('');
-  // Luôn tạo staff, không cần state cho role
+  const [usersPerPage] = useState(10);
 
   // Edit user dialog states
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -65,6 +42,21 @@ export const UserManamentPage = () => {
   const [editPhone, setEditPhone] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [editStatus, setEditStatus] = useState<'active' | 'inactive' | 'suspended' | 'deleted'>('active');
+
+  // Delete user dialog states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteUserName, setDeleteUserName] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  // Create user dialog states
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [newFullName, setNewFullName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [createResultDialogOpen, setCreateResultDialogOpen] = useState(false);
+  const [createResult, setCreateResult] = useState<{ type: 'success' | 'error'; message: string }>({ type: 'success', message: '' });
 
   // Fetch users from API
   const fetchUsers = useCallback(async () => {
@@ -85,34 +77,6 @@ export const UserManamentPage = () => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleCreateUser = async () => {
-    try {
-      setCreateError(null);
-      setCreateLoading(true);
-      
-      // Luôn tạo staff với API mới (không cần password)
-      await createStaff({
-        email: newEmail,
-        fullName: newFullName,
-        phoneNumber: newPhone
-      });
-      
-      // Hiển thị success dialog
-      setCreatedUserName(newFullName || newEmail);
-      setIsCreateOpen(false);
-      setNewEmail('');
-      setNewFullName('');
-      setNewPhone('');
-      await fetchUsers();
-      setSuccessDialogOpen(true);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Tạo nhân viên thất bại';
-      setCreateError(message);
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
   const openEditDialog = (user: UserResponse) => {
     setEditError(null);
     setEditUserId(user.id);
@@ -128,7 +92,6 @@ export const UserManamentPage = () => {
     try {
       setEditError(null);
       setEditLoading(true);
-      const { updateUser } = await import('@/api/user');
       await updateUser(editUserId, {
         fullName: editFullName,
         phoneNumber: editPhone,
@@ -146,16 +109,73 @@ export const UserManamentPage = () => {
     }
   };
 
-  // Lọc users
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.phoneNumber && user.phoneNumber.includes(searchTerm));
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-    const matchesStatus = selectedStatus === 'all' || (user.status && user.status === selectedStatus);
+  const openDeleteDialog = (user: UserResponse) => {
+    setDeleteUserId(user.id);
+    setDeleteUserName(user.fullName || user.email);
+    setDeleteDialogOpen(true);
+  };
 
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    try {
+      setDeleteLoading(true);
+      await deleteUser(deleteUserId);
+      setDeleteDialogOpen(false);
+      await fetchUsers();
+      window.alert('Xóa người dùng thành công');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Xóa người dùng thất bại';
+      window.alert(message);
+    } finally {
+      setDeleteLoading(false);
+      setDeleteUserId(null);
+      setDeleteUserName('');
+    }
+  };
+  const handleCreateUser = async () => {
+    try {
+      setCreateError(null);
+      setCreateLoading(true);
+      await createStaff({
+        email: newEmail,
+        fullName: newFullName,
+        phoneNumber: newPhone,
+      });
+      setIsCreateOpen(false);
+      setNewEmail('');
+      setNewFullName('');
+      setNewPhone('');
+      await fetchUsers();
+      setCreateResult({
+        type: 'success',
+        message: `Đã tạo nhân viên ${newFullName || newEmail} thành công.`,
+      });
+      setCreateResultDialogOpen(true);
+    } catch (err: any) {
+      const message = err?.message || 'Tạo nhân viên thất bại';
+      setCreateError(message);
+      setCreateResult({
+        type: 'error',
+        message,
+      });
+      setCreateResultDialogOpen(true);
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  // Filter users
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = user.fullName.toLowerCase().includes(query.toLowerCase()) ||
+        user.email.toLowerCase().includes(query.toLowerCase()) ||
+        (user.phoneNumber && user.phoneNumber.includes(query));
+      const matchesRole = role === 'all' || user.role.toLowerCase() === role.toLowerCase();
+      const matchesStatus = selectedStatus === 'all' || (user.status && user.status.toLowerCase() === selectedStatus);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, query, role, selectedStatus]);
 
   // Pagination
   const indexOfLastUser = currentPage * usersPerPage;
@@ -167,18 +187,16 @@ export const UserManamentPage = () => {
     setCurrentPage(pageNumber);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
-
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'Admin':
+      case 'admin':
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'Customer':
+      case 'customer':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Farmer':
+      case 'farmer':
         return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'staff':
+        return 'bg-green-100 text-green-800 border-green-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -222,13 +240,13 @@ export const UserManamentPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-      <div className="text-center">
-      <div className="flex justify-center mb-6">
-          <Spinner variant="circle-filled" size={60} className="text-green-600" />
+        <div className="text-center">
+        <div className="flex justify-center mb-6">
+            <Spinner variant="circle-filled" size={60} className="text-green-600" />
+          </div>
+          <p className="text-gray-600">Đang tải danh sách người dùng...</p>
         </div>
-        <p className="text-gray-600">Đang tải danh sách người dùng...</p>
       </div>
-    </div>
     );
   }
 
@@ -241,8 +259,8 @@ export const UserManamentPage = () => {
           <h3 className="text-xl font-medium text-gray-900 mb-2">Đã xảy ra lỗi</h3>
           <p className="text-gray-500 mb-6">{error}</p>
           <Button
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => fetchUsers()}
+            className="bg-green-600 hover:bg-green-700"
           >
             Thử lại
           </Button>
@@ -261,76 +279,90 @@ export const UserManamentPage = () => {
         className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý người dùng</h1>
-          <p className="text-gray-600 mt-1">Quản lý tài khoản và quyền truy cập của người dùng</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4" />
-                Thêm nhân viên
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Thêm nhân viên mới</DialogTitle>
-                <p className="text-sm text-blue-600 mt-2">
-                  💡 Mật khẩu sẽ được tự động tạo và gửi qua email
-                </p>
-              </DialogHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Họ và tên</label>
-                  <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="Nguyễn Văn A" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Email</label>
-                  <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="user@example.com" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Số điện thoại</label>
-                  <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+84540170197" />
-                </div>
-              </div>
-              {createError && (
-                <p className="text-sm text-red-600">{createError}</p>
-              )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={createLoading}>Hủy</Button>
-                <Button onClick={handleCreateUser} disabled={createLoading || !newEmail || !newFullName}>
-                  {createLoading ? 'Đang tạo...' : 'Tạo nhân viên'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button
-            onClick={() => {
-              setCurrentPage(1);
-              window.location.reload();
-            }}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Làm mới
-          </Button>
+          <h2 className="text-2xl font-semibold text-gray-900">Quản lý người dùng & Vendor</h2>
+          <p className="text-sm text-gray-500">Quản lý tài khoản, quyền truy cập và thông tin vendor</p>
         </div>
       </motion.div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Quản lý người dùng
+          </TabsTrigger>
+          <TabsTrigger value="vendors" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Quản lý Vendor
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Users Tab Content */}
+        <TabsContent value="users" className="space-y-6">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <Button
+              onClick={() => {
+                setCurrentPage(1);
+                fetchUsers();
+              }}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Làm mới
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Tạo nhân viên
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Thêm nhân viên mới</DialogTitle>
+                  <p className="text-sm text-gray-500">Nhập thông tin nhân viên để tạo tài khoản staff.</p>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Họ và tên</label>
+                    <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Email</label>
+                    <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="staff@example.com" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Số điện thoại</label>
+                    <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+84123456789" />
+                  </div>
+                </div>    
+                {createError && <p className="text-sm text-red-600">{createError}</p>}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={createLoading}>
+                    Hủy
+                  </Button>
+                  <Button onClick={handleCreateUser} disabled={createLoading || !newEmail || !newFullName}>
+                    {createLoading ? 'Đang tạo...' : 'Tạo nhân viên'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
 
       {/* Stats Cards */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-600">Tổng người dùng</p>
-                <p className="text-3xl font-bold text-blue-900">{users.length}</p>
+                <p className="text-2xl font-bold text-blue-900">{users.length}</p>
               </div>
               <div className="p-3 bg-blue-200 rounded-full">
                 <Users className="w-8 h-8 text-blue-700" />
@@ -344,7 +376,7 @@ export const UserManamentPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600">Admin</p>
-                <p className="text-3xl font-bold text-green-900">
+                <p className="text-2xl font-bold text-green-900">
                   {users.filter(u => u.role === 'Admin').length}
                 </p>
               </div>
@@ -360,7 +392,7 @@ export const UserManamentPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-purple-600">Customer</p>
-                <p className="text-3xl font-bold text-purple-900">
+                <p className="text-2xl font-bold text-purple-900">
                   {users.filter(u => u.role === 'Customer').length}
                 </p>
               </div>
@@ -376,7 +408,7 @@ export const UserManamentPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-orange-600">Hoạt động</p>
-                <p className="text-3xl font-bold text-orange-900">
+                <p className="text-2xl font-bold text-orange-900">
                   {users.filter(u => u.status === 'Active').length}
                 </p>
               </div>
@@ -397,7 +429,7 @@ export const UserManamentPage = () => {
         <Card className="border-gray-200">
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
-              <Filter className="w-5 h-5 mr-2 text-gray-600" />
+              <Search className="w-5 h-5 mr-2 text-gray-600" />
               Bộ lọc và tìm kiếm
             </CardTitle>
           </CardHeader>
@@ -409,8 +441,8 @@ export const UserManamentPage = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     placeholder="Tìm theo tên, email, số điện thoại..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
@@ -418,15 +450,15 @@ export const UserManamentPage = () => {
 
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Vai trò</label>
-                <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <Select value={role} onValueChange={(v) => setRole(v as Role)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn vai trò" />
+                    <SelectValue placeholder="Tất cả vai trò" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tất cả vai trò</SelectItem>
-                    <SelectItem value="Admin">Admin</SelectItem>
                     <SelectItem value="Customer">Customer</SelectItem>
-                    <SelectItem value="Farmer">Farmer</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="Admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -441,7 +473,7 @@ export const UserManamentPage = () => {
                     <SelectItem value="all">Tất cả trạng thái</SelectItem>
                     <SelectItem value="active">Hoạt động</SelectItem>
                     <SelectItem value="inactive">Không hoạt động</SelectItem>
-
+                    <SelectItem value="suspended">Tạm khóa</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -450,8 +482,8 @@ export const UserManamentPage = () => {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setSearchTerm('');
-                    setSelectedRole('all');
+                    setQuery('');
+                    setRole('all');
                     setSelectedStatus('all');
                   }}
                   className="w-full"
@@ -486,90 +518,88 @@ export const UserManamentPage = () => {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Người dùng</th>
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Thông tin liên hệ</th>
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Vai trò</th>
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Trạng thái</th>
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Ngày tạo</th>
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentUsers.map((user, index) => (
-                    <motion.tr
-                      key={user.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <div className="flex items-center">
-                          {user.avatarUrl ? (
-                            <img
-                              src={user.avatarUrl}
-                              alt={`Avatar của ${user.fullName}`}
-                              className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                              {user.fullName.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="ml-4">
-                            <p className="font-semibold text-gray-900">{user.fullName}</p>
-                            <p className="text-sm text-gray-500">ID: {user.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center text-sm">
-                            <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                            <span className="text-gray-700">{user.email}</span>
-                          </div>
-                          <div className="flex items-center text-sm">
-                            <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                            <span className="text-gray-700">{user.phoneNumber || 'Chưa có'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg">{getStatusIcon(user.status || '')}</span>
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status || '')}`}>
-                            {user.status || 'Chưa xác định'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-500">
-                        {user.createdAt && typeof user.createdAt === 'string' ? formatDate(user.createdAt) : 'Chưa có'}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-2">
-                          <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={() => openEditDialog(user)}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="grid grid-cols-12 bg-gray-50 px-5 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide border-b">
+                <div className="col-span-3">Người dùng</div>
+                <div className="col-span-3">Thông tin liên hệ</div>
+                <div className="col-span-2">Vai trò</div>
+                <div className="col-span-2">Trạng thái</div>
+                <div className="col-span-2 text-right">Hành động</div>
+              </div>
+              {currentUsers.map((user, index) => (
+                <motion.div
+                  key={user.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className="grid grid-cols-12 items-center px-5 py-4 border-b hover:bg-gray-50 transition-colors"
+                >
+                  <div className="col-span-3 flex items-center gap-3">
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={`Avatar của ${user.fullName}`}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-medium text-gray-900">{user.fullName}</div>
+                      <div className="text-xs text-gray-500">ID: {user.id}</div>
+                    </div>
+                  </div>
+                  <div className="col-span-3">
+                    <div className="flex items-center text-sm mb-1">
+                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                      <span className="text-gray-700">{user.email}</span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                      <span className="text-gray-700">{user.phoneNumber || 'Chưa có'}</span>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}>
+                      {user.role}
+                    </span>
+                  </div>
+                                     <div className="col-span-2">
+                     <div className="flex items-center space-x-2">
+                       <span className="text-lg">{getStatusIcon(user.status || '')}</span>
+                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status || '')}`}>
+                         {user.status || 'Chưa xác định'}
+                       </span>
+                     </div>
+                   </div>
+                   <div className="col-span-2 text-right">
+                     <div className="inline-flex items-center gap-2">
+                       <Button 
+                         size="sm" 
+                         variant="outline" 
+                         className="h-8 w-8 border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700" 
+                         title="Chỉnh sửa" 
+                         onClick={() => openEditDialog(user)}
+                       >
+                         <Edit2 className="w-4 h-4" />
+                       </Button>
+                       <Button 
+                         size="sm" 
+                         variant="outline" 
+                         className="h-8 w-8 border-red-600 text-red-600 hover:bg-red-50 hover:border-red-700" 
+                         title="Xóa" 
+                         onClick={() => openDeleteDialog(user)}
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </Button>
+                       <Button size="sm" variant="ghost" className="h-8 w-8" title="Xem thêm">
+                         <MoreHorizontal className="w-4 h-4" />
+                       </Button>
+                     </div>
+                   </div>
+                </motion.div>
+              ))}
             </div>
 
             {/* Empty State */}
@@ -581,8 +611,8 @@ export const UserManamentPage = () => {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setSearchTerm('');
-                    setSelectedRole('all');
+                    setQuery('');
+                    setRole('all');
                     setSelectedStatus('all');
                   }}
                 >
@@ -661,7 +691,7 @@ export const UserManamentPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
-
+                  <SelectItem value="inactive">Inactive</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                   <SelectItem value="deleted">Deleted</SelectItem>
                 </SelectContent>
@@ -680,37 +710,64 @@ export const UserManamentPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Success Alert Dialog */}
-      <AlertDialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-        <AlertDialogContent className="sm:max-w-md">
+      {/* Delete User Alert Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <div className="flex items-center justify-center mb-4">
-              <div className="rounded-full bg-green-100 p-3">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
-              </div>
+            <AlertDialogTitle>Xác nhận xóa người dùng</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa người dùng <strong>{deleteUserName}</strong>? 
+              Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? 'Đang xóa...' : 'Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Create user result dialog */}
+      <AlertDialog open={createResultDialogOpen} onOpenChange={setCreateResultDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader className="text-center space-y-3">
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${createResult.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
+              {createResult.type === 'success' ? (
+                <Shield className="h-8 w-8 text-green-600" />
+              ) : (
+                <Trash2 className="h-8 w-8 text-red-600" />
+              )}
             </div>
-            <AlertDialogTitle className="text-center text-xl font-semibold">
-              Tạo nhân viên thành công!
+            <AlertDialogTitle className="text-xl font-semibold">
+              {createResult.type === 'success' ? 'Tạo nhân viên thành công' : 'Tạo nhân viên thất bại'}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-center space-y-2">
-              <p>
-                Tài khoản nhân viên <strong>{createdUserName}</strong> đã được tạo thành công.
-              </p>
-              <p className="text-sm text-blue-600 mt-2">
-                💡 Mật khẩu đã được tự động gửi qua email.
-              </p>
+            <AlertDialogDescription className="text-center text-gray-600">
+              {createResult.message}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction
-              onClick={() => setSuccessDialogOpen(false)}
-              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
-            >
+            <AlertDialogAction onClick={() => setCreateResultDialogOpen(false)} className="w-full sm:w-auto">
               Đóng
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+
+        {/* Vendors Tab Content */}
+        <TabsContent value="vendors" className="space-y-6">
+          <AdminVendorManagementPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
+
+export default AdminUserManagementPanel;
+
+

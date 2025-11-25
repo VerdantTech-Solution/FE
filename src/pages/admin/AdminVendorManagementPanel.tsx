@@ -22,7 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
-export const VendorManagementPanel: React.FC = () => {
+export const AdminVendorManagementPanel: React.FC = () => {
   const { user } = useAuth();
   const [allVendors, setAllVendors] = useState<VendorProfileResponse[]>([]); // Tất cả vendors từ API
   const [loading, setLoading] = useState(false);
@@ -1003,5 +1003,5 @@ export const VendorManagementPanel: React.FC = () => {
   );
 };
 
-export default VendorManagementPanel;
+export default AdminVendorManagementPanel;
 

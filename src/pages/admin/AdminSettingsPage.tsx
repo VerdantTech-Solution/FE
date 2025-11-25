@@ -13,7 +13,7 @@ import {
   RefreshCw
 } from "lucide-react";
 
-export const SettingsPage = () => {
+export const AdminSettingsPage = () => {
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,

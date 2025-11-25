@@ -29,23 +29,21 @@ import {
 
 // Import admin pages
 import { 
-  OverviewPage, 
-  AnalyticsPage, 
-  EquipmentPage, 
-  MonitoringPageAdmin, 
-  SettingsPage
+  AdminOverviewPage, 
+  AdminAnalyticsPage, 
+  AdminEquipmentPage, 
+  AdminMonitoringPage, 
+  AdminSettingsPage,
+  AdminWarehousePanel,
+  AdminProductManagementPanel,
+  AdminUserManagementPanel,
+  AdminOrderManagementPanel,
+  AdminPostManagementPanel,
+  AdminBalanceManagement,
+  AdminCashoutManagementPanel,
+  AdminSupportRequestManagementPanel,
+  AdminCategoryManagementPanel,
 } from "./admin";
-import {
-  WarehousePanel,
-  ProductManagementPanel,
-  UserManagementPanel as StaffUserManagementPanel,
-  OrderManagementPanel as StaffOrderManagementPanel,
-  MonitoringPage as StaffMonitoringPage,
-  CashoutManagementPanel,
-  SupportRequestManagementPanel,
-  BalanceManagement,
-  PostManagementPanel,
-} from "./staff";
 
 type AdminView =
   | 'overview'
@@ -427,7 +425,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <WarehousePanel />
+                <AdminWarehousePanel />
               </motion.div>
             )}
             {selectedView === 'products' && (
@@ -438,7 +436,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <ProductManagementPanel />
+                <AdminProductManagementPanel />
               </motion.div>
             )}
             {selectedView === 'users' && (
@@ -449,7 +447,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <StaffUserManagementPanel />
+                <AdminUserManagementPanel />
               </motion.div>
             )}
             {selectedView === 'orders' && (
@@ -460,7 +458,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <StaffOrderManagementPanel />
+                <AdminOrderManagementPanel />
               </motion.div>
             )}
             {selectedView === 'posts' && (
@@ -471,7 +469,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <PostManagementPanel />
+                <AdminPostManagementPanel />
               </motion.div>
             )}
             {selectedView === 'categories' && (
@@ -482,7 +480,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <StaffMonitoringPage />
+                <CategoryManagementPanel />
               </motion.div>
             )}
             {selectedView === 'balance' && (
@@ -493,7 +491,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <BalanceManagement />
+                <AdminBalanceManagement />
               </motion.div>
             )}
             {selectedView === 'cashout' && (
@@ -504,7 +502,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <CashoutManagementPanel />
+                <AdminCashoutManagementPanel />
               </motion.div>
             )}
             {selectedView === 'support' && (
@@ -515,7 +513,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <SupportRequestManagementPanel />
+                <AdminSupportRequestManagementPanel />
               </motion.div>
             )}
             {selectedView === 'overview' && (
@@ -526,7 +524,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <OverviewPage 
+                <AdminOverviewPage 
                   selectedPeriod={selectedPeriod}
                   setSelectedPeriod={setSelectedPeriod}
                 />
@@ -540,7 +538,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <AnalyticsPage />
+                <AdminAnalyticsPage />
               </motion.div>
             )}
             {selectedView === 'equipment' && (
@@ -551,7 +549,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <EquipmentPage />
+                <AdminEquipmentPage />
               </motion.div>
             )}
             {selectedView === 'monitoring' && (
@@ -562,7 +560,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <MonitoringPageAdmin />
+                <AdminMonitoringPage />
               </motion.div>
             )}
             {selectedView === 'settings' && (
@@ -573,7 +571,7 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <SettingsPage />
+                <AdminSettingsPage />
               </motion.div>
             )}
           </AnimatePresence>
