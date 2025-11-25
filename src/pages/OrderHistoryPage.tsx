@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getOrdersByUser, updateOrderStatus, type OrderWithCustomer } from '@/api/order';
+import { getOrdersByUser, type OrderWithCustomer } from '@/api/order';
+import { createTicket, type TicketImage } from '@/api/ticket';
 import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
 import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2 } from 'lucide-react';
 
@@ -153,6 +154,8 @@ export default function OrderHistoryPage() {
   const [returning, setReturning] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
   const [returnSuccess, setReturnSuccess] = useState<string | null>(null);
+  const [returnImages, setReturnImages] = useState<TicketImage[]>([]);
+  const [returnImagesUploading, setReturnImagesUploading] = useState(false);
 
   const loadOrders = async (page: number = 1) => {
     try {
@@ -344,6 +347,7 @@ export default function OrderHistoryPage() {
     setReturnReason('');
     setReturnError(null);
     setReturnSuccess(null);
+    setReturnImages([]);
     setReturnOrderDialogOpen(true);
   };
 
@@ -353,6 +357,76 @@ export default function OrderHistoryPage() {
     setReturnReason('');
     setReturnError(null);
     setReturnSuccess(null);
+    setReturnImages([]);
+  };
+
+  const handleReturnImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || returnImagesUploading) return;
+
+    const MAX_IMAGES = 5;
+    const remainingSlots = MAX_IMAGES - returnImages.length;
+    if (remainingSlots <= 0) {
+      setReturnError('Bạn chỉ có thể tải lên tối đa 5 hình ảnh cho mỗi yêu cầu hoàn hàng.');
+      return;
+    }
+
+    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    const oversized = selectedFiles.find(file => file.size > 5 * 1024 * 1024);
+    if (oversized) {
+      setReturnError(`Ảnh ${oversized.name} vượt quá dung lượng 5MB.`);
+      return;
+    }
+
+    const invalidType = selectedFiles.find(file => !file.type.startsWith('image/'));
+    if (invalidType) {
+      setReturnError(`File ${invalidType.name} không phải là hình ảnh.`);
+      return;
+    }
+
+    setReturnError(null);
+    setReturnImagesUploading(true);
+
+    try {
+      const uploads = await Promise.all(
+        selectedFiles.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('upload_preset', 'Cloudinary Test');
+          formData.append(
+            'public_id',
+            `return_ticket_${Date.now()}_${Math.random().toString(36).slice(2)}`
+          );
+
+          const response = await fetch('https://api.cloudinary.com/v1_1/dtlkjzuhq/image/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Không thể tải ảnh ${file.name}. Vui lòng thử lại.`);
+          }
+
+          const data = await response.json();
+          return {
+            imageUrl: data.secure_url,
+            imagePublicId: data.public_id,
+          } as TicketImage;
+        })
+      );
+
+      setReturnImages(prev => [...prev, ...uploads]);
+    } catch (err: any) {
+      console.error('Upload return image error:', err);
+      setReturnError(err?.message || 'Không thể tải hình ảnh. Vui lòng thử lại.');
+    } finally {
+      setReturnImagesUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleRemoveReturnImage = (index: number) => {
+    setReturnImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleReturnOrder = async () => {
@@ -367,25 +441,35 @@ export default function OrderHistoryPage() {
     setReturnSuccess(null);
 
     try {
-      const response = await updateOrderStatus(returningOrderId, {
-        status: 'Refunded',
-        cancelledReason: returnReason.trim()
+      const currentOrder = orders.find((order) => order.id === returningOrderId);
+      const descriptionSegments = [
+        `Đơn hàng #${returningOrderId}`,
+        currentOrder ? `Tổng tiền: ${currency(currentOrder.totalAmount)}` : '',
+        '',
+        `Lý do hoàn hàng:`,
+        returnReason.trim(),
+      ].filter(Boolean);
+
+      const response = await createTicket({
+        requestType: 'RefundRequest',
+        title: `Yêu cầu hoàn hàng - Đơn #${returningOrderId}`,
+        description: descriptionSegments.join('\n'),
+        images: returnImages.length > 0 ? returnImages : undefined,
       });
 
       if (response?.status === false) {
-        const message = response.errors?.[0] || 'Không thể hoàn hàng. Vui lòng thử lại sau.';
+        const message = response.errors?.[0] || 'Không thể tạo yêu cầu hoàn hàng. Vui lòng thử lại sau.';
         setReturnError(message);
         return;
       }
 
-      setReturnSuccess('Yêu cầu hoàn hàng đã được gửi thành công. Chúng tôi sẽ xử lý trong thời gian sớm nhất.');
-      await loadOrders(currentPage);
+      setReturnSuccess('Yêu cầu hoàn hàng đã được gửi đến bộ phận hỗ trợ. Chúng tôi sẽ phản hồi sớm nhất.');
       setTimeout(() => {
         handleCloseReturnDialog();
       }, 2000);
     } catch (err: any) {
       console.error('Return order error:', err);
-      const message = err?.errors?.[0] || err?.message || 'Không thể hoàn hàng. Vui lòng thử lại sau.';
+      const message = err?.errors?.[0] || err?.message || 'Không thể tạo yêu cầu hoàn hàng. Vui lòng thử lại sau.';
       setReturnError(message);
     } finally {
       setReturning(false);
@@ -975,6 +1059,60 @@ export default function OrderHistoryPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="returnImagesInput" className="text-sm font-medium text-gray-700">
+                Hình ảnh sản phẩm (tối đa 5 ảnh)
+              </Label>
+              <p className="text-xs text-gray-500">
+                Vui lòng thêm tối thiểu 1 ảnh nếu sản phẩm lỗi để hỗ trợ kiểm tra nhanh hơn. Mỗi ảnh ≤ 5MB.
+              </p>
+              {returnImages.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {returnImages.map((image, index) => (
+                    <div key={image.imagePublicId} className="relative h-20 w-20 rounded-md border overflow-hidden">
+                      <img src={image.imageUrl} alt={`Ảnh hoàn hàng ${index + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveReturnImage(index)}
+                        className="absolute right-1 top-1 rounded-full bg-black/60 text-white p-1 hover:bg-black/80"
+                        aria-label="Xóa hình ảnh"
+                        disabled={returning}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <Input
+                  id="returnImagesInput"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleReturnImageUpload}
+                  disabled={returnImages.length >= 5 || returnImagesUploading || returning}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('returnImagesInput')?.click()}
+                  disabled={returnImages.length >= 5 || returnImagesUploading || returning}
+                  className="flex items-center gap-2"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  Thêm ảnh
+                </Button>
+              </div>
+              {returnImagesUploading && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Spinner variant="circle-filled" size={16} className="text-green-600" />
+                  <span>Đang tải ảnh lên...</span>
+                </div>
+              )}
+            </div>
+
             {returnError && (
               <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                 {returnError}
@@ -991,14 +1129,14 @@ export default function OrderHistoryPage() {
                 type="button"
                 variant="outline"
                 onClick={handleCloseReturnDialog}
-                disabled={returning}
+                disabled={returning || returnImagesUploading}
               >
                 Hủy
               </Button>
               <Button
                 type="button"
                 onClick={handleReturnOrder}
-                disabled={returning || !returnReason.trim()}
+                disabled={returning || returnImagesUploading || !returnReason.trim()}
                 className="bg-orange-600 hover:bg-orange-700 text-white"
               >
                 {returning ? (

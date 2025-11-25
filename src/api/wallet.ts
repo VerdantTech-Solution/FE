@@ -336,8 +336,10 @@ export const getVendorCashoutHistory = async (
   }
 };
 
+export type ManualCashoutStatus = 'Completed' | 'Failed' | 'Cancelled';
+
 export interface ProcessCashoutManualRequest {
-  status: 'Completed' | 'Failed' | 'Cancelled';
+  status: ManualCashoutStatus;
   gatewayPaymentId?: string;
   cancelReason?: string;
 }
@@ -349,18 +351,92 @@ export interface ProcessCashoutManualResponse {
   errors: string[];
 }
 
+const getManualCashoutValidationMessage = (request: ProcessCashoutManualRequest): string | null => {
+  if (request.status === 'Completed' && !request.gatewayPaymentId?.trim()) {
+    return 'Gateway Payment ID là bắt buộc khi chuyển trạng thái Completed';
+  }
+
+  if ((request.status === 'Failed' || request.status === 'Cancelled') && !request.cancelReason?.trim()) {
+    return 'Lý do hủy là bắt buộc khi chuyển trạng thái Failed/Cancelled';
+  }
+
+  return null;
+};
+
+const buildManualCashoutPayload = (
+  request: ProcessCashoutManualRequest
+): ProcessCashoutManualRequest => {
+  const payload: ProcessCashoutManualRequest = {
+    status: request.status,
+  };
+
+  if (request.status === 'Completed' && request.gatewayPaymentId?.trim()) {
+    payload.gatewayPaymentId = request.gatewayPaymentId.trim();
+  }
+
+  if ((request.status === 'Failed' || request.status === 'Cancelled') && request.cancelReason?.trim()) {
+    payload.cancelReason = request.cancelReason.trim();
+  }
+
+  return payload;
+};
+
+const buildManualCashoutResponse = (
+  overrides?: Partial<ProcessCashoutManualResponse>
+): ProcessCashoutManualResponse => ({
+  status: false,
+  statusCode: 'Error',
+  data: '',
+  errors: ['Không thể xử lý yêu cầu rút tiền'],
+  ...overrides,
+});
+
+const normalizeManualCashoutResponse = (
+  response: unknown
+): ProcessCashoutManualResponse => {
+  if (response && typeof response === 'object' && 'status' in response) {
+    return response as ProcessCashoutManualResponse;
+  }
+
+  if (typeof response === 'string') {
+    return {
+      status: true,
+      statusCode: 'OK',
+      data: response,
+      errors: [],
+    };
+  }
+
+  throw new Error('Invalid response format from manual cashout API');
+};
+
 export const processCashoutManual = async (
   userId: number,
   request: ProcessCashoutManualRequest
 ): Promise<ProcessCashoutManualResponse> => {
+  const validationMessage = getManualCashoutValidationMessage(request);
+  if (validationMessage) {
+    return buildManualCashoutResponse({
+      status: false,
+      statusCode: 'ValidationError',
+      errors: [validationMessage],
+    });
+  }
+
   try {
     const response = await apiClient.post<ProcessCashoutManualResponse>(
       `/api/Wallet/${userId}/process-cashout-manual`,
-      request
-    ) as unknown as ProcessCashoutManualResponse;
+      buildManualCashoutPayload(request)
+    );
 
-    return response;
+    return normalizeManualCashoutResponse(response);
   } catch (error: any) {
+    if (typeof error === 'string') {
+      return buildManualCashoutResponse({
+        errors: [error],
+      });
+    }
+
     if (error && typeof error === 'object' && 'status' in error) {
       return error as ProcessCashoutManualResponse;
     }
@@ -370,23 +446,17 @@ export const processCashoutManual = async (
     }
 
     if (error && typeof error === 'object' && 'errors' in error) {
-      const errorResponse: ProcessCashoutManualResponse = {
-        status: false,
+      return buildManualCashoutResponse({
         statusCode: error.statusCode || 'Error',
-        data: '',
-        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể xử lý yêu cầu rút tiền']
-      };
-      return errorResponse;
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || 'Không thể xử lý yêu cầu rút tiền'],
+      });
     }
 
-    const errorResponse: ProcessCashoutManualResponse = {
-      status: false,
-      statusCode: 'Error',
-      data: '',
-      errors: [error?.message || error?.toString() || 'Không thể xử lý yêu cầu rút tiền']
-    };
-
-    return errorResponse;
+    return buildManualCashoutResponse({
+      errors: [error?.message || error?.toString() || 'Không thể xử lý yêu cầu rút tiền'],
+    });
   }
 };
 
