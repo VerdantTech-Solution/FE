@@ -188,14 +188,14 @@ export const RegisterProductPage = () => {
     setManualFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleManualFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const newFiles = [...manualFiles];
-      newFiles[index] = e.target.files[0];
-      setManualFiles(newFiles);
-    }
-    e.target.value = '';
-  };
+  // const handleManualFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (e.target.files && e.target.files[0]) {
+  //     const newFiles = [...manualFiles];
+  //     newFiles[index] = e.target.files[0];
+  //     setManualFiles(newFiles);
+  //   }
+  //   e.target.value = '';
+  // };
 
   const addImageFile = () => {
     // Tạo một input file ẩn để trigger

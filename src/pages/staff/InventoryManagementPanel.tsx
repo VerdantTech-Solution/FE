@@ -77,10 +77,10 @@ export const InventoryManagementPanel: React.FC = () => {
   // Form states
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [availableSerials, setAvailableSerials] = useState<ProductSerial[]>([]);
-  const [availableLotNumbers, setAvailableLotNumbers] = useState<string[]>([]);
-  const [lotNumberSearchQuery, setLotNumberSearchQuery] = useState("");
-  const [showLotNumberSuggestions, setShowLotNumberSuggestions] = useState(false);
+  const [setAvailableSerials] = useState<ProductSerial[]>([]);
+  const [setAvailableLotNumbers] = useState<string[]>([]);
+  const [setLotNumberSearchQuery] = useState("");
+  const [setShowLotNumberSuggestions] = useState(false);
   
   // Import form
   const [importForm, setImportForm] = useState<CreateBatchInventoryDTO>({
@@ -113,8 +113,8 @@ export const InventoryManagementPanel: React.FC = () => {
   ]);
   
   // Product search for export
-  const [productSearchQuery, setProductSearchQuery] = useState("");
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [setProductSearchQuery] = useState("");
+  const [setShowProductSuggestions] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1155,6 +1155,7 @@ export const InventoryManagementPanel: React.FC = () => {
                   placeholder="SN001&#10;SN002&#10;SN003"
                   rows={5}
                   value={importForm.serialNumbers?.join("\n") || ""}
+                  
                   onChange={(e) => {
                     const serials = e.target.value.split("\n").filter(s => s.trim());
                     setImportForm(prev => ({ ...prev, serialNumbers: serials }));
@@ -1264,9 +1265,7 @@ export const InventoryManagementPanel: React.FC = () => {
                         if (product) {
                           // Fetch available serials if machine
                           if (isMachineProduct(productId)) {
-                            getAvailableProductSerials(productId).then(serials => {
-                              // Store serials per item (simplified - can be improved)
-                            }).catch(console.error);
+                            getAvailableProductSerials(productId).catch(console.error);
                           }
                         }
                       }}

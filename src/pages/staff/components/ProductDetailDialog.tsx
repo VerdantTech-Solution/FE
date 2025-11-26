@@ -25,7 +25,6 @@ import {
   updateProductCommission,
   type Product,
   getMediaLinks,
-  type MediaLinkItemDTO,
   type Certificate,
   getProductRegistrations
 } from "@/api/product";

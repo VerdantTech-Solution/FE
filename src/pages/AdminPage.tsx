@@ -438,7 +438,9 @@ export const AdminPage = () => {
                 animate="visible"
                 exit="exit"
               >
-                <CategoryManagementPanel />
+                {/* <CategoryManagementPanel /> */}
+                <AdminCategoryManagementPanel />
+
               </motion.div>
             )}
             {selectedView === 'balance' && (
