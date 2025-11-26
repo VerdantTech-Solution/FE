@@ -83,7 +83,8 @@ export const sendChatbotMessage = async (
 ): Promise<string> => {
   const webhookUrl =
     import.meta.env.VITE_API_AI_CHATBOT ||
-    import.meta.env.VITE_AI_WEBHOOK_CHATBOT_URL;
+    import.meta.env.VITE_AI_WEBHOOK_CHATBOT_URL||
+    import.meta.env.VITE_AI_WEBHOOK_URL;
 
   if (!webhookUrl) {
     throw new Error('Chưa cấu hình URL cho chatbot AI.');
