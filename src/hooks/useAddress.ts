@@ -136,6 +136,7 @@ export const useAddress = () => {
   }, []);
 
   // Set initial values (for editing existing data)
+  // This function should only be called once when initializing
   const setInitialAddress = useCallback(async (cityName: string, districtName: string, wardName: string) => {
     if (!addressData.cities.length) return;
 
@@ -146,38 +147,66 @@ export const useAddress = () => {
       cityName.includes(c.name)
     );
 
-    if (city) {
-      await selectCity(city);
-      
-      // Wait for districts to load, then find district
-      setTimeout(async () => {
-        const districts = await getDistricts(city.provinceId);
-        const district = districts.find(d => 
-          d.name === districtName || 
-          d.name.includes(districtName) ||
-          districtName.includes(d.name)
-        );
+    if (!city) return;
 
-        if (district) {
-          await selectDistrict(district);
-          
-          // Wait for wards to load, then find ward
-          setTimeout(async () => {
-            const wards = await getWards(district.districtCode);
-            const ward = wards.find(w => 
-              w.name === wardName || 
-              w.name.includes(wardName) ||
-              wardName.includes(w.name)
+    // Only select city if it's different from current to avoid unnecessary API calls
+    if (addressData.selectedCity?.id !== city.id) {
+      await selectCity(city);
+    }
+
+    // Wait for districts to load from selectCity, then find district
+    // Poll for districts to be loaded (selectCity will load them)
+    const pollForDistricts = () => {
+      let attempts = 0;
+      const maxAttempts = 15; // Max 1.5 seconds
+      
+      const checkInterval = setInterval(() => {
+        attempts++;
+        setAddressData(prev => {
+          // If districts are loaded, find and select district
+          if (prev.districts.length > 0) {
+            clearInterval(checkInterval);
+            const district = prev.districts.find(d => 
+              d.name === districtName || 
+              d.name.includes(districtName) ||
+              districtName.includes(d.name)
             );
 
-            if (ward) {
-              selectWard(ward);
+            if (district && prev.selectedDistrict?.districtCode !== district.districtCode) {
+              selectDistrict(district).then(() => {
+                // Poll for wards to be loaded
+                let wardAttempts = 0;
+                const wardInterval = setInterval(() => {
+                  wardAttempts++;
+                  setAddressData(prevWards => {
+                    if (prevWards.wards.length > 0) {
+                      clearInterval(wardInterval);
+                      const ward = prevWards.wards.find(w => 
+                        w.name === wardName || 
+                        w.name.includes(wardName) ||
+                        wardName.includes(w.name)
+                      );
+                      if (ward && prevWards.selectedWard?.communeCode !== ward.communeCode) {
+                        selectWard(ward);
+                      }
+                    } else if (wardAttempts >= 15) {
+                      clearInterval(wardInterval);
+                    }
+                    return prevWards;
+                  });
+                }, 100);
+              });
             }
-          }, 500);
-        }
-      }, 500);
-    }
-  }, [addressData.cities, selectCity, selectDistrict, selectWard]);
+          } else if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+          }
+          return prev;
+        });
+      }, 100);
+    };
+    
+    pollForDistricts();
+  }, [addressData.cities, addressData.districts, addressData.wards, addressData.selectedCity, addressData.selectedDistrict, addressData.selectedWard, selectCity, selectDistrict, selectWard]);
 
   return {
     ...addressData,

@@ -5,6 +5,19 @@ const FALLBACK_ERROR_MESSAGE =
 
 const DEFAULT_SESSION_ID = 'verdant-session';
 
+const normalizeChatbotMessage = (value: string): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
 /**
  * Chuẩn hóa nội dung phản hồi trả về từ API chatbot.
  */
@@ -44,6 +57,21 @@ const extractMessageFromResponse = (data: any): string => {
   }
 };
 
+const isLikelyErrorMessage = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return true;
+  const knownErrors = [
+    'error in workflow',
+    'workflow error',
+    'workflow execution failed',
+    'internal error',
+  ];
+  if (knownErrors.includes(normalized)) {
+    return true;
+  }
+  return normalized.startsWith('error:') || normalized.startsWith('exception');
+};
+
 /**
  * Gửi tin nhắn đến AI chatbot và nhận phản hồi.
  * @param chatInput nội dung người dùng nhập
@@ -78,14 +106,24 @@ export const sendChatbotMessage = async (
       },
     });
 
-    const message = extractMessageFromResponse(response.data);
-    return message || FALLBACK_ERROR_MESSAGE;
+    const rawMessage = extractMessageFromResponse(response.data);
+    const normalizedMessage = normalizeChatbotMessage(rawMessage);
+
+    if (!normalizedMessage || isLikelyErrorMessage(normalizedMessage)) {
+      throw new Error('Workflow error');
+    }
+    return normalizedMessage;
   } catch (error: any) {
     console.error('[Chatbot] Lỗi gọi API:', error);
     if (error?.response?.data) {
       const message = extractMessageFromResponse(error.response.data);
       if (message) {
-        return message;
+        const normalizedMessage = normalizeChatbotMessage(message);
+        if (normalizedMessage) {
+          return isLikelyErrorMessage(normalizedMessage)
+            ? FALLBACK_ERROR_MESSAGE
+            : normalizedMessage;
+        }
       }
     }
     throw new Error(

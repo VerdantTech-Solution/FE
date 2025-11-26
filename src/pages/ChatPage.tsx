@@ -93,7 +93,7 @@ export const ChatPage = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,7 +137,17 @@ export const ChatPage = () => {
   }, [currentConversationId]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const prefersReducedMotion = window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
   };
 
   useEffect(() => {
@@ -498,7 +508,10 @@ export const ChatPage = () => {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4">
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
+          >
             {Object.entries(groupedMessages).map(([date, dateMessages]) => (
               <div key={date}>
                 {/* Date Separator */}
@@ -606,8 +619,6 @@ export const ChatPage = () => {
                 </div>
               </motion.div>
             )}
-
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Input Area */}

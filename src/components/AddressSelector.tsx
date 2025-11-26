@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
@@ -43,15 +43,41 @@ const AddressSelector = ({
     setInitialAddress,
   } = useAddress();
 
+  // Use refs to track if initial address has been set and prevent multiple calls
+  const initialAddressSetRef = useRef(false);
+  const isInitializingRef = useRef(false);
+  const lastInitialValuesRef = useRef<string>('');
+
   // Set initial values when component mounts or when initial values change
+  // Only set once when cities are loaded and initial values are provided
   useEffect(() => {
-    if (initialCity && initialDistrict && initialWard && cities.length > 0) {
+    const initialKey = `${initialCity}-${initialDistrict}-${initialWard}`;
+    
+    if (
+      initialCity && 
+      initialDistrict && 
+      initialWard && 
+      cities.length > 0 && 
+      !initialAddressSetRef.current &&
+      !isInitializingRef.current &&
+      lastInitialValuesRef.current !== initialKey
+    ) {
+      isInitializingRef.current = true;
+      lastInitialValuesRef.current = initialKey;
       setInitialAddress(initialCity, initialDistrict, initialWard);
+      // Mark as set after a delay to allow async operations to complete
+      setTimeout(() => {
+        initialAddressSetRef.current = true;
+        isInitializingRef.current = false;
+      }, 2000);
     }
   }, [initialCity, initialDistrict, initialWard, cities.length, setInitialAddress]);
 
-  // Sync with external props when they change
+  // Sync with external props when they change (only if not initializing)
+  // Skip if we're currently setting initial address to avoid conflicts
   useEffect(() => {
+    if (isInitializingRef.current) return;
+    
     if (selectedCity && selectedCity !== currentCity?.name) {
       const city = cities.find(c => c.name === selectedCity);
       if (city && city.id !== currentCity?.id) {
@@ -61,6 +87,8 @@ const AddressSelector = ({
   }, [selectedCity, cities, currentCity, selectCity]);
 
   useEffect(() => {
+    if (isInitializingRef.current) return;
+    
     if (selectedDistrict && selectedDistrict !== currentDistrict?.name) {
       const district = districts.find(d => d.name === selectedDistrict);
       if (district && district.districtCode !== currentDistrict?.districtCode) {
@@ -70,6 +98,8 @@ const AddressSelector = ({
   }, [selectedDistrict, districts, currentDistrict, selectDistrict]);
 
   useEffect(() => {
+    if (isInitializingRef.current) return;
+    
     if (selectedWard && selectedWard !== currentWard?.name) {
       const ward = wards.find(w => w.name === selectedWard);
       if (ward && ward.communeCode !== currentWard?.communeCode) {

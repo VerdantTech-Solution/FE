@@ -21,18 +21,12 @@ import {
 } from "@/components/ui/sidebar";
 import { 
   Home,
-  Settings,
-  BarChart,
-  Target,
-  Activity
+  Settings
 } from "lucide-react";
 
 // Import admin pages
 import { 
   AdminOverviewPage, 
-  AdminAnalyticsPage, 
-  AdminEquipmentPage, 
-  AdminMonitoringPage, 
   AdminSettingsPage,
   AdminWarehousePanel,
   AdminProductManagementPanel,
@@ -47,9 +41,6 @@ import {
 
 type AdminView =
   | 'overview'
-  | 'analytics'
-  | 'monitoring'
-  | 'equipment'
   | 'settings'
   | 'warehouse'
   | 'products'
@@ -257,36 +248,6 @@ export const AdminPage = () => {
               <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                 <SidebarNavItem
                   collapsed={collapsed}
-                  active={selectedView === 'analytics'}
-                  onClick={() => setSelectedView('analytics')}
-                  icon={<BarChart className="w-5 h-5" />}
-                >
-                  Phân tích
-                </SidebarNavItem>
-              </motion.div>
-              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'monitoring'}
-                  onClick={() => setSelectedView('monitoring')}
-                  icon={<Activity className="w-5 h-5" />}
-                >
-                  Giám sát hệ thống
-                </SidebarNavItem>
-              </motion.div>
-              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'equipment'}
-                  onClick={() => setSelectedView('equipment')}
-                  icon={<Target className="w-5 h-5" />}
-                >
-                  Thiết bị
-                </SidebarNavItem>
-              </motion.div>
-              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
-                <SidebarNavItem
-                  collapsed={collapsed}
                   active={selectedView === 'settings'}
                   onClick={() => setSelectedView('settings')}
                   icon={<Settings className="w-5 h-5" />}
@@ -343,9 +304,6 @@ export const AdminPage = () => {
                 {selectedView === 'cashout' && 'Quản lý rút tiền'}
                 {selectedView === 'support' && 'Yêu cầu hỗ trợ'}
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}
-                {selectedView === 'analytics' && 'Phân tích dữ liệu'}
-                {selectedView === 'monitoring' && 'Giám sát hệ thống'}
-                {selectedView === 'equipment' && 'Quản lý thiết bị'}
                 {selectedView === 'settings' && 'Cài đặt hệ thống'}
               </motion.h1>
               <motion.p 
@@ -370,9 +328,9 @@ export const AdminPage = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="day">Hôm nay</SelectItem>
                       <SelectItem value="week">Tuần này</SelectItem>
                       <SelectItem value="month">Tháng này</SelectItem>
-                      <SelectItem value="quarter">Quý này</SelectItem>
                       <SelectItem value="year">Năm nay</SelectItem>
                     </SelectContent>
                   </Select>
@@ -528,39 +486,6 @@ export const AdminPage = () => {
                   selectedPeriod={selectedPeriod}
                   setSelectedPeriod={setSelectedPeriod}
                 />
-              </motion.div>
-            )}
-            {selectedView === 'analytics' && (
-              <motion.div
-                key="analytics"
-                variants={pageVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <AdminAnalyticsPage />
-              </motion.div>
-            )}
-            {selectedView === 'equipment' && (
-              <motion.div
-                key="equipment"
-                variants={pageVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <AdminEquipmentPage />
-              </motion.div>
-            )}
-            {selectedView === 'monitoring' && (
-              <motion.div
-                key="monitoring"
-                variants={pageVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <AdminMonitoringPage />
               </motion.div>
             )}
             {selectedView === 'settings' && (
