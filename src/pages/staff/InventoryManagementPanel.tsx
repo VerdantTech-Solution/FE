@@ -18,7 +18,8 @@ import {
   Trash2,
   CheckCircle,
   AlertCircle,
-  X
+  X,
+  Plus
 } from "lucide-react";
 //import { useAuth } from "@/contexts/AuthContext";
 import { 
@@ -30,6 +31,7 @@ import {
   getBatchInventoriesByVendor,
   qualityCheckBatchInventory,
   getExportInventories,
+  getExportInventoryById,
   createExportInventory,
   getAvailableProductSerials,
   type BatchInventory,
@@ -57,13 +59,20 @@ export const InventoryManagementPanel: React.FC = () => {
   const [filterProductId, setFilterProductId] = useState<number | null>(null);
   const [filterVendorId, setFilterVendorId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [exportSearchTerm, setExportSearchTerm] = useState("");
+  const [exportFilterProductId, setExportFilterProductId] = useState<number | null>(null);
   
   // Export states
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportDetailDialogOpen, setExportDetailDialogOpen] = useState(false);
+  const [selectedExportInventory, setSelectedExportInventory] = useState<ExportInventory | null>(null);
   const [exportInventories, setExportInventories] = useState<ExportInventory[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
-  //const [exportPage, setExportPage] = useState(1);
-   const [exportPage] = useState(1);
+  const [exportPage, setExportPage] = useState(1);
+  const [exportPageSize] = useState(20);
+  const [exportTotalPages, setExportTotalPages] = useState(1);
+  const [exportTotalRecords, setExportTotalRecords] = useState(0);
+  const [exportMovementTypeFilter, setExportMovementTypeFilter] = useState<string>("all");
   
   // Form states
   const [products, setProducts] = useState<Product[]>([]);
@@ -95,11 +104,13 @@ export const InventoryManagementPanel: React.FC = () => {
     notes: '',
   });
   
-  // Export form
-  const [exportForm, setExportForm] = useState<CreateExportInventoryDTO>({
-    productId: 0,
-    movementType: "Sale",
-  });
+  // Export form - hỗ trợ nhiều items (array)
+  const [exportFormItems, setExportFormItems] = useState<CreateExportInventoryDTO[]>([
+    {
+      productId: 0,
+      movementType: "ReturnToVendor",
+    }
+  ]);
   
   // Product search for export
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -145,12 +156,22 @@ export const InventoryManagementPanel: React.FC = () => {
     }
   };
 
-  // Fetch export inventories
+  // Fetch export inventories - tương tự như fetchImportInventories
   const fetchExportInventories = async () => {
     try {
       setExportLoading(true);
-      const response = await getExportInventories({ page: exportPage, pageSize: 20 });
+      setError(null);
+      const response = await getExportInventories({ 
+        page: exportPage, 
+        pageSize: exportPageSize,
+        movementType: exportMovementTypeFilter && exportMovementTypeFilter !== "all" ? exportMovementTypeFilter : undefined,
+        productId: exportFilterProductId || undefined
+      });
+      console.log("Export inventories response:", response);
+      console.log("Export inventories data:", response.data);
       setExportInventories(response.data || []);
+      setExportTotalPages(response.totalPages || 1);
+      setExportTotalRecords(response.totalRecords || 0);
     } catch (err: any) {
       console.error("Error fetching export inventories:", err);
       setError(err?.message || "Không thể tải danh sách xuất hàng");
@@ -165,7 +186,7 @@ export const InventoryManagementPanel: React.FC = () => {
     } else if (activeTab === "export") {
       fetchExportInventories();
     }
-  }, [activeTab, importPage, exportPage, filterProductId, filterVendorId]);
+  }, [activeTab, importPage, exportPage, exportMovementTypeFilter, exportFilterProductId, filterProductId, filterVendorId]);
 
   // When product is selected for import, check if it needs serial numbers
   useEffect(() => {
@@ -184,43 +205,7 @@ export const InventoryManagementPanel: React.FC = () => {
     }
   }, [importForm.productId, products]);
 
-  // When product is selected for export, fetch available serials
-  useEffect(() => {
-    if (exportForm.productId > 0 && selectedProduct) {
-      const fetchSerials = async () => {
-        try {
-          const serials = await getAvailableProductSerials(exportForm.productId);
-          setAvailableSerials(serials);
-        } catch (err) {
-          console.error("Error fetching serials:", err);
-          setAvailableSerials([]);
-        }
-      };
-      fetchSerials();
-    } else {
-      setAvailableSerials([]);
-    }
-  }, [exportForm.productId, selectedProduct]);
-
-  // When product is selected for export, fetch available lot numbers (for non-machine products)
-  useEffect(() => {
-    if (exportForm.productId > 0 && selectedProduct && !isMachineProduct(exportForm.productId)) {
-      const fetchLotNumbers = async () => {
-        try {
-          const response = await getBatchInventoriesByProduct(exportForm.productId, { page: 1, pageSize: 100 });
-          // Extract unique lot numbers
-          const lotNumbers = [...new Set(response.data.map(bi => bi.lotNumber).filter(Boolean))];
-          setAvailableLotNumbers(lotNumbers);
-        } catch (err) {
-          console.error("Error fetching lot numbers:", err);
-          setAvailableLotNumbers([]);
-        }
-      };
-      fetchLotNumbers();
-    } else {
-      setAvailableLotNumbers([]);
-    }
-  }, [exportForm.productId, selectedProduct]);
+  // Note: Các useEffect cho serials và lotNumbers sẽ được xử lý trong form khi chọn product cho từng item
 
   // Handle import form submit
   const handleImportSubmit = async () => {
@@ -259,38 +244,47 @@ export const InventoryManagementPanel: React.FC = () => {
     }
   };
 
-  // Handle export form submit
+  // Handle export form submit - hỗ trợ nhiều items
   const handleExportSubmit = async () => {
-    if (!exportForm.productId) {
-      setError("Vui lòng chọn sản phẩm");
-      return;
-    }
+    // Validate tất cả items
+    for (let i = 0; i < exportFormItems.length; i++) {
+      const item = exportFormItems[i];
+      if (!item.productId) {
+        setError(`Vui lòng chọn sản phẩm cho item ${i + 1}`);
+        return;
+      }
 
-    // Check if product needs serial or lot number
-    const product = products.find(p => p.id === exportForm.productId);
-    if (!product) {
-      setError("Sản phẩm không tồn tại");
-      return;
-    }
+      const product = products.find(p => p.id === item.productId);
+      if (!product) {
+        setError(`Sản phẩm không tồn tại cho item ${i + 1}`);
+        return;
+      }
 
-    // Category 1,2 = machines (need serial), Category 3,4 = materials (need lot number)
-    const isMachine = product.categoryId === 1 || product.categoryId === 2;
-    
-    if (isMachine && !exportForm.productSerialId) {
-      setError("Sản phẩm máy móc cần có số serial");
-      return;
-    }
+      // Validate movementType không được là 'Sale'
+      if (item.movementType === 'Sale') {
+        setError(`MovementType không được là "Sale" cho item ${i + 1}. Chỉ được sử dụng khi xuất hàng bán qua OrderService.`);
+        return;
+      }
 
-    if (!isMachine && !exportForm.lotNumber) {
-      setError("Sản phẩm vật tư cần có số lô");
-      return;
+      // Category 1,2 = machines (need serial), Category 3,4 = materials (need lot number)
+      const isMachine = product.categoryId === 1 || product.categoryId === 2;
+      
+      if (isMachine && !item.productSerialId) {
+        setError(`Sản phẩm máy móc cần có số serial cho item ${i + 1}`);
+        return;
+      }
+
+      if (!isMachine && !item.lotNumber) {
+        setError(`Sản phẩm vật tư cần có số lô cho item ${i + 1}`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await createExportInventory(exportForm);
+      await createExportInventory(exportFormItems);
       setSuccessMessage("Xuất hàng thành công!");
       setExportDialogOpen(false);
       resetExportForm();
@@ -406,11 +400,29 @@ export const InventoryManagementPanel: React.FC = () => {
     return filtered;
   }, [importInventories, searchTerm]);
 
+  // Filtered export inventories - tương tự như filteredImportInventories
+  const filteredExportInventories = useMemo(() => {
+    let filtered = exportInventories;
+
+    if (exportSearchTerm) {
+      const searchLower = exportSearchTerm.toLowerCase();
+      filtered = filtered.filter(item => 
+        (item.product?.name && item.product.name.toLowerCase().includes(searchLower)) ||
+        ((item as any).productName && (item as any).productName.toLowerCase().includes(searchLower)) ||
+        (item.productSerial && item.productSerial.serialNumber.toLowerCase().includes(searchLower)) ||
+        (item.lotNumber && item.lotNumber.toLowerCase().includes(searchLower)) ||
+        (item.order && item.order.orderNumber.toLowerCase().includes(searchLower))
+      );
+    }
+
+    return filtered;
+  }, [exportInventories, exportSearchTerm]);
+
   const resetExportForm = () => {
-    setExportForm({
+    setExportFormItems([{
       productId: 0,
-      movementType: "Sale",
-    });
+      movementType: "ReturnToVendor",
+    }]);
     setSelectedProduct(null);
     setAvailableSerials([]);
     setAvailableLotNumbers([]);
@@ -418,6 +430,38 @@ export const InventoryManagementPanel: React.FC = () => {
     setShowProductSuggestions(false);
     setLotNumberSearchQuery("");
     setShowLotNumberSuggestions(false);
+  };
+
+  // Functions để quản lý exportFormItems
+  const addExportFormItem = () => {
+    setExportFormItems([...exportFormItems, {
+      productId: 0,
+      movementType: "ReturnToVendor",
+    }]);
+  };
+
+  const removeExportFormItem = (index: number) => {
+    if (exportFormItems.length > 1) {
+      setExportFormItems(exportFormItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateExportFormItem = (index: number, field: keyof CreateExportInventoryDTO, value: any) => {
+    const newItems = [...exportFormItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setExportFormItems(newItems);
+  };
+
+  // Handle view export detail
+  const handleViewExportDetail = async (id: number) => {
+    try {
+      const detail = await getExportInventoryById(id);
+      setSelectedExportInventory(detail);
+      setExportDetailDialogOpen(true);
+    } catch (err: any) {
+      console.error("Error fetching export detail:", err);
+      setError(err?.message || "Không thể tải chi tiết");
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -707,6 +751,96 @@ export const InventoryManagementPanel: React.FC = () => {
 
         {/* Export Tab */}
         <TabsContent value="export" className="space-y-4">
+          {/* Filters - tương tự như Import Tab */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Tìm kiếm theo tên sản phẩm, số serial, số lô..."
+                      value={exportSearchTerm}
+                      onChange={(e) => setExportSearchTerm(e.target.value)}
+                      className="w-full pl-9"
+                    />
+                  </div>
+                </div>
+                <Select
+                  value={exportFilterProductId?.toString() || "all"}
+                  onValueChange={(v) => setExportFilterProductId(v === "all" ? null : parseInt(v))}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Lọc theo sản phẩm" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả sản phẩm</SelectItem>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id.toString()}>
+                        {p.productName || p.name} ({(p as any).code || p.productCode || `#${p.id}`})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={exportMovementTypeFilter}
+                  onValueChange={setExportMovementTypeFilter}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Tất cả loại xuất" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả loại xuất</SelectItem>
+                    <SelectItem value="ReturnToVendor">Trả nhà cung cấp</SelectItem>
+                    <SelectItem value="Damage">Hư hỏng</SelectItem>
+                    <SelectItem value="Loss">Mất mát</SelectItem>
+                    <SelectItem value="Adjustment">Điều chỉnh</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(exportFilterProductId || exportMovementTypeFilter || exportSearchTerm) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setExportFilterProductId(null);
+                      setExportMovementTypeFilter("all");
+                      setExportSearchTerm("");
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Xóa bộ lọc
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pagination */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExportPage(p => Math.max(1, p - 1))}
+                  disabled={exportPage === 1 || exportLoading}
+                >
+                  Trước
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Trang {exportPage} / {exportTotalPages} ({exportTotalRecords} bản ghi)
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExportPage(p => Math.min(exportTotalPages, p + 1))}
+                  disabled={exportPage >= exportTotalPages || exportLoading}
+                >
+                  Sau
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {exportLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -714,14 +848,14 @@ export const InventoryManagementPanel: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {exportInventories.length === 0 ? (
+              {filteredExportInventories.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center text-gray-500">
                     Chưa có lịch sử xuất hàng
                   </CardContent>
                 </Card>
               ) : (
-                exportInventories.map((item) => (
+                filteredExportInventories.map((item: ExportInventory) => (
                   <Card key={item.id}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -767,6 +901,18 @@ export const InventoryManagementPanel: React.FC = () => {
                           <p className="text-sm text-gray-600">{item.notes}</p>
                         </div>
                       )}
+                      
+                      {/* Action Buttons */}
+                      <div className="pt-2 border-t flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewExportDetail(item.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Chi tiết
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))
@@ -990,210 +1136,147 @@ export const InventoryManagementPanel: React.FC = () => {
 
       {/* Export Dialog */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Xuất hàng khỏi kho</DialogTitle>
             <DialogDescription>
-              Điền thông tin để xuất hàng khỏi kho
+              Tạo đơn xuất kho cho các loại: ReturnToVendor, Damage, Loss, Adjustment. Không được nhập MovementType = Sale vì chỉ được sử dụng khi xuất hàng bán qua OrderService.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {/* Product Selection - Searchable */}
-            <div className="space-y-2">
-              <Label htmlFor="export-product">Sản phẩm *</Label>
-              <div className="relative">
-                <Input
-                  id="export-product"
-                  placeholder="Tìm kiếm sản phẩm..."
-                  value={productSearchQuery}
-                  onChange={(e) => {
-                    setProductSearchQuery(e.target.value);
-                    setShowProductSuggestions(true);
-                  }}
-                  onFocus={() => setShowProductSuggestions(true)}
-                  onBlur={() => {
-                    // Delay to allow click on suggestion
-                    setTimeout(() => setShowProductSuggestions(false), 200);
-                  }}
-                />
-                {showProductSuggestions && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {products
-                      .filter((product) => {
-                        if (!productSearchQuery) return true; // Show all if no search query
-                        const searchLower = productSearchQuery.toLowerCase();
-                        const productName = (product.productName || product.name || "").toLowerCase();
-                        const productCode = ((product as any).code || product.productCode || "").toLowerCase();
-                        return productName.includes(searchLower) || productCode.includes(searchLower);
-                      })
-                      .slice(0, 10)
-                      .map((product) => (
-                        <button
-                          key={product.id}
-                          type="button"
-                          className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                          onClick={() => {
-                            setExportForm(prev => ({ ...prev, productId: product.id }));
-                            const selected = products.find(p => p.id === product.id);
-                            setSelectedProduct(selected || null);
-                            setProductSearchQuery(selected?.productName || selected?.name || "");
-                            setShowProductSuggestions(false);
-                          }}
-                        >
-                          <div className="font-medium">
-                            {product.productName || product.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {(product as any).code || product.productCode || `#${product.id}`}
-                          </div>
-                        </button>
-                      ))}
-                    {products.filter((product) => {
-                      if (!productSearchQuery) return false; // Don't show "not found" if no search query
-                      const searchLower = productSearchQuery.toLowerCase();
-                      const productName = (product.productName || product.name || "").toLowerCase();
-                      const productCode = ((product as any).code || product.productCode || "").toLowerCase();
-                      return productName.includes(searchLower) || productCode.includes(searchLower);
-                    }).length === 0 && productSearchQuery && (
-                      <div className="px-4 py-2 text-sm text-gray-500">
-                        Không tìm thấy sản phẩm
-                      </div>
-                    )}
-                  </div>
-                )}
-                {exportForm.productId > 0 && selectedProduct && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded-md">
-                    <div className="text-sm font-medium">
-                      Đã chọn: {selectedProduct.productName || selectedProduct.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Mã: {(selectedProduct as any).code || selectedProduct.productCode || `#${selectedProduct.id}`}
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Danh sách sản phẩm xuất</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addExportFormItem}
+                disabled={isSubmitting}
+                className="h-8"
+              >
+                <Plus size={16} className="mr-1" />
+                Thêm sản phẩm
+              </Button>
             </div>
-
-            {/* Serial Number or Lot Number based on product type */}
-            {exportForm.productId > 0 && (
-              <>
-                {isMachineProduct(exportForm.productId) ? (
+            
+            {exportFormItems.map((item, index) => (
+              <Card key={index} className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-sm font-medium">Sản phẩm {index + 1}</Label>
+                  {exportFormItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeExportFormItem(index)}
+                      disabled={isSubmitting}
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-4">
+                  {/* Product Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="export-serial">Số Serial *</Label>
+                    <Label>Sản phẩm *</Label>
                     <Select
-                      value={exportForm.productSerialId?.toString() || ""}
-                      onValueChange={(v) => setExportForm(prev => ({ ...prev, productSerialId: parseInt(v) }))}
+                      value={item.productId > 0 ? item.productId.toString() : ""}
+                      onValueChange={(v) => {
+                        const productId = parseInt(v);
+                        updateExportFormItem(index, 'productId', productId);
+                        const product = products.find(p => p.id === productId);
+                        if (product) {
+                          // Fetch available serials if machine
+                          if (isMachineProduct(productId)) {
+                            getAvailableProductSerials(productId).then(serials => {
+                              // Store serials per item (simplified - can be improved)
+                            }).catch(console.error);
+                          }
+                        }
+                      }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Chọn số serial" />
+                        <SelectValue placeholder="Chọn sản phẩm" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableSerials.length === 0 ? (
-                          <SelectItem value="" disabled>Không có serial có sẵn</SelectItem>
-                        ) : (
-                          availableSerials.map((serial) => (
-                            <SelectItem key={serial.id} value={serial.id.toString()}>
-                              {serial.serialNumber} ({serial.status})
+                        {products && products.length > 0 ? (
+                          products.map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {product.productName || product.name || `Sản phẩm #${product.id}`} ({(product as any).code || product.productCode || `#${product.id}`})
                             </SelectItem>
                           ))
+                        ) : (
+                          <SelectItem value="" disabled>Đang tải sản phẩm...</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                   </div>
-                ) : (
+
+                  {/* Serial Number or Lot Number based on product type */}
+                  {item.productId > 0 && (
+                    <>
+                      {isMachineProduct(item.productId) ? (
+                        <div className="space-y-2">
+                          <Label>Số Serial *</Label>
+                          <Input
+                            type="text"
+                            placeholder="Nhập số serial"
+                            value={item.productSerialNumber || ""}
+                            onChange={(e) => updateExportFormItem(index, 'productSerialNumber', e.target.value)}
+                          />
+                          <p className="text-xs text-gray-500">Nhập số serial của sản phẩm máy móc</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label>Số lô *</Label>
+                          <Input
+                            type="text"
+                            placeholder="Nhập số lô"
+                            value={item.lotNumber || ""}
+                            onChange={(e) => updateExportFormItem(index, 'lotNumber', e.target.value)}
+                          />
+                          <p className="text-xs text-gray-500">Nhập số lô của sản phẩm vật tư</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Movement Type */}
                   <div className="space-y-2">
-                    <Label htmlFor="export-lot">Số lô *</Label>
-                    <div className="relative">
-                      <Input
-                        id="export-lot"
-                        placeholder="Tìm kiếm hoặc nhập số lô..."
-                        value={lotNumberSearchQuery || exportForm.lotNumber || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setLotNumberSearchQuery(value);
-                          setExportForm(prev => ({ ...prev, lotNumber: value || undefined }));
-                          setShowLotNumberSuggestions(true);
-                        }}
-                        onFocus={() => setShowLotNumberSuggestions(true)}
-                        onBlur={() => {
-                          setTimeout(() => setShowLotNumberSuggestions(false), 200);
-                        }}
-                      />
-                      {showLotNumberSuggestions && availableLotNumbers.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                          {availableLotNumbers
-                            .filter((lot) => {
-                              if (!lotNumberSearchQuery) return true;
-                              return lot.toLowerCase().includes(lotNumberSearchQuery.toLowerCase());
-                            })
-                            .slice(0, 10)
-                            .map((lot) => (
-                              <button
-                                key={lot}
-                                type="button"
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                                onClick={() => {
-                                  setExportForm(prev => ({ ...prev, lotNumber: lot }));
-                                  setLotNumberSearchQuery(lot);
-                                  setShowLotNumberSuggestions(false);
-                                }}
-                              >
-                                <div className="font-medium">{lot}</div>
-                              </button>
-                            ))}
-                          {availableLotNumbers.filter((lot) => {
-                            if (!lotNumberSearchQuery) return false;
-                            return lot.toLowerCase().includes(lotNumberSearchQuery.toLowerCase());
-                          }).length === 0 && lotNumberSearchQuery && (
-                            <div className="px-4 py-2 text-sm text-gray-500">
-                              Không tìm thấy số lô. Bạn có thể nhập số lô mới.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {exportForm.lotNumber && (
-                        <div className="mt-1 text-xs text-gray-500">
-                          Số lô đã chọn: {exportForm.lotNumber}
-                        </div>
-                      )}
-                    </div>
+                    <Label>Loại xuất hàng *</Label>
+                    <Select
+                      value={item.movementType}
+                      onValueChange={(v: any) => updateExportFormItem(index, 'movementType', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ReturnToVendor">Trả nhà cung cấp</SelectItem>
+                        <SelectItem value="Damage">Hư hỏng</SelectItem>
+                        <SelectItem value="Loss">Mất mát</SelectItem>
+                        <SelectItem value="Adjustment">Điều chỉnh</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">Không được chọn "Sale" - chỉ dùng khi xuất hàng bán qua OrderService</p>
                   </div>
-                )}
-              </>
-            )}
 
-            {/* Movement Type */}
-            <div className="space-y-2">
-              <Label htmlFor="export-movement">Loại xuất hàng *</Label>
-              <Select
-                value={exportForm.movementType}
-                onValueChange={(v: any) => setExportForm(prev => ({ ...prev, movementType: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sale">Bán hàng</SelectItem>
-                  <SelectItem value="ReturnToVendor">Trả nhà cung cấp</SelectItem>
-                  <SelectItem value="Damage">Hư hỏng</SelectItem>
-                  <SelectItem value="Loss">Mất mát</SelectItem>
-                  <SelectItem value="Adjustment">Điều chỉnh</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="export-notes">Ghi chú</Label>
-              <Textarea
-                id="export-notes"
-                rows={3}
-                value={exportForm.notes || ""}
-                onChange={(e) => setExportForm(prev => ({ ...prev, notes: e.target.value || undefined }))}
-                placeholder="Ghi chú về việc xuất hàng..."
-              />
-            </div>
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <Label>Ghi chú</Label>
+                    <Textarea
+                      rows={2}
+                      value={item.notes || ""}
+                      onChange={(e) => updateExportFormItem(index, 'notes', e.target.value || undefined)}
+                      placeholder="Ghi chú về việc xuất hàng..."
+                    />
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
 
           <DialogFooter>
@@ -1369,6 +1452,73 @@ export const InventoryManagementPanel: React.FC = () => {
               ) : (
                 "Xác nhận"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Detail Dialog */}
+      <Dialog open={exportDetailDialogOpen} onOpenChange={setExportDetailDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết đơn xuất kho</DialogTitle>
+            <DialogDescription>
+              Thông tin chi tiết về đơn xuất kho
+            </DialogDescription>
+          </DialogHeader>
+          {selectedExportInventory && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Sản phẩm</Label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedExportInventory.product?.name || `Sản phẩm #${selectedExportInventory.productId}`}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Loại xuất hàng</Label>
+                  <div className="mt-1">{getMovementTypeBadge(selectedExportInventory.movementType)}</div>
+                </div>
+                {selectedExportInventory.productSerial && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Số Serial</Label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedExportInventory.productSerial.serialNumber}</p>
+                  </div>
+                )}
+                {selectedExportInventory.lotNumber && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Số lô</Label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedExportInventory.lotNumber}</p>
+                  </div>
+                )}
+                {selectedExportInventory.order && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Đơn hàng</Label>
+                    <p className="mt-1 text-sm text-gray-900">#{selectedExportInventory.order.orderNumber}</p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Ngày xuất</Label>
+                  <p className="mt-1 text-sm text-gray-900">{formatDate(selectedExportInventory.createdAt)}</p>
+                </div>
+                {selectedExportInventory.createdByUser && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Người xuất</Label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedExportInventory.createdByUser.fullName}</p>
+                  </div>
+                )}
+                {selectedExportInventory.notes && (
+                  <div className="col-span-2">
+                    <Label className="text-sm font-medium text-gray-700">Ghi chú</Label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedExportInventory.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDetailDialogOpen(false)}>
+              Đóng
             </Button>
           </DialogFooter>
         </DialogContent>

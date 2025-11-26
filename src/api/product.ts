@@ -91,6 +91,7 @@ export interface ProductCategory {
   createdAt: string;
   updatedAt: string;
   parent?: ProductCategory | null;
+  parentId?: number | null; // ID of parent category (null for top-level categories)
 }
 
 // API tạo danh mục sản phẩm mới

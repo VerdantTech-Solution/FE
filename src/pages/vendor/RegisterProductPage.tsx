@@ -73,14 +73,22 @@ export const RegisterProductPage = () => {
     "Chứng nhận & Xác nhận"
   ];
 
-  // Fetch categories on mount
+  // Fetch categories on mount - chỉ lấy sub-categories (parentId != null)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const fetchedCategories = await getProductCategories();
-        setCategories(fetchedCategories);
-        if (fetchedCategories.length > 0) {
-          setForm(prev => ({ ...prev, categoryId: fetchedCategories[0].id }));
+        // Filter: chỉ lấy categories có parentId != null (sub-categories)
+        // Xử lý cả 2 trường hợp: parentId trực tiếp, parent?.id, hoặc parent_id (snake_case)
+        const subCategories = fetchedCategories.filter(cat => {
+          const hasParentId = cat.parentId !== null && cat.parentId !== undefined;
+          const hasParentIdSnake = (cat as any).parent_id !== null && (cat as any).parent_id !== undefined;
+          const hasParent = cat.parent !== null && cat.parent !== undefined;
+          return hasParentId || hasParentIdSnake || hasParent;
+        });
+        setCategories(subCategories);
+        if (subCategories.length > 0) {
+          setForm(prev => ({ ...prev, categoryId: subCategories[0].id }));
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
