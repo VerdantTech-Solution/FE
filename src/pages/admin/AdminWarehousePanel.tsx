@@ -917,11 +917,11 @@ export const AdminWarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChan
               )}
 
               {/* Manual URLs */}
-              {selectedRegistrationDetail.manualUrls && (
+              {selectedRegistrationDetail.manualUrl && (
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Link hướng dẫn sử dụng</Label>
                   <div className="mt-2 space-y-1">
-                    {selectedRegistrationDetail.manualUrls.split(',').map((url, idx) => (
+                    {selectedRegistrationDetail.manualUrl.split(',').map((url: string, idx: number) => (
                       <a
                         key={idx}
                         href={url.trim()}

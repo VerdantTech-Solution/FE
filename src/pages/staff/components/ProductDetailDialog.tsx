@@ -15,14 +15,19 @@ import {
   Loader2, 
   Award,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Eye,
+  Download
 } from "lucide-react";
 import { 
   getProductById, 
   updateProductCommission,
   type Product,
   getMediaLinks,
-  type MediaLinkItemDTO
+  type MediaLinkItemDTO,
+  type Certificate,
+  getProductRegistrations
 } from "@/api/product";
 import { 
   getProductReviewsByProductId, 
@@ -65,7 +70,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   onProductUpdated
 }) => {
   const [product, setProduct] = useState<Product | null>(null);
-  const [certificates, setCertificates] = useState<MediaLinkItemDTO[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [reviews, setReviews] = useState<ProductReviewWithReply[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -105,20 +110,92 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
         : 0;
       setCommissionRate(commissionRatePercent);
 
-      // Try to load product registration to get certificates
+      // Load certificates for this product
       try {
-        // We need to find the registration ID - this might need to be passed or fetched differently
-        // For now, we'll try to get certificates via MediaLinks
-        const mediaLinks = await getMediaLinks('products', productId);
-        const certLinks = mediaLinks.filter(link => link.purpose === 'certificate' || link.purpose?.includes('cert'));
-        if (certLinks.length > 0) {
-          setCertificates(certLinks.map(link => ({
-            id: link.id,
-            imagePublicId: link.imagePublicId,
-            imageUrl: link.imageUrl,
-            purpose: link.purpose || 'certificate',
-            sortOrder: link.sortOrder || 0
-          })));
+        // Method 1: Tìm ProductRegistration ban đầu của product này để lấy certificates
+        // Vì Product được tạo từ ProductRegistration đã approved
+        const registrations = await getProductRegistrations();
+        const relatedRegistration = registrations.find(
+          reg => reg.proposedProductCode === productData.productCode && 
+                 reg.status === 'Approved'
+        );
+        
+        if (relatedRegistration && relatedRegistration.certificates && relatedRegistration.certificates.length > 0) {
+          // Load media links cho mỗi certificate nếu files rỗng
+          const certificatesWithFiles = await Promise.all(
+            relatedRegistration.certificates.map(async (cert) => {
+              if (cert.files && cert.files.length > 0) {
+                return cert; // Đã có files, dùng luôn
+              }
+              // Nếu files rỗng, thử fetch từ media links với owner_type = 'product_certificates'
+              try {
+                const mediaLinks = await getMediaLinks('product_certificates', cert.id);
+                const certLinks = mediaLinks.filter(link => 
+                  link.purpose === 'ProductCertificatePdf' ||
+                  link.purpose === 'productcertificatepdf' ||
+                  link.purpose === 'certificatepdf' ||
+                  link.purpose?.toLowerCase().includes('cert')
+                );
+                return {
+                  ...cert,
+                  files: certLinks.map(link => ({
+                    id: link.id,
+                    imagePublicId: link.imagePublicId,
+                    imageUrl: link.imageUrl,
+                    purpose: link.purpose || 'ProductCertificatePdf',
+                    sortOrder: link.sortOrder || 0
+                  }))
+                };
+              } catch (err) {
+                console.log(`Could not fetch files for certificate ${cert.id}:`, err);
+                return cert; // Giữ nguyên nếu không fetch được
+              }
+            })
+          );
+          setCertificates(certificatesWithFiles);
+        } else {
+          // Method 2: Fallback - thử lấy từ media links với product_registrations
+          // Tìm registration ID từ product code
+          if (relatedRegistration) {
+            try {
+              const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
+              const certLinks = mediaLinks.filter(link => 
+                link.purpose === 'ProductCertificatePdf' ||
+                link.purpose === 'productcertificatepdf' ||
+                link.purpose === 'certificatepdf' ||
+                link.purpose === 'certificate' || 
+                link.purpose?.toLowerCase().includes('cert')
+              );
+              
+              if (certLinks.length > 0) {
+                // Tạo certificates từ media links
+                const certNames = relatedRegistration.certificationName || [];
+                const certCodes = relatedRegistration.certificationCode || [];
+                setCertificates(certLinks.map((link, idx) => ({
+                  id: idx,
+                  productId: productId,
+                  registrationId: relatedRegistration.id,
+                  certificationCode: certCodes[idx] || '',
+                  certificationName: certNames[idx] || `Chứng chỉ ${idx + 1}`,
+                  status: 'Pending' as const,
+                  uploadedAt: new Date().toISOString(),
+                  verifiedAt: undefined,
+                  verifiedBy: undefined,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  files: [{
+                    id: link.id,
+                    imagePublicId: link.imagePublicId,
+                    imageUrl: link.imageUrl,
+                    purpose: link.purpose || 'ProductCertificatePdf',
+                    sortOrder: link.sortOrder || 0
+                  }]
+                })));
+              }
+            } catch (err) {
+              console.log('Could not load certificates from media links:', err);
+            }
+          }
         }
       } catch (err) {
         console.log('Could not load certificates:', err);
@@ -361,18 +438,69 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                   <p className="text-gray-600">Không có chứng chỉ nào</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   {certificates.map((cert) => (
                     <Card key={cert.id}>
                       <CardContent className="pt-6">
-                        <div className="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden mb-3">
-                          <img
-                            src={cert.imageUrl}
-                            alt="Chứng chỉ"
-                            className="w-full h-full object-contain"
-                          />
+                        <div className="space-y-3">
+                          {/* Certificate Header */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Award className="h-5 w-5 text-blue-600" />
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {cert.certificationName || `Chứng chỉ ${cert.id}`}
+                                </p>
+                              </div>
+                              {cert.certificationCode && (
+                                <p className="text-xs text-gray-500 ml-7">Mã: {cert.certificationCode}</p>
+                              )}
+                              {cert.rejectionReason && (
+                                <p className="text-xs text-red-600 mt-1 ml-7">Lý do: {cert.rejectionReason}</p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Certificate Files */}
+                          {cert.files && cert.files.length > 0 && (
+                            <div className="ml-7 space-y-2">
+                              <p className="text-xs font-medium text-gray-600">Files ({cert.files.length}):</p>
+                              <div className="space-y-2">
+                                {cert.files.map((file, fileIdx) => (
+                                  <div key={file.id || fileIdx} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                      <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                      <span className="text-sm text-gray-700 truncate">{file.imagePublicId || `File ${fileIdx + 1}`}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => window.open(file.imageUrl, '_blank')}
+                                        className="h-8 px-2"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const link = document.createElement('a');
+                                          link.href = file.imageUrl;
+                                          link.download = file.imagePublicId || `certificate-${file.id}.pdf`;
+                                          link.click();
+                                        }}
+                                        className="h-8 px-2"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-600">Chứng chỉ #{cert.id}</p>
                       </CardContent>
                     </Card>
                   ))}

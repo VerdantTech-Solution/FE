@@ -16,13 +16,14 @@ import {
   Plus,
   Star,
   AlertCircle,
-  FileText
+  FileText,
+  Package
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 import { useState, useEffect, useCallback } from 'react';
-import { getProductRegistrations, getProductRegistrationById, getAllProducts, getProductById, type Product } from '@/api/product';
+import { getProductRegistrations, getProductRegistrationById, getAllProducts, getProductById, getMediaLinks, type Product } from '@/api/product';
 import { getProductReviewsByProductId, type ProductReviewWithReply } from '@/api/productReview';
 import type { ProductRegistration } from '@/api/product';
 import { PATH_NAMES } from '@/constants';
@@ -120,6 +121,38 @@ const renderStars = (rating: number) => {
   ));
 };
 
+// Helper function to parse images from ProductRegistration
+const parseImagesFromRegistration = (registration: ProductRegistration): string[] => {
+  // ✅ Ưu tiên 1: Backend trả về trong field productImages (từ HydrateMediaAsync)
+  if (registration.productImages && Array.isArray(registration.productImages) && registration.productImages.length > 0) {
+    return registration.productImages.map((item) => item.imageUrl).filter(Boolean);
+  }
+
+  // Fallback: Parse từ field images (nếu có)
+  if (!registration.images) {
+    return [];
+  }
+
+  // Trường hợp 1: images là string (CSV hoặc single URL)
+  if (typeof registration.images === 'string') {
+    return registration.images.split(',').map(url => url.trim()).filter(Boolean);
+  }
+
+  // Trường hợp 2: images là array of strings
+  if (Array.isArray(registration.images)) {
+    return registration.images.map((img: any) => {
+      if (typeof img === 'string') {
+        return img;
+      } else if (img && typeof img === 'object' && img.imageUrl) {
+        return img.imageUrl;
+      }
+      return null;
+    }).filter(Boolean) as string[];
+  }
+
+  return [];
+};
+
 const RegistrationTable = ({ registrations, loading, onView }: { registrations: ProductRegistration[], loading: boolean, onView: (registration: ProductRegistration) => void }) => {
   const formatDate = (dateString: string) => {
     try {
@@ -156,6 +189,7 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Hình ảnh</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Mã sản phẩm</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Tên sản phẩm</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Giá</th>
@@ -167,7 +201,7 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
             <tbody>
               {registrations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
                     Không có đơn đăng ký nào
                   </td>
                 </tr>
@@ -175,9 +209,29 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
                 registrations.map((registration) => {
                   const statusInfo = statusConfig[registration.status];
                   const StatusIcon = statusInfo.icon;
+                  const images = parseImagesFromRegistration(registration);
+                  const firstImage = images.length > 0 ? images[0] : null;
                   
                   return (
                     <tr key={registration.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-4 px-4">
+                        {firstImage ? (
+                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                            <img
+                              src={firstImage}
+                              alt={registration.proposedProductName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=No+Image';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </td>
                       <td className="py-4 px-4">
                         <p className="font-medium text-gray-900">{registration.proposedProductCode}</p>
                       </td>
@@ -250,9 +304,26 @@ const RegistrationManagementPage = () => {
       setError(null);
       const data = await getProductRegistrations();
       setRegistrations(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching registrations:', err);
-      setError('Không thể tải danh sách đơn đăng ký');
+      
+      // Hiển thị thông báo lỗi rõ ràng hơn
+      let errorMessage = 'Không thể tải danh sách đơn đăng ký';
+      
+      if (err?.isBackendError) {
+        errorMessage = err.message || errorMessage;
+      } else if (err?.response?.data?.message) {
+        const backendMsg = err.response.data.message;
+        if (backendMsg.includes('registration_id') || backendMsg.includes('Unknown column')) {
+          errorMessage = 'Lỗi cơ sở dữ liệu từ backend. Vui lòng liên hệ quản trị viên để sửa lỗi SQL trong ProductRegistrationRepository.LoadMediaAsync.';
+        } else {
+          errorMessage = backendMsg;
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -323,6 +394,138 @@ const RegistrationManagementPage = () => {
 
     try {
       const detail = await getProductRegistrationById(registration.id);
+      
+      // Debug: Log certificates data
+      console.log('=== Registration Detail Certificates Debug ===');
+      console.log('certificates:', detail.certificates);
+      console.log('certificateFiles:', detail.certificateFiles);
+      console.log('certificationCode:', detail.certificationCode);
+      console.log('certificationName:', detail.certificationName);
+      
+      // Backend đã trả về certificates với files, nhưng cần kiểm tra và load files nếu thiếu
+      if (detail.certificates && detail.certificates.length > 0) {
+        // Load media links cho mỗi certificate nếu files rỗng hoặc thiếu
+        detail.certificates = await Promise.all(
+          detail.certificates.map(async (cert) => {
+            if (cert.files && cert.files.length > 0) {
+              return cert; // Đã có files, dùng luôn
+            }
+            // Nếu files rỗng, thử fetch từ media links với owner_type = 'product_certificates'
+            try {
+              const mediaLinks = await getMediaLinks('product_certificates', cert.id);
+              const certLinks = mediaLinks.filter(link => 
+                link.purpose === 'ProductCertificatePdf' ||
+                link.purpose === 'productcertificatepdf' ||
+                link.purpose === 'certificatepdf' ||
+                link.purpose?.toLowerCase().includes('cert')
+              );
+              return {
+                ...cert,
+                files: certLinks.map(link => ({
+                  id: link.id,
+                  imagePublicId: link.imagePublicId,
+                  imageUrl: link.imageUrl,
+                  purpose: link.purpose || 'ProductCertificatePdf',
+                  sortOrder: link.sortOrder || 0
+                }))
+              };
+            } catch (err) {
+              console.log(`Could not fetch files for certificate ${cert.id}:`, err);
+              return cert; // Giữ nguyên nếu không fetch được
+            }
+          })
+        );
+      } else {
+        // Fallback: Nếu không có certificates từ backend, thử tạo từ các field khác
+        // Fallback 1: Nếu có certificationCode và certificationName arrays, tạo certificates từ đó
+        if (detail.certificationName && Array.isArray(detail.certificationName) && detail.certificationName.length > 0) {
+          const certNames = detail.certificationName;
+          const certCodes = detail.certificationCode && Array.isArray(detail.certificationCode) 
+            ? detail.certificationCode 
+            : [];
+          
+          // Nếu có certificateFiles, map với names
+          if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
+            detail.certificates = certNames.map((name, idx) => ({
+              id: idx,
+              productId: 0,
+              registrationId: registration.id,
+              certificationCode: certCodes[idx] || '',
+              certificationName: name,
+              status: 'Pending' as const,
+              uploadedAt: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              files: detail.certificateFiles ? detail.certificateFiles.filter((_, fileIdx) => fileIdx === idx) : []
+            }));
+          } else {
+            // Chỉ có names, không có files
+            detail.certificates = certNames.map((name, idx) => ({
+              id: idx,
+              productId: 0,
+              registrationId: registration.id,
+              certificationCode: certCodes[idx] || '',
+              certificationName: name,
+              status: 'Pending' as const,
+              uploadedAt: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              files: []
+            }));
+          }
+        }
+        // Fallback 2: thử lấy từ certificateFiles (backward compatibility)
+        else if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
+          detail.certificates = [{
+            id: 0,
+            productId: 0,
+            registrationId: registration.id,
+            certificationCode: '',
+            certificationName: 'Chứng chỉ',
+            status: 'Pending' as const,
+            uploadedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            files: detail.certificateFiles
+          }];
+        } else {
+          // Fallback 3: thử lấy từ media links với product_registrations
+          try {
+            const mediaLinks = await getMediaLinks('product_registrations', registration.id);
+            const certLinks = mediaLinks.filter(link => 
+              link.purpose === 'ProductCertificatePdf' ||
+              link.purpose === 'productcertificatepdf' ||
+              link.purpose === 'certificatepdf' ||
+              link.purpose === 'certificate' || 
+              link.purpose?.toLowerCase().includes('cert')
+            );
+          
+            if (certLinks.length > 0) {
+              detail.certificates = [{
+                id: 0,
+                productId: 0,
+                registrationId: registration.id,
+                certificationCode: '',
+                certificationName: 'Chứng chỉ từ media links',
+                status: 'Pending' as const,
+                uploadedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                files: certLinks.map(link => ({
+                  id: link.id,
+                  imagePublicId: link.imagePublicId,
+                  imageUrl: link.imageUrl,
+                  purpose: link.purpose || 'ProductCertificatePdf',
+                  sortOrder: link.sortOrder || 0
+                }))
+              }];
+            }
+          } catch (mediaErr) {
+            console.log('Could not fetch certificates from media links:', mediaErr);
+          }
+        }
+      }
+      
       setDetailData(detail);
       await loadProductExtras(detail);
     } catch (err: any) {
@@ -483,12 +686,37 @@ const RegistrationManagementPage = () => {
                         <p className="text-sm text-gray-500">Kích thước (cm)</p>
                         <p className="font-medium text-gray-900">
                           {detailData.dimensionsCm 
-                            ? `${detailData.dimensionsCm.Width ?? detailData.dimensionsCm.width ?? '-'} x ${detailData.dimensionsCm.Height ?? detailData.dimensionsCm.height ?? '-'} x ${detailData.dimensionsCm.Length ?? detailData.dimensionsCm.length ?? '-'}`
+                            ? `${detailData.dimensionsCm.Length ?? detailData.dimensionsCm.length ?? '-'} x ${detailData.dimensionsCm.Width ?? detailData.dimensionsCm.width ?? '-'} x ${detailData.dimensionsCm.Height ?? detailData.dimensionsCm.height ?? '-'}`
                             : '-'
                           }
                         </p>
+                        <p className="text-xs text-gray-400 mt-1">(Dài x Rộng x Cao)</p>
                       </div>
                     </div>
+
+                    {/* Product Images */}
+                    {(() => {
+                      const images = parseImagesFromRegistration(detailData);
+                      return images.length > 0 ? (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-2">Hình ảnh sản phẩm</p>
+                          <div className="grid grid-cols-3 gap-4">
+                            {images.map((imageUrl, idx) => (
+                              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                                <img
+                                  src={imageUrl}
+                                  alt={`${detailData.proposedProductName} ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300?text=No+Image';
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
 
                     <div>
                       <p className="text-sm text-gray-500">Mô tả</p>
@@ -543,31 +771,103 @@ const RegistrationManagementPage = () => {
                   </TabsContent>
 
                   <TabsContent value="certs" className="mt-6">
-                    {detailData.certificateFiles && detailData.certificateFiles.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {detailData.certificateFiles.map((cert, idx) => (
-                          <div key={cert.id || idx} className="border rounded-lg p-4 flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {cert.purpose || `Chứng chỉ #${idx + 1}`}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">ID: {cert.id}</p>
-                            </div>
-                            <Button size="sm" variant="outline" onClick={() => window.open(cert.imageUrl, '_blank')} className="gap-2">
-                              <FileText className="h-4 w-4" />
-                              Xem
-                            </Button>
+                    {(() => {
+                      // Ưu tiên hiển thị certificates từ backend (cấu trúc mới)
+                      const certificates = detailData.certificates || [];
+                      // Fallback: certificateFiles (backward compatibility)
+                      const certificateFiles = detailData.certificateFiles || [];
+                      
+                      if (certificates.length > 0) {
+                        return (
+                          <div className="space-y-4">
+                            {certificates.map((cert, certIdx) => (
+                              <div key={cert.id || certIdx} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <FileText className="h-5 w-5 text-blue-600" />
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {cert.certificationName || `Chứng chỉ ${certIdx + 1}`}
+                                      </p>
+                                    </div>
+                                    {cert.certificationCode && (
+                                      <p className="text-xs text-gray-500 ml-7">Mã: {cert.certificationCode}</p>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-2 ml-7">
+                                      <span className={`text-xs px-2 py-0.5 rounded ${
+                                        cert.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                        cert.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                        'bg-yellow-100 text-yellow-700'
+                                      }`}>
+                                        {cert.status === 'Approved' ? 'Đã duyệt' :
+                                         cert.status === 'Rejected' ? 'Từ chối' : 'Chờ duyệt'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Certificate Files */}
+                                {cert.files && cert.files.length > 0 && (
+                                  <div className="ml-7 space-y-2">
+                                    <p className="text-xs font-medium text-gray-600">Files ({cert.files.length}):</p>
+                                    <div className="space-y-2">
+                                      {cert.files.map((file, fileIdx) => (
+                                        <div key={file.id || fileIdx} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+                                          <div className="flex items-center gap-2">
+                                            <FileText className="h-4 w-4 text-gray-600" />
+                                            <span className="text-sm text-gray-700">
+                                              {file.purpose || `File ${fileIdx + 1}`}
+                                            </span>
+                                          </div>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => window.open(file.imageUrl, '_blank')}
+                                            className="gap-1 h-7 text-xs"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                            Xem/Tải
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-gray-500">
-                        <div className="flex flex-col items-center gap-3">
-                          <span className="text-4xl">🏅</span>
-                          <p>Không có chứng chỉ nào</p>
-                        </div>
-                      </div>
-                    )}
+                        );
+                      } else if (certificateFiles.length > 0) {
+                        // Fallback: hiển thị certificateFiles
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {certificateFiles.map((cert, idx) => (
+                              <div key={cert.id || idx} className="border rounded-lg p-4 flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {cert.purpose || `Chứng chỉ #${idx + 1}`}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-1">ID: {cert.id}</p>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => window.open(cert.imageUrl, '_blank')} className="gap-2">
+                                  <FileText className="h-4 w-4" />
+                                  Xem
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="text-center py-12 text-gray-500">
+                            <div className="flex flex-col items-center gap-3">
+                              <span className="text-4xl">🏅</span>
+                              <p>Không có chứng chỉ nào</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
                   </TabsContent>
 
                   <TabsContent value="reviews" className="mt-6">

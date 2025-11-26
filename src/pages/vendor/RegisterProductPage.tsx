@@ -26,6 +26,12 @@ interface SpecificationItem {
   value: string;
 }
 
+interface CertificateItem {
+  code: string;
+  name: string;
+  file: File | null;
+}
+
 export const RegisterProductPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -52,15 +58,15 @@ export const RegisterProductPage = () => {
       width: 0,
       height: 0,
       length: 0
-    },
-    certificationCode: "",
-    certificationName: ""
+    }
   });
 
   // File states
-  const [manualFile, setManualFile] = useState<File | null>(null);
+  const [manualFiles, setManualFiles] = useState<File[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [certificateFiles, setCertificateFiles] = useState<File[]>([]);
+  const [certificates, setCertificates] = useState<CertificateItem[]>([
+    { code: '', name: '', file: null }
+  ]);
 
   const steps = [
     "Thông tin sản phẩm",
@@ -157,6 +163,81 @@ export const RegisterProductPage = () => {
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const addManualFile = () => {
+    // Tạo một input file ẩn để trigger
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e: any) => {
+      if (e.target.files && e.target.files[0]) {
+        setManualFiles((prev) => [...prev, e.target.files[0]]);
+      }
+    };
+    input.click();
+  };
+
+  const removeManualFile = (index: number) => {
+    setManualFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleManualFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const newFiles = [...manualFiles];
+      newFiles[index] = e.target.files[0];
+      setManualFiles(newFiles);
+    }
+    e.target.value = '';
+  };
+
+  const addImageFile = () => {
+    // Tạo một input file ẩn để trigger
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = false;
+    input.onchange = (e: any) => {
+      if (e.target.files && e.target.files[0]) {
+        setImageFiles((prev) => [...prev, e.target.files[0]]);
+      }
+    };
+    input.click();
+  };
+
+  const addCertificate = () => {
+    setCertificates([...certificates, { code: '', name: '', file: null }]);
+  };
+
+  const removeCertificate = (index: number) => {
+    if (certificates.length > 1) {
+      setCertificates(certificates.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateCertificate = (index: number, field: 'code' | 'name' | 'file', value: string | File | null) => {
+    const newCertificates = [...certificates];
+    newCertificates[index] = {
+      ...newCertificates[index],
+      [field]: value
+    };
+    setCertificates(newCertificates);
+  };
+
+  const handleCertificateFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // Chỉ chấp nhận PDF hoặc image
+      if (file.type === 'application/pdf' || 
+          file.name.toLowerCase().endsWith('.pdf') ||
+          file.type.startsWith('image/')) {
+        updateCertificate(index, 'file', file);
+      } else {
+        alert('Vui lòng chọn file PDF hoặc hình ảnh');
+      }
+    }
+    // Reset input để có thể chọn lại cùng file
+    e.target.value = '';
+  };
+
   const updateSpecification = (index: number, field: 'key' | 'value', value: string) => {
     const newSpecs = [...specifications];
     newSpecs[index][field] = value;
@@ -241,6 +322,18 @@ export const RegisterProductPage = () => {
         }
       }
 
+      // Validate certificates: đảm bảo mỗi certificate có tên và file nếu đã nhập
+      const validCertificates = certificates.filter(cert => cert.file && cert.name.trim());
+      const invalidCertificates = certificates.filter(cert => 
+        (cert.file && !cert.name.trim()) || (!cert.file && cert.name.trim())
+      );
+      
+      if (invalidCertificates.length > 0) {
+        alert('Vui lòng nhập đầy đủ tên chứng chỉ và tải lên file cho tất cả các chứng chỉ');
+        setSubmitting(false);
+        return;
+      }
+
       const payload: RegisterProductRequest = {
         vendorId: typeof user.id === 'string' ? parseInt(user.id) : user.id,
         categoryId: form.categoryId,
@@ -257,11 +350,11 @@ export const RegisterProductPage = () => {
           height: form.dimensionsCm.height || 0,
           length: form.dimensionsCm.length || 0
         },
-        certificationCode: form.certificationCode.trim() || undefined,
-        certificationName: form.certificationName.trim() || undefined,
-        manualFile: manualFile || undefined,
+        manualFile: manualFiles.length > 0 ? manualFiles[0] : undefined,
         images: imageFiles.length > 0 ? imageFiles : undefined,
-        certificate: certificateFiles.length > 0 ? certificateFiles : undefined
+        certificate: validCertificates.length > 0 ? validCertificates.map(cert => cert.file!) : undefined,
+        certificationCode: validCertificates.length > 0 ? validCertificates.map(cert => cert.code.trim()).filter(code => code) : undefined,
+        certificationName: validCertificates.length > 0 ? validCertificates.map(cert => cert.name.trim()) : undefined
       };
 
       console.log('Sending payload:', payload);
@@ -516,35 +609,38 @@ export const RegisterProductPage = () => {
                   Kích thước (cm) <span className="text-red-500">*</span>
                 </Label>
                 <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.dimensionsCm.width}
-                      onChange={(e) => handleChange('dimensionsCm.width', e.target.value)}
-                      placeholder="Rộng"
-                      min="0"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.dimensionsCm.height}
-                      onChange={(e) => handleChange('dimensionsCm.height', e.target.value)}
-                      placeholder="Cao"
-                      min="0"
-                      required
-                    />
-                  </div>
-                  <div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Chiều dài</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={form.dimensionsCm.length}
                       onChange={(e) => handleChange('dimensionsCm.length', e.target.value)}
-                      placeholder="Dài"
+                      placeholder="Dài (cm)"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Chiều rộng</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.dimensionsCm.width}
+                      onChange={(e) => handleChange('dimensionsCm.width', e.target.value)}
+                      placeholder="Rộng (cm)"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Chiều cao</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.dimensionsCm.height}
+                      onChange={(e) => handleChange('dimensionsCm.height', e.target.value)}
+                      placeholder="Cao (cm)"
                       min="0"
                       required
                     />
@@ -615,72 +711,96 @@ export const RegisterProductPage = () => {
                 </div>
               </div>
 
-              {/* Manual File */}
+              {/* Manual Files */}
               <div className="space-y-2">
-                <Label htmlFor="manualFile" className="text-sm font-medium">
-                  File hướng dẫn sử dụng
-                </Label>
-                <Input
-                  id="manualFile"
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => setManualFile(e.target.files?.[0] || null)}
-                />
-                {manualFile && (
-                  <p className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    {manualFile.name}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    File hướng dẫn sử dụng
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addManualFile}
+                    disabled={submitting}
+                    className="h-8"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Thêm file
+                  </Button>
+                </div>
+                {manualFiles.length > 0 ? (
+                  <div className="space-y-2">
+                    {manualFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                          <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeManualFile(index)}
+                          disabled={submitting}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Chưa có file nào được chọn</p>
                 )}
               </div>
 
               {/* Images */}
               <div className="space-y-2">
-                <Label htmlFor="images" className="text-sm font-medium">
-                  Hình ảnh sản phẩm
-                </Label>
-                <Input
-                  id="images"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setImageFiles((prev) => [...prev, ...files]);
-                    if (e.target) {
-                      e.target.value = '';
-                    }
-                  }}
-                />
-                {imageFiles.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    Hình ảnh sản phẩm
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addImageFile}
+                    disabled={submitting}
+                    className="h-8"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Thêm ảnh
+                  </Button>
+                </div>
+                {imageFiles.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-sm text-green-600 flex items-center gap-1">
-                      <CheckCircle2 size={14} />
-                      {imageFiles.length} hình ảnh đã chọn
-                    </p>
-                    <div className="space-y-1 bg-gray-50 rounded-lg p-2 max-h-48 overflow-y-auto">
-                      {imageFiles.map((file, index) => (
-                        <div
-                          key={`${file.name}-${index}`}
-                          className="flex items-center justify-between text-sm text-gray-700 bg-white rounded-md px-3 py-2 border"
-                        >
-                          <span className="truncate flex-1 pr-2">{file.name}</span>
-                          <span className="text-xs text-gray-500 mr-2">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeImageFile(index)}
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                    {imageFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                          <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                         </div>
-                      ))}
-                    </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeImageFile(index)}
+                          disabled={submitting}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Chưa có hình ảnh nào được chọn</p>
                 )}
               </div>
             </div>
@@ -709,68 +829,117 @@ export const RegisterProductPage = () => {
 
             {/* Certificate Information */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-                  <Upload className="w-4 h-4 text-emerald-600" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
+                    <Upload className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-800">Thông tin chứng nhận sản phẩm</h4>
                 </div>
-                <h4 className="text-lg font-semibold text-gray-800">Thông tin chứng nhận sản phẩm</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCertificate}
+                  disabled={submitting}
+                  className="h-8"
+                >
+                  <Plus size={16} className="mr-1" />
+                  Thêm chứng chỉ
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Certificate Code */}
-                <div className="space-y-2">
-                  <Label htmlFor="certificationCode" className="text-sm font-medium">
-                    Mã chứng nhận <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="certificationCode"
-                    value={form.certificationCode}
-                    onChange={(e) => handleChange('certificationCode', e.target.value)}
-                    placeholder="VD: CERT-2024-001"
-                    required
-                  />
-                </div>
-
-                {/* Certificate Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="certificationName" className="text-sm font-medium">
-                    Tên chứng nhận <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="certificationName"
-                    value={form.certificationName}
-                    onChange={(e) => handleChange('certificationName', e.target.value)}
-                    placeholder="VD: Chứng nhận ISO 9001"
-                    required
-                  />
-                </div>
+              <div className="space-y-3">
+                {certificates.map((cert, index) => (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg space-y-3">
+                    <div className="flex items-start gap-3">
+                      <FileText className="h-5 w-5 text-blue-600 mt-1" />
+                      <div className="flex-1 space-y-3">
+                        {/* Mã chứng chỉ - Tùy chọn */}
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-gray-700">
+                            Mã chứng chỉ (tùy chọn)
+                          </Label>
+                          <Input
+                            type="text"
+                            value={cert.code}
+                            onChange={(e) => updateCertificate(index, 'code', e.target.value)}
+                            placeholder="VD: CERT-2024-001"
+                            disabled={submitting}
+                            className="text-sm"
+                          />
+                        </div>
+                        
+                        {/* Tên chứng chỉ - BẮT BUỘC */}
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-gray-700">
+                            Tên chứng chỉ <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="text"
+                            value={cert.name}
+                            onChange={(e) => updateCertificate(index, 'name', e.target.value)}
+                            placeholder="VD: Chứng nhận ISO 9001"
+                            disabled={submitting}
+                            className="text-sm"
+                            required
+                          />
+                        </div>
+                        
+                        {/* File upload */}
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-gray-700">
+                            Tệp tin chứng nhận <span className="text-red-500">*</span>
+                          </Label>
+                          <label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={submitting}
+                              className="h-8 cursor-pointer w-full justify-start"
+                              asChild
+                            >
+                              <span>
+                                <Upload size={16} className="mr-1" />
+                                {cert.file ? cert.file.name : 'Choose File'}
+                              </span>
+                            </Button>
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleCertificateFileChange(index, e)}
+                              disabled={submitting}
+                              className="hidden"
+                            />
+                          </label>
+                          {cert.file && (
+                            <p className="text-xs text-gray-500">
+                              {(cert.file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {certificates.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCertificate(index)}
+                          disabled={submitting}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              {/* Certificate Files */}
-              <div className="space-y-2">
-                <Label htmlFor="certificateFiles" className="text-sm font-medium">
-                  Tệp tin chứng nhận
-                </Label>
-                <Input
-                  id="certificateFiles"
-                  type="file"
-                  accept="image/*,.pdf"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setCertificateFiles(files);
-                  }}
-                />
-                {certificateFiles.length > 0 && (
-                  <p className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    {certificateFiles.length} tệp chứng nhận đã chọn
-                  </p>
-                )}
-                <p className="text-sm text-gray-500">
-                  Có thể tải lên nhiều file chứng nhận (hình ảnh hoặc PDF)
-                </p>
-              </div>
+              <p className="text-sm text-gray-500">
+                Tải lên các file PDF hoặc hình ảnh chứng nhận chất lượng, an toàn, hoặc các chứng chỉ khác của sản phẩm. 
+                <span className="text-red-500 font-medium"> Mỗi chứng chỉ cần có tên và file.</span>
+              </p>
             </div>
 
             {/* Summary */}
@@ -806,15 +975,23 @@ export const RegisterProductPage = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Mã chứng nhận</p>
-                  <p className="font-semibold text-gray-900">{form.certificationCode || "Chưa nhập"}</p>
+                  <p className="font-semibold text-gray-900">
+                    {certificates.filter(c => c.code.trim()).length > 0 
+                      ? `${certificates.filter(c => c.code.trim()).length} mã` 
+                      : "Chưa nhập"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Tên chứng nhận</p>
-                  <p className="font-semibold text-gray-900">{form.certificationName || "Chưa nhập"}</p>
+                  <p className="font-semibold text-gray-900">
+                    {certificates.filter(c => c.name.trim()).length > 0 
+                      ? `${certificates.filter(c => c.name.trim()).length} tên` 
+                      : "Chưa nhập"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">File hướng dẫn</p>
-                  <p className="font-semibold text-gray-900">{manualFile ? manualFile.name : "Chưa có"}</p>
+                  <p className="font-semibold text-gray-900">{manualFiles.length > 0 ? `${manualFiles.length} tệp` : "Chưa có"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Hình ảnh</p>
@@ -822,7 +999,9 @@ export const RegisterProductPage = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">File chứng nhận</p>
-                  <p className="font-semibold text-gray-900">{certificateFiles.length} tệp</p>
+                  <p className="font-semibold text-gray-900">
+                    {certificates.filter(c => c.file).length} tệp
+                  </p>
                 </div>
               </div>
             </div>
