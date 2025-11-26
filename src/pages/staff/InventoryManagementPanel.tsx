@@ -656,18 +656,90 @@ export const InventoryManagementPanel: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                filteredImportInventories.map((item) => (
-                  <Card key={item.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">
-                          {item.product?.name || item.productName || `Sản phẩm #${item.productId}`}
-                        </CardTitle>
-                        {getQualityStatusBadge(item.qualityCheckStatus)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                filteredImportInventories.map((item) => {
+                  // Tìm thông tin sản phẩm từ products array
+                  const productInfo = products.find(p => p.id === item.productId);
+                  
+                  // Parse hình ảnh sản phẩm
+                  let productImageUrl = '';
+                  if (productInfo) {
+                    if (typeof productInfo.images === 'string' && productInfo.images) {
+                      productImageUrl = productInfo.images.split(',')[0].trim();
+                    } else if (Array.isArray(productInfo.images) && productInfo.images.length > 0) {
+                      const firstImage = productInfo.images[0];
+                      if (typeof firstImage === 'string') {
+                        productImageUrl = firstImage;
+                      } else if (firstImage && typeof firstImage === 'object' && 'imageUrl' in firstImage) {
+                        productImageUrl = firstImage.imageUrl;
+                      }
+                    }
+                    if (!productImageUrl && productInfo.publicUrl) {
+                      productImageUrl = productInfo.publicUrl;
+                    }
+                    if (!productImageUrl && productInfo.image) {
+                      productImageUrl = productInfo.image;
+                    }
+                  }
+                  
+                  return (
+                    <Card key={item.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">
+                            {item.product?.name || item.productName || productInfo?.productName || productInfo?.name || `Sản phẩm #${item.productId}`}
+                          </CardTitle>
+                          {getQualityStatusBadge(item.qualityCheckStatus)}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {/* Hình ảnh và thông tin sản phẩm */}
+                        <div className="flex gap-4 pb-3 border-b">
+                          {productImageUrl && (
+                            <div className="flex-shrink-0">
+                              <img 
+                                src={productImageUrl} 
+                                alt={productInfo?.productName || productInfo?.name || 'Product'} 
+                                className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 space-y-2">
+                            {productInfo && (
+                              <>
+                                <div>
+                                  <p className="text-xs text-gray-500">Mã sản phẩm</p>
+                                  <p className="text-sm font-medium">{productInfo.productCode || `#${productInfo.id}`}</p>
+                                </div>
+                                {productInfo.description && (
+                                  <div>
+                                    <p className="text-xs text-gray-500">Mô tả</p>
+                                    <p className="text-sm text-gray-700 line-clamp-2">{productInfo.description}</p>
+                                  </div>
+                                )}
+                                <div className="flex gap-4 text-sm">
+                                  {productInfo.unitPrice > 0 && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">Giá bán</p>
+                                      <p className="font-medium text-blue-600">{formatPrice(productInfo.unitPrice)}</p>
+                                    </div>
+                                  )}
+                                  {productInfo.stockQuantity !== undefined && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">Tồn kho</p>
+                                      <p className="font-medium">{productInfo.stockQuantity}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Thông tin nhập hàng */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500">SKU</p>
                           <p className="font-medium">{item.sku}</p>
@@ -743,7 +815,8 @@ export const InventoryManagementPanel: React.FC = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))
+                  );
+                })
               )}
             </div>
           )}
