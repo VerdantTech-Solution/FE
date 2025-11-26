@@ -86,7 +86,7 @@ export const ChatAIBubble = () => {
   const [messages, setMessages] = useState<Message[]>(loadCurrentConversation);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Save chat history to current conversation
@@ -120,7 +120,17 @@ export const ChatAIBubble = () => {
   }, [messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const prefersReducedMotion = window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
   };
 
   useEffect(() => {
@@ -425,7 +435,10 @@ export const ChatAIBubble = () => {
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4">
+              <div
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
+              >
                 {messages.map((message) => (
                   <motion.div
                     key={message.id}
@@ -520,8 +533,6 @@ export const ChatAIBubble = () => {
                     </div>
                   </motion.div>
                 )}
-
-                <div ref={messagesEndRef} />
               </div>
 
               {/* Input Area */}

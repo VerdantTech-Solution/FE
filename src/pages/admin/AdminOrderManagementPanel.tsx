@@ -19,18 +19,16 @@ import {
 import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, AlertCircle } from "lucide-react";
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
+import { getOrderStatistics, type OrderStatistics } from "@/api/dashboard";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
 interface OrderStats {
   total: number;
-  pending: number;
   paid: number;
-  confirmed: number;
-  processing: number;
   shipped: number;
-  delivered: number;
   cancelled: number;
+  delivered: number;
   refunded: number;
 }
 
@@ -44,6 +42,28 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [statusFilter, setStatusFilter] = useState<OrderStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Set default date range: from start of current year to today
+  const getDefaultDateRange = () => {
+    const today = new Date();
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    
+    const formatDate = (date: Date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    
+    return {
+      from: formatDate(startOfYear),
+      to: formatDate(today),
+    };
+  };
+  
+  const defaultDateRange = getDefaultDateRange();
+  const [dateFrom, setDateFrom] = useState<string>(defaultDateRange.from);
+  const [dateTo, setDateTo] = useState<string>(defaultDateRange.to);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
@@ -68,20 +88,15 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
-
-  const stats = useMemo<OrderStats>(() => {
-    return {
-      total: totalRecords,
-      pending: orders.filter((o) => o.status === "Pending").length,
-      paid: orders.filter((o) => o.status === "Paid").length,
-      confirmed: orders.filter((o) => o.status === "Confirmed").length,
-      processing: orders.filter((o) => o.status === "Processing").length,
-      shipped: orders.filter((o) => o.status === "Shipped").length,
-      delivered: orders.filter((o) => o.status === "Delivered").length,
-      cancelled: orders.filter((o) => o.status === "Cancelled").length,
-      refunded: orders.filter((o) => o.status === "Refunded").length,
-    };
-  }, [orders, totalRecords]);
+  const [stats, setStats] = useState<OrderStats>({
+    total: 0,
+    paid: 0,
+    shipped: 0,
+    cancelled: 0,
+    delivered: 0,
+    refunded: 0,
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -109,9 +124,59 @@ export const AdminOrderManagementPanel: React.FC = () => {
     }
   };
 
+  const fetchOrderStatistics = async () => {
+    try {
+      setIsLoadingStats(true);
+      const params: { from?: string; to?: string } = {};
+      if (dateFrom) params.from = dateFrom;
+      if (dateTo) params.to = dateTo;
+      
+      const response = await getOrderStatistics(params);
+      
+      if (response.status && response.data) {
+        const statistics: OrderStatistics = response.data;
+        setStats({
+          total: statistics.total || 0,
+          paid: statistics.paid || 0,
+          shipped: statistics.shipped || 0,
+          cancelled: statistics.cancelled || 0,
+          delivered: statistics.delivered || 0,
+          refunded: statistics.refunded || 0,
+        });
+      } else {
+        console.error("Failed to fetch order statistics:", response.errors);
+        setStats({
+          total: 0,
+          paid: 0,
+          shipped: 0,
+          cancelled: 0,
+          delivered: 0,
+          refunded: 0,
+        });
+      }
+    } catch (err: any) {
+      console.error("Error fetching order statistics:", err);
+      setStats({
+        total: 0,
+        paid: 0,
+        shipped: 0,
+        cancelled: 0,
+        delivered: 0,
+        refunded: 0,
+      });
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
   }, [currentPage, pageSize, statusFilter]);
+
+  useEffect(() => {
+    fetchOrderStatistics();
+  }, []);
+
 
   // Reset newStatus when order changes
   useEffect(() => {
@@ -190,6 +255,9 @@ export const AdminOrderManagementPanel: React.FC = () => {
         
         // Refresh the list
         await fetchOrders();
+        
+        // Refresh statistics
+        await fetchOrderStatistics();
         
         setShowCancelReason(false);
         setCancelReason("");
@@ -337,6 +405,9 @@ export const AdminOrderManagementPanel: React.FC = () => {
         // Refresh the list
         await fetchOrders();
         
+        // Refresh statistics
+        await fetchOrderStatistics();
+        
         handleShipDialogChange(false);
         
         // Show success dialog
@@ -439,7 +510,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-6">
         {/* Total Orders */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-blue-600">
@@ -453,17 +524,29 @@ export const AdminOrderManagementPanel: React.FC = () => {
           </div>
         </Card>
 
-        {/* Pending */}
+        {/* Paid */}
         <Card className="p-4 relative overflow-hidden">
-          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-yellow-600">
-            <Clock className="h-20 w-20" />
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-blue-600">
+            <DollarSign className="h-20 w-20" />
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Chờ xử lý</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.pending}</p>
+              <p className="text-sm text-gray-500">Đã thanh toán</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.paid}</p>
             </div>
-           
+          </div>
+        </Card>
+
+        {/* Shipped */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-cyan-600">
+            <Truck className="h-20 w-20" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Đã gửi</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.shipped}</p>
+            </div>
           </div>
         </Card>
 
@@ -477,7 +560,6 @@ export const AdminOrderManagementPanel: React.FC = () => {
               <p className="text-sm text-gray-500">Đã giao</p>
               <p className="text-3xl font-bold tracking-tight">{stats.delivered}</p>
             </div>
-         
           </div>
         </Card>
 
@@ -491,7 +573,19 @@ export const AdminOrderManagementPanel: React.FC = () => {
               <p className="text-sm text-gray-500">Đã hủy</p>
               <p className="text-3xl font-bold tracking-tight">{stats.cancelled}</p>
             </div>
-         
+          </div>
+        </Card>
+
+        {/* Refunded */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-gray-600">
+            <AlertCircle className="h-20 w-20" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Đã hoàn tiền</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.refunded}</p>
+            </div>
           </div>
         </Card>
       </div>
@@ -499,43 +593,94 @@ export const AdminOrderManagementPanel: React.FC = () => {
       {/* Filter block */}
       <Card className="mb-6">
         <div className="p-4 border-b text-sm font-medium text-gray-700">Bộ lọc và tìm kiếm</div>
-        <div className="p-4 grid gap-3 md:grid-cols-3">
-          <div className="relative">
-            <Input
-              placeholder="Tìm theo ID, tên, email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <div className="p-4 space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="relative">
+              <Input
+                placeholder="Tìm theo ID, tên, email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => handleStatusChange(v as OrderStatus)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tất cả trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Paid">Paid</SelectItem>
+                <SelectItem value="Confirmed">Confirmed</SelectItem>
+                <SelectItem value="Processing">Processing</SelectItem>
+                <SelectItem value="Shipped">Shipped</SelectItem>
+                <SelectItem value="Delivered">Delivered</SelectItem>
+                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                <SelectItem value="Refunded">Refunded</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 md:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setSearchQuery("");
+                  setCurrentPage(1);
+                }}
+              >
+                Xóa bộ lọc
+              </Button>
+            </div>
           </div>
-          <Select value={statusFilter} onValueChange={(v) => handleStatusChange(v as OrderStatus)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Tất cả trạng thái" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Paid">Paid</SelectItem>
-              <SelectItem value="Confirmed">Confirmed</SelectItem>
-              <SelectItem value="Processing">Processing</SelectItem>
-              <SelectItem value="Shipped">Shipped</SelectItem>
-              <SelectItem value="Delivered">Delivered</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
-              <SelectItem value="Refunded">Refunded</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2 md:justify-end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStatusFilter("all");
-                setSearchQuery("");
-                setCurrentPage(1);
-              }}
-            >
-              Xóa bộ lọc
-            </Button>
+          <div className="grid gap-3 md:grid-cols-4 border-t pt-4">
+            <div>
+              <Label htmlFor="date-from" className="text-sm font-medium text-gray-700 mb-2 block">
+                Từ ngày
+              </Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                max={dateTo || undefined}
+              />
+            </div>
+            <div>
+              <Label htmlFor="date-to" className="text-sm font-medium text-gray-700 mb-2 block">
+                Đến ngày
+              </Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                min={dateFrom || undefined}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={fetchOrderStatistics}
+                disabled={isLoadingStats}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                {isLoadingStats ? "Đang tải..." : "Áp dụng"}
+              </Button>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                  fetchOrderStatistics();
+                }}
+                disabled={isLoadingStats}
+                className="w-full"
+              >
+                Xóa ngày
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
