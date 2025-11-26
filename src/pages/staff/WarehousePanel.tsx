@@ -227,7 +227,24 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
       setMediaLinksMap(mediaLinksMap);
     } catch (err: any) {
       console.error('Error fetching product registrations:', err);
-      setError(err?.message || 'Có lỗi xảy ra khi tải danh sách đăng ký sản phẩm');
+      
+      // Hiển thị thông báo lỗi rõ ràng hơn
+      let errorMessage = 'Có lỗi xảy ra khi tải danh sách đăng ký sản phẩm';
+      
+      if (err?.isBackendError) {
+        errorMessage = err.message || errorMessage;
+      } else if (err?.response?.data?.message) {
+        const backendMsg = err.response.data.message;
+        if (backendMsg.includes('registration_id') || backendMsg.includes('Unknown column')) {
+          errorMessage = 'Lỗi cơ sở dữ liệu từ backend. Vui lòng liên hệ quản trị viên để sửa lỗi SQL trong ProductRegistrationRepository.LoadMediaAsync.';
+        } else {
+          errorMessage = backendMsg;
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -393,6 +410,59 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
     
     try {
       const detail = await getProductRegistrationById(id);
+      
+      // Backend đã trả về certificates, nhưng vẫn giữ fallback nếu cần
+      if (!detail.certificates || detail.certificates.length === 0) {
+        // Fallback: thử lấy từ certificateFiles (backward compatibility)
+        if (detail.certificateFiles && detail.certificateFiles.length > 0) {
+          detail.certificates = [{
+            id: 0,
+            productId: 0,
+            registrationId: id,
+            certificationCode: '',
+            certificationName: 'Chứng chỉ',
+            status: 'Pending' as const,
+            uploadedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            files: detail.certificateFiles
+          }];
+        } else {
+          // Fallback: thử lấy từ media links
+          try {
+            const mediaLinks = await getMediaLinks('product_registrations', id);
+            const certLinks = mediaLinks.filter(link => 
+              link.purpose === 'certificatepdf' || 
+              link.purpose === 'certificate' || 
+              link.purpose?.toLowerCase().includes('cert')
+            );
+            
+            if (certLinks.length > 0) {
+              detail.certificates = [{
+                id: 0,
+                productId: 0,
+                registrationId: id,
+                certificationCode: '',
+                certificationName: 'Chứng chỉ từ media links',
+                status: 'Pending' as const,
+                uploadedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                files: certLinks.map(link => ({
+                  id: link.id,
+                  imagePublicId: link.imagePublicId,
+                  imageUrl: link.imageUrl,
+                  purpose: link.purpose || 'certificatepdf',
+                  sortOrder: link.sortOrder || 0
+                }))
+              }];
+            }
+          } catch (mediaErr) {
+            console.log('Could not fetch certificates from media links:', mediaErr);
+          }
+        }
+      }
+      
       setSelectedRegistrationDetail(detail);
     } catch (err: any) {
       console.error('Error fetching registration detail:', err);
@@ -882,8 +952,80 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                 ) : null;
               })()}
 
-              {/* Certificate Files */}
-              {selectedRegistrationDetail.certificateFiles && selectedRegistrationDetail.certificateFiles.length > 0 && (
+              {/* Certificates */}
+              {selectedRegistrationDetail.certificates && selectedRegistrationDetail.certificates.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Giấy chứng nhận ({selectedRegistrationDetail.certificates.length})
+                  </Label>
+                  <div className="space-y-4">
+                    {selectedRegistrationDetail.certificates.map((cert, certIdx) => (
+                      <div key={cert.id || certIdx} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                        {/* Certificate Header */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <FileText className="h-5 w-5 text-blue-600" />
+                              <p className="text-sm font-semibold text-gray-900">
+                                {cert.certificationName || `Chứng chỉ ${certIdx + 1}`}
+                              </p>
+                            </div>
+                            {cert.certificationCode && (
+                              <p className="text-xs text-gray-500 ml-7">Mã: {cert.certificationCode}</p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 ml-7">
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                cert.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                cert.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {cert.status === 'Approved' ? 'Đã duyệt' :
+                                 cert.status === 'Rejected' ? 'Từ chối' : 'Chờ duyệt'}
+                              </span>
+                            </div>
+                            {cert.rejectionReason && (
+                              <p className="text-xs text-red-600 mt-1 ml-7">Lý do: {cert.rejectionReason}</p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Certificate Files */}
+                        {cert.files && cert.files.length > 0 && (
+                          <div className="ml-7 space-y-2">
+                            <p className="text-xs font-medium text-gray-600">Files ({cert.files.length}):</p>
+                            <div className="space-y-2">
+                              {cert.files.map((file, fileIdx) => (
+                                <div key={file.id || fileIdx} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-gray-600" />
+                                    <span className="text-sm text-gray-700">
+                                      {file.purpose || `File ${fileIdx + 1}`}
+                                    </span>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => window.open(file.imageUrl, '_blank')}
+                                    className="gap-1 h-7 text-xs"
+                                  >
+                                    <Download className="h-3 w-3" />
+                                    Xem/Tải
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Fallback: Certificate Files (backward compatibility) */}
+              {(!selectedRegistrationDetail.certificates || selectedRegistrationDetail.certificates.length === 0) &&
+               selectedRegistrationDetail.certificateFiles && selectedRegistrationDetail.certificateFiles.length > 0 && (
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-2">
                     <FileText className="h-4 w-4" />

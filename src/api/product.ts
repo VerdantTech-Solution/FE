@@ -13,10 +13,14 @@ export interface ProductRegistration {
   specifications?: {
     [key: string]: string;
   };
-  manualUrls?: string;
+  manualUrl?: string;
+  manualPublicUrl?: string;
   images?: string | ProductImage[] | string[]; // Có thể là string, array of objects, hoặc array of strings
   productImages?: MediaLinkItemDTO[]; // ✅ Backend trả về trong field này (từ HydrateMediaAsync)
-  certificateFiles?: MediaLinkItemDTO[]; // Certificates từ backend
+  certificates?: Certificate[]; // Certificates từ backend (cấu trúc mới)
+  certificateFiles?: MediaLinkItemDTO[]; // Deprecated - giữ lại để backward compatibility
+  certificationCode?: string[];
+  certificationName?: string[];
   warrantyMonths: number;
   weightKg: number;
   dimensionsCm?: {
@@ -42,6 +46,23 @@ export interface MediaLinkItemDTO {
   imageUrl: string;
   purpose: string;
   sortOrder: number;
+}
+
+// Certificate interface từ backend
+export interface Certificate {
+  id: number;
+  productId: number;
+  registrationId: number;
+  certificationCode: string;
+  certificationName: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  uploadedAt: string;
+  verifiedAt?: string;
+  verifiedBy?: number;
+  createdAt: string;
+  updatedAt: string;
+  files: MediaLinkItemDTO[];
 }
 
 export interface CreateProductCategoryRequest {
@@ -452,8 +473,8 @@ export interface RegisterProductRequest {
     height?: number;
     length?: number;
   };
-  certificationCode?: string;
-  certificationName?: string;
+  certificationCode?: string[];
+  certificationName?: string[];
   manualFile?: File | null;
   images?: File[];
   certificate?: File[];
@@ -495,25 +516,29 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
       formData.append('Data.WeightKg', data.weightKg.toString());
     }
     
-    // Add dimensions (required fields)
+    // Add dimensions (required fields) - Thứ tự: Length, Width, Height
     if (data.dimensionsCm) {
+      formData.append('Data.DimensionsCm.Length', (data.dimensionsCm.length || 0).toString());
       formData.append('Data.DimensionsCm.Width', (data.dimensionsCm.width || 0).toString());
       formData.append('Data.DimensionsCm.Height', (data.dimensionsCm.height || 0).toString());
-      formData.append('Data.DimensionsCm.Length', (data.dimensionsCm.length || 0).toString());
     } else {
       // If dimensionsCm is not provided, send default values
+      formData.append('Data.DimensionsCm.Length', '0');
       formData.append('Data.DimensionsCm.Width', '0');
       formData.append('Data.DimensionsCm.Height', '0');
-      formData.append('Data.DimensionsCm.Length', '0');
     }
     
-    // Add certification fields (required by BE)
-    if (data.certificationCode) {
-      formData.append('Data.CertificationCode', data.certificationCode);
+    // Add certification fields (required by BE) - arrays
+    if (data.certificationCode && Array.isArray(data.certificationCode)) {
+      data.certificationCode.forEach((code, index) => {
+        formData.append(`Data.CertificationCode[${index}]`, code);
+      });
     }
     
-    if (data.certificationName) {
-      formData.append('Data.CertificationName', data.certificationName);
+    if (data.certificationName && Array.isArray(data.certificationName)) {
+      data.certificationName.forEach((name, index) => {
+        formData.append(`Data.CertificationName[${index}]`, name);
+      });
     }
     
     // Add files
@@ -585,11 +610,46 @@ export const getProductRegistrations = async (): Promise<ProductRegistration[]> 
     console.log('Response type:', typeof response);
     console.log('Is array:', Array.isArray(response));
     
-    // apiClient đã unwrap response.data do interceptor
+    // Xử lý pagination response (có data array)
+    if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+      const data = response.data;
+      // Log first item để xem structure
+      if (data.length > 0) {
+        console.log('=== First ProductRegistration item (from pagination) ===');
+        console.log('Full item:', JSON.stringify(data[0], null, 2));
+        console.log('All keys:', Object.keys(data[0]));
+        console.log('Images field:', data[0].images);
+        console.log('Images type:', typeof data[0].images);
+        console.log('Images is array:', Array.isArray(data[0].images));
+        if (data[0].images) {
+          if (typeof data[0].images === 'string') {
+            console.log('Images is string, value:', data[0].images);
+          } else if (Array.isArray(data[0].images)) {
+            console.log('Images is array, length:', data[0].images.length);
+            console.log('First image item:', data[0].images[0]);
+            console.log('First image item type:', typeof data[0].images[0]);
+            if (data[0].images[0] && typeof data[0].images[0] === 'object') {
+              console.log('First image item keys:', Object.keys(data[0].images[0]));
+            }
+          }
+        }
+        // Kiểm tra các field có thể chứa media links
+        const possibleFields = ['mediaLinks', 'media_links', 'imageUrls', 'ImageUrls', 'MediaLinks'];
+        for (const field of possibleFields) {
+          if (field in data[0]) {
+            console.log(`Found field "${field}":`, (data[0] as any)[field]);
+          }
+        }
+        console.log('=====================================');
+      }
+      return data;
+    }
+    
+    // Fallback: nếu response là array trực tiếp (không có pagination)
     if (response && Array.isArray(response)) {
       // Log first item để xem structure
       if (response.length > 0) {
-        console.log('=== First ProductRegistration item ===');
+        console.log('=== First ProductRegistration item (direct array) ===');
         console.log('Full item:', JSON.stringify(response[0], null, 2));
         console.log('All keys:', Object.keys(response[0]));
         console.log('Images field:', response[0].images);
@@ -619,18 +679,24 @@ export const getProductRegistrations = async (): Promise<ProductRegistration[]> 
       return response;
     }
     
-    // Fallback nếu response có cấu trúc khác
-    if (response && response.data && Array.isArray(response.data)) {
-      if (response.data.length > 0) {
-        console.log('First registration item (from data):', response.data[0]);
-        console.log('First registration images field (from data):', response.data[0].images);
+    return [];
+  } catch (error: any) {
+    console.error('Get product registrations error:', error);
+    
+    // Cải thiện error message cho lỗi SQL backend
+    if (error?.response?.data?.message) {
+      const errorMsg = error.response.data.message;
+      if (errorMsg.includes('registration_id') || errorMsg.includes('Unknown column')) {
+        const enhancedError = new Error(
+          'Lỗi cơ sở dữ liệu từ backend. Vui lòng liên hệ quản trị viên để sửa lỗi SQL.\n' +
+          'Chi tiết: ' + errorMsg
+        );
+        (enhancedError as any).isBackendError = true;
+        (enhancedError as any).originalError = error;
+        throw enhancedError;
       }
-      return response.data;
     }
     
-    return [];
-  } catch (error) {
-    console.error('Get product registrations error:', error);
     throw error;
   }
 };
