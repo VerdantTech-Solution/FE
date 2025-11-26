@@ -16,7 +16,8 @@ import {
   Plus,
   Star,
   AlertCircle,
-  FileText
+  FileText,
+  Package
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -120,6 +121,38 @@ const renderStars = (rating: number) => {
   ));
 };
 
+// Helper function to parse images from ProductRegistration
+const parseImagesFromRegistration = (registration: ProductRegistration): string[] => {
+  // ✅ Ưu tiên 1: Backend trả về trong field productImages (từ HydrateMediaAsync)
+  if (registration.productImages && Array.isArray(registration.productImages) && registration.productImages.length > 0) {
+    return registration.productImages.map((item) => item.imageUrl).filter(Boolean);
+  }
+
+  // Fallback: Parse từ field images (nếu có)
+  if (!registration.images) {
+    return [];
+  }
+
+  // Trường hợp 1: images là string (CSV hoặc single URL)
+  if (typeof registration.images === 'string') {
+    return registration.images.split(',').map(url => url.trim()).filter(Boolean);
+  }
+
+  // Trường hợp 2: images là array of strings
+  if (Array.isArray(registration.images)) {
+    return registration.images.map((img: any) => {
+      if (typeof img === 'string') {
+        return img;
+      } else if (img && typeof img === 'object' && img.imageUrl) {
+        return img.imageUrl;
+      }
+      return null;
+    }).filter(Boolean) as string[];
+  }
+
+  return [];
+};
+
 const RegistrationTable = ({ registrations, loading, onView }: { registrations: ProductRegistration[], loading: boolean, onView: (registration: ProductRegistration) => void }) => {
   const formatDate = (dateString: string) => {
     try {
@@ -156,6 +189,7 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Hình ảnh</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Mã sản phẩm</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Tên sản phẩm</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Giá</th>
@@ -167,7 +201,7 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
             <tbody>
               {registrations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
                     Không có đơn đăng ký nào
                   </td>
                 </tr>
@@ -175,9 +209,29 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
                 registrations.map((registration) => {
                   const statusInfo = statusConfig[registration.status];
                   const StatusIcon = statusInfo.icon;
+                  const images = parseImagesFromRegistration(registration);
+                  const firstImage = images.length > 0 ? images[0] : null;
                   
                   return (
                     <tr key={registration.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-4 px-4">
+                        {firstImage ? (
+                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                            <img
+                              src={firstImage}
+                              alt={registration.proposedProductName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=No+Image';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </td>
                       <td className="py-4 px-4">
                         <p className="font-medium text-gray-900">{registration.proposedProductCode}</p>
                       </td>
@@ -639,6 +693,30 @@ const RegistrationManagementPage = () => {
                         <p className="text-xs text-gray-400 mt-1">(Dài x Rộng x Cao)</p>
                       </div>
                     </div>
+
+                    {/* Product Images */}
+                    {(() => {
+                      const images = parseImagesFromRegistration(detailData);
+                      return images.length > 0 ? (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-2">Hình ảnh sản phẩm</p>
+                          <div className="grid grid-cols-3 gap-4">
+                            {images.map((imageUrl, idx) => (
+                              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                                <img
+                                  src={imageUrl}
+                                  alt={`${detailData.proposedProductName} ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300?text=No+Image';
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
 
                     <div>
                       <p className="text-sm text-gray-500">Mô tả</p>

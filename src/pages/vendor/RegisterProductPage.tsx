@@ -62,7 +62,7 @@ export const RegisterProductPage = () => {
   });
 
   // File states
-  const [manualFile, setManualFile] = useState<File | null>(null);
+  const [manualFiles, setManualFiles] = useState<File[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [certificates, setCertificates] = useState<CertificateItem[]>([
     { code: '', name: '', file: null }
@@ -161,6 +161,46 @@ export const RegisterProductPage = () => {
 
   const removeImageFile = (index: number) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addManualFile = () => {
+    // Tạo một input file ẩn để trigger
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e: any) => {
+      if (e.target.files && e.target.files[0]) {
+        setManualFiles((prev) => [...prev, e.target.files[0]]);
+      }
+    };
+    input.click();
+  };
+
+  const removeManualFile = (index: number) => {
+    setManualFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleManualFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const newFiles = [...manualFiles];
+      newFiles[index] = e.target.files[0];
+      setManualFiles(newFiles);
+    }
+    e.target.value = '';
+  };
+
+  const addImageFile = () => {
+    // Tạo một input file ẩn để trigger
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = false;
+    input.onchange = (e: any) => {
+      if (e.target.files && e.target.files[0]) {
+        setImageFiles((prev) => [...prev, e.target.files[0]]);
+      }
+    };
+    input.click();
   };
 
   const addCertificate = () => {
@@ -310,7 +350,7 @@ export const RegisterProductPage = () => {
           height: form.dimensionsCm.height || 0,
           length: form.dimensionsCm.length || 0
         },
-        manualFile: manualFile || undefined,
+        manualFile: manualFiles.length > 0 ? manualFiles[0] : undefined,
         images: imageFiles.length > 0 ? imageFiles : undefined,
         certificate: validCertificates.length > 0 ? validCertificates.map(cert => cert.file!) : undefined,
         certificationCode: validCertificates.length > 0 ? validCertificates.map(cert => cert.code.trim()).filter(code => code) : undefined,
@@ -671,72 +711,96 @@ export const RegisterProductPage = () => {
                 </div>
               </div>
 
-              {/* Manual File */}
+              {/* Manual Files */}
               <div className="space-y-2">
-                <Label htmlFor="manualFile" className="text-sm font-medium">
-                  File hướng dẫn sử dụng
-                </Label>
-                <Input
-                  id="manualFile"
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => setManualFile(e.target.files?.[0] || null)}
-                />
-                {manualFile && (
-                  <p className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    {manualFile.name}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    File hướng dẫn sử dụng
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addManualFile}
+                    disabled={submitting}
+                    className="h-8"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Thêm file
+                  </Button>
+                </div>
+                {manualFiles.length > 0 ? (
+                  <div className="space-y-2">
+                    {manualFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                          <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeManualFile(index)}
+                          disabled={submitting}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Chưa có file nào được chọn</p>
                 )}
               </div>
 
               {/* Images */}
               <div className="space-y-2">
-                <Label htmlFor="images" className="text-sm font-medium">
-                  Hình ảnh sản phẩm
-                </Label>
-                <Input
-                  id="images"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setImageFiles((prev) => [...prev, ...files]);
-                    if (e.target) {
-                      e.target.value = '';
-                    }
-                  }}
-                />
-                {imageFiles.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    Hình ảnh sản phẩm
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addImageFile}
+                    disabled={submitting}
+                    className="h-8"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Thêm ảnh
+                  </Button>
+                </div>
+                {imageFiles.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-sm text-green-600 flex items-center gap-1">
-                      <CheckCircle2 size={14} />
-                      {imageFiles.length} hình ảnh đã chọn
-                    </p>
-                    <div className="space-y-1 bg-gray-50 rounded-lg p-2 max-h-48 overflow-y-auto">
-                      {imageFiles.map((file, index) => (
-                        <div
-                          key={`${file.name}-${index}`}
-                          className="flex items-center justify-between text-sm text-gray-700 bg-white rounded-md px-3 py-2 border"
-                        >
-                          <span className="truncate flex-1 pr-2">{file.name}</span>
-                          <span className="text-xs text-gray-500 mr-2">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeImageFile(index)}
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                    {imageFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                          <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                         </div>
-                      ))}
-                    </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeImageFile(index)}
+                          disabled={submitting}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Chưa có hình ảnh nào được chọn</p>
                 )}
               </div>
             </div>
@@ -927,7 +991,7 @@ export const RegisterProductPage = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">File hướng dẫn</p>
-                  <p className="font-semibold text-gray-900">{manualFile ? manualFile.name : "Chưa có"}</p>
+                  <p className="font-semibold text-gray-900">{manualFiles.length > 0 ? `${manualFiles.length} tệp` : "Chưa có"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Hình ảnh</p>

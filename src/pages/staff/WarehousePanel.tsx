@@ -1058,22 +1058,19 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                 </div>
               )}
 
-              {/* Manual URLs */}
-              {selectedRegistrationDetail.manualUrls && (
+              {/* Manual URL */}
+              {selectedRegistrationDetail.manualUrl && (
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Link hướng dẫn sử dụng</Label>
-                  <div className="mt-2 space-y-1">
-                    {selectedRegistrationDetail.manualUrls.split(',').map((url, idx) => (
-                      <a
-                        key={idx}
-                        href={url.trim()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline block"
-                      >
-                        {url.trim()}
-                      </a>
-                    ))}
+                  <div className="mt-2">
+                    <a
+                      href={selectedRegistrationDetail.manualUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline block"
+                    >
+                      {selectedRegistrationDetail.manualUrl}
+                    </a>
                   </div>
                 </div>
               )}
