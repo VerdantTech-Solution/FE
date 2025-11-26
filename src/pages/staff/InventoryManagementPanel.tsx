@@ -77,10 +77,10 @@ export const InventoryManagementPanel: React.FC = () => {
   // Form states
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [availableSerials,setAvailableSerials] = useState<ProductSerial[]>([]);
-  const [availableLotNumbers,setAvailableLotNumbers] = useState<string[]>([]);
-  const [lotNumberSearchQuery, setLotNumberSearchQuery] = useState("");
-  const [showLotNumberSuggestions, setShowLotNumberSuggestions] = useState(false);
+  const [_availableSerials,setAvailableSerials] = useState<ProductSerial[]>([]);
+  const [_availableLotNumbers,setAvailableLotNumbers] = useState<string[]>([]);
+  const [_lotNumberSearchQuery, setLotNumberSearchQuery] = useState("");
+  const [_showLotNumberSuggestions, setShowLotNumberSuggestions] = useState(false);
   
   // Import form
   const [importForm, setImportForm] = useState<CreateBatchInventoryDTO>({
@@ -113,8 +113,8 @@ export const InventoryManagementPanel: React.FC = () => {
   ]);
   
   // Product search for export
-  const [productSearchQuery,setProductSearchQuery] = useState("");
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [_productSearchQuery,setProductSearchQuery] = useState("");
+  const [_showProductSuggestions, setShowProductSuggestions] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
