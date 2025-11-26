@@ -109,7 +109,8 @@ export interface ExportInventory {
 
 export interface CreateExportInventoryDTO {
   productId: number;
-  productSerialId?: number; // Required for machines (category 1,2)
+  productSerialNumber?: string; // Required for machines (category 1,2) - serial number as string
+  productSerialId?: number; // Alternative: ID of ProductSerial (for backward compatibility)
   lotNumber?: string; // Required for fertilizers/materials (category 3,4)
   orderId?: number;
   movementType: 'Sale' | 'ReturnToVendor' | 'Damage' | 'Loss' | 'Adjustment';
@@ -442,9 +443,14 @@ export const getExportInventories = async (params?: {
       },
     });
 
+    console.log('getExportInventories raw response:', response);
+    console.log('getExportInventories response type:', typeof response);
+    console.log('getExportInventories isArray:', Array.isArray(response));
+
     // Handle different response structures
     // Case 1: Response is an array directly (apiClient unwraps response.data)
     if (Array.isArray(response)) {
+      console.log('Case 1: Response is array, length:', response.length);
       return {
         data: response,
         currentPage: params?.page || 1,
@@ -454,23 +460,61 @@ export const getExportInventories = async (params?: {
       };
     }
 
-    // Case 2: Response has data property with array
-    if (response && response.data && Array.isArray(response.data)) {
-      const paginatedResponse = response as any;
-      return {
-        data: response.data,
-        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
-        pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
-        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
-      };
+    // Case 2: Response has data property - handle wrapped response structure
+    if (response && typeof response === 'object' && 'data' in response) {
+      const responseData = (response as any).data;
+      console.log('Case 2: Response has data property, data type:', typeof responseData, 'isArray:', Array.isArray(responseData));
+      
+      // Handle structure: {status: true, data: {data: [], currentPage, ...}}
+      if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        const innerData = responseData.data;
+        console.log('Case 2a: Nested data structure, inner data isArray:', Array.isArray(innerData));
+        if (Array.isArray(innerData)) {
+          return {
+            data: innerData,
+            currentPage: responseData.currentPage ?? params?.page ?? 1,
+            pageSize: responseData.pageSize ?? params?.pageSize ?? 20,
+            totalPages: responseData.totalPages ?? Math.ceil(innerData.length / (params?.pageSize || 20)),
+            totalRecords: responseData.totalRecords ?? innerData.length,
+          };
+        }
+      }
+      
+      // Handle structure: {status: true, data: []} - direct array
+      if (Array.isArray(responseData)) {
+        const paginatedResponse = response as any;
+        return {
+          data: responseData,
+          currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+          pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
+          totalPages: paginatedResponse.totalPages ?? Math.ceil(responseData.length / (params?.pageSize || 20)),
+          totalRecords: paginatedResponse.totalRecords ?? responseData.length,
+        };
+      }
+      
+      // If data is not array but is an object, try to extract pagination info
+      if (responseData && typeof responseData === 'object') {
+        console.log('Case 2b: data is object, trying to extract...');
+        // Maybe backend returns { data: { items: [], ...pagination } }
+        if ('items' in responseData && Array.isArray(responseData.items)) {
+          return {
+            data: responseData.items,
+            currentPage: responseData.currentPage ?? params?.page ?? 1,
+            pageSize: responseData.pageSize ?? params?.pageSize ?? 20,
+            totalPages: responseData.totalPages ?? Math.ceil(responseData.items.length / (params?.pageSize || 20)),
+            totalRecords: responseData.totalRecords ?? responseData.items.length,
+          };
+        }
+      }
     }
 
-    // Case 3: Response is PagedResponse object
-    if (response && typeof response === 'object' && 'data' in response) {
+    // Case 3: Response is PagedResponse object with nested structure
+    console.log('Case 3: Trying to return response as-is');
+    if (response && typeof response === 'object') {
       return response as any;
     }
 
+    console.log('No matching case, returning empty');
     return {
       data: [],
       currentPage: 1,
@@ -490,7 +534,14 @@ export const getExportInventories = async (params?: {
 export const getExportInventoryById = async (id: number): Promise<ExportInventory> => {
   try {
     const response = await apiClient.get(`/api/ExportInventory/${id}`);
-    return response.data || response;
+    // Handle different response structures
+    if (Array.isArray(response)) {
+      return response[0];
+    }
+    if (response && typeof response === 'object' && 'data' in response) {
+      return response.data;
+    }
+    return response as ExportInventory;
   } catch (error) {
     console.error('Get export inventory by id error:', error);
     throw error;
@@ -499,13 +550,32 @@ export const getExportInventoryById = async (id: number): Promise<ExportInventor
 
 /**
  * Tạo export inventory mới (xuất hàng)
+ * API nhận array của CreateExportInventoryDTO
+ * movementType không được là 'Sale' (chỉ dùng khi xuất hàng bán qua OrderService)
  */
 export const createExportInventory = async (
-  data: CreateExportInventoryDTO
-): Promise<ExportInventory> => {
+  data: CreateExportInventoryDTO | CreateExportInventoryDTO[]
+): Promise<ExportInventory | ExportInventory[]> => {
   try {
-    const response = await apiClient.post('/api/ExportInventory', data);
-    return response.data || response;
+    // Đảm bảo gửi array
+    const payload = Array.isArray(data) ? data : [data];
+    
+    // Validate: không cho phép movementType = 'Sale'
+    const invalidItems = payload.filter(item => item.movementType === 'Sale');
+    if (invalidItems.length > 0) {
+      throw new Error('MovementType không được là "Sale". Chỉ được sử dụng khi xuất hàng bán qua OrderService.');
+    }
+    
+    const response = await apiClient.post('/api/ExportInventory', payload);
+    
+    // Handle different response structures
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && typeof response === 'object' && 'data' in response) {
+      return Array.isArray(response.data) ? response.data : [response.data];
+    }
+    return Array.isArray(response) ? response : [response as ExportInventory];
   } catch (error) {
     console.error('Create export inventory error:', error);
     throw error;

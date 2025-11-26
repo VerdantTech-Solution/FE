@@ -60,12 +60,20 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
   ]);
   const [manualFile, setManualFile] = useState<File | null>(null);
 
-  // Fetch categories when dialog opens
+  // Fetch categories when dialog opens - chỉ lấy sub-categories (parentId != null)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const fetchedCategories = await getProductCategories();
-        setCategories(fetchedCategories);
+        // Filter: chỉ lấy categories có parentId != null (sub-categories)
+        // Xử lý cả 2 trường hợp: parentId trực tiếp, parent?.id, hoặc parent_id (snake_case)
+        const subCategories = fetchedCategories.filter(cat => {
+          const hasParentId = cat.parentId !== null && cat.parentId !== undefined;
+          const hasParentIdSnake = (cat as any).parent_id !== null && (cat as any).parent_id !== undefined;
+          const hasParent = cat.parent !== null && cat.parent !== undefined;
+          return hasParentId || hasParentIdSnake || hasParent;
+        });
+        setCategories(subCategories);
       } catch (error) {
         console.error('Error fetching categories:', error);
       }
