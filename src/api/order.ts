@@ -362,9 +362,10 @@ export const updateOrderStatus = async (
 
 // ===== Ship Order =====
 export interface ShipOrderItem {
-  productId: number;
+  orderDetailId: number;
+  quantity: number;
   serialNumber?: string;
-  lotNumber?: string;
+  lotNumber: string;
 }
 
 export type ShipOrderRequest = ShipOrderItem[];

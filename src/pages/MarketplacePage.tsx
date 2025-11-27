@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu } from "lucide-react";
+import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getAllProducts, type Product, getProductCategories, type ProductCategory } from '@/api/product';
 import { addToCart } from '@/api/cart';
@@ -79,6 +79,8 @@ export const MarketplacePage = () => {
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 9;
 
   const fetchProducts = async () => {
     try {
@@ -115,6 +117,10 @@ export const MarketplacePage = () => {
     fetchProducts();
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery]);
 
   const handleAddToCart = async (productId: number, event: React.MouseEvent) => {
     event.stopPropagation(); // Ngăn chặn click vào card
@@ -322,6 +328,41 @@ export const MarketplacePage = () => {
     
     return matchesCategory && matchesSearch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const pagedProducts = filteredProducts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const getPaginationRange = () => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+    if (currentPage <= 3) {
+      return [1, 2, 3, 4, 5];
+    }
+    if (currentPage >= totalPages - 2) {
+      return [
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ];
+    }
+    return [
+      currentPage - 2,
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      currentPage + 2,
+    ];
+  };
 
   return (
     <motion.div 
@@ -608,7 +649,7 @@ export const MarketplacePage = () => {
               variants={containerVariants}
             >
               <AnimatePresence mode="wait">
-                {filteredProducts.map((product, index) => (
+                {pagedProducts.map((product, index) => (
                 <motion.div
                   key={product.id}
                   variants={cardVariants}
@@ -795,6 +836,59 @@ export const MarketplacePage = () => {
         </AnimatePresence>
         </motion.div>
       </div>
+      {!loading && !error && filteredProducts.length > 0 && (
+        <div className="pb-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mt-6 flex flex-col items-center gap-4">
+              <p className="text-sm text-gray-600">
+                Hiển thị {(currentPage - 1) * pageSize + 1} -
+                {Math.min(currentPage * pageSize, filteredProducts.length)} trong tổng số {filteredProducts.length} sản phẩm
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`flex items-center gap-1 px-3 py-2 rounded-full border text-sm transition-colors ${
+                    currentPage === 1
+                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Trước
+                </button>
+                <div className="flex items-center gap-1">
+                  {getPaginationRange().map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      className={`w-9 h-9 rounded-full border text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`flex items-center gap-1 px-3 py-2 rounded-full border text-sm transition-colors ${
+                    currentPage === totalPages
+                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  Sau
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
