@@ -12,8 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, MessageSquare, RefreshCcw, Search } from "lucide-react";
 import {
   getTickets,
+  getTicketById,
   type GetTicketsParams,
   type TicketItem,
+  type TicketDetail,
 } from "@/api/ticket";
 import { SupportTicketDetailDialog } from "@/components/ticket/SupportTicketDetailDialog";
 
@@ -69,6 +71,7 @@ export const AdminSupportRequestManagementPanel = () => {
   const [requestStatus, setRequestStatus] = useState("all");
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   const fetchTickets = async () => {
     try {
@@ -130,9 +133,55 @@ export const AdminSupportRequestManagementPanel = () => {
     return summary;
   }, [tickets]);
 
-  const handleViewTicket = (ticket: TicketItem) => {
+  const handleViewTicket = async (ticket: TicketItem) => {
+    // Mở dialog ngay với dữ liệu list
     setSelectedTicket(ticket);
     setIsDetailOpen(true);
+    setDetailError("");
+
+    try {
+      const response = await getTicketById(ticket.id);
+
+      if (response.status && response.data) {
+        const detail: TicketDetail = response.data;
+        // Ưu tiên message cuối cùng (mới nhất) để cập nhật replyNotes
+        const messages = detail.requestMessages || [];
+        const lastMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
+
+        const enrichedTicket: TicketItem = {
+          ...ticket,
+          // Nếu chi tiết có description trong message thì ưu tiên dùng
+          description: ticket.description || lastMessage?.description || ticket.description,
+          // Ưu tiên images từ detail (ở root hoặc trong message cuối cùng)
+          images:
+            (detail.images && detail.images.length > 0
+              ? detail.images
+              : lastMessage?.images) ||
+            ticket.images ||
+            [],
+          // Ghi chú phản hồi nếu có trong message
+          replyNotes: ticket.replyNotes ?? lastMessage?.replyNotes ?? null,
+          // Lưu id message để PATCH đúng bản ghi trên server
+          requestMessageId: lastMessage?.id,
+        };
+
+        setSelectedTicket(enrichedTicket);
+      } else {
+        const errorMsg =
+          response.errors?.join(", ") ||
+          response.errors?.[0] ||
+          "Không thể tải chi tiết yêu cầu hỗ trợ";
+        setDetailError(errorMsg);
+      }
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.errors?.join(", ") ||
+        err?.response?.data?.errors?.[0] ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Có lỗi xảy ra khi tải chi tiết yêu cầu hỗ trợ";
+      setDetailError(errorMsg);
+    }
   };
 
   const handleTicketProcessed = () => {

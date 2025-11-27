@@ -171,6 +171,31 @@ export default function PreviewOrderPage() {
   
   const total = Math.max(0, subtotal) + selectedShippingPrice;
 
+  // Check if recipient information is complete
+  const isRecipientInfoComplete = useMemo(() => {
+    const trimmedName = userName?.trim() || '';
+    const trimmedPhone = userPhone?.trim() || '';
+    
+    if (!trimmedName) return false;
+    if (!trimmedPhone) return false;
+    if (!selectedAddressId) return false;
+    
+    // Check if selected address has valid information
+    const selectedAddress = addressType === 'home' 
+      ? userAddresses.find(addr => addr.id === selectedAddressId)
+      : farmProfiles.find(farm => farm.address?.id === selectedAddressId)?.address;
+    
+    if (!selectedAddress) return false;
+    
+    // Check if address has at least some information
+    const hasLocationAddress = selectedAddress.locationAddress && selectedAddress.locationAddress.trim() !== '';
+    const hasProvince = selectedAddress.province && selectedAddress.province.trim() !== '';
+    const hasDistrict = selectedAddress.district && selectedAddress.district.trim() !== '';
+    const hasCommune = selectedAddress.commune && selectedAddress.commune.trim() !== '';
+    
+    return hasLocationAddress || (hasProvince && hasDistrict && hasCommune);
+  }, [userName, userPhone, selectedAddressId, addressType, userAddresses, farmProfiles]);
+
   const formatAddress = (addr?: { locationAddress?: string; commune?: string; district?: string; province?: string; latitude?: number; longitude?: number }) => {
     if (!addr) return '';
     const hasLocation = addr.locationAddress && addr.locationAddress.trim() !== '';
@@ -183,8 +208,61 @@ export default function PreviewOrderPage() {
   };
 
   const handleCreateOrderFromPreview = async (shippingDetailId: string) => {
+    // Validate recipient information before creating order
+    const trimmedName = userName?.trim() || '';
+    const trimmedPhone = userPhone?.trim() || '';
+    
+    if (!trimmedName) {
+      setError('Vui lòng cập nhật đầy đủ họ và tên người nhận. Bạn có thể cập nhật tại trang cá nhân.');
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    if (!trimmedPhone) {
+      setError('Vui lòng cập nhật số điện thoại người nhận. Bạn có thể cập nhật tại trang cá nhân.');
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    if (!selectedAddressId) {
+      setError('Vui lòng chọn địa chỉ giao hàng');
+      return;
+    }
+    
+    // Validate selected address has complete information
+    const selectedAddress = addressType === 'home' 
+      ? userAddresses.find(addr => addr.id === selectedAddressId)
+      : farmProfiles.find(farm => farm.address?.id === selectedAddressId)?.address;
+    
+    if (!selectedAddress) {
+      setError('Địa chỉ đã chọn không tồn tại');
+      return;
+    }
+    
+    // Check if address has required fields
+    const hasLocationAddress = selectedAddress.locationAddress && selectedAddress.locationAddress.trim() !== '';
+    const hasProvince = selectedAddress.province && selectedAddress.province.trim() !== '';
+    const hasDistrict = selectedAddress.district && selectedAddress.district.trim() !== '';
+    const hasCommune = selectedAddress.commune && selectedAddress.commune.trim() !== '';
+    
+    if (!hasLocationAddress && !hasProvince && !hasDistrict && !hasCommune) {
+      setError('Địa chỉ giao hàng chưa đầy đủ thông tin. Vui lòng cập nhật địa chỉ');
+      return;
+    }
+    
     if (!orderPreviewId) {
       setError('Không tìm thấy mã bản xem trước đơn hàng');
+      return;
+    }
+    
+    // Final validation check before API call
+    const finalTrimmedName = userName?.trim() || '';
+    const finalTrimmedPhone = userPhone?.trim() || '';
+    if (!finalTrimmedName || !finalTrimmedPhone) {
+      setError('Thông tin người nhận chưa đầy đủ. Vui lòng cập nhật họ tên và số điện thoại.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     
@@ -194,7 +272,9 @@ export default function PreviewOrderPage() {
       
       console.log('Creating order with:', {
         orderPreviewId,
-        priceTableId: shippingDetailId
+        priceTableId: shippingDetailId,
+        userName: finalTrimmedName,
+        userPhone: finalTrimmedPhone
       });
       
       const { createOrderFromPreview } = await import('@/api/order');
@@ -259,8 +339,47 @@ export default function PreviewOrderPage() {
   };
 
   const handleSubmitPreview = async () => {
+    // Validate recipient information
+    const trimmedName = userName?.trim() || '';
+    const trimmedPhone = userPhone?.trim() || '';
+    
+    if (!trimmedName) {
+      setError('Vui lòng cập nhật đầy đủ họ và tên người nhận. Bạn có thể cập nhật tại trang cá nhân.');
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    if (!trimmedPhone) {
+      setError('Vui lòng cập nhật số điện thoại người nhận. Bạn có thể cập nhật tại trang cá nhân.');
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
     if (!selectedAddressId) {
       setError('Vui lòng chọn địa chỉ giao hàng');
+      return;
+    }
+    
+    // Validate selected address has complete information
+    const selectedAddress = addressType === 'home' 
+      ? userAddresses.find(addr => addr.id === selectedAddressId)
+      : farmProfiles.find(farm => farm.address?.id === selectedAddressId)?.address;
+    
+    if (!selectedAddress) {
+      setError('Địa chỉ đã chọn không tồn tại');
+      return;
+    }
+    
+    // Check if address has required fields
+    const hasLocationAddress = selectedAddress.locationAddress && selectedAddress.locationAddress.trim() !== '';
+    const hasProvince = selectedAddress.province && selectedAddress.province.trim() !== '';
+    const hasDistrict = selectedAddress.district && selectedAddress.district.trim() !== '';
+    const hasCommune = selectedAddress.commune && selectedAddress.commune.trim() !== '';
+    
+    if (!hasLocationAddress && !hasProvince && !hasDistrict && !hasCommune) {
+      setError('Địa chỉ giao hàng chưa đầy đủ thông tin. Vui lòng cập nhật địa chỉ');
       return;
     }
     
@@ -288,8 +407,13 @@ export default function PreviewOrderPage() {
       return;
     }
     
-    // Kiểm tra địa chỉ có tồn tại trong userAddresses không
-    const addressExists = userAddresses.some(addr => addr.id === payload.addressId);
+    // Kiểm tra địa chỉ có tồn tại trong danh sách địa chỉ hợp lệ (nhà hoặc trang trại)
+    const farmAddressIds = farmProfiles
+      .map((farm) => farm.address?.id)
+      .filter((id): id is number => typeof id === 'number');
+    const addressExists =
+      userAddresses.some((addr) => addr.id === payload.addressId) ||
+      farmAddressIds.includes(payload.addressId);
     if (!addressExists) {
       setError(`Địa chỉ với ID ${payload.addressId} không tồn tại trong danh sách địa chỉ của bạn`);
       return;
@@ -300,11 +424,21 @@ export default function PreviewOrderPage() {
       return;
     }
     
+    // Final validation check before API call
+    const finalCheckName = userName?.trim() || '';
+    const finalCheckPhone = userPhone?.trim() || '';
+    if (!finalCheckName || !finalCheckPhone) {
+      setError('Thông tin người nhận chưa đầy đủ. Vui lòng cập nhật họ tên và số điện thoại.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
     try {
       setSubmitting(true);
       setError(null);
       
       console.log('Submitting order preview with payload:', payload);
+      console.log('Recipient info:', { name: finalCheckName, phone: finalCheckPhone });
       const res = await createOrderPreview(payload);
       console.log('Order preview response:', res);
       
@@ -374,7 +508,64 @@ export default function PreviewOrderPage() {
         </motion.div>
 
         {error && (
-          <div className="mb-4 text-red-600 text-sm">{error}</div>
+          <div className="mb-4 p-4 bg-red-50 border border-red-300 rounded-lg">
+            <div className="flex items-start">
+              <div className="text-red-600 text-lg mr-2">⚠️</div>
+              <div className="flex-1">
+                <div className="text-red-800 font-semibold mb-1">Lỗi xác thực</div>
+                <div className="text-red-600 text-sm">{error}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Warning banner if recipient info is incomplete */}
+        {!isRecipientInfoComplete && !error && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-400 rounded-lg">
+            <div className="flex items-start">
+              <div className="text-yellow-600 text-lg mr-2">⚠️</div>
+              <div className="flex-1">
+                <div className="text-yellow-800 font-semibold mb-2">Thông tin người nhận chưa đầy đủ</div>
+                <div className="text-yellow-700 text-sm space-y-1">
+                  {!(userName?.trim()) && (
+                    <div>• Vui lòng cập nhật <strong>họ và tên</strong> người nhận</div>
+                  )}
+                  {!(userPhone?.trim()) && (
+                    <div>• Vui lòng cập nhật <strong>số điện thoại</strong> người nhận</div>
+                  )}
+                  {!selectedAddressId && (
+                    <div>• Vui lòng chọn <strong>địa chỉ giao hàng</strong></div>
+                  )}
+                  {selectedAddressId && (() => {
+                    const selectedAddress = addressType === 'home' 
+                      ? userAddresses.find(addr => addr.id === selectedAddressId)
+                      : farmProfiles.find(farm => farm.address?.id === selectedAddressId)?.address;
+                    if (selectedAddress) {
+                      const hasLocationAddress = selectedAddress.locationAddress && selectedAddress.locationAddress.trim() !== '';
+                      const hasProvince = selectedAddress.province && selectedAddress.province.trim() !== '';
+                      const hasDistrict = selectedAddress.district && selectedAddress.district.trim() !== '';
+                      const hasCommune = selectedAddress.commune && selectedAddress.commune.trim() !== '';
+                      const isComplete = hasLocationAddress || (hasProvince && hasDistrict && hasCommune);
+                      if (!isComplete) {
+                        return <div>• Địa chỉ đã chọn <strong>chưa đầy đủ thông tin</strong></div>;
+                      }
+                    }
+                    return null;
+                  })()}
+                </div>
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-600 text-yellow-700 hover:bg-yellow-100"
+                    onClick={() => navigate('/profile')}
+                  >
+                    Cập nhật thông tin
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Debug info - remove in production */}
@@ -395,15 +586,31 @@ export default function PreviewOrderPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <div className="text-sm text-gray-500">Họ và tên</div>
-                    <div className="font-semibold">{userName}</div>
+                    <div className={`font-semibold ${!(userName?.trim()) ? 'text-red-600' : ''}`}>
+                      {userName?.trim() || 'Chưa cập nhật'}
+                    </div>
+                    {!(userName?.trim()) && (
+                      <div className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <span>⚠️</span>
+                        <span>Vui lòng cập nhật họ và tên tại trang cá nhân</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Email</div>
-                    <div className="font-semibold">{userEmail}</div>
+                    <div className="font-semibold">{userEmail || 'Chưa cập nhật'}</div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Số điện thoại</div>
-                    <div className="font-semibold">{userPhone || 'Chưa cập nhật'}</div>
+                    <div className={`font-semibold ${!(userPhone?.trim()) ? 'text-red-600' : ''}`}>
+                      {userPhone?.trim() || 'Chưa cập nhật'}
+                    </div>
+                    {!(userPhone?.trim()) && (
+                      <div className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <span>⚠️</span>
+                        <span>Vui lòng cập nhật số điện thoại tại trang cá nhân</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -498,6 +705,32 @@ export default function PreviewOrderPage() {
                       </Button>
                     </div>
                   )}
+                  
+                  {/* Warning if selected address is incomplete */}
+                  {selectedAddressId && (() => {
+                    const selectedAddress = addressType === 'home' 
+                      ? userAddresses.find(addr => addr.id === selectedAddressId)
+                      : farmProfiles.find(farm => farm.address?.id === selectedAddressId)?.address;
+                    
+                    if (selectedAddress) {
+                      const hasLocationAddress = selectedAddress.locationAddress && selectedAddress.locationAddress.trim() !== '';
+                      const hasProvince = selectedAddress.province && selectedAddress.province.trim() !== '';
+                      const hasDistrict = selectedAddress.district && selectedAddress.district.trim() !== '';
+                      const hasCommune = selectedAddress.commune && selectedAddress.commune.trim() !== '';
+                      const isComplete = hasLocationAddress || (hasProvince && hasDistrict && hasCommune);
+                      
+                      if (!isComplete) {
+                        return (
+                          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-300 rounded-md">
+                            <div className="text-xs text-yellow-700">
+                              ⚠️ Địa chỉ đã chọn chưa đầy đủ thông tin. Vui lòng cập nhật địa chỉ để tiếp tục đặt hàng.
+                            </div>
+                          </div>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <Separator />
@@ -584,7 +817,7 @@ export default function PreviewOrderPage() {
                   <div className="flex space-x-2">
                     <Button 
                       className="flex-1 bg-green-600 hover:bg-green-700"
-                      disabled={!selectedShippingId || shippingLoading}
+                      disabled={!selectedShippingId || shippingLoading || !isRecipientInfoComplete}
                       onClick={() => {
                         if (selectedShippingId) {
                           // Tạo order từ preview với shipping option đã chọn
@@ -702,7 +935,7 @@ export default function PreviewOrderPage() {
 
                 <Button 
                   className="w-full bg-green-600 hover:bg-green-700" 
-                  disabled={submitting || !selectedAddressId || cartItems.length === 0 || shippingOptions.length > 0} 
+                  disabled={submitting || !isRecipientInfoComplete || cartItems.length === 0 || shippingOptions.length > 0} 
                   onClick={handleSubmitPreview}
                 >
                   {submitting ? <Spinner variant="circle-filled" size={16} /> : 'Tạo bản xem trước'}

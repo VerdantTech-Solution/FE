@@ -136,9 +136,25 @@ export const SupportTicketDetailDialog = ({
     try {
       setIsProcessing(true);
 
+      // Xây message payload: nếu có requestMessageId thì PATCH vào message đó,
+      // nếu không có thì để backend tạo message mới (không gửi id).
+      const messagePayload =
+        status === "InReview"
+          ? undefined
+          : (() => {
+              const base: { replyNotes: string; id?: number } = {
+                replyNotes: replyNotes.trim(),
+              };
+              if (ticket.requestMessageId != null) {
+                base.id = ticket.requestMessageId;
+              }
+              return base;
+            })();
+
       const payload: ProcessTicketRequest = {
         status,
-        replyNotes: status === "InReview" ? undefined : replyNotes.trim(),
+        // Theo schema mới: requestMessages: { id?, replyNotes }
+        requestMessages: messagePayload,
       };
 
       const response = await processTicket(ticket.id, payload);

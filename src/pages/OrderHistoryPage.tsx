@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState, useCallback, type ChangeEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getOrdersByUser, type OrderWithCustomer } from '@/api/order';
-import { createTicket, type TicketImage } from '@/api/ticket';
+import { createTicket, getMyTickets, type TicketImage, type TicketItem } from '@/api/ticket';
 import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
 import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2 } from 'lucide-react';
 
@@ -51,7 +51,7 @@ const getStatusText = (status: string) => {
     case 'processing':
       return 'Đang xử lý';
     case 'shipped':
-      return 'Đã giao hàng';
+      return 'Đã nhận';
     case 'delivered':
       return 'Đã giao';
     case 'cancelled':
@@ -156,6 +156,9 @@ export default function OrderHistoryPage() {
   const [returnSuccess, setReturnSuccess] = useState<string | null>(null);
   const [returnImages, setReturnImages] = useState<TicketImage[]>([]);
   const [returnImagesUploading, setReturnImagesUploading] = useState(false);
+  const [userTickets, setUserTickets] = useState<TicketItem[]>([]);
+  const [userTicketsLoading, setUserTicketsLoading] = useState(false);
+  const [userTicketsError, setUserTicketsError] = useState<string | null>(null);
 
   const loadOrders = async (page: number = 1) => {
     try {
@@ -183,9 +186,44 @@ export default function OrderHistoryPage() {
     }
   };
 
+  const loadUserTickets = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setUserTickets([]);
+      setUserTicketsError(null);
+      return;
+    }
+
+    try {
+      setUserTicketsLoading(true);
+      setUserTicketsError(null);
+
+      const response = await getMyTickets({ page: 1, pageSize: 50 });
+
+      if (response.status && response.data) {
+        setUserTickets(response.data.data);
+      } else {
+        setUserTickets([]);
+        setUserTicketsError(response.errors?.[0] || 'Không thể tải danh sách yêu cầu hoàn hàng');
+      }
+    } catch (err: any) {
+      console.error('Load user tickets error:', err);
+      const message = err?.errors?.[0] || err?.message || 'Không thể tải danh sách yêu cầu hoàn hàng';
+      setUserTickets([]);
+      setUserTicketsError(message);
+    } finally {
+      setUserTicketsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadOrders(1);
   }, [selectedStatus, userId, pageSize]);
+
+  useEffect(() => {
+    loadUserTickets();
+  }, [loadUserTickets]);
 
 
   const handleStatusChange = (status: string) => {
@@ -223,6 +261,48 @@ export default function OrderHistoryPage() {
     setExpandedOrders(prev => ({ ...prev, [orderId]: willExpand }));
     if (willExpand && !reviewsByOrder[orderId] && !reviewsLoading[orderId]) {
       fetchOrderReviews(orderId);
+    }
+  };
+
+  const extractOrderIdFromTitle = (title: string) => {
+    if (!title) return null;
+    const match = title.match(/#(\d+)/);
+    if (match) {
+      const parsed = Number(match[1]);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
+
+  const getReturnRequestForOrder = (orderId: number) => {
+    return userTickets.find((ticket) => {
+      if (ticket.requestType !== 'RefundRequest') return false;
+      const parsedOrderId = extractOrderIdFromTitle(ticket.title);
+      if (parsedOrderId !== null) {
+        return parsedOrderId === orderId;
+      }
+      return ticket.title.includes(`#${orderId}`);
+    });
+  };
+
+  const getTicketStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Đang chờ xử lý';
+      case 'inreview':
+      case 'in_review':
+        return 'Đang xem xét';
+      case 'approved':
+        return 'Được chấp nhận';
+      case 'rejected':
+        return 'Bị từ chối';
+      case 'cancelled':
+        return 'Đã hủy';
+      case 'resolved':
+      case 'completed':
+        return 'Đã xử lý';
+      default:
+        return status;
     }
   };
 
@@ -464,6 +544,7 @@ export default function OrderHistoryPage() {
       }
 
       setReturnSuccess('Yêu cầu hoàn hàng đã được gửi đến bộ phận hỗ trợ. Chúng tôi sẽ phản hồi sớm nhất.');
+      await loadUserTickets();
       setTimeout(() => {
         handleCloseReturnDialog();
       }, 2000);
@@ -515,7 +596,7 @@ export default function OrderHistoryPage() {
                 <SelectItem value="Pending">Chờ xử lý</SelectItem>
                 <SelectItem value="Confirmed">Đã xác nhận</SelectItem>
                 <SelectItem value="Processing">Đang xử lý</SelectItem>
-                <SelectItem value="Shipped">Đã giao hàng</SelectItem>
+                <SelectItem value="Shipped">Đã nhận</SelectItem>
                 <SelectItem value="Delivered">Đã giao</SelectItem>
                 <SelectItem value="Cancelled">Đã hủy</SelectItem>
                 <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
@@ -545,6 +626,11 @@ export default function OrderHistoryPage() {
             <p className="text-red-600">{error}</p>
           </div>
         )}
+        {userTicketsError && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            {userTicketsError}
+          </div>
+        )}
 
         {/* Orders List */}
         <div className="space-y-6">
@@ -562,13 +648,15 @@ export default function OrderHistoryPage() {
               </CardContent>
             </Card>
           ) : (
-            orders.map((order) => (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
+            orders.map((order) => {
+              const existingReturnRequest = getReturnRequestForOrder(order.id);
+              return (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
                 <Card className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3">
@@ -581,14 +669,37 @@ export default function OrderHistoryPage() {
                         </div>
                         <div className="flex flex-col items-end gap-2 sm:items-end sm:flex-row sm:gap-3">
                           {order.status.toLowerCase() === 'delivered' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenReturnDialog(order.id)}
-                              className="flex items-center gap-2 border-orange-300 text-orange-600 hover:bg-orange-50"
-                            >
-                              Hoàn hàng
-                            </Button>
+                            existingReturnRequest ? (
+                              <div className="flex flex-col items-end gap-1 text-right">
+                                <Badge className="px-3 py-1 bg-orange-50 text-orange-700 border border-orange-200">
+                                  Đã gửi yêu cầu hoàn hàng
+                                </Badge>
+                                <p className="text-xs text-gray-500">
+                                  Trạng thái: {getTicketStatusLabel(existingReturnRequest.status)}
+                                </p>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenReturnDialog(order.id)}
+                                className="flex items-center gap-2 border-orange-300 text-orange-600 hover:bg-orange-50"
+                                disabled={userTicketsLoading}
+                              >
+                                {userTicketsLoading ? (
+                                  <>
+                                    <Spinner
+                                      variant="circle-filled"
+                                      size={14}
+                                      className="text-orange-500"
+                                    />
+                                    Đang kiểm tra...
+                                  </>
+                                ) : (
+                                  'Hoàn hàng'
+                                )}
+                              </Button>
+                            )
                           )}
                           <div className="text-right">
                             <p className="text-lg font-semibold text-gray-900">{currency(order.totalAmount)}</p>
@@ -813,7 +924,8 @@ export default function OrderHistoryPage() {
                   )}
                 </Card>
               </motion.div>
-            ))
+            );
+            })
           )}
         </div>
 

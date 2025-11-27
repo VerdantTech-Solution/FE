@@ -267,21 +267,34 @@ export const OrderManagementPanel: React.FC = () => {
         setSuccessMessage("Cập nhật trạng thái đơn hàng thành công!");
         setIsSuccessDialogOpen(true);
       } else {
-        console.error("Failed to update order status:", response.errors);
-        // Get error message from API response
-        const apiErrorMessage = response.errors?.join(", ") || response.errors?.[0] || "Không thể cập nhật trạng thái đơn hàng";
+        console.error("Failed to update order status:", response);
+        // Get detailed error message from API response
+        const errorMessages = response.errors || [];
+        const apiErrorMessage = errorMessages.length > 0 
+          ? errorMessages.join("\n") 
+          : `Lỗi: ${response.statusCode || 'Unknown'}`;
         setErrorMessage(apiErrorMessage);
         setIsErrorDialogOpen(true);
       }
     } catch (error: any) {
       console.error("Error updating order status:", error);
-      // Extract error message from various possible formats
-      const apiErrorMessage =
-        error?.response?.data?.errors?.join(", ") ||
-        error?.response?.data?.errors?.[0] ||
-        error?.response?.data?.message ||
-        error?.message ||
-        "Có lỗi xảy ra khi cập nhật trạng thái đơn hàng";
+      // Extract detailed error message from various possible formats
+      let apiErrorMessage = "Có lỗi xảy ra khi cập nhật trạng thái đơn hàng";
+      
+      if (error?.errors && Array.isArray(error.errors)) {
+        apiErrorMessage = error.errors.join("\n");
+      } else if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        apiErrorMessage = error.response.data.errors.join("\n");
+      } else if (error?.response?.data?.errors?.[0]) {
+        apiErrorMessage = error.response.data.errors[0];
+      } else if (error?.response?.data?.message) {
+        apiErrorMessage = error.response.data.message;
+      } else if (error?.message) {
+        apiErrorMessage = error.message;
+      } else if (error?.statusCode) {
+        apiErrorMessage = `Lỗi ${error.statusCode}: ${error.errors?.[0] || 'Không thể cập nhật trạng thái đơn hàng'}`;
+      }
+      
       setErrorMessage(apiErrorMessage);
       setIsErrorDialogOpen(true);
     } finally {
@@ -414,22 +427,35 @@ export const OrderManagementPanel: React.FC = () => {
         setSuccessMessage("Đã gửi đơn hàng thành công!");
         setIsSuccessDialogOpen(true);
       } else {
-        console.error("Failed to ship order:", response.errors);
-        // Get error message from API response
-        const apiErrorMessage = response.errors?.join(", ") || response.errors?.[0] || "Không thể gửi đơn hàng";
+        console.error("Failed to ship order:", response);
+        // Get detailed error message from API response
+        const errorMessages = response.errors || [];
+        const apiErrorMessage = errorMessages.length > 0 
+          ? errorMessages.join("\n") 
+          : `Lỗi: ${response.statusCode || 'Unknown'}`;
         setShipFormError(apiErrorMessage);
         setErrorMessage(apiErrorMessage);
         setIsErrorDialogOpen(true);
       }
     } catch (error: any) {
       console.error("Error shipping order:", error);
-      // Extract error message from various possible formats
-      const apiErrorMessage =
-        error?.response?.data?.errors?.join(", ") ||
-        error?.response?.data?.errors?.[0] ||
-        error?.response?.data?.message ||
-        error?.message ||
-        "Có lỗi xảy ra khi gửi đơn hàng";
+      // Extract detailed error message from various possible formats
+      let apiErrorMessage = "Có lỗi xảy ra khi gửi đơn hàng";
+      
+      if (error?.errors && Array.isArray(error.errors)) {
+        apiErrorMessage = error.errors.join("\n");
+      } else if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        apiErrorMessage = error.response.data.errors.join("\n");
+      } else if (error?.response?.data?.errors?.[0]) {
+        apiErrorMessage = error.response.data.errors[0];
+      } else if (error?.response?.data?.message) {
+        apiErrorMessage = error.response.data.message;
+      } else if (error?.message) {
+        apiErrorMessage = error.message;
+      } else if (error?.statusCode) {
+        apiErrorMessage = `Lỗi ${error.statusCode}: ${error.errors?.[0] || 'Không thể gửi đơn hàng'}`;
+      }
+      
       setShipFormError(apiErrorMessage);
       setErrorMessage(apiErrorMessage);
       setIsErrorDialogOpen(true);
@@ -444,7 +470,7 @@ export const OrderManagementPanel: React.FC = () => {
       { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
       { status: "Processing", label: "Đang đóng gói", icon: Loader2 },
       { status: "Shipped", label: "Đã gửi", icon: Truck },
-      { status: "Delivered", label: "Đã giao hàng", icon: CheckCircle },
+      { status: "Delivered", label: "Đã nhận", icon: CheckCircle },
     ];
   };
 
@@ -952,7 +978,7 @@ export const OrderManagementPanel: React.FC = () => {
                           <SelectItem value="Paid">Đã thanh toán</SelectItem>
                           <SelectItem value="Processing">Đang đóng gói</SelectItem>
                           <SelectItem value="Shipped">Đã gửi</SelectItem>
-                          <SelectItem value="Delivered">Đã giao hàng</SelectItem>
+                          <SelectItem value="Delivered">Đã nhận</SelectItem>
                           <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
                           <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
                         </SelectContent>
@@ -1113,8 +1139,9 @@ export const OrderManagementPanel: React.FC = () => {
               Vui lòng điền thông tin cho từng đơn vị sản phẩm: tất cả sản phẩm cần số lô, máy móc (category ID = 24/25/28/29) cần thêm số seri.
             </p>
             {shipFormError && (
-              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
-                {shipFormError}
+              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 whitespace-pre-line">
+                <div className="font-semibold mb-1">⚠️ Lỗi:</div>
+                <div>{shipFormError}</div>
               </div>
             )}
             <div className="space-y-4">
@@ -1238,9 +1265,9 @@ export const OrderManagementPanel: React.FC = () => {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
               <div className="mt-4">
-                <p className="text-sm text-gray-700 whitespace-pre-line">
+                <div className="text-sm text-gray-700 whitespace-pre-line text-left bg-gray-50 p-3 rounded-md max-h-60 overflow-y-auto">
                   {errorMessage || "Có lỗi xảy ra. Vui lòng thử lại."}
-                </p>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

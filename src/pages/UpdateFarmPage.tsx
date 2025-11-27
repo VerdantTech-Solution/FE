@@ -411,7 +411,7 @@ const UpdateFarmPage = () => {
                     {crops.map((crop, index) => (
                       <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
                         <div className="space-y-2">
-                          <Label className="text-xs font-medium text-gray-600">Tên cây trồng</Label>
+                          <Label className="text-xs font-medium text-gray-600">Tên rau củ</Label>
                           <Input
                             value={crop.cropName}
                             onChange={(e) => {
@@ -420,7 +420,7 @@ const UpdateFarmPage = () => {
                               setCrops(newCrops);
                             }}
                             className="h-10 text-sm"
-                            placeholder="Ví dụ: Lúa, Ngô..."
+                            placeholder="Ví dụ: Cà rốt, Bắp cải..."
                           />
                         </div>
                         <div className="space-y-2">

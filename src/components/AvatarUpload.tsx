@@ -206,7 +206,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         </Button>
         
         <p className="text-xs text-gray-500 text-center">
-          Hỗ trợ: JPG, PNG, GIF<br />
+          Hỗ trợ: JPG, PNG<br />
           Kích thước tối đa: 5MB
         </p>
       </div>

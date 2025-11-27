@@ -27,8 +27,43 @@ export interface CreateOrderPreviewResponse<TData = string> {
 export const createOrderPreview = async (
   payload: CreateOrderPreviewRequest
 ): Promise<CreateOrderPreviewResponse> => {
-  const response = await apiClient.post('/api/Order/preview', payload);
-  return response as unknown as CreateOrderPreviewResponse;
+  try {
+    const response = await apiClient.post('/api/Order/preview', payload);
+    return response as unknown as CreateOrderPreviewResponse;
+  } catch (error: any) {
+    console.error('Error creating order preview:', error);
+    
+    // Case 1: Error is already the response data (from interceptor)
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as CreateOrderPreviewResponse;
+    }
+    
+    // Case 2: Error has response.data (direct axios error)
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as CreateOrderPreviewResponse;
+    }
+    
+    // Case 3: Error is a simple object with errors array
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: CreateOrderPreviewResponse = {
+        status: false,
+        statusCode: error.statusCode || 'BadRequest',
+        data: '' as any,
+        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể tạo bản xem trước đơn hàng']
+      };
+      return errorResponse;
+    }
+    
+    // Case 4: Create error response from any error
+    const errorResponse: CreateOrderPreviewResponse = {
+      status: false,
+      statusCode: 'Error',
+      data: '' as any,
+      errors: [error?.message || error?.toString() || 'Không thể tạo bản xem trước đơn hàng']
+    };
+    
+    return errorResponse;
+  }
 };
 
 // ===== Shipping Option =====
@@ -124,17 +159,52 @@ export const createOrderFromPreview = async (
   orderPreviewId: string,
   payload: CreateOrderFromPreviewRequest
 ): Promise<CreateOrderFromPreviewResponse> => {
-  console.log('Creating order from preview:', {
-    orderPreviewId,
-    payload,
-    url: `/api/Order/${orderPreviewId}`
-  });
-  
-  const response = await apiClient.post(`/api/Order/${orderPreviewId}`, payload);
-  
-  console.log('Order creation API response:', response);
-  
-  return response as unknown as CreateOrderFromPreviewResponse;
+  try {
+    console.log('Creating order from preview:', {
+      orderPreviewId,
+      payload,
+      url: `/api/Order/${orderPreviewId}`
+    });
+    
+    const response = await apiClient.post(`/api/Order/${orderPreviewId}`, payload);
+    
+    console.log('Order creation API response:', response);
+    
+    return response as unknown as CreateOrderFromPreviewResponse;
+  } catch (error: any) {
+    console.error('Error creating order from preview:', error);
+    
+    // Case 1: Error is already the response data (from interceptor)
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as CreateOrderFromPreviewResponse;
+    }
+    
+    // Case 2: Error has response.data (direct axios error)
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as CreateOrderFromPreviewResponse;
+    }
+    
+    // Case 3: Error is a simple object with errors array
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: CreateOrderFromPreviewResponse = {
+        status: false,
+        statusCode: error.statusCode || 'BadRequest',
+        data: {} as OrderEntity,
+        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể tạo đơn hàng']
+      };
+      return errorResponse;
+    }
+    
+    // Case 4: Create error response from any error
+    const errorResponse: CreateOrderFromPreviewResponse = {
+      status: false,
+      statusCode: 'Error',
+      data: {} as OrderEntity,
+      errors: [error?.message || error?.toString() || 'Không thể tạo đơn hàng']
+    };
+    
+    return errorResponse;
+  }
 };
 
 // ===== Get All Orders =====
@@ -256,8 +326,37 @@ export const updateOrderStatus = async (
     return response as unknown as UpdateOrderResponse;
   } catch (error: any) {
     console.error('Update order status error:', error);
-    // Re-throw để component có thể xử lý
-    throw error;
+    
+    // Case 1: Error is already the response data (from interceptor)
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as UpdateOrderResponse;
+    }
+    
+    // Case 2: Error has response.data (direct axios error)
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as UpdateOrderResponse;
+    }
+    
+    // Case 3: Error is a simple object with errors array
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: UpdateOrderResponse = {
+        status: false,
+        statusCode: error.statusCode || 'BadRequest',
+        data: '',
+        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể cập nhật trạng thái đơn hàng']
+      };
+      return errorResponse;
+    }
+    
+    // Case 4: Create error response from any error
+    const errorResponse: UpdateOrderResponse = {
+      status: false,
+      statusCode: 'Error',
+      data: '',
+      errors: [error?.message || error?.toString() || 'Không thể cập nhật trạng thái đơn hàng']
+    };
+    
+    return errorResponse;
   }
 };
 
@@ -274,7 +373,42 @@ export const shipOrder = async (
   orderId: number,
   payload: ShipOrderRequest
 ): Promise<UpdateOrderResponse> => {
-  const response = await apiClient.post(`/api/Order/${orderId}/ship`, payload);
-  return response as unknown as UpdateOrderResponse;
+  try {
+    const response = await apiClient.post(`/api/Order/${orderId}/ship`, payload);
+    return response as unknown as UpdateOrderResponse;
+  } catch (error: any) {
+    console.error('Error shipping order:', error);
+    
+    // Case 1: Error is already the response data (from interceptor)
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as UpdateOrderResponse;
+    }
+    
+    // Case 2: Error has response.data (direct axios error)
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as UpdateOrderResponse;
+    }
+    
+    // Case 3: Error is a simple object with errors array
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errorResponse: UpdateOrderResponse = {
+        status: false,
+        statusCode: error.statusCode || 'BadRequest',
+        data: '',
+        errors: Array.isArray(error.errors) ? error.errors : [error.message || 'Không thể gửi đơn hàng']
+      };
+      return errorResponse;
+    }
+    
+    // Case 4: Create error response from any error
+    const errorResponse: UpdateOrderResponse = {
+      status: false,
+      statusCode: 'Error',
+      data: '',
+      errors: [error?.message || error?.toString() || 'Không thể gửi đơn hàng']
+    };
+    
+    return errorResponse;
+  }
 };
 

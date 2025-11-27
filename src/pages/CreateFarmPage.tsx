@@ -493,12 +493,12 @@ export const CreateFarmPage = () => {
                       >
                         <div className="md:col-span-3">
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Tên cây trồng
+                            Tên loại rau củ 
                           </label>
                           <Input
                             value={crop.cropName}
                             onChange={(e) => handleCropChange(index, 'cropName', e.target.value)}
-                            placeholder="Ví dụ: Lúa"
+                            placeholder="Ví dụ: Cà rốt, Bắp cải..."
                           />
                         </div>
                         <div className="md:col-span-2">

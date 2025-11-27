@@ -46,6 +46,8 @@ export interface TicketItem {
   createdAt: string;
   updatedAt: string;
   images?: TicketImage[];
+  // Client-only: lưu id của requestMessage hiện tại để cập nhật replyNotes
+  requestMessageId?: number;
 }
 
 export interface TicketPaginationData {
@@ -72,6 +74,28 @@ export interface GetTicketsByUserResponse {
   errors: string[];
 }
 
+// Detail ticket (GET /api/RequestTicket/{requestId})
+export interface TicketMessage {
+  id: number;
+  description: string;
+  staff: string | null;
+  replyNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  images?: TicketImage[];
+}
+
+export interface TicketDetail extends TicketItem {
+  requestMessages?: TicketMessage[];
+}
+
+export interface GetTicketDetailResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: TicketDetail | null;
+  errors: string[];
+}
+
 export interface GetTicketsParams {
   page?: number;
   pageSize?: number;
@@ -79,9 +103,15 @@ export interface GetTicketsParams {
   requestStatus?: string;
 }
 
+// Payload xử lý ticket (PATCH /api/RequestTicket/{requestId}/process)
+export interface ProcessTicketMessagePayload {
+  id?: number; // Backend ví dụ: 0. Có thể dùng 0/undefined để tạo message mới.
+  replyNotes?: string | null;
+}
+
 export interface ProcessTicketRequest {
   status: "InReview" | "Approved" | "Rejected" | "Cancelled";
-  replyNotes?: string | null;
+  requestMessages?: ProcessTicketMessagePayload | null;
 }
 
 export interface ProcessTicketResponse {
@@ -90,6 +120,9 @@ export interface ProcessTicketResponse {
   data: string | null;
   errors: string[];
 }
+
+export type GetMyTicketsParams = Pick<GetTicketsParams, 'page' | 'pageSize'>;
+export type GetMyTicketsResponse = GetTicketsResponse;
 
 export const createTicket = async (
   data: CreateTicketRequest
@@ -143,6 +176,75 @@ export const getTickets = async (params: GetTicketsParams = {}): Promise<GetTick
   }
 };
 
+export const getMyTickets = async (
+  params: GetMyTicketsParams = {}
+): Promise<GetMyTicketsResponse> => {
+  try {
+    const response = await apiClient.get<GetMyTicketsResponse>(
+      '/api/RequestTicket/my-requests',
+      {
+        params: {
+          page: params.page,
+          pageSize: params.pageSize,
+        },
+      }
+    ) as unknown as GetMyTicketsResponse;
+
+    return response;
+  } catch (error: any) {
+    if (error?.response?.data) {
+      const errorData = error.response.data;
+      return {
+        status: false,
+        statusCode: errorData.statusCode || 'Error',
+        data: null,
+        errors: Array.isArray(errorData.errors)
+          ? errorData.errors
+          : [errorData.message || 'Không thể tải danh sách yêu cầu hỗ trợ'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tải danh sách yêu cầu hỗ trợ'],
+    };
+  }
+};
+
+// Lấy chi tiết 1 ticket theo ID
+export const getTicketById = async (
+  requestId: number
+): Promise<GetTicketDetailResponse> => {
+  try {
+    const response = await apiClient.get<GetTicketDetailResponse>(
+      `/api/RequestTicket/${requestId}`
+    ) as unknown as GetTicketDetailResponse;
+
+    return response;
+  } catch (error: any) {
+    if (error?.response?.data) {
+      const errorData = error.response.data;
+      return {
+        status: false,
+        statusCode: errorData.statusCode || 'Error',
+        data: null,
+        errors: Array.isArray(errorData.errors)
+          ? errorData.errors
+          : [errorData.message || 'Không thể tải chi tiết yêu cầu hỗ trợ'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tải chi tiết yêu cầu hỗ trợ'],
+    };
+  }
+};
+
 export const getTicketsByUser = async (userId: number): Promise<GetTicketsByUserResponse> => {
   try {
     const response = await apiClient.get<GetTicketsByUserResponse>(
@@ -177,7 +279,7 @@ export const processTicket = async (
   payload: ProcessTicketRequest
 ): Promise<ProcessTicketResponse> => {
   try {
-    const response = await apiClient.put<ProcessTicketResponse>(
+    const response = await apiClient.patch<ProcessTicketResponse>(
       `/api/RequestTicket/${requestId}/process`,
       payload
     ) as unknown as ProcessTicketResponse;

@@ -76,7 +76,7 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
       { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
       { status: "Processing", label: "Đang đóng gói", icon: Loader2 },
       { status: "Shipped", label: "Đã vận chuyển", icon: Truck },
-      { status: "Delivered", label: "Đã giao hàng", icon: CheckCircle },
+      { status: "Delivered", label: "Đã nhận", icon: CheckCircle },
     ];
   };
 
@@ -424,7 +424,7 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
                         <SelectItem value="Paid">Đã thanh toán</SelectItem>
                         <SelectItem value="Processing">Đang đóng gói</SelectItem>
                         <SelectItem value="Shipped">Đã vận chuyển</SelectItem>
-                        <SelectItem value="Delivered">Đã giao hàng</SelectItem>
+                        <SelectItem value="Delivered">Đã nhận</SelectItem>
                         <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
                         <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
                       </SelectContent>
