@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,127 @@ const fadeInVariants = {
   }
 };
 
+type RawContentBlock = ForumPostContent | (Partial<ForumPostContent> & { content?: unknown });
+
+const safeParseContent = (raw: unknown): unknown => {
+  if (typeof raw !== 'string') {
+    return raw;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) {
+    return raw;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return raw;
+  }
+};
+
+const extractImageUrl = (image: unknown): string | null => {
+  if (!image) {
+    return null;
+  }
+
+  if (typeof image === 'string') {
+    return image.trim() || null;
+  }
+
+  if (typeof image === 'object') {
+    const record = image as Record<string, unknown>;
+    const urlCandidate = record.imageUrl || record.url || record.image || record.content;
+    if (typeof urlCandidate === 'string') {
+      return urlCandidate.trim() || null;
+    }
+  }
+
+  return null;
+};
+
+const normalizeForumContent = (content?: ForumPostContent[]): ForumPostContent[] => {
+  if (!Array.isArray(content)) {
+    return [];
+  }
+
+  const normalized: ForumPostContent[] = [];
+
+  const pushBlock = (type: 'text' | 'image', value: unknown, order?: number) => {
+    if (type === 'image') {
+      const url = extractImageUrl(value);
+      if (!url) {
+        return;
+      }
+      normalized.push({
+        order: Number.isFinite(order) ? (order as number) : normalized.length,
+        type: 'image',
+        content: url,
+      });
+      return;
+    }
+
+    if (typeof value !== 'string') {
+      if (value === null || value === undefined) {
+        return;
+      }
+    }
+
+    const text = typeof value === 'string' ? value : String(value ?? '');
+    const cleaned = text.trim();
+    if (!cleaned) {
+      return;
+    }
+
+    normalized.push({
+      order: Number.isFinite(order) ? (order as number) : normalized.length,
+      type: 'text',
+      content: cleaned,
+    });
+  };
+
+  const processEntry = (entry: unknown, orderHint?: number) => {
+    if (entry === null || entry === undefined) {
+      return;
+    }
+
+    if (Array.isArray(entry)) {
+      entry.forEach((child, index) => processEntry(child, (orderHint ?? 0) + index * 0.01));
+      return;
+    }
+
+    if (typeof entry === 'string') {
+      pushBlock('text', entry, orderHint);
+      return;
+    }
+
+    if (typeof entry === 'object') {
+      const block = entry as RawContentBlock;
+      const type = block.type === 'image' ? 'image' : 'text';
+
+      if (type === 'image') {
+        pushBlock('image', block.content, block.order ?? orderHint);
+        return;
+      }
+
+      const parsed = safeParseContent(block.content);
+      if (Array.isArray(parsed) || (typeof parsed === 'object' && parsed !== null)) {
+        processEntry(parsed, block.order ?? orderHint);
+        return;
+      }
+
+      pushBlock('text', parsed, block.order ?? orderHint);
+      return;
+    }
+
+    pushBlock('text', entry, orderHint);
+  };
+
+  content.forEach((item, index) => processEntry(item, item?.order ?? index));
+
+  return normalized.sort((a, b) => a.order - b.order);
+};
+
 export const ForumDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -83,6 +204,7 @@ export const ForumDetailPage = () => {
   const [deletingComment, setDeletingComment] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const normalizedContent = useMemo(() => normalizeForumContent(post?.content), [post?.content]);
 
   // Fetch post
   useEffect(() => {
@@ -693,8 +815,8 @@ export const ForumDetailPage = () => {
             <CardContent>
               {/* Content Blocks */}
               <div className="prose prose-lg max-w-none">
-                {post.content && post.content.length > 0 ? (
-                  renderContent(post.content)
+                {normalizedContent.length > 0 ? (
+                  renderContent(normalizedContent)
                 ) : (
                   <p className="text-gray-400 italic">Chưa có nội dung</p>
                 )}
@@ -703,25 +825,33 @@ export const ForumDetailPage = () => {
               {/* Images from images array */}
               {post.images && post.images.length > 0 && (
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {post.images.map((image: any, index: number) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="rounded-lg overflow-hidden shadow-lg"
-                    >
-                      <img
-                        src={typeof image === 'string' ? image : image.url || image}
-                        alt={`Image ${index + 1}`}
-                        className="w-full h-auto object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </motion.div>
-                  ))}
+                  {post.images.map((image: any, index: number) => {
+                    const resolvedUrl = extractImageUrl(image);
+                    if (!resolvedUrl) {
+                      return null;
+                    }
+
+                    return (
+                      <motion.div
+                        key={image?.id ?? index}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="rounded-lg overflow-hidden shadow-lg"
+                      >
+                        <img
+                          src={resolvedUrl}
+                          alt={`${post.title} - hình ảnh ${index + 1}`}
+                          className="w-full h-auto object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
 

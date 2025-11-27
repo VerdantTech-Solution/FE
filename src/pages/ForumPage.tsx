@@ -56,6 +56,75 @@ const cardVariants = {
   }
 };
 
+type ForumContentBlock = ForumPost['content'] extends Array<infer U> ? U : never;
+
+const safeParseContent = (raw: unknown): unknown => {
+  if (typeof raw !== 'string') {
+    return raw;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) {
+    return raw;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return raw;
+  }
+};
+
+const collectTextFromBlock = (block: unknown): string[] => {
+  if (!block) {
+    return [];
+  }
+
+  if (Array.isArray(block)) {
+    return block.flatMap(collectTextFromBlock);
+  }
+
+  if (typeof block === 'object') {
+    const typedBlock = block as ForumContentBlock;
+    if (typedBlock?.type && typedBlock.type !== 'text') {
+      return [];
+    }
+
+    return collectTextFromBlock(safeParseContent(typedBlock?.content));
+  }
+
+  if (typeof block === 'string') {
+    return [block];
+  }
+
+  return [];
+};
+
+const extractTextPreview = (content?: ForumPost['content']): string => {
+  if (!Array.isArray(content) || content.length === 0) {
+    return '';
+  }
+
+  const merged = collectTextFromBlock(content)
+    .map((text) => text.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join(' ');
+
+  return merged.trim();
+};
+
+const getCoverImage = (images?: ForumPost['images']): string | null => {
+  if (!Array.isArray(images) || images.length === 0) {
+    return null;
+  }
+
+  const prioritizedImage = images
+    .filter((img) => !!img?.imageUrl)
+    .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0))[0];
+
+  return prioritizedImage?.imageUrl ?? null;
+};
+
 export const ForumPage = () => {
   const navigate = useNavigate();
   const [pageLoading, setPageLoading] = useState(true);
@@ -276,63 +345,75 @@ export const ForumPage = () => {
                 variants={staggerVariants}
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
               >
-                {posts.map((post) => (
-                  <motion.div
-                    key={post.id}
-                    variants={cardVariants}
-                    whileHover={{ scale: 1.03, y: -8 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Card 
-                      className="h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-white/90 backdrop-blur-sm group cursor-pointer overflow-hidden relative"
-                      onClick={() => navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`)}
+                {posts.map((post) => {
+                  const previewText = extractTextPreview(post.content);
+                  const coverImage = getCoverImage(post.images);
+
+                  return (
+                    <motion.div
+                      key={post.id}
+                      variants={cardVariants}
+                      whileHover={{ scale: 1.03, y: -8 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      {/* Decorative gradient background */}
-                      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full -mr-20 -mt-20 opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
-                      
-                      <CardHeader className="relative pb-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                          <Sparkles className="w-8 h-8 text-white" />
-                        </div>
-                        <CardTitle className="text-xl font-bold text-gray-800 group-hover:text-green-600 transition-colors duration-300 line-clamp-2 min-h-[3rem]">
-                          {post.title}
-                        </CardTitle>
-                      </CardHeader>
-                      
-                      <CardContent className="relative">
-                        {post.content && post.content.length > 0 ? (
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-3 min-h-[4rem]">
-                            {post.content
-                              .filter(item => item.type === 'text')
-                              .map(item => item.content)
-                              .join(' ')}
-                          </p>
-                        ) : (
-                          <p className="text-gray-400 text-sm mb-4 italic min-h-[4rem]">
-                            Chưa có nội dung
-                          </p>
-                        )}
+                      <Card 
+                        className="h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-white/90 backdrop-blur-sm group cursor-pointer overflow-hidden relative"
+                        onClick={() => navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`)}
+                      >
+                        {/* Decorative gradient background */}
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full -mr-20 -mt-20 opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
                         
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                         
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50 group-hover:translate-x-1 transition-all duration-300"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`);
-                            }}
-                          >
-                            Xem chi tiết
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
+                        <CardHeader className="relative pb-4">
+                          {coverImage && (
+                            <div className="mb-4 rounded-2xl overflow-hidden bg-gray-100 aspect-[4/3]">
+                              <img
+                                src={coverImage}
+                                alt={`Ảnh bài viết ${post.title}`}
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                            </div>
+                          )}
+                          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                            <Sparkles className="w-8 h-8 text-white" />
+                          </div>
+                          <CardTitle className="text-xl font-bold text-gray-800 group-hover:text-green-600 transition-colors duration-300 line-clamp-2 min-h-[3rem]">
+                            {post.title}
+                          </CardTitle>
+                        </CardHeader>
+                        
+                        <CardContent className="relative">
+                          {previewText ? (
+                            <p className="text-gray-600 text-sm mb-4 line-clamp-3 min-h-[4rem]">
+                              {previewText}
+                            </p>
+                          ) : (
+                            <p className="text-gray-400 text-sm mb-4 italic min-h-[4rem]">
+                              Chưa có nội dung
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                           
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 group-hover:translate-x-1 transition-all duration-300"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`);
+                              }}
+                            >
+                              Xem chi tiết
+                              <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
               </motion.div>
             )}
 
