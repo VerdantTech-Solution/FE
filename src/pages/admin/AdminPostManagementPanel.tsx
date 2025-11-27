@@ -3,14 +3,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Trash2, Pencil } from "lucide-react";
 import {
   getForumPosts,
+  getForumCategories,
+  createForumCategory,
+  deleteForumCategory,
+  createForumPost,
+  updateForumPost,
+  deleteForumPost,
   type ForumPost,
   type GetForumPostsResponse,
+  type ForumCategory,
 } from "@/api/forum";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const AdminPostManagementPanel: React.FC = () => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +56,151 @@ export const AdminPostManagementPanel: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
   const [searchKeyword, setSearchKeyword] = useState<string>("");
+  const [categories, setCategories] = useState<ForumCategory[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState<boolean>(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [categoryForm, setCategoryForm] = useState({
+    name: "",
+    description: "",
+  });
+  const [categoryActionLoading, setCategoryActionLoading] = useState<boolean>(false);
+  const [categoryDeletingId, setCategoryDeletingId] = useState<number | null>(null);
+  const [categoryActionError, setCategoryActionError] = useState<string | null>(null);
+  const [alertState, setAlertState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    isSuccess: boolean;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    isSuccess: true,
+  });
+  const [confirmDeleteState, setConfirmDeleteState] = useState<{
+    open: boolean;
+    categoryId: number | null;
+  }>({
+    open: false,
+    categoryId: null,
+  });
+  const [isCreatePostDialogOpen, setIsCreatePostDialogOpen] = useState(false);
+  const [createPostLoading, setCreatePostLoading] = useState(false);
+  const [createPostError, setCreatePostError] = useState<string | null>(null);
+  const [createPostForm, setCreatePostForm] = useState<{
+    title: string;
+    tags: string;
+    body: string;
+    forumCategoryId: number | null;
+  }>({
+    title: "",
+    tags: "",
+    body: "",
+    forumCategoryId: null,
+  });
+  const [createPostImages, setCreatePostImages] = useState<File[]>([]);
 
-  const fetchPosts = async (page: number) => {
+  const resetCreatePostForm = () => {
+    setCreatePostForm({
+      title: "",
+      tags: "",
+      body: "",
+      forumCategoryId: selectedCategoryId ?? categories[0]?.id ?? null,
+    });
+    setCreatePostImages([]);
+    setCreatePostError(null);
+  };
+
+  const getPrimaryTextContent = (post: ForumPost): string => {
+    if (!post.content || post.content.length === 0) {
+      return "";
+    }
+    const textBlock = post.content.find((block) => block.type === "text");
+    return textBlock?.content ?? "";
+  };
+
+  const buildContentBlocks = (body: string) => {
+    const trimmed = body.trim();
+    if (!trimmed) {
+      return [];
+    }
+    return [
+      {
+        order: 1,
+        type: "text" as const,
+        content: trimmed,
+      },
+    ];
+  };
+
+  const resetEditPostState = () => {
+    setEditingPost(null);
+    setEditPostForm({
+      id: null,
+      title: "",
+      tags: "",
+      body: "",
+      forumCategoryId: null,
+    });
+    setEditPostImages([]);
+    setEditPostRemoveImageIds(new Set());
+    setEditPostError(null);
+  };
+
+  const [isEditPostDialogOpen, setIsEditPostDialogOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<ForumPost | null>(null);
+  const [editPostForm, setEditPostForm] = useState<{
+    id: number | null;
+    title: string;
+    tags: string;
+    body: string;
+    forumCategoryId: number | null;
+  }>({
+    id: null,
+    title: "",
+    tags: "",
+    body: "",
+    forumCategoryId: null,
+  });
+  const [editPostImages, setEditPostImages] = useState<File[]>([]);
+  const [editPostRemoveImageIds, setEditPostRemoveImageIds] = useState<Set<string>>(new Set());
+  const [editPostLoading, setEditPostLoading] = useState(false);
+  const [editPostError, setEditPostError] = useState<string | null>(null);
+  const [postDeleteState, setPostDeleteState] = useState<{ open: boolean; post: ForumPost | null }>({
+    open: false,
+    post: null,
+  });
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+
+  const fetchCategories = async () => {
+    try {
+      setCategoryLoading(true);
+      const res = await getForumCategories({
+        page: 1,
+        pageSize: 50,
+      });
+
+      if (!res.status || !res.data) {
+        throw new Error(
+          res.errors?.join(", ") || "Không thể tải danh mục diễn đàn"
+        );
+      }
+
+      setCategories(res.data.data || []);
+    } catch (err: any) {
+      console.error("Error fetching forum categories:", err);
+      setError(
+        err?.message || "Có lỗi xảy ra khi tải danh mục diễn đàn"
+      );
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  const fetchPosts = async (
+    page: number,
+    categoryId: number | null = selectedCategoryId
+  ) => {
     try {
       setLoading(true);
       setError(null);
@@ -30,6 +208,7 @@ export const AdminPostManagementPanel: React.FC = () => {
       const res: GetForumPostsResponse = await getForumPosts({
         page,
         pageSize,
+        forumCategoryId: categoryId ?? undefined,
       });
 
       if (!res.status || !res.data) {
@@ -37,6 +216,10 @@ export const AdminPostManagementPanel: React.FC = () => {
       }
 
       let list = res.data.data || [];
+
+      if (categoryId !== null && categoryId !== undefined) {
+        list = list.filter((p) => p.forumCategoryId === categoryId);
+      }
 
       if (searchKeyword.trim()) {
         const keyword = searchKeyword.trim().toLowerCase();
@@ -71,15 +254,384 @@ export const AdminPostManagementPanel: React.FC = () => {
     fetchPosts(1);
   };
 
+  const handleCategorySelect = (categoryId: number | null) => {
+    if (categoryId === selectedCategoryId) return;
+    setSelectedCategoryId(categoryId);
+    fetchPosts(1, categoryId);
+  };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = categoryForm.name.trim();
+    const trimmedDescription = categoryForm.description.trim();
+
+    if (!trimmedName) {
+      setCategoryActionError("Vui lòng nhập tên danh mục");
+      setAlertState({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Vui lòng nhập tên danh mục trước khi tạo.",
+        isSuccess: false,
+      });
+      return;
+    }
+
+    try {
+      setCategoryActionLoading(true);
+      setCategoryActionError(null);
+
+      const res = await createForumCategory({
+        name: trimmedName,
+        description: trimmedDescription || undefined,
+      });
+
+      if (!res.status || !res.data) {
+        throw new Error(
+          res.errors?.join(", ") || "Không thể tạo danh mục diễn đàn"
+        );
+      }
+
+      setCategoryForm({ name: "", description: "" });
+      await fetchCategories();
+      setAlertState({
+        open: true,
+        title: "Thành công",
+        message: "Tạo danh mục mới thành công.",
+        isSuccess: true,
+      });
+    } catch (err: any) {
+      console.error("Error creating forum category:", err);
+      setCategoryActionError(
+        err?.message || "Có lỗi xảy ra khi tạo danh mục diễn đàn"
+      );
+      setAlertState({
+        open: true,
+        title: "Tạo danh mục thất bại",
+        message: err?.message || "Không thể tạo danh mục. Vui lòng thử lại.",
+        isSuccess: false,
+      });
+    } finally {
+      setCategoryActionLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    try {
+      setCategoryDeletingId(id);
+      setCategoryActionError(null);
+
+      const res = await deleteForumCategory(id);
+      if (!res.status) {
+        throw new Error(
+          res.errors?.join(", ") || "Không thể xóa danh mục diễn đàn"
+        );
+      }
+
+      if (selectedCategoryId === id) {
+        setSelectedCategoryId(null);
+      }
+      await fetchCategories();
+      fetchPosts(1, selectedCategoryId === id ? null : selectedCategoryId);
+      setAlertState({
+        open: true,
+        title: "Đã xóa danh mục",
+        message: "Danh mục đã được xóa thành công.",
+        isSuccess: true,
+      });
+    } catch (err: any) {
+      console.error("Error deleting forum category:", err);
+      setCategoryActionError(
+        err?.message || "Có lỗi xảy ra khi xóa danh mục diễn đàn"
+      );
+      setAlertState({
+        open: true,
+        title: "Xóa danh mục thất bại",
+        message: err?.message || "Không thể xóa danh mục. Vui lòng thử lại.",
+        isSuccess: false,
+      });
+    } finally {
+      setCategoryDeletingId(null);
+      setConfirmDeleteState({ open: false, categoryId: null });
+    }
+  };
+
+  const openDeleteConfirm = (id: number) => {
+    setConfirmDeleteState({
+      open: true,
+      categoryId: id,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDeleteState.categoryId === null) return;
+    handleDeleteCategory(confirmDeleteState.categoryId);
+  };
+
+  const handleOpenCreatePostDialog = () => {
+    resetCreatePostForm();
+    setIsCreatePostDialogOpen(true);
+  };
+
+  const handleCreatePostImagesChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = event.target.files;
+    setCreatePostImages(files ? Array.from(files) : []);
+  };
+
+  const handleCreatePostSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const userId = user?.id ? Number(user.id) : null;
+
+    if (!userId) {
+      setAlertState({
+        open: true,
+        title: "Chưa đăng nhập",
+        message: "Vui lòng đăng nhập lại để tạo bài viết.",
+        isSuccess: false,
+      });
+      return;
+    }
+
+    const categoryId =
+      createPostForm.forumCategoryId ??
+      selectedCategoryId ??
+      categories[0]?.id ??
+      null;
+
+    if (!categoryId) {
+      setCreatePostError("Vui lòng chọn danh mục cho bài viết.");
+      return;
+    }
+
+    if (!createPostForm.title.trim()) {
+      setCreatePostError("Tiêu đề bài viết không được để trống.");
+      return;
+    }
+
+    if (!createPostForm.body.trim()) {
+      setCreatePostError("Nội dung bài viết không được để trống.");
+      return;
+    }
+
+    const contentBlocks = [
+      {
+        order: 1,
+        type: "text" as const,
+        content: createPostForm.body.trim(),
+      },
+    ];
+
+    try {
+      setCreatePostLoading(true);
+      setCreatePostError(null);
+
+      const response = await createForumPost({
+        forumCategoryId: categoryId,
+        title: createPostForm.title.trim(),
+        tags: createPostForm.tags.trim() || undefined,
+        content: contentBlocks,
+        images: createPostImages,
+        userId,
+      });
+
+      if (!response.status || !response.data) {
+        throw new Error(
+          response.errors?.join(", ") || "Không thể tạo bài viết mới"
+        );
+      }
+
+      setAlertState({
+        open: true,
+        title: "Tạo bài viết thành công",
+        message: "Bài viết đã được tạo và đăng lên diễn đàn.",
+        isSuccess: true,
+      });
+      setIsCreatePostDialogOpen(false);
+      resetCreatePostForm();
+      fetchPosts(1, categoryId);
+    } catch (err: any) {
+      console.error("Error creating forum post:", err);
+      const message =
+        err?.message || "Có lỗi xảy ra khi tạo bài viết. Vui lòng thử lại.";
+      setCreatePostError(message);
+      setAlertState({
+        open: true,
+        title: "Tạo bài viết thất bại",
+        message,
+        isSuccess: false,
+      });
+    } finally {
+      setCreatePostLoading(false);
+    }
+  };
+
+  const handleOpenEditPostDialog = (post: ForumPost) => {
+    setEditingPost(post);
+    setEditPostForm({
+      id: post.id,
+      title: post.title,
+      tags: post.tags || "",
+      body: getPrimaryTextContent(post),
+      forumCategoryId: post.forumCategoryId ?? selectedCategoryId ?? categories[0]?.id ?? null,
+    });
+    setEditPostImages([]);
+    setEditPostRemoveImageIds(new Set());
+    setEditPostError(null);
+    setIsEditPostDialogOpen(true);
+  };
+
+  const handleEditPostImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    setEditPostImages(files ? Array.from(files) : []);
+  };
+
+  const toggleRemoveImage = (publicId?: string | null) => {
+    if (!publicId) {
+      return;
+    }
+
+    setEditPostRemoveImageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(publicId)) {
+        next.delete(publicId);
+      } else {
+        next.add(publicId);
+      }
+      return next;
+    });
+  };
+
+  const handleUpdatePostSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editPostForm.id) {
+      setEditPostError("Không xác định được bài viết cần cập nhật.");
+      return;
+    }
+
+    if (!editPostForm.title.trim()) {
+      setEditPostError("Tiêu đề bài viết không được để trống.");
+      return;
+    }
+
+    const contentBlocks = buildContentBlocks(editPostForm.body);
+
+    try {
+      setEditPostLoading(true);
+      setEditPostError(null);
+
+      const response = await updateForumPost({
+        id: editPostForm.id,
+        forumCategoryId: editPostForm.forumCategoryId ?? undefined,
+        title: editPostForm.title.trim(),
+        tags: editPostForm.tags.trim() || undefined,
+        content: contentBlocks,
+        addImages: editPostImages,
+        removeImagePublicIds: Array.from(editPostRemoveImageIds),
+      });
+
+      if (!response.status || !response.data) {
+        throw new Error(response.errors?.join(", ") || "Không thể cập nhật bài viết.");
+      }
+
+      setAlertState({
+        open: true,
+        title: "Cập nhật bài viết thành công",
+        message: "Bài viết đã được cập nhật.",
+        isSuccess: true,
+      });
+      setIsEditPostDialogOpen(false);
+      resetEditPostState();
+      fetchPosts(currentPage, selectedCategoryId);
+    } catch (error: any) {
+      console.error("Error updating forum post:", error);
+      const message =
+        error?.message ||
+        error?.response?.data?.errors?.join(", ") ||
+        "Có lỗi xảy ra khi cập nhật bài viết.";
+      setEditPostError(message);
+      setAlertState({
+        open: true,
+        title: "Cập nhật bài viết thất bại",
+        message,
+        isSuccess: false,
+      });
+    } finally {
+      setEditPostLoading(false);
+    }
+  };
+
+  const openDeletePostConfirm = (post: ForumPost) => {
+    setPostDeleteState({
+      open: true,
+      post,
+    });
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!postDeleteState.post) return;
+
+    try {
+      setIsDeletingPost(true);
+      const response = await deleteForumPost(postDeleteState.post.id);
+
+      if (!response.status) {
+        throw new Error(response.errors?.join(", ") || "Không thể xóa bài viết.");
+      }
+
+      setAlertState({
+        open: true,
+        title: "Đã xóa bài viết",
+        message: "Bài viết đã được xóa thành công.",
+        isSuccess: true,
+      });
+      setPostDeleteState({ open: false, post: null });
+      fetchPosts(currentPage, selectedCategoryId);
+    } catch (error: any) {
+      console.error("Error deleting forum post:", error);
+      const message =
+        error?.message ||
+        error?.response?.data?.errors?.join(", ") ||
+        "Có lỗi xảy ra khi xóa bài viết.";
+      setAlertState({
+        open: true,
+        title: "Xóa bài viết thất bại",
+        message,
+        isSuccess: false,
+      });
+    } finally {
+      setIsDeletingPost(false);
+    }
+  };
+
   useEffect(() => {
+    fetchCategories();
     fetchPosts(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    setCreatePostForm((prev) => ({
+      ...prev,
+      forumCategoryId:
+        prev.forumCategoryId !== null ? prev.forumCategoryId : selectedCategoryId,
+    }));
+  }, [selectedCategoryId]);
+
+  useEffect(() => {
+    if (!createPostForm.forumCategoryId && categories.length > 0) {
+      setCreatePostForm((prev) => ({
+        ...prev,
+        forumCategoryId: categories[0].id,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý bài viết</h1>
           <p className="text-gray-600">
@@ -87,21 +639,117 @@ export const AdminPostManagementPanel: React.FC = () => {
           </p>
         </div>
 
-        <form
-          onSubmit={handleSearch}
-          className="flex items-center gap-2 w-full max-w-md"
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:justify-end w-full md:w-auto">
+          <form
+            onSubmit={handleSearch}
+            className="flex items-center gap-2 w-full sm:w-auto"
+          >
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Tìm theo tiêu đề hoặc tag..."
+                className="pl-10"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+              />
+            </div>
+            <Button type="submit">Tìm kiếm</Button>
+          </form>
+          <Button onClick={handleOpenCreatePostDialog} className="bg-blue-600 hover:bg-blue-700">
+            Tạo bài viết
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-gray-700">Tạo danh mục mới</p>
+          <form
+            onSubmit={handleCreateCategory}
+            className="flex flex-col gap-2 md:flex-row"
+          >
             <Input
-              placeholder="Tìm theo tiêu đề hoặc tag..."
-              className="pl-10"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder="Tên danh mục"
+              value={categoryForm.name}
+              onChange={(e) =>
+                setCategoryForm((prev) => ({ ...prev, name: e.target.value }))
+              }
             />
+            <Input
+              placeholder="Mô tả"
+              value={categoryForm.description}
+              onChange={(e) =>
+                setCategoryForm((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+            />
+            <Button type="submit" disabled={categoryActionLoading}>
+              {categoryActionLoading ? "Đang tạo..." : "Thêm danh mục"}
+            </Button>
+          </form>
+          {categoryActionError && (
+            <p className="text-sm text-red-600">{categoryActionError}</p>
+          )}
+          {/* thông báo hiển thị qua alert dialog */}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-700">Danh mục diễn đàn</p>
+            {selectedCategoryId !== null && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleCategorySelect(null)}
+              >
+                Xóa lọc
+              </Button>
+            )}
           </div>
-          <Button type="submit">Tìm kiếm</Button>
-        </form>
+          {categoryLoading ? (
+            <div className="flex items-center text-sm text-gray-500">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+              Đang tải danh mục...
+            </div>
+          ) : categories.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedCategoryId === null ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleCategorySelect(null)}
+              >
+                Tất cả
+              </Button>
+              {categories.map((category) => (
+                <div className="flex items-center gap-1" key={category.id}>
+                  <Button
+                    variant={
+                      selectedCategoryId === category.id ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => handleCategorySelect(category.id)}
+                    className="text-sm"
+                  >
+                    {category.name}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => openDeleteConfirm(category.id)}
+                    disabled={categoryDeletingId === category.id}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Không tìm thấy danh mục nào.</p>
+          )}
+        </div>
       </div>
 
       {/* Error */}
@@ -222,14 +870,24 @@ export const AdminPostManagementPanel: React.FC = () => {
                             {new Date(post.createdAt).toLocaleString("vi-VN")}
                           </td>
                           <td className="py-4 px-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="p-2"
-                              // TODO: sau này có thể mở dialog chi tiết / chỉnh sửa
-                            >
-                              <Eye size={16} />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="p-2"
+                                onClick={() => handleOpenEditPostDialog(post)}
+                              >
+                                <Pencil size={16} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="p-2 text-red-600 hover:text-red-700"
+                                onClick={() => openDeletePostConfirm(post)}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -287,6 +945,420 @@ export const AdminPostManagementPanel: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      <Dialog
+        open={isCreatePostDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreatePostDialogOpen(open);
+          if (!open) {
+            resetCreatePostForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Tạo bài viết mới</DialogTitle>
+            <DialogDescription>
+              Nhập thông tin bài viết và upload ảnh (nếu có) để đăng lên diễn đàn.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreatePostSubmit} className="space-y-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Tiêu đề <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={createPostForm.title}
+                onChange={(e) =>
+                  setCreatePostForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+                placeholder="Nhập tiêu đề bài viết"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Danh mục <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={
+                  createPostForm.forumCategoryId
+                    ? String(createPostForm.forumCategoryId)
+                    : ""
+                }
+                onValueChange={(value) =>
+                  setCreatePostForm((prev) => ({
+                    ...prev,
+                    forumCategoryId: Number(value),
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn danh mục" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Tags (phân tách bằng dấu phẩy)
+              </label>
+              <Input
+                value={createPostForm.tags}
+                onChange={(e) =>
+                  setCreatePostForm((prev) => ({ ...prev, tags: e.target.value }))
+                }
+                placeholder="Ví dụ: kinh nghiệm, kỹ thuật, hữu cơ"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Nội dung <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                rows={6}
+                value={createPostForm.body}
+                onChange={(e) =>
+                  setCreatePostForm((prev) => ({ ...prev, body: e.target.value }))
+                }
+                placeholder="Nhập nội dung bài viết..."
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Ảnh minh họa (tùy chọn)
+              </label>
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleCreatePostImagesChange}
+              />
+              {createPostImages.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  Đã chọn {createPostImages.length} ảnh
+                </p>
+              )}
+            </div>
+
+            {createPostError && (
+              <p className="text-sm text-red-600">{createPostError}</p>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCreatePostDialogOpen(false);
+                  resetCreatePostForm();
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                disabled={createPostLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {createPostLoading ? "Đang tạo..." : "Đăng bài"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isEditPostDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditPostDialogOpen(open);
+          if (!open) {
+            resetEditPostState();
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa bài viết</DialogTitle>
+            <DialogDescription>
+              Thay đổi thông tin bài viết và quản lý hình ảnh.
+            </DialogDescription>
+          </DialogHeader>
+          {editingPost ? (
+            <form onSubmit={handleUpdatePostSubmit} className="space-y-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Tiêu đề <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={editPostForm.title}
+                  onChange={(e) =>
+                    setEditPostForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  placeholder="Nhập tiêu đề bài viết"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Danh mục <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={
+                    editPostForm.forumCategoryId
+                      ? String(editPostForm.forumCategoryId)
+                      : ""
+                  }
+                  onValueChange={(value) =>
+                    setEditPostForm((prev) => ({
+                      ...prev,
+                      forumCategoryId: Number(value),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn danh mục" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Tags (phân tách bằng dấu phẩy)
+                </label>
+                <Input
+                  value={editPostForm.tags}
+                  onChange={(e) =>
+                    setEditPostForm((prev) => ({ ...prev, tags: e.target.value }))
+                  }
+                  placeholder="Ví dụ: kỹ thuật, sản xuất"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Nội dung
+                </label>
+                <Textarea
+                  rows={6}
+                  value={editPostForm.body}
+                  onChange={(e) =>
+                    setEditPostForm((prev) => ({ ...prev, body: e.target.value }))
+                  }
+                  placeholder="Nhập nội dung bài viết..."
+                />
+              </div>
+
+              {editingPost.images && editingPost.images.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Ảnh hiện tại
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {editingPost.images.map((image: any, index: number) => {
+                      const preview =
+                        typeof image === "string"
+                          ? image
+                          : image.imageUrl || image.url || image.image;
+                      const publicId =
+                        image?.imagePublicId ||
+                        image?.publicId ||
+                        image?.id?.toString() ||
+                        null;
+
+                      return (
+                        <div
+                          key={publicId || index}
+                          className="border rounded-md p-3 space-y-2"
+                        >
+                          {preview && (
+                            <img
+                              src={preview}
+                              alt={`Ảnh ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-md"
+                            />
+                          )}
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              disabled={!publicId}
+                              checked={publicId ? editPostRemoveImageIds.has(publicId) : false}
+                              onChange={() => toggleRemoveImage(publicId)}
+                            />
+                            <span>
+                              {publicId
+                                ? "Đánh dấu xóa ảnh này"
+                                : "Không thể xóa do thiếu mã hình ảnh"}
+                            </span>
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Thêm ảnh mới (tùy chọn)
+                </label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleEditPostImagesChange}
+                />
+                {editPostImages.length > 0 && (
+                  <p className="text-xs text-gray-500">
+                    Đã chọn {editPostImages.length} ảnh
+                  </p>
+                )}
+              </div>
+
+              {editPostError && (
+                <p className="text-sm text-red-600">{editPostError}</p>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditPostDialogOpen(false);
+                    resetEditPostState();
+                  }}
+                  disabled={editPostLoading}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={editPostLoading}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {editPostLoading ? "Đang lưu..." : "Cập nhật"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="py-8 text-center text-gray-500">
+              Không tìm thấy dữ liệu bài viết.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={alertState.open}
+        onOpenChange={(open) =>
+          setAlertState((prev) => ({
+            ...prev,
+            open,
+          }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle
+              className={
+                alertState.isSuccess ? "text-green-600" : "text-red-600"
+              }
+            >
+              {alertState.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{alertState.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertState((prev) => ({ ...prev, open: false }))}>
+              Đã hiểu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={postDeleteState.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPostDeleteState({ open: false, post: null });
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa bài viết?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {postDeleteState.post
+                ? `Bài viết "${postDeleteState.post.title}" sẽ bị xóa vĩnh viễn.`
+                : "Bạn có chắc chắn muốn xóa bài viết này?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setPostDeleteState({ open: false, post: null })}
+            >
+              Hủy
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleConfirmDeletePost}
+              disabled={isDeletingPost}
+            >
+              {isDeletingPost ? "Đang xóa..." : "Xóa bài viết"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDeleteState.open}
+        onOpenChange={(open) =>
+          setConfirmDeleteState((prev) => ({
+            ...prev,
+            open,
+          }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sau khi xóa, danh mục sẽ không thể khôi phục.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() =>
+                setConfirmDeleteState({ open: false, categoryId: null })
+              }
+            >
+              Hủy
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleConfirmDelete}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

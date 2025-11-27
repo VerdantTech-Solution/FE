@@ -1160,7 +1160,7 @@ export const OrderManagementPanel: React.FC = () => {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor={`lot-${item.id}`}>
-                          Số lô <span className="text-red-500">*</span>
+                          Số lô sản xuất <span className="text-red-500">*</span>
                         </Label>
                         <Input
                           id={`lot-${item.id}`}

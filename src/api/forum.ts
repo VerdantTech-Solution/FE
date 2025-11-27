@@ -41,6 +41,15 @@ export interface ForumPost {
   comments: any[];
 }
 
+export interface ForumCategory {
+  id: number;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ForumPostPaginationData {
   data: ForumPost[];
   currentPage: number;
@@ -58,9 +67,95 @@ export interface GetForumPostsResponse {
   errors: string[];
 }
 
+export interface ForumCategoryPaginationData {
+  data: ForumCategory[];
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface GetForumCategoriesResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: ForumCategoryPaginationData | null;
+  errors: string[];
+}
+
+export interface GetForumCategoriesParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CreateForumCategoryRequest {
+  name: string;
+  description?: string;
+}
+
+export interface CreateForumCategoryResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: ForumCategory | null;
+  errors: string[];
+}
+
+export interface DeleteForumCategoryResponse {
+  status: boolean;
+  statusCode: string | number;
+  errors: string[];
+}
+
+export interface CreateForumPostContentBlock {
+  order: number;
+  type: 'text' | 'image';
+  content: string;
+}
+
+export interface CreateForumPostRequest {
+  forumCategoryId: number;
+  title: string;
+  tags?: string;
+  content: CreateForumPostContentBlock[];
+  images?: File[];
+  userId?: number;
+}
+
+export interface CreateForumPostResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: ForumPost | null;
+  errors: string[];
+}
+
+export interface UpdateForumPostRequest {
+  id: number;
+  forumCategoryId?: number | null;
+  title: string;
+  tags?: string;
+  content: CreateForumPostContentBlock[];
+  addImages?: File[];
+  removeImagePublicIds?: string[];
+}
+
+export interface UpdateForumPostResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: ForumPost | null;
+  errors: string[];
+}
+
+export interface DeleteForumPostResponse {
+  status: boolean;
+  statusCode: string | number;
+  errors: string[];
+}
+
 export interface GetForumPostsParams {
   page?: number;
   pageSize?: number;
+  forumCategoryId?: number;
 }
 
 export const getForumPosts = async (
@@ -68,22 +163,24 @@ export const getForumPosts = async (
 ): Promise<GetForumPostsResponse> => {
   try {
     console.log('Fetching forum posts with params:', params);
-    const response = await apiClient.get<any>(
-      '/api/ForumPost',
-      {
-        params: {
-          page: params.page || 1,
-          pageSize: params.pageSize || 10,
-        },
-      }
-    );
+    const response = await apiClient.get<any>('/api/ForumPost', {
+      params: {
+        page: params.page || 1,
+        pageSize: params.pageSize || 10,
+        forumCategoryId:
+          params.forumCategoryId !== undefined ? params.forumCategoryId : undefined,
+      },
+    });
 
     console.log('Forum posts API response:', response);
     console.log('Response type:', Array.isArray(response) ? 'array' : typeof response);
     
     // API trả về mảng trực tiếp ForumPost[]
     if (Array.isArray(response)) {
-      const posts = response as ForumPost[];
+      let posts = response as ForumPost[];
+      if (params.forumCategoryId !== undefined && params.forumCategoryId !== null) {
+        posts = posts.filter((post) => post.forumCategoryId === params.forumCategoryId);
+      }
       const totalRecords = posts.length;
       const currentPage = params.page || 1;
       const pageSize = params.pageSize || 10;
@@ -151,6 +248,378 @@ export const getForumPosts = async (
       statusCode: 'Error',
       data: null,
       errors: ['Không thể tải danh sách bài viết diễn đàn'],
+    };
+  }
+};
+
+export const getForumCategories = async (
+  params: GetForumCategoriesParams = {}
+): Promise<GetForumCategoriesResponse> => {
+  try {
+    console.log('Fetching forum categories with params:', params);
+    const response = await apiClient.get<any>('/api/ForumCategory', {
+      params: {
+        page: params.page || 1,
+        pageSize: params.pageSize || 10,
+      },
+    });
+
+    console.log('Forum categories API response:', response);
+    console.log('Response type:', Array.isArray(response) ? 'array' : typeof response);
+
+    if (Array.isArray(response)) {
+      const categories = response as ForumCategory[];
+      const totalRecords = categories.length;
+      const currentPage = params.page || 1;
+      const pageSize = params.pageSize || 10;
+      const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+
+      return {
+        status: true,
+        statusCode: 200,
+        data: {
+          data: categories,
+          currentPage,
+          pageSize,
+          totalPages,
+          totalRecords,
+          hasNextPage: currentPage < totalPages,
+          hasPreviousPage: currentPage > 1,
+        },
+        errors: [],
+      };
+    }
+
+    if (response && typeof response === 'object' && ('status' in response || 'data' in response)) {
+      return response as unknown as GetForumCategoriesResponse;
+    }
+
+    const responseArray = Array.isArray(response) ? (response as ForumCategory[]) : [];
+    return {
+      status: true,
+      statusCode: 200,
+      data: {
+        data: responseArray,
+        currentPage: params.page || 1,
+        pageSize: params.pageSize || 10,
+        totalPages: 1,
+        totalRecords: responseArray.length,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+      errors: [],
+    };
+  } catch (error: any) {
+    console.error('Error fetching forum categories:', error);
+    console.error('Error details:', {
+      error,
+      type: typeof error,
+      keys: error ? Object.keys(error) : [],
+    });
+
+    if (error && typeof error === 'object') {
+      return {
+        status: false,
+        statusCode: error.statusCode || error.status || 'Error',
+        data: null,
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || error.error || 'Không thể tải danh mục diễn đàn'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tải danh mục diễn đàn'],
+    };
+  }
+};
+
+export const createForumCategory = async (
+  payload: CreateForumCategoryRequest
+): Promise<CreateForumCategoryResponse> => {
+  try {
+    console.log('Creating forum category:', payload);
+    const response = await apiClient.post<any>('/api/ForumCategory', {
+      name: payload.name,
+      description: payload.description,
+    });
+
+    console.log('Create category API response:', response);
+
+    if (response && typeof response === 'object') {
+      if ('status' in response && 'data' in response) {
+        return response as unknown as CreateForumCategoryResponse;
+      }
+
+      return {
+        status: true,
+        statusCode: 200,
+        data: response as ForumCategory,
+        errors: [],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tạo danh mục diễn đàn'],
+    };
+  } catch (error: any) {
+    console.error('Error creating forum category:', error);
+    if (error && typeof error === 'object') {
+      return {
+        status: false,
+        statusCode: error.statusCode || error.status || 'Error',
+        data: null,
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || error.error || 'Không thể tạo danh mục diễn đàn'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tạo danh mục diễn đàn'],
+    };
+  }
+};
+
+export const deleteForumCategory = async (
+  id: number
+): Promise<DeleteForumCategoryResponse> => {
+  try {
+    console.log('Deleting forum category:', id);
+    await apiClient.delete(`/api/ForumCategory/${id}`);
+
+    return {
+      status: true,
+      statusCode: 200,
+      errors: [],
+    };
+  } catch (error: any) {
+    console.error('Error deleting forum category:', error);
+    if (error && typeof error === 'object') {
+      return {
+        status: false,
+        statusCode: error.statusCode || error.status || 'Error',
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || error.error || 'Không thể xóa danh mục diễn đàn'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      errors: ['Không thể xóa danh mục diễn đàn'],
+    };
+  }
+};
+
+export const createForumPost = async (
+  payload: CreateForumPostRequest
+): Promise<CreateForumPostResponse> => {
+  try {
+    console.log('Creating forum post payload:', payload);
+    const formData = new FormData();
+    formData.append('ForumCategoryId', String(payload.forumCategoryId));
+    formData.append('Title', payload.title);
+
+    if (payload.tags) {
+      formData.append('Tags', payload.tags);
+    }
+
+    formData.append('Content', JSON.stringify(payload.content || []));
+
+    payload.images?.forEach((file) => {
+      formData.append('AddImages', file);
+    });
+
+    const requestConfig: {
+      headers: Record<string, string>;
+      params?: Record<string, number>;
+    } = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    };
+
+    if (payload.userId) {
+      requestConfig.params = { userId: payload.userId };
+    }
+
+    const response = await apiClient.post<any>(
+      '/api/ForumPost',
+      formData,
+      requestConfig
+    );
+
+    console.log('Create forum post response:', response);
+
+    if (response && typeof response === 'object') {
+      if ('status' in response && 'data' in response) {
+        return response as unknown as CreateForumPostResponse;
+      }
+
+      return {
+        status: true,
+        statusCode: 200,
+        data: response as ForumPost,
+        errors: [],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tạo bài viết diễn đàn'],
+    };
+  } catch (error: any) {
+    console.error('Error creating forum post:', error);
+
+    if (error && typeof error === 'object') {
+      return {
+        status: false,
+        statusCode: error.statusCode || error.status || 'Error',
+        data: null,
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || error.error || 'Không thể tạo bài viết diễn đàn'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể tạo bài viết diễn đàn'],
+    };
+  }
+};
+
+export const updateForumPost = async (
+  payload: UpdateForumPostRequest
+): Promise<UpdateForumPostResponse> => {
+  try {
+    console.log('Updating forum post payload:', payload);
+    const formData = new FormData();
+    formData.append('Id', String(payload.id));
+    formData.append('Title', payload.title);
+
+    if (payload.forumCategoryId !== undefined && payload.forumCategoryId !== null) {
+      formData.append('ForumCategoryId', String(payload.forumCategoryId));
+    }
+
+    if (payload.tags) {
+      formData.append('Tags', payload.tags);
+    }
+
+    formData.append('Content', JSON.stringify(payload.content || []));
+
+    payload.addImages?.forEach((file) => {
+      formData.append('AddImages', file);
+    });
+
+    payload.removeImagePublicIds
+      ?.filter((publicId) => !!publicId)
+      .forEach((publicId) => {
+        formData.append('RemoveImagePublicIds', publicId);
+      });
+
+    const response = await apiClient.put<any>(
+      `/api/ForumPost/${payload.id}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    console.log('Update forum post response:', response);
+
+    if (response && typeof response === 'object') {
+      if ('status' in response && 'data' in response) {
+        return response as unknown as UpdateForumPostResponse;
+      }
+
+      return {
+        status: true,
+        statusCode: 200,
+        data: response as ForumPost,
+        errors: [],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể cập nhật bài viết diễn đàn'],
+    };
+  } catch (error: any) {
+    console.error('Error updating forum post:', error);
+
+    if (error && typeof error === 'object') {
+      return {
+        status: false,
+        statusCode: error.statusCode || error.status || 'Error',
+        data: null,
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || error.error || 'Không thể cập nhật bài viết diễn đàn'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      data: null,
+      errors: ['Không thể cập nhật bài viết diễn đàn'],
+    };
+  }
+};
+
+export const deleteForumPost = async (
+  id: number
+): Promise<DeleteForumPostResponse> => {
+  try {
+    console.log('Deleting forum post:', id);
+    const response = await apiClient.delete<any>(`/api/ForumPost/${id}`);
+
+    if (response && typeof response === 'object' && 'status' in response) {
+      return response as unknown as DeleteForumPostResponse;
+    }
+
+    return {
+      status: true,
+      statusCode: 200,
+      errors: [],
+    };
+  } catch (error: any) {
+    console.error('Error deleting forum post:', error);
+
+    if (error && typeof error === 'object') {
+      return {
+        status: false,
+        statusCode: error.statusCode || error.status || 'Error',
+        errors: Array.isArray(error.errors)
+          ? error.errors
+          : [error.message || error.error || 'Không thể xóa bài viết diễn đàn'],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: 'Error',
+      errors: ['Không thể xóa bài viết diễn đàn'],
     };
   }
 };

@@ -741,11 +741,11 @@ export const InventoryManagementPanel: React.FC = () => {
                         {/* Thông tin nhập hàng */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500">SKU</p>
+                          <p className="text-gray-500">Mã quản lý kho</p>
                           <p className="font-medium">{item.sku}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Số lô</p>
+                          <p className="text-gray-500">Mã lô hàng</p>
                           <p className="font-medium">{item.batchNumber}</p>
                         </div>
                         <div>
@@ -757,7 +757,7 @@ export const InventoryManagementPanel: React.FC = () => {
                           <p className="font-medium">{formatPrice(item.unitCostPrice)}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Lot Number</p>
+                          <p className="text-gray-500">Số lô sản xuất</p>
                           <p className="font-medium">{item.lotNumber}</p>
                         </div>
                         {item.expiryDate && (
