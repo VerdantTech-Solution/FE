@@ -32,6 +32,18 @@ interface OrderStats {
   refunded: number;
 }
 
+type ShipItemForm = {
+  id: string;
+  orderDetailId: number;
+  productName: string;
+  categoryId?: number;
+  entryNumber: number;
+  totalQuantity: number;
+  quantity: number;
+  serialNumber: string;
+  lotNumber: string;
+};
+
 export const OrderManagementPanel: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,16 +84,7 @@ export const OrderManagementPanel: React.FC = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [newStatus, setNewStatus] = useState<string>("");
   const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
-  const [shipItems, setShipItems] = useState<Array<{
-    id: string;
-    productId: number;
-    categoryId?: number;
-    productName: string;
-    entryNumber: number;
-    totalQuantity: number;
-    serialNumber: string;
-    lotNumber: string;
-  }>>([]);
+  const [shipItems, setShipItems] = useState<ShipItemForm[]>([]);
   const [isShipping, setIsShipping] = useState(false);
   const [shipFormError, setShipFormError] = useState<string>("");
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
@@ -334,17 +337,36 @@ export const OrderManagementPanel: React.FC = () => {
             console.error(`Failed to fetch category for product ${detail.product.id}:`, error);
           }
         }
+
+        const requiresSerial = isMachineryCategory(categoryId);
         
-        return Array.from({ length: detail.quantity }).map((_, idx) => ({
-          id: `${detail.product.id}-${idx}`,
-          productId: detail.product.id,
-          categoryId: categoryId,
-          productName: detail.product.productName,
-          entryNumber: idx + 1,
-          totalQuantity: detail.quantity,
-          serialNumber: "",
-          lotNumber: "",
-        }));
+        if (requiresSerial) {
+          return Array.from({ length: detail.quantity }).map((_, idx) => ({
+            id: `${detail.id}-${idx}`,
+            orderDetailId: detail.id,
+            categoryId,
+            productName: detail.product.productName,
+            entryNumber: idx + 1,
+            totalQuantity: detail.quantity,
+            quantity: 1,
+            serialNumber: "",
+            lotNumber: "",
+          }));
+        }
+        
+        return [
+          {
+            id: `${detail.id}`,
+            orderDetailId: detail.id,
+            categoryId,
+            productName: detail.product.productName,
+            entryNumber: 1,
+            totalQuantity: detail.quantity,
+            quantity: detail.quantity,
+            serialNumber: "",
+            lotNumber: "",
+          },
+        ];
       })
     );
     
@@ -371,35 +393,60 @@ export const OrderManagementPanel: React.FC = () => {
   const handleShipOrder = async () => {
     if (!selectedOrder) return;
 
-    const invalidItem = shipItems.find(item => {
-      const missingLot = !item.lotNumber.trim();
-      const isMachinery = isMachineryCategory(item.categoryId);
-      const missingSerial = isMachinery && !item.serialNumber.trim();
-      return missingLot || missingSerial;
-    });
+    for (const item of shipItems) {
+      const requiresSerial = isMachineryCategory(item.categoryId);
+      const lotNumber = item.lotNumber.trim();
+      const serialNumber = item.serialNumber.trim();
+      const quantity = Number(item.quantity);
 
-    if (invalidItem) {
-      const missingParts: string[] = [];
-      if (!invalidItem.lotNumber.trim()) missingParts.push("số lô");
-      if (isMachineryCategory(invalidItem.categoryId) && !invalidItem.serialNumber.trim()) {
-        missingParts.push("số seri");
+      if (!lotNumber) {
+        setShipFormError(
+          `Sản phẩm "${item.productName}"${requiresSerial ? ` (mục ${item.entryNumber}/${item.totalQuantity})` : ""} đang thiếu số lô.`
+        );
+        return;
       }
-      setShipFormError(
-        `Sản phẩm "${invalidItem.productName}" (mục ${invalidItem.entryNumber}/${invalidItem.totalQuantity}) còn thiếu ${missingParts.join(" và ")}.`
-      );
-      return;
+
+      if (requiresSerial && !serialNumber) {
+        setShipFormError(
+          `Sản phẩm "${item.productName}" (mục ${item.entryNumber}/${item.totalQuantity}) đang thiếu số seri.`
+        );
+        return;
+      }
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        setShipFormError(
+          `Vui lòng nhập số lượng hợp lệ cho sản phẩm "${item.productName}".`
+        );
+        return;
+      }
+
+      if (requiresSerial && quantity !== 1) {
+        setShipFormError(
+          `Sản phẩm "${item.productName}" yêu cầu số seri nên số lượng mỗi mục phải bằng 1.`
+        );
+        return;
+      }
+
+      if (!requiresSerial && quantity > item.totalQuantity) {
+        setShipFormError(
+          `Số lượng gửi của "${item.productName}" không được vượt quá ${item.totalQuantity}.`
+        );
+        return;
+      }
     }
 
     setIsShipping(true);
     setShipFormError("");
     try {
       const payload: ShipOrderItem[] = shipItems.map(item => {
+        const requiresSerial = isMachineryCategory(item.categoryId);
         const payloadItem: ShipOrderItem = {
-          productId: item.productId,
-          lotNumber: item.lotNumber,
+          orderDetailId: item.orderDetailId,
+          quantity: item.quantity,
+          lotNumber: item.lotNumber.trim(),
         };
-        if (isMachineryCategory(item.categoryId)) {
-          payloadItem.serialNumber = item.serialNumber;
+        if (requiresSerial) {
+          payloadItem.serialNumber = item.serialNumber.trim();
         }
         return payloadItem;
       });
@@ -518,6 +565,26 @@ export const OrderManagementPanel: React.FC = () => {
         order.notes?.toLowerCase().includes(query)
     );
   }, [orders, searchQuery]);
+
+  const getProductImageUrl = (images: any): string | undefined => {
+    if (!images) return undefined;
+    if (Array.isArray(images)) {
+      const first = images[0];
+      if (!first) return undefined;
+      if (typeof first === "object" && first !== null) {
+        if ("imageUrl" in first && typeof first.imageUrl === "string") return first.imageUrl;
+        if ("url" in first && typeof first.url === "string") return first.url;
+        if ("image" in first && typeof first.image === "string") return first.image;
+      }
+      return typeof first === "string" ? first : undefined;
+    }
+    if (typeof images === "object" && images !== null) {
+      if ("imageUrl" in images && typeof images.imageUrl === "string") return images.imageUrl;
+      if ("url" in images && typeof images.url === "string") return images.url;
+      if ("image" in images && typeof images.image === "string") return images.image;
+    }
+    return typeof images === "string" ? images : undefined;
+  };
 
   return (
     <div>
@@ -1033,15 +1100,19 @@ export const OrderManagementPanel: React.FC = () => {
                       selectedOrder.orderDetails.map((item) => (
                         <div key={item.id} className="flex items-start gap-4 border-b pb-3 last:border-0">
                           {/* Product Image */}
-                          {item.product.images && item.product.images.length > 0 && (
-                            <div className="w-20 h-20 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
-                              <img 
-                                src={item.product.images[0]} 
+                          <div className="w-20 h-20 rounded-md overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-50">
+                            {getProductImageUrl(item.product.images) ? (
+                              <img
+                                src={getProductImageUrl(item.product.images)}
                                 alt={item.product.productName}
                                 className="w-full h-full object-cover"
                               />
-                            </div>
-                          )}
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                                Không có ảnh
+                              </div>
+                            )}
+                          </div>
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{item.product.productName}</p>
                             <p className="text-xs text-gray-500">Mã sản phẩm: {item.product.productCode}</p>
@@ -1136,7 +1207,8 @@ export const OrderManagementPanel: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <p className="text-sm text-gray-600">
-              Vui lòng điền thông tin cho từng đơn vị sản phẩm: tất cả sản phẩm cần số lô, máy móc (category ID = 24/25/28/29) cần thêm số seri.
+              Mỗi sản phẩm phải có số lô trước khi gửi; riêng máy móc (category ID 24/25/28/29) cần nhập thêm số
+              seri và số lượng mỗi mục cố định bằng 1.
             </p>
             {shipFormError && (
               <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 whitespace-pre-line">
@@ -1151,12 +1223,16 @@ export const OrderManagementPanel: React.FC = () => {
                   <Card key={item.id} className="p-4">
                     <div className="space-y-3">
                       <div>
-                        <h4 className="font-medium text-gray-900">
-                          {item.productName} — <span className="text-xs text-gray-500">Mục {item.entryNumber}/{item.totalQuantity}</span>
-                        </h4>
-                        {item.categoryId && (
-                          <p className="text-xs text-gray-500">Category ID: {item.categoryId}</p>
-                        )}
+                        <h4 className="font-medium text-gray-900">{item.productName}</h4>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p>Mã chi tiết đơn hàng: #{item.orderDetailId}</p>
+                          {item.categoryId && <p>Category ID: {item.categoryId}</p>}
+                          {isMachinery ? (
+                            <p>Mục {item.entryNumber}/{item.totalQuantity} (yêu cầu số seri)</p>
+                          ) : (
+                            <p>Tổng số lượng trong đơn: {item.totalQuantity}</p>
+                          )}
+                        </div>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor={`lot-${item.id}`}>
@@ -1196,6 +1272,39 @@ export const OrderManagementPanel: React.FC = () => {
                             placeholder="Nhập số seri"
                             required
                           />
+                        <p className="text-xs text-gray-500">
+                          Số lượng mỗi mục cố định 1 vì sản phẩm yêu cầu số seri riêng.
+                        </p>
+                        </div>
+                      )}
+                      {!isMachinery && (
+                        <div className="grid gap-2">
+                          <Label htmlFor={`quantity-${item.id}`}>
+                            Số lượng cần gửi <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id={`quantity-${item.id}`}
+                            type="number"
+                            min={1}
+                            max={item.totalQuantity}
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const rawValue = Number(e.target.value);
+                              const nextQuantity = Number.isFinite(rawValue)
+                                ? Math.min(Math.max(Math.floor(rawValue), 1), item.totalQuantity)
+                                : 1;
+                              setShipItems((prev) => {
+                                const updated = [...prev];
+                                updated[index] = { ...updated[index], quantity: nextQuantity };
+                                return updated;
+                              });
+                              if (shipFormError) setShipFormError("");
+                            }}
+                            required
+                          />
+                          <p className="text-xs text-gray-500">
+                            Tối đa {item.totalQuantity} sản phẩm trong mục này.
+                          </p>
                         </div>
                       )}
                     </div>

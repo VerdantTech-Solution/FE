@@ -565,7 +565,7 @@ const CO2Info: React.FC = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Lịch sử đo CO₂</CardTitle>
             <p className="text-sm text-gray-500 mt-1">
-              Danh sách các lần đo CO₂ gần nhất. Xóa sẽ xóa vĩnh viễn bản ghi (Hard delete) – hãy cân nhắc trước khi thao tác.
+              Danh sách các lần đo CO₂ gần nhất. Xóa sẽ xóa vĩnh viễn bản ghi – hãy cân nhắc trước khi thao tác.
             </p>
           </CardHeader>
             <CardContent className="space-y-3">

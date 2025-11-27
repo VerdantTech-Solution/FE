@@ -154,7 +154,7 @@ const Navbar = () => {
                 VerdantTech
               </h1>
               <p className="text-sm text-gray-600">
-                Nông nghiệp thông minh
+                Nông nghiệp xanh
               </p>
             </div>
           </motion.div>
