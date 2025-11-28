@@ -164,33 +164,73 @@ export const getBatchInventories = async (params?: {
       },
     });
 
+    console.log('getBatchInventories raw response:', response);
+
     // Handle different response structures
     // Case 1: Response is an array directly (apiClient unwraps response.data)
+    // NOTE: If backend returns array, it means no pagination metadata, 
+    // so we can't know total records - this is a backend issue
     if (Array.isArray(response)) {
+      console.warn('Backend returned array without pagination metadata. Cannot determine total records.');
+      const currentPage = params?.page || 1;
+      const pageSize = params?.pageSize || 20;
+      // If we got full page, assume there might be more pages
+      const totalPages = response.length === pageSize ? Math.max(currentPage + 1, 2) : currentPage;
       return {
         data: response,
-        currentPage: params?.page || 1,
-        pageSize: params?.pageSize || 20,
-        totalPages: Math.ceil(response.length / (params?.pageSize || 20)),
-        totalRecords: response.length,
+        currentPage,
+        pageSize,
+        totalPages,
+        totalRecords: response.length === pageSize ? currentPage * pageSize : (currentPage - 1) * pageSize + response.length,
       };
     }
 
-    // Case 2: Response has data property with array
-    if (response && response.data && Array.isArray(response.data)) {
+    // Case 2: Response has data property with array and pagination metadata
+    if (response && typeof response === 'object') {
       const paginatedResponse = response as any;
-      return {
-        data: response.data,
-        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
-        pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
-        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
-      };
-    }
+      
+      // Check if response has nested data structure (response.data.data)
+      let dataArray: BatchInventory[] = [];
+      let totalPages = 1;
+      let totalRecords = 0;
+      let currentPage = params?.page || 1;
+      let pageSize = params?.pageSize || 20;
 
-    // Case 3: Response is PagedResponse object
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response as any;
+      if (Array.isArray(paginatedResponse.data)) {
+        dataArray = paginatedResponse.data;
+        totalPages = paginatedResponse.totalPages ?? paginatedResponse.totalPage ?? 1;
+        totalRecords = paginatedResponse.totalRecords ?? paginatedResponse.totalCount ?? paginatedResponse.total ?? 0;
+        currentPage = paginatedResponse.currentPage ?? paginatedResponse.page ?? params?.page ?? 1;
+        pageSize = paginatedResponse.pageSize ?? paginatedResponse.pageSize ?? params?.pageSize ?? 20;
+      } else if (paginatedResponse.data && Array.isArray(paginatedResponse.data.data)) {
+        // Nested structure: { data: { data: [], totalPages: X, totalRecords: Y } }
+        dataArray = paginatedResponse.data.data;
+        totalPages = paginatedResponse.data.totalPages ?? paginatedResponse.data.totalPage ?? 1;
+        totalRecords = paginatedResponse.data.totalRecords ?? paginatedResponse.data.totalCount ?? paginatedResponse.data.total ?? 0;
+        currentPage = paginatedResponse.data.currentPage ?? paginatedResponse.data.page ?? params?.page ?? 1;
+        pageSize = paginatedResponse.data.pageSize ?? params?.pageSize ?? 20;
+      }
+
+      // If we have data but no totalRecords, try to calculate from data length
+      if (dataArray.length > 0 && totalRecords === 0) {
+        // If we got a full page, there might be more pages
+        if (dataArray.length === pageSize) {
+          totalRecords = dataArray.length; // At least this many, but probably more
+          totalPages = Math.max(currentPage + 1, totalPages); // Allow navigation to next page
+        } else {
+          // Partial page means this is the last page
+          totalRecords = (currentPage - 1) * pageSize + dataArray.length;
+          totalPages = currentPage;
+        }
+      }
+
+      return {
+        data: dataArray,
+        currentPage,
+        pageSize,
+        totalPages: totalPages || 1,
+        totalRecords: totalRecords || dataArray.length,
+      };
     }
 
     return {
@@ -247,24 +287,56 @@ export const getBatchInventoriesByProduct = async (
       },
     });
 
+    console.log('getBatchInventoriesByProduct raw response:', response);
+
     if (Array.isArray(response)) {
+      console.warn('Backend returned array without pagination metadata. Cannot determine total records.');
       return {
         data: response,
         currentPage: params?.page || 1,
         pageSize: params?.pageSize || 20,
-        totalPages: Math.ceil(response.length / (params?.pageSize || 20)),
+        totalPages: 1,
         totalRecords: response.length,
       };
     }
 
-    if (response && response.data && Array.isArray(response.data)) {
+    if (response && typeof response === 'object') {
       const paginatedResponse = response as any;
+      
+      let dataArray: BatchInventory[] = [];
+      let totalPages = 1;
+      let totalRecords = 0;
+
+      if (Array.isArray(paginatedResponse.data)) {
+        dataArray = paginatedResponse.data;
+        totalPages = paginatedResponse.totalPages ?? paginatedResponse.totalPage ?? 1;
+        totalRecords = paginatedResponse.totalRecords ?? paginatedResponse.totalCount ?? paginatedResponse.total ?? 0;
+      } else if (paginatedResponse.data && Array.isArray(paginatedResponse.data.data)) {
+        dataArray = paginatedResponse.data.data;
+        totalPages = paginatedResponse.data.totalPages ?? paginatedResponse.data.totalPage ?? 1;
+        totalRecords = paginatedResponse.data.totalRecords ?? paginatedResponse.data.totalCount ?? paginatedResponse.data.total ?? 0;
+      }
+
+      if (dataArray.length > 0 && totalRecords === 0) {
+        const currentPage = paginatedResponse.currentPage ?? paginatedResponse.page ?? params?.page ?? 1;
+        const pageSize = paginatedResponse.pageSize ?? params?.pageSize ?? 20;
+        if (dataArray.length === pageSize) {
+          // Full page, might be more pages
+          totalRecords = dataArray.length;
+          totalPages = Math.max(currentPage + 1, totalPages);
+        } else {
+          // Partial page means this is the last page
+          totalRecords = (currentPage - 1) * pageSize + dataArray.length;
+          totalPages = currentPage;
+        }
+      }
+
       return {
-        data: response.data,
-        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+        data: dataArray,
+        currentPage: paginatedResponse.currentPage ?? paginatedResponse.page ?? params?.page ?? 1,
         pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
-        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
+        totalPages: totalPages || 1,
+        totalRecords: totalRecords || dataArray.length,
       };
     }
 
@@ -302,24 +374,59 @@ export const getBatchInventoriesByVendor = async (
       },
     });
 
+    console.log('getBatchInventoriesByVendor raw response:', response);
+
     if (Array.isArray(response)) {
+      console.warn('Backend returned array without pagination metadata. Cannot determine total records.');
+      const currentPage = params?.page || 1;
+      const pageSize = params?.pageSize || 20;
+      const totalPages = response.length === pageSize ? Math.max(currentPage + 1, 2) : currentPage;
       return {
         data: response,
-        currentPage: params?.page || 1,
-        pageSize: params?.pageSize || 20,
-        totalPages: Math.ceil(response.length / (params?.pageSize || 20)),
-        totalRecords: response.length,
+        currentPage,
+        pageSize,
+        totalPages,
+        totalRecords: response.length === pageSize ? currentPage * pageSize : (currentPage - 1) * pageSize + response.length,
       };
     }
 
-    if (response && response.data && Array.isArray(response.data)) {
+    if (response && typeof response === 'object') {
       const paginatedResponse = response as any;
+      
+      let dataArray: BatchInventory[] = [];
+      let totalPages = 1;
+      let totalRecords = 0;
+
+      if (Array.isArray(paginatedResponse.data)) {
+        dataArray = paginatedResponse.data;
+        totalPages = paginatedResponse.totalPages ?? paginatedResponse.totalPage ?? 1;
+        totalRecords = paginatedResponse.totalRecords ?? paginatedResponse.totalCount ?? paginatedResponse.total ?? 0;
+      } else if (paginatedResponse.data && Array.isArray(paginatedResponse.data.data)) {
+        dataArray = paginatedResponse.data.data;
+        totalPages = paginatedResponse.data.totalPages ?? paginatedResponse.data.totalPage ?? 1;
+        totalRecords = paginatedResponse.data.totalRecords ?? paginatedResponse.data.totalCount ?? paginatedResponse.data.total ?? 0;
+      }
+
+      if (dataArray.length > 0 && totalRecords === 0) {
+        const currentPage = paginatedResponse.currentPage ?? paginatedResponse.page ?? params?.page ?? 1;
+        const pageSize = paginatedResponse.pageSize ?? params?.pageSize ?? 20;
+        if (dataArray.length === pageSize) {
+          // Full page, might be more pages
+          totalRecords = dataArray.length;
+          totalPages = Math.max(currentPage + 1, totalPages);
+        } else {
+          // Partial page means this is the last page
+          totalRecords = (currentPage - 1) * pageSize + dataArray.length;
+          totalPages = currentPage;
+        }
+      }
+
       return {
-        data: response.data,
-        currentPage: paginatedResponse.currentPage ?? params?.page ?? 1,
+        data: dataArray,
+        currentPage: paginatedResponse.currentPage ?? paginatedResponse.page ?? params?.page ?? 1,
         pageSize: paginatedResponse.pageSize ?? params?.pageSize ?? 20,
-        totalPages: paginatedResponse.totalPages ?? Math.ceil(response.data.length / (params?.pageSize || 20)),
-        totalRecords: paginatedResponse.totalRecords ?? response.data.length,
+        totalPages: totalPages || 1,
+        totalRecords: totalRecords || dataArray.length,
       };
     }
 
@@ -608,7 +715,7 @@ export const createExportInventory = async (
         return response as any;
       }
     }
-    return Array.isArray(response) ? response : [response as ExportInventory];
+    return Array.isArray(response) ? response : [response as unknown as ExportInventory];
   } catch (error) {
     console.error('Create export inventory error:', error);
     throw error;
