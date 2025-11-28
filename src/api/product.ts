@@ -266,7 +266,9 @@ const transformProductData = (apiProduct: any): Product => {
     reviews: apiProduct.soldCount || Math.floor(Math.random() * 100) + 10,
     location: 'TP. HCM',
     delivery: '3-5 ngày',
-    image: imageUrl
+    image: imageUrl,
+    // Đảm bảo stockQuantity được giữ nguyên từ API (có thể là stockQuantity hoặc stock)
+    stockQuantity: apiProduct.stockQuantity ?? apiProduct.stock ?? 0
   };
 };
 
@@ -312,7 +314,15 @@ export const getAllProducts = async (
       return [];
     }
     
-    return productsArray.map(transformProductData);
+    // Log raw data để kiểm tra stockQuantity
+    if (productsArray.length > 0) {
+      console.log('Raw product sample:', productsArray[0]);
+      console.log('StockQuantity in raw data:', productsArray[0]?.stockQuantity, productsArray[0]?.stock);
+    }
+    
+    const transformedProducts = productsArray.map(transformProductData);
+    console.log('Transformed products sample:', transformedProducts.slice(0, 3).map(p => ({ id: p.id, name: p.productName, stockQuantity: p.stockQuantity })));
+    return transformedProducts;
   } catch (error) {
     console.error('Get all products error:', error);
     throw error;
