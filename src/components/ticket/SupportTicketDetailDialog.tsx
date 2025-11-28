@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,11 +25,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Upload, X } from "lucide-react";
 import {
   processTicket,
+  createTicketMessage,
   type ProcessTicketRequest,
   type TicketItem,
+  type TicketMessage,
+  type TicketImage,
 } from "@/api/ticket";
 
 const PROCESSABLE_STATUSES: Array<ProcessTicketRequest["status"]> = [
@@ -64,10 +67,13 @@ const formatDateTime = (value?: string | null) => {
 };
 
 interface SupportTicketDetailDialogProps {
-  ticket: TicketItem | null;
+  ticket: (TicketItem & { requestMessages?: TicketMessage[] }) | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProcessed: () => void;
+  isDetailLoading?: boolean;
+  detailError?: string;
+  onRefreshTicket?: (ticketId: number) => Promise<void> | void;
 }
 
 export const SupportTicketDetailDialog = ({
@@ -75,6 +81,9 @@ export const SupportTicketDetailDialog = ({
   open,
   onOpenChange,
   onProcessed,
+  isDetailLoading = false,
+  detailError = "",
+  onRefreshTicket,
 }: SupportTicketDetailDialogProps) => {
   const [status, setStatus] = useState<ProcessTicketRequest["status"]>("InReview");
   const [replyNotes, setReplyNotes] = useState("");
@@ -82,6 +91,12 @@ export const SupportTicketDetailDialog = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
+  const [messageContent, setMessageContent] = useState("");
+  const [messageImages, setMessageImages] = useState<TicketImage[]>([]);
+  const [messageError, setMessageError] = useState("");
+  const [messageSuccess, setMessageSuccess] = useState("");
+  const [isMessageSending, setIsMessageSending] = useState(false);
+  const [isUploadingMessageImage, setIsUploadingMessageImage] = useState(false);
 
   const defaultStatus = useMemo<ProcessTicketRequest["status"]>(() => {
     if (!ticket?.status) return "InReview";
@@ -97,16 +112,38 @@ export const SupportTicketDetailDialog = ({
       setStatus(defaultStatus);
       setReplyNotes(ticket.replyNotes || "");
       setError("");
+      setMessageContent("");
+      setMessageImages([]);
+      setMessageError("");
+      setMessageSuccess("");
     } else if (!open) {
       setStatus("InReview");
       setReplyNotes("");
       setError("");
+      setMessageContent("");
+      setMessageImages([]);
+      setMessageError("");
+      setMessageSuccess("");
     }
   }, [open, ticket, defaultStatus]);
+
+  useEffect(() => {
+    if (!messageSuccess) return;
+    const timeout = setTimeout(() => setMessageSuccess(""), 5000);
+    return () => clearTimeout(timeout);
+  }, [messageSuccess]);
 
   if (!ticket) {
     return null;
   }
+
+  const messages = ticket.requestMessages || [];
+  const messageCount = messages.length;
+  const hasPendingReply = messages.some(
+    (message) => !message.replyNotes || !message.replyNotes.trim()
+  );
+  const reachedMessageLimit = messageCount >= 3;
+  const canSendNewMessage = !reachedMessageLimit && !isDetailLoading && !detailError;
 
   const validatePayload = () => {
     if (!status) {
@@ -127,6 +164,129 @@ export const SupportTicketDetailDialog = ({
 
     setError("");
     return true;
+  };
+
+  const resetMessageInputs = () => {
+    setMessageContent("");
+    setMessageImages([]);
+    setMessageError("");
+  };
+
+  const handleMessageImageSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 3 - messageImages.length;
+    if (remainingSlots <= 0) {
+      setMessageError("Tối đa 3 ảnh cho mỗi tin nhắn.");
+      return;
+    }
+
+    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    const maxSize = 5 * 1024 * 1024;
+    const validFiles = selectedFiles.filter((file) => {
+      if (file.size > maxSize) {
+        setMessageError(`Ảnh ${file.name} vượt quá 5MB.`);
+        return false;
+      }
+      if (!file.type.startsWith("image/")) {
+        setMessageError(`File ${file.name} không phải là ảnh.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    setIsUploadingMessageImage(true);
+    setMessageError("");
+
+    try {
+      const uploadPromises = validFiles.map(async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", "Cloudinary Test");
+        formData.append(
+          "public_id",
+          `ticket_message_${Date.now()}_${Math.random().toString(36).substring(7)}`
+        );
+
+        const cloudinaryResponse = await fetch(
+          "https://api.cloudinary.com/v1_1/dtlkjzuhq/image/upload",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        if (!cloudinaryResponse.ok) {
+          throw new Error(`Upload thất bại cho ${file.name}`);
+        }
+
+        const cloudinaryData = await cloudinaryResponse.json();
+
+        return {
+          imageUrl: cloudinaryData.secure_url,
+          imagePublicId: cloudinaryData.public_id,
+        } as TicketImage;
+      });
+
+      const uploadedImages = await Promise.all(uploadPromises);
+      setMessageImages((prev) => [...prev, ...uploadedImages]);
+    } catch (err: any) {
+      setMessageError(err?.message || "Có lỗi xảy ra khi upload ảnh.");
+    } finally {
+      setIsUploadingMessageImage(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleRemoveMessageImage = (index: number) => {
+    setMessageImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSendMessage = async () => {
+    if (!ticket) return;
+    const trimmedMessage = messageContent.trim();
+    if (!trimmedMessage) {
+      setMessageError("Vui lòng nhập nội dung tin nhắn.");
+      return;
+    }
+
+    setIsMessageSending(true);
+    setMessageError("");
+    setMessageSuccess("");
+
+    try {
+      const response = await createTicketMessage(ticket.id, {
+        description: trimmedMessage,
+        images: messageImages.length > 0 ? messageImages : undefined,
+      });
+
+      if (response.status) {
+        resetMessageInputs();
+        setMessageSuccess("Tin nhắn đã được gửi thành công.");
+        if (onRefreshTicket) {
+          await onRefreshTicket(ticket.id);
+        }
+      } else {
+        const errorMsg =
+          response.errors?.join(", ") ||
+          response.errors?.[0] ||
+          "Không thể gửi tin nhắn mới.";
+        setMessageError(errorMsg);
+      }
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.errors?.join(", ") ||
+        err?.response?.data?.errors?.[0] ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Có lỗi xảy ra khi gửi tin nhắn.";
+      setMessageError(errorMsg);
+    } finally {
+      setIsMessageSending(false);
+    }
   };
 
   const handleProcessTicket = async () => {
@@ -187,7 +347,7 @@ export const SupportTicketDetailDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Chi tiết yêu cầu #{ticket.id}</DialogTitle>
             <DialogDescription>
@@ -195,7 +355,7 @@ export const SupportTicketDetailDialog = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 pb-2">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md p-3 flex gap-2">
                 <AlertCircle className="w-4 h-4 mt-0.5" />
@@ -352,6 +512,181 @@ export const SupportTicketDetailDialog = ({
                 </div>
               </div>
             )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Lịch sử trao đổi
+                </p>
+                <span className="text-xs text-gray-500">{messageCount}/3 tin nhắn</span>
+              </div>
+
+              {isDetailLoading && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                  Đang tải tin nhắn...
+                </div>
+              )}
+
+              {detailError && !isDetailLoading && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+                  {detailError}
+                </p>
+              )}
+
+              {!isDetailLoading && !detailError && messages.length === 0 && (
+                <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md p-3">
+                  Chưa có tin nhắn bổ sung cho yêu cầu này.
+                </p>
+              )}
+
+              {!isDetailLoading && !detailError && messages.length > 0 && (
+                <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>
+                          {message.staff
+                            ? `Nhân viên: ${message.staff}`
+                            : ticket.user?.fullName || ticket.user?.email || "Người dùng"}
+                        </span>
+                        <span>{formatDateTime(message.createdAt)}</span>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">{message.description}</p>
+
+                      {message.images && message.images.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {message.images.map((image, index) => (
+                            <a
+                              key={image.imagePublicId || index}
+                              href={image.imageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <img
+                                src={image.imageUrl}
+                                alt={`Message image ${index + 1}`}
+                                className="w-16 h-16 object-cover rounded border border-gray-200"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      {message.replyNotes && (
+                        <div className="rounded border border-blue-100 bg-blue-50 p-2">
+                          <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                            Phản hồi
+                          </p>
+                          <p className="text-xs text-blue-700 whitespace-pre-line">{message.replyNotes}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-gray-200 bg-white p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-900">Gửi tin nhắn đến khách hàng</p>
+                <span className="text-xs text-gray-500">{messageCount}/3</span>
+              </div>
+
+              {reachedMessageLimit && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+                  Đã đạt giới hạn tối đa 3 tin nhắn cho yêu cầu này.
+                </p>
+              )}
+
+              {messageError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+                  {messageError}
+                </p>
+              )}
+
+              {messageSuccess && (
+                <p className="text-xs text-green-600 bg-green-50 border border-green-100 rounded-md p-2">
+                  {messageSuccess}
+                </p>
+              )}
+
+                <Textarea
+                  placeholder={
+                    hasPendingReply
+                      ? "Trả lời nội dung khách hàng..."
+                      : "Nhập nội dung bạn muốn gửi tới khách hàng..."
+                  }
+                  value={messageContent}
+                  onChange={(e) => {
+                    setMessageContent(e.target.value);
+                    if (messageError) setMessageError("");
+                  }}
+                  rows={4}
+                  className="resize-none"
+                  disabled={!canSendNewMessage || isMessageSending}
+                />
+
+              {messageImages.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {messageImages.map((image, index) => (
+                    <div key={image.imagePublicId || index} className="relative">
+                      <img
+                        src={image.imageUrl}
+                        alt={`Upload ${index + 1}`}
+                        className="w-20 h-20 rounded-lg border border-gray-200 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMessageImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1"
+                        disabled={isMessageSending}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3">
+                {messageImages.length < 3 && (
+                  <label className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-blue-500">
+                    {isUploadingMessageImage ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        Đang upload...
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={16} />
+                        Thêm ảnh
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleMessageImageSelect}
+                      disabled={!canSendNewMessage || isMessageSending || isUploadingMessageImage}
+                    />
+                  </label>
+                )}
+
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!canSendNewMessage || isMessageSending || isUploadingMessageImage}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isMessageSending ? "Đang gửi..." : "Gửi tin nhắn"}
+                </Button>
+              </div>
+            </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <Button

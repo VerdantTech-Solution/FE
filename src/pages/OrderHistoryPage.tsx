@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getOrdersByUser, type OrderWithCustomer } from '@/api/order';
+import { getOrdersByUser, updateOrderStatus, type OrderWithCustomer } from '@/api/order';
 import { createTicket, getMyTickets, type TicketImage, type TicketItem } from '@/api/ticket';
 import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
 import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2 } from 'lucide-react';
@@ -159,6 +159,12 @@ export default function OrderHistoryPage() {
   const [userTickets, setUserTickets] = useState<TicketItem[]>([]);
   const [userTicketsLoading, setUserTicketsLoading] = useState(false);
   const [userTicketsError, setUserTicketsError] = useState<string | null>(null);
+  const [cancelOrderDialogOpen, setCancelOrderDialogOpen] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
 
   const loadOrders = async (page: number = 1) => {
     try {
@@ -557,6 +563,59 @@ export default function OrderHistoryPage() {
     }
   };
 
+  const handleOpenCancelDialog = (orderId: number) => {
+    setCancellingOrderId(orderId);
+    setCancelReason('');
+    setCancelError(null);
+    setCancelSuccess(null);
+    setCancelOrderDialogOpen(true);
+  };
+
+  const handleCloseCancelDialog = () => {
+    setCancelOrderDialogOpen(false);
+    setCancellingOrderId(null);
+    setCancelReason('');
+    setCancelError(null);
+    setCancelSuccess(null);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancellingOrderId) return;
+    if (!cancelReason.trim()) {
+      setCancelError('Vui lòng nhập lý do hủy đơn hàng');
+      return;
+    }
+
+    setCancelling(true);
+    setCancelError(null);
+    setCancelSuccess(null);
+
+    try {
+      const response = await updateOrderStatus(cancellingOrderId, {
+        status: 'Cancelled',
+        cancelledReason: cancelReason.trim(),
+      });
+
+      if (response?.status === false) {
+        const message = response.errors?.[0] || 'Không thể hủy đơn hàng. Vui lòng thử lại sau.';
+        setCancelError(message);
+        return;
+      }
+
+      setCancelSuccess('Đơn hàng đã được hủy thành công.');
+      await loadOrders(currentPage);
+      setTimeout(() => {
+        handleCloseCancelDialog();
+      }, 1500);
+    } catch (err: any) {
+      console.error('Cancel order error:', err);
+      const message = err?.errors?.[0] || err?.message || 'Không thể hủy đơn hàng. Vui lòng thử lại sau.';
+      setCancelError(message);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (loading && orders.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 mt-[100px] flex items-center justify-center">
@@ -701,23 +760,33 @@ export default function OrderHistoryPage() {
                               </Button>
                             )
                           )}
+                          {order.status.toLowerCase() === 'pending' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenCancelDialog(order.id)}
+                              className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-50"
+                            >
+                              Hủy đơn hàng
+                            </Button>
+                          )}
                           <div className="text-right">
                             <p className="text-lg font-semibold text-gray-900">{currency(order.totalAmount)}</p>
                             <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-4 overflow-x-auto">
+                      <div className="flex flex-col gap-4">
                         {order.orderDetails.slice(0, 5).map((detail) => {
                           const url = getProductImageUrl(detail.product.images);
                           return (
-                            <div key={detail.id} className="flex-shrink-0">
+                            <div key={detail.id} className="flex items-start gap-3">
                               {url ? (
-                                <img src={url} alt={detail.product.productName} className="w-12 h-12 object-cover rounded-md border" />
+                                <img src={url} alt={detail.product.productName} className="w-12 h-12 object-cover rounded-md border flex-shrink-0" />
                               ) : (
-                                <div className="w-12 h-12 rounded-md bg-gray-100 border" />
+                                <div className="w-12 h-12 rounded-md bg-gray-100 border flex-shrink-0" />
                               )}
-                              <p className="mt-2 text-base font-semibold text-gray-900">{detail.product.productName}</p>
+                              <p className="text-base font-semibold text-gray-900">{detail.product.productName}</p>
                             </div>
                           );
                         })}
@@ -1258,6 +1327,71 @@ export default function OrderHistoryPage() {
                   </>
                 ) : (
                   'Gửi yêu cầu'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={cancelOrderDialogOpen} onOpenChange={(open) => (open ? null : handleCloseCancelDialog())}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Hủy đơn hàng</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn hủy đơn hàng này? Vui lòng cung cấp lý do hủy đơn hàng.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cancelReason" className="text-sm font-medium text-gray-700">
+                Lý do hủy đơn hàng <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="cancelReason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="VD: Thay đổi ý định, không còn nhu cầu, tìm thấy sản phẩm khác..."
+                className="min-h-[120px]"
+                disabled={cancelling}
+              />
+            </div>
+
+            {cancelError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {cancelError}
+              </div>
+            )}
+            {cancelSuccess && (
+              <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                {cancelSuccess}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseCancelDialog}
+                disabled={cancelling}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCancelOrder}
+                disabled={cancelling || !cancelReason.trim()}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {cancelling ? (
+                  <>
+                    <Spinner variant="circle-filled" size={16} className="mr-2" />
+                    Đang hủy...
+                  </>
+                ) : (
+                  'Xác nhận hủy đơn'
                 )}
               </Button>
             </div>

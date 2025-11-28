@@ -20,6 +20,7 @@ import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Lo
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
 import { getOrderStatistics, type OrderStatistics } from "@/api/dashboard";
+import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
@@ -36,12 +37,14 @@ type ShipItemForm = {
   id: string;
   orderDetailId: number;
   productName: string;
+  productId: number;
   categoryId?: number;
   entryNumber: number;
   totalQuantity: number;
   quantity: number;
   serialNumber: string;
   lotNumber: string;
+  availableIdentityNumbers?: IdentityNumberItem[];
 };
 
 export const AdminOrderManagementPanel: React.FC = () => {
@@ -100,6 +103,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
     refunded: 0,
   });
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [isLoadingIdentityNumbers, setIsLoadingIdentityNumbers] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -324,55 +328,77 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const handleOpenShipDialog = async () => {
     if (!selectedOrder || !selectedOrder.orderDetails) return;
     
-    // Fetch categoryId for each product if not present
-    const itemGroups = await Promise.all(
-      selectedOrder.orderDetails.map(async (detail) => {
-        let categoryId = detail.product.categoryId;
-        
-        if (!categoryId) {
-          try {
-            const product = await getProductById(detail.product.id);
-            categoryId = product.categoryId;
-          } catch (error) {
-            console.error(`Failed to fetch category for product ${detail.product.id}:`, error);
-          }
-        }
-
-        const requiresSerial = isMachineryCategory(categoryId);
-        
-        if (requiresSerial) {
-          return Array.from({ length: detail.quantity }).map((_, idx) => ({
-            id: `${detail.id}-${idx}`,
-            orderDetailId: detail.id,
-            productName: detail.product.productName,
-            categoryId,
-            entryNumber: idx + 1,
-            totalQuantity: detail.quantity,
-            quantity: 1,
-            serialNumber: "",
-            lotNumber: "",
-          }));
-        }
-        
-        return [
-          {
-            id: `${detail.id}`,
-            orderDetailId: detail.id,
-            productName: detail.product.productName,
-            categoryId,
-            entryNumber: 1,
-            totalQuantity: detail.quantity,
-            quantity: detail.quantity,
-            serialNumber: "",
-            lotNumber: "",
-          },
-        ];
-      })
-    );
-    
-    setShipItems(itemGroups.flat());
+    setIsLoadingIdentityNumbers(true);
     setShipFormError("");
-    setIsShipDialogOpen(true);
+    
+    try {
+      // Fetch categoryId and identity numbers for each product
+      const itemGroups = await Promise.all(
+        selectedOrder.orderDetails.map(async (detail) => {
+          let categoryId = detail.product.categoryId;
+          
+          if (!categoryId) {
+            try {
+              const product = await getProductById(detail.product.id);
+              categoryId = product.categoryId;
+            } catch (error) {
+              console.error(`Failed to fetch category for product ${detail.product.id}:`, error);
+            }
+          }
+
+          // Fetch identity numbers for this product
+          let availableIdentityNumbers: IdentityNumberItem[] = [];
+          try {
+            availableIdentityNumbers = await getIdentityNumbersByProductId(detail.product.id);
+            console.log(`Identity numbers for product ${detail.product.id}:`, availableIdentityNumbers);
+          } catch (error) {
+            console.error(`Failed to fetch identity numbers for product ${detail.product.id}:`, error);
+          }
+
+          const requiresSerial = isMachineryCategory(categoryId);
+          
+          if (requiresSerial) {
+            return Array.from({ length: detail.quantity }).map((_, idx) => ({
+              id: `${detail.id}-${idx}`,
+              orderDetailId: detail.id,
+              productId: detail.product.id,
+              productName: detail.product.productName,
+              categoryId,
+              entryNumber: idx + 1,
+              totalQuantity: detail.quantity,
+              quantity: 1,
+              serialNumber: "",
+              lotNumber: "",
+              availableIdentityNumbers,
+            }));
+          }
+          
+          return [
+            {
+              id: `${detail.id}`,
+              orderDetailId: detail.id,
+              productId: detail.product.id,
+              productName: detail.product.productName,
+              categoryId,
+              entryNumber: 1,
+              totalQuantity: detail.quantity,
+              quantity: detail.quantity,
+              serialNumber: "",
+              lotNumber: "",
+              availableIdentityNumbers,
+            },
+          ];
+        })
+      );
+      
+      setShipItems(itemGroups.flat());
+      setIsShipDialogOpen(true);
+    } catch (error) {
+      console.error("Error opening ship dialog:", error);
+      setShipFormError("Không thể tải thông tin sản phẩm. Vui lòng thử lại.");
+    } finally {
+      setIsLoadingIdentityNumbers(false);
+    }
   };
 
   const handleShipDialogChange = (open: boolean) => {
@@ -957,6 +983,34 @@ export const AdminOrderManagementPanel: React.FC = () => {
                 </div>
               </Card>
 
+              {/* Cancelled Order Info */}
+              {selectedOrder.status === "Cancelled" && (selectedOrder.cancelledReason || selectedOrder.cancelledAt) && (
+                <Card className="p-4 border-red-200 bg-red-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-red-700">
+                    <XCircle className="w-5 h-5" />
+                    Thông tin hủy đơn hàng
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    {selectedOrder.cancelledReason && (
+                      <div>
+                        <span className="text-gray-600 font-medium">Lý do hủy:</span>
+                        <p className="text-gray-900 mt-1 p-2 bg-white rounded border border-red-200">
+                          {selectedOrder.cancelledReason}
+                        </p>
+                      </div>
+                    )}
+                    {selectedOrder.cancelledAt && (
+                      <div>
+                        <span className="text-gray-600 font-medium">Thời gian hủy:</span>
+                        <p className="text-gray-900 font-medium mt-1">
+                          {formatDate(selectedOrder.cancelledAt)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+
               {/* Status Step Indicator */}
               <Card className="p-4">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -1204,8 +1258,14 @@ export const AdminOrderManagementPanel: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <p className="text-sm text-gray-600">
-              Vui lòng điền thông tin cho từng đơn vị sản phẩm: tất cả sản phẩm cần số lô, máy móc (category ID = 24/25/28/29) cần thêm số seri.
+              Vui lòng chọn số lô và số seri (nếu có) từ danh sách có sẵn trong kho cho từng sản phẩm.
             </p>
+            {isLoadingIdentityNumbers && (
+              <div className="flex items-center justify-center py-4">
+                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="ml-2 text-sm text-gray-600">Đang tải danh sách số lô/số seri...</span>
+              </div>
+            )}
             {shipFormError && (
               <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 whitespace-pre-line">
                 <div className="font-semibold mb-1">⚠️ Lỗi:</div>
@@ -1215,6 +1275,24 @@ export const AdminOrderManagementPanel: React.FC = () => {
             <div className="space-y-4">
               {shipItems.map((item, index) => {
                 const isMachinery = isMachineryCategory(item.categoryId);
+                const identityNumbers = item.availableIdentityNumbers || [];
+                
+                // Get unique lot numbers (for non-machinery products or to filter serials)
+                const lotNumbers = Array.from(
+                  new Set(
+                    identityNumbers
+                      .filter((id) => id.lotNumber)
+                      .map((id) => id.lotNumber!)
+                  )
+                );
+                
+                // Get serial numbers filtered by selected lot number (for machinery)
+                const availableSerials = isMachinery && item.lotNumber
+                  ? identityNumbers.filter(
+                      (id) => id.serialNumber && id.lotNumber === item.lotNumber
+                    )
+                  : identityNumbers.filter((id) => id.serialNumber);
+                
                 return (
                   <Card key={item.id} className="p-4">
                     <div className="space-y-3">
@@ -1230,40 +1308,100 @@ export const AdminOrderManagementPanel: React.FC = () => {
                         <Label htmlFor={`lot-${item.id}`}>
                           Số lô <span className="text-red-500">*</span>
                         </Label>
-                        <Input
-                          id={`lot-${item.id}`}
-                          value={item.lotNumber}
-                          onChange={(e) => {
+                        <Select
+                          value={item.lotNumber || ""}
+                          onValueChange={(value) => {
                             setShipItems((prev) => {
                               const updated = [...prev];
-                              updated[index] = { ...updated[index], lotNumber: e.target.value };
+                              updated[index] = { 
+                                ...updated[index], 
+                                lotNumber: value,
+                                // Clear serial number when lot number changes (for machinery)
+                                serialNumber: isMachinery ? "" : updated[index].serialNumber
+                              };
                               return updated;
                             });
                             if (shipFormError) setShipFormError("");
                           }}
-                          placeholder="Nhập số lô"
-                          required
-                        />
+                        >
+                          <SelectTrigger id={`lot-${item.id}`}>
+                            <SelectValue placeholder="Chọn số lô" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {lotNumbers.length > 0 ? (
+                              lotNumbers.map((lotNum) => {
+                                const lotItem = identityNumbers.find((id) => id.lotNumber === lotNum);
+                                const quantity = lotItem?.remainingQuantity;
+                                return (
+                                  <SelectItem key={lotNum} value={lotNum}>
+                                    {lotNum}
+                                    {quantity !== undefined && ` (Còn lại: ${quantity})`}
+                                  </SelectItem>
+                                );
+                              })
+                            ) : (
+                              <SelectItem value="none" disabled>
+                                Không có số lô có sẵn
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {lotNumbers.length === 0 && identityNumbers.length === 0 && (
+                          <p className="text-xs text-amber-600">
+                            ⚠️ Không có số lô có sẵn trong kho cho sản phẩm này
+                          </p>
+                        )}
                       </div>
                       {isMachinery && (
                         <div className="grid gap-2">
                           <Label htmlFor={`serial-${item.id}`}>
                             Số seri <span className="text-red-500">*</span>
                           </Label>
-                          <Input
-                            id={`serial-${item.id}`}
-                            value={item.serialNumber}
-                            onChange={(e) => {
+                          <Select
+                            value={item.serialNumber || ""}
+                            onValueChange={(value) => {
                               setShipItems((prev) => {
                                 const updated = [...prev];
-                                updated[index] = { ...updated[index], serialNumber: e.target.value };
+                                updated[index] = { ...updated[index], serialNumber: value };
                                 return updated;
                               });
                               if (shipFormError) setShipFormError("");
                             }}
-                            placeholder="Nhập số seri"
-                            required
-                          />
+                            disabled={!item.lotNumber}
+                          >
+                            <SelectTrigger id={`serial-${item.id}`}>
+                              <SelectValue placeholder={item.lotNumber ? "Chọn số seri" : "Chọn số lô trước"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableSerials.length > 0 ? (
+                                availableSerials.map((id) => (
+                                  <SelectItem 
+                                    key={id.serialNumber} 
+                                    value={id.serialNumber!}
+                                  >
+                                    {id.serialNumber}
+                                    {id.lotNumber && ` (Lô: ${id.lotNumber})`}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="none" disabled>
+                                  {item.lotNumber 
+                                    ? "Không có số seri có sẵn cho lô này"
+                                    : "Vui lòng chọn số lô trước"}
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {!item.lotNumber && (
+                            <p className="text-xs text-gray-500">
+                              Vui lòng chọn số lô trước để hiển thị danh sách số seri
+                            </p>
+                          )}
+                          {item.lotNumber && availableSerials.length === 0 && (
+                            <p className="text-xs text-amber-600">
+                              ⚠️ Không có số seri có sẵn cho lô {item.lotNumber}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

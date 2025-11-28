@@ -124,6 +124,18 @@ export interface ProcessTicketResponse {
 export type GetMyTicketsParams = Pick<GetTicketsParams, 'page' | 'pageSize'>;
 export type GetMyTicketsResponse = GetTicketsResponse;
 
+export interface CreateTicketMessageRequest {
+  description: string;
+  images?: TicketImage[];
+}
+
+export interface CreateTicketMessageResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: string | null;
+  errors: string[];
+}
+
 export const createTicket = async (
   data: CreateTicketRequest
 ): Promise<CreateTicketResponse> => {
@@ -303,6 +315,39 @@ export const processTicket = async (
       statusCode: "Error",
       data: null,
       errors: ["Không thể cập nhật trạng thái yêu cầu hỗ trợ"],
+    };
+  }
+};
+
+export const createTicketMessage = async (
+  requestId: number,
+  payload: CreateTicketMessageRequest
+): Promise<CreateTicketMessageResponse> => {
+  try {
+    const response = await apiClient.post<CreateTicketMessageResponse>(
+      `/api/RequestTicket/${requestId}/message`,
+      payload
+    ) as unknown as CreateTicketMessageResponse;
+
+    return response;
+  } catch (error: any) {
+    if (error?.response?.data) {
+      const errorData = error.response.data;
+      return {
+        status: false,
+        statusCode: errorData.statusCode || "Error",
+        data: null,
+        errors: Array.isArray(errorData.errors)
+          ? errorData.errors
+          : [errorData.message || "Không thể gửi tin nhắn mới"],
+      };
+    }
+
+    return {
+      status: false,
+      statusCode: "Error",
+      data: null,
+      errors: ["Không thể gửi tin nhắn mới"],
     };
   }
 };

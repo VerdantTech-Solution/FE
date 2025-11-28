@@ -42,3 +42,6 @@ export * from './forum';
 
 // Export AI suggestions API
 export * from './aiSuggestions';
+
+// Export export inventory API
+export * from './export';
