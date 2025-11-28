@@ -33,13 +33,13 @@ import {
   getExportInventories,
   getExportInventoryById,
   createExportInventory,
-  getAvailableProductSerials,
   type BatchInventory,
   type ExportInventory,
   type CreateBatchInventoryDTO,
   type CreateExportInventoryDTO,
   type ProductSerial
 } from "@/api/inventory";
+import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
 import { getAllProducts, type Product } from "@/api/product";
 
 export const InventoryManagementPanel: React.FC = () => {
@@ -81,6 +81,8 @@ export const InventoryManagementPanel: React.FC = () => {
   const [_availableLotNumbers,setAvailableLotNumbers] = useState<string[]>([]);
   const [_lotNumberSearchQuery, setLotNumberSearchQuery] = useState("");
   const [_showLotNumberSuggestions, setShowLotNumberSuggestions] = useState(false);
+  const [identityNumbersCache, setIdentityNumbersCache] = useState<Record<number, IdentityNumberItem[]>>({});
+  const [identityNumbersLoading, setIdentityNumbersLoading] = useState<Record<number, boolean>>({});
   
   // Import form
   const [importForm, setImportForm] = useState<CreateBatchInventoryDTO>({
@@ -108,6 +110,7 @@ export const InventoryManagementPanel: React.FC = () => {
   const [exportFormItems, setExportFormItems] = useState<CreateExportInventoryDTO[]>([
     {
       productId: 0,
+      quantity: 1,
       movementType: "ReturnToVendor",
     }
   ]);
@@ -119,6 +122,73 @@ export const InventoryManagementPanel: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const getProductPrimaryImage = (product?: ExportInventory['product'] | Product | null) => {
+    if (!product) return '';
+    let imageUrl = '';
+    const images = (product as any).images;
+    if (typeof images === 'string' && images.trim()) {
+      imageUrl = images.split(',')[0].trim();
+    } else if (Array.isArray(images) && images.length > 0) {
+      const firstImage = images[0] as any;
+      if (typeof firstImage === 'string') {
+        imageUrl = firstImage;
+      } else if (firstImage && typeof firstImage === 'object') {
+        imageUrl = firstImage.imageUrl || firstImage.url || '';
+      }
+    }
+
+    if (!imageUrl && (product as any).publicUrl) {
+      imageUrl = (product as any).publicUrl;
+    }
+
+    if (!imageUrl && (product as any).image) {
+      imageUrl = (product as any).image;
+    }
+
+    return imageUrl;
+  };
+
+  const getProductDisplayName = (item: ExportInventory, fallbackProduct?: Product | null) => {
+    const productInfo = item.product || fallbackProduct;
+    return (
+      productInfo?.name ||
+      (productInfo as any)?.productName ||
+      (item as any).productName ||
+      `Sản phẩm #${item.productId}`
+    );
+  };
+
+  const fetchIdentityNumbers = async (productId: number) => {
+    if (!productId) return;
+    // Avoid refetch if already loading
+    setIdentityNumbersLoading((prev) => {
+      if (prev[productId]) {
+        return prev;
+      }
+      return { ...prev, [productId]: true };
+    });
+    try {
+      const data = await getIdentityNumbersByProductId(productId);
+      setIdentityNumbersCache((prev) => ({ ...prev, [productId]: data }));
+    } catch (err) {
+      console.error("Error fetching identity numbers:", err);
+    } finally {
+      setIdentityNumbersLoading((prev) => ({ ...prev, [productId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    exportFormItems.forEach((item) => {
+      if (
+        item.productId > 0 &&
+        !identityNumbersCache[item.productId] &&
+        !identityNumbersLoading[item.productId]
+      ) {
+        fetchIdentityNumbers(item.productId);
+      }
+    });
+  }, [exportFormItems, identityNumbersCache, identityNumbersLoading]);
 
   // Fetch products
   useEffect(() => {
@@ -260,6 +330,14 @@ export const InventoryManagementPanel: React.FC = () => {
         return;
       }
 
+      const identityItems = identityNumbersCache[item.productId] || [];
+
+      const quantity = Number(item.quantity) || 0;
+      if (quantity <= 0) {
+        setError(`Số lượng phải lớn hơn 0 cho item ${i + 1}`);
+        return;
+      }
+
       // Validate movementType không được là 'Sale'
       if (item.movementType === 'Sale') {
         setError(`MovementType không được là "Sale" cho item ${i + 1}. Chỉ được sử dụng khi xuất hàng bán qua OrderService.`);
@@ -269,8 +347,13 @@ export const InventoryManagementPanel: React.FC = () => {
       // Category 1,2 = machines (need serial), Category 3,4 = materials (need lot number)
       const isMachine = product.categoryId === 1 || product.categoryId === 2;
       
-      if (isMachine && !item.productSerialId) {
+      if (isMachine && !item.productSerialId && !item.productSerialNumber) {
         setError(`Sản phẩm máy móc cần có số serial cho item ${i + 1}`);
+        return;
+      }
+
+      if (isMachine && quantity !== 1) {
+        setError(`Sản phẩm máy móc chỉ được phép xuất từng serial (số lượng = 1) cho item ${i + 1}`);
         return;
       }
 
@@ -278,13 +361,30 @@ export const InventoryManagementPanel: React.FC = () => {
         setError(`Sản phẩm vật tư cần có số lô cho item ${i + 1}`);
         return;
       }
+
+      if (!isMachine && item.lotNumber) {
+        const lotInfo = identityItems.find(identity => identity.lotNumber === item.lotNumber);
+        if (lotInfo?.remainingQuantity && quantity > lotInfo.remainingQuantity) {
+          setError(`Số lượng xuất vượt quá tồn kho (${lotInfo.remainingQuantity}) cho số lô ${item.lotNumber} - item ${i + 1}`);
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await createExportInventory(exportFormItems);
+      const payload = exportFormItems.map((item) => {
+        const product = products.find(p => p.id === item.productId);
+        const isMachine = product ? product.categoryId === 1 || product.categoryId === 2 : false;
+        return {
+          ...item,
+          quantity: isMachine ? 1 : Math.max(1, Math.floor(Number(item.quantity) || 1)),
+        };
+      });
+
+      await createExportInventory(payload);
       setSuccessMessage("Xuất hàng thành công!");
       setExportDialogOpen(false);
       resetExportForm();
@@ -421,6 +521,7 @@ export const InventoryManagementPanel: React.FC = () => {
   const resetExportForm = () => {
     setExportFormItems([{
       productId: 0,
+      quantity: 1,
       movementType: "ReturnToVendor",
     }]);
     setSelectedProduct(null);
@@ -434,22 +535,31 @@ export const InventoryManagementPanel: React.FC = () => {
 
   // Functions để quản lý exportFormItems
   const addExportFormItem = () => {
-    setExportFormItems([...exportFormItems, {
-      productId: 0,
-      movementType: "ReturnToVendor",
-    }]);
+    setExportFormItems((prev) => [
+      ...prev,
+      {
+        productId: 0,
+        quantity: 1,
+        movementType: "ReturnToVendor",
+      },
+    ]);
   };
 
   const removeExportFormItem = (index: number) => {
-    if (exportFormItems.length > 1) {
-      setExportFormItems(exportFormItems.filter((_, i) => i !== index));
-    }
+    setExportFormItems((prev) => {
+      if (prev.length <= 1) {
+        return prev;
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const updateExportFormItem = (index: number, field: keyof CreateExportInventoryDTO, value: any) => {
-    const newItems = [...exportFormItems];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setExportFormItems(newItems);
+    setExportFormItems((prev) => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return newItems;
+    });
   };
 
   // Handle view export detail
@@ -928,67 +1038,115 @@ export const InventoryManagementPanel: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                filteredExportInventories.map((item: ExportInventory) => (
-                  <Card key={item.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">
-                          {item.product?.name || (item as any).productName || `Sản phẩm #${item.productId}`}
-                        </CardTitle>
-                        {getMovementTypeBadge(item.movementType)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        {item.productSerial && (
-                          <div>
-                            <p className="text-gray-500">Số Serial</p>
-                            <p className="font-medium">{item.productSerial.serialNumber}</p>
-                          </div>
-                        )}
-                        {item.lotNumber && (
-                          <div>
-                            <p className="text-gray-500">Số lô</p>
-                            <p className="font-medium">{item.lotNumber}</p>
-                          </div>
-                        )}
-                        {item.order && (
-                          <div>
-                            <p className="text-gray-500">Đơn hàng</p>
-                            <p className="font-medium">#{item.order.orderNumber}</p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-gray-500">Ngày xuất</p>
-                          <p className="font-medium">{formatDate(item.createdAt)}</p>
+                filteredExportInventories.map((item: ExportInventory) => {
+                  const fallbackProduct = products.find(p => p.id === item.productId) || null;
+                  const productInfo = item.product || fallbackProduct || undefined;
+                  const productImageUrl = getProductPrimaryImage(productInfo);
+                  const productName = getProductDisplayName(item, fallbackProduct || undefined);
+                  const productCode =
+                    (productInfo as any)?.productCode ||
+                    (productInfo as any)?.code ||
+                    (fallbackProduct as any)?.productCode ||
+                    (fallbackProduct as any)?.code ||
+                    `#${productInfo?.id || fallbackProduct?.id || item.productId}`;
+
+                  return (
+                    <Card key={item.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">
+                            {productName}
+                          </CardTitle>
+                          {getMovementTypeBadge(item.movementType)}
                         </div>
-                        {item.createdByUser && (
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex gap-4 pb-3 border-b">
+                          {productImageUrl && (
+                            <div className="flex-shrink-0">
+                              <img
+                                src={productImageUrl}
+                                alt={productName}
+                                className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <p className="text-xs text-gray-500">Mã sản phẩm</p>
+                              <p className="text-sm font-medium">{productCode}</p>
+                            </div>
+                            {(productInfo as any)?.description && (
+                              <div>
+                                <p className="text-xs text-gray-500">Mô tả</p>
+                                <p className="text-sm text-gray-700 line-clamp-2">{(productInfo as any).description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <p className="text-gray-500">Người xuất</p>
-                            <p className="font-medium">{item.createdByUser.fullName}</p>
+                            <p className="text-gray-500">Số lượng</p>
+                            <p className="font-medium">{item.quantity ?? 1}</p>
+                          </div>
+                          {(item.productSerial || item.productSerialNumber) && (
+                            <div>
+                              <p className="text-gray-500">Số Serial</p>
+                              <p className="font-medium">
+                                {item.productSerial?.serialNumber || item.productSerialNumber}
+                              </p>
+                            </div>
+                          )}
+                          {item.lotNumber && (
+                            <div>
+                              <p className="text-gray-500">Số lô</p>
+                              <p className="font-medium">{item.lotNumber}</p>
+                            </div>
+                          )}
+                          {item.order && (
+                            <div>
+                              <p className="text-gray-500">Đơn hàng</p>
+                              <p className="font-medium">#{item.order.orderNumber}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-gray-500">Ngày xuất</p>
+                            <p className="font-medium">{formatDate(item.createdAt)}</p>
+                          </div>
+                          {(item.createdByUser || (item as any).createdByDetail) && (
+                            <div>
+                              <p className="text-gray-500">Người xuất</p>
+                              <p className="font-medium">
+                                {item.createdByUser?.fullName || (item as any).createdByDetail?.fullName}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        {item.notes && (
+                          <div className="pt-2 border-t">
+                            <p className="text-sm text-gray-600">{item.notes}</p>
                           </div>
                         )}
-                      </div>
-                      {item.notes && (
-                        <div className="pt-2 border-t">
-                          <p className="text-sm text-gray-600">{item.notes}</p>
+                        
+                        {/* Action Buttons */}
+                        <div className="pt-2 border-t flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewExportDetail(item.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Chi tiết
+                          </Button>
                         </div>
-                      )}
-                      
-                      {/* Action Buttons */}
-                      <div className="pt-2 border-t flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewExportDetail(item.id)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  );
+                })
               )}
             </div>
           )}
@@ -1234,25 +1392,31 @@ export const InventoryManagementPanel: React.FC = () => {
               </Button>
             </div>
             
-            {exportFormItems.map((item, index) => (
-              <Card key={index} className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <Label className="text-sm font-medium">Sản phẩm {index + 1}</Label>
-                  {exportFormItems.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeExportFormItem(index)}
-                      disabled={isSubmitting}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  )}
-                </div>
-                
-                <div className="space-y-4">
+            {exportFormItems.map((item, index) => {
+              const productIsMachine = item.productId > 0 && isMachineProduct(item.productId);
+              const identityItems = item.productId > 0 ? identityNumbersCache[item.productId] || [] : [];
+              const serialOptions = identityItems.filter(identity => identity.serialNumber);
+              const lotOptions = identityItems.filter(identity => identity.lotNumber);
+              const selectedLotInfo = lotOptions.find(lot => lot.lotNumber === item.lotNumber);
+              return (
+                <Card key={index} className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <Label className="text-sm font-medium">Sản phẩm {index + 1}</Label>
+                    {exportFormItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeExportFormItem(index)}
+                        disabled={isSubmitting}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4">
                   {/* Product Selection */}
                   <div className="space-y-2">
                     <Label>Sản phẩm *</Label>
@@ -1260,14 +1424,17 @@ export const InventoryManagementPanel: React.FC = () => {
                       value={item.productId > 0 ? item.productId.toString() : ""}
                       onValueChange={(v) => {
                         const productId = parseInt(v);
+                        const machineProduct = isMachineProduct(productId);
                         updateExportFormItem(index, 'productId', productId);
-                        const product = products.find(p => p.id === productId);
-                        if (product) {
-                          // Fetch available serials if machine
-                          if (isMachineProduct(productId)) {
-                            getAvailableProductSerials(productId).catch(console.error);
-                          }
+                        updateExportFormItem(index, 'quantity', machineProduct ? 1 : Math.max(1, item.quantity || 1));
+                        // Clear fields depending on product type
+                        if (machineProduct) {
+                          updateExportFormItem(index, 'lotNumber', undefined);
+                        } else {
+                          updateExportFormItem(index, 'productSerialNumber', undefined);
+                          updateExportFormItem(index, 'productSerialId', undefined);
                         }
+                        fetchIdentityNumbers(productId);
                       }}
                     >
                       <SelectTrigger>
@@ -1281,7 +1448,7 @@ export const InventoryManagementPanel: React.FC = () => {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>Đang tải sản phẩm...</SelectItem>
+                          <SelectItem value="loading" disabled>Đang tải sản phẩm...</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -1289,31 +1456,107 @@ export const InventoryManagementPanel: React.FC = () => {
 
                   {/* Serial Number or Lot Number based on product type */}
                   {item.productId > 0 && (
-                    <>
-                      {isMachineProduct(item.productId) ? (
-                        <div className="space-y-2">
-                          <Label>Số Serial *</Label>
-                          <Input
-                            type="text"
-                            placeholder="Nhập số serial"
-                            value={item.productSerialNumber || ""}
-                            onChange={(e) => updateExportFormItem(index, 'productSerialNumber', e.target.value)}
-                          />
-                          <p className="text-xs text-gray-500">Nhập số serial của sản phẩm máy móc</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label>Số lô *</Label>
-                          <Input
-                            type="text"
-                            placeholder="Nhập số lô"
-                            value={item.lotNumber || ""}
-                            onChange={(e) => updateExportFormItem(index, 'lotNumber', e.target.value)}
-                          />
-                          <p className="text-xs text-gray-500">Nhập số lô của sản phẩm vật tư</p>
-                        </div>
-                      )}
-                    </>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        {productIsMachine ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <Label>Số Serial *</Label>
+                              {identityNumbersLoading[item.productId] && (
+                                <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                              )}
+                            </div>
+                            {serialOptions.length > 0 ? (
+                              <Select
+                                value={item.productSerialNumber || ""}
+                                onValueChange={(value) => updateExportFormItem(index, 'productSerialNumber', value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Chọn số serial" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {serialOptions.map((serial) => (
+                                    <SelectItem key={serial.serialNumber} value={serial.serialNumber || ""}>
+                                      {serial.serialNumber} {serial.lotNumber ? `(Lô ${serial.lotNumber})` : ""}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                type="text"
+                                placeholder="Nhập số serial"
+                                value={item.productSerialNumber || ""}
+                                onChange={(e) => updateExportFormItem(index, 'productSerialNumber', e.target.value)}
+                              />
+                            )}
+                            <p className="text-xs text-gray-500">
+                              {serialOptions.length > 0
+                                ? "Chọn số serial có sẵn trong kho"
+                                : "Nhập số serial của sản phẩm máy móc"}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <Label>Số lô *</Label>
+                              {identityNumbersLoading[item.productId] && (
+                                <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                              )}
+                            </div>
+                            <Select
+                              value={item.lotNumber || ""}
+                              onValueChange={(value) => updateExportFormItem(index, 'lotNumber', value)}
+                              disabled={lotOptions.length === 0}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={lotOptions.length === 0 ? "Không có số lô khả dụng" : "Chọn số lô"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {lotOptions.length === 0 ? (
+                                  <SelectItem value="__no_lot" disabled>
+                                    Không có số lô khả dụng
+                                  </SelectItem>
+                                ) : (
+                                  lotOptions.map((lot) => (
+                                    <SelectItem key={lot.lotNumber} value={lot.lotNumber || ""}>
+                                      {lot.lotNumber} {lot.remainingQuantity ? `(Còn ${lot.remainingQuantity})` : ""}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-gray-500">
+                              {lotOptions.length > 0
+                                ? "Chọn số lô còn hàng trong kho"
+                                : "Chưa có số lô nào tồn kho cho sản phẩm này"}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Số lượng *</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={productIsMachine ? 1 : undefined}
+                          disabled={productIsMachine}
+                          value={productIsMachine ? 1 : (item.quantity ?? 1)}
+                          onChange={(e) => {
+                            const parsed = parseInt(e.target.value || '1', 10);
+                            const safeValue = Number.isNaN(parsed) ? 1 : parsed;
+                            updateExportFormItem(index, 'quantity', Math.max(1, safeValue));
+                          }}
+                        />
+                        <p className="text-xs text-gray-500">
+                          {productIsMachine
+                            ? "Sản phẩm máy móc luôn xuất 1 đơn vị cho mỗi serial"
+                            : selectedLotInfo?.remainingQuantity
+                              ? `Số lượng còn lại: ${selectedLotInfo.remainingQuantity}`
+                              : "Nhập số lượng cần xuất cho sản phẩm này"}
+                        </p>
+                      </div>
+                    </div>
                   )}
 
                   {/* Movement Type */}
@@ -1346,9 +1589,10 @@ export const InventoryManagementPanel: React.FC = () => {
                       placeholder="Ghi chú về việc xuất hàng..."
                     />
                   </div>
-                </div>
-              </Card>
-            ))}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
 
           <DialogFooter>

@@ -16,6 +16,7 @@ import {
   type GetTicketsParams,
   type TicketItem,
   type TicketDetail,
+  type TicketMessage,
 } from "@/api/ticket";
 import { SupportTicketDetailDialog } from "@/components/ticket/SupportTicketDetailDialog";
 
@@ -69,9 +70,10 @@ export const SupportRequestManagementPanel = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [requestType, setRequestType] = useState("all");
   const [requestStatus, setRequestStatus] = useState("all");
-  const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<(TicketItem & { requestMessages?: TicketMessage[] }) | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchTickets = async () => {
     try {
@@ -133,32 +135,40 @@ export const SupportRequestManagementPanel = () => {
     return summary;
   }, [tickets]);
 
-  const handleViewTicket = async (ticket: TicketItem) => {
-    // Mở dialog ngay với dữ liệu list
-    setSelectedTicket(ticket);
-    setIsDetailOpen(true);
-    setDetailError("");
-
+  const fetchTicketDetail = async (ticketId: number, fallback?: TicketItem | null) => {
     try {
-      const response = await getTicketById(ticket.id);
+      setDetailLoading(true);
+      setDetailError("");
+
+      const response = await getTicketById(ticketId);
 
       if (response.status && response.data) {
         const detail: TicketDetail = response.data;
         const messages = detail.requestMessages || [];
         const lastMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
+        const baseTicket = fallback || selectedTicket || null;
 
-        const enrichedTicket: TicketItem = {
-          ...ticket,
-          description: ticket.description || lastMessage?.description || ticket.description,
+        const enrichedTicket: TicketItem & { requestMessages?: TicketMessage[] } = {
+          ...(baseTicket ?? detail),
+          ...detail,
+          description:
+            detail.description ||
+            baseTicket?.description ||
+            lastMessage?.description ||
+            "",
           images:
             (detail.images && detail.images.length > 0
               ? detail.images
               : lastMessage?.images) ||
-            ticket.images ||
+            baseTicket?.images ||
             [],
-          replyNotes: ticket.replyNotes ?? lastMessage?.replyNotes ?? null,
-          // Lưu id message để PATCH đúng bản ghi trên server
-          requestMessageId: lastMessage?.id,
+          replyNotes:
+            detail.replyNotes ??
+            baseTicket?.replyNotes ??
+            lastMessage?.replyNotes ??
+            null,
+          requestMessageId: lastMessage?.id ?? baseTicket?.requestMessageId,
+          requestMessages: messages,
         };
 
         setSelectedTicket(enrichedTicket);
@@ -177,7 +187,16 @@ export const SupportRequestManagementPanel = () => {
         err?.message ||
         "Có lỗi xảy ra khi tải chi tiết yêu cầu hỗ trợ";
       setDetailError(errorMsg);
+    } finally {
+      setDetailLoading(false);
     }
+  };
+
+  const handleViewTicket = (ticket: TicketItem) => {
+    setSelectedTicket(ticket);
+    setIsDetailOpen(true);
+    setDetailError("");
+    void fetchTicketDetail(ticket.id, ticket);
   };
 
   const handleTicketProcessed = () => {
@@ -474,6 +493,9 @@ export const SupportRequestManagementPanel = () => {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         onProcessed={handleTicketProcessed}
+        isDetailLoading={detailLoading}
+        detailError={detailError}
+        onRefreshTicket={(ticketId) => fetchTicketDetail(ticketId)}
       />
     </div>
   );
