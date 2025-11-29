@@ -640,37 +640,75 @@ export const ForumDetailPage = () => {
   };
 
   const renderContent = (content: ForumPostContent[]) => {
-    return content.map((item, index) => {
+    // Sắp xếp lại content theo format: đoạn văn 1 → ảnh 1 → đoạn văn 2 → ảnh 2, ...
+    const textBlocks = content.filter(item => item.type === 'text').sort((a, b) => a.order - b.order);
+    const imageBlocks = content.filter(item => item.type === 'image').sort((a, b) => a.order - b.order);
+    
+    // Tạo mảng hiển thị xen kẽ: text[0], image[0], text[1], image[1], ...
+    const displayOrder: Array<{ type: 'text' | 'image'; block: ForumPostContent; number: number }> = [];
+    
+    const maxCount = Math.max(textBlocks.length, imageBlocks.length);
+    
+    for (let i = 0; i < maxCount; i++) {
+      // Thêm đoạn văn nếu có
+      if (i < textBlocks.length) {
+        displayOrder.push({
+          type: 'text',
+          block: textBlocks[i],
+          number: i + 1
+        });
+      }
+      // Thêm ảnh nếu có
+      if (i < imageBlocks.length) {
+        displayOrder.push({
+          type: 'image',
+          block: imageBlocks[i],
+          number: i + 1
+        });
+      }
+    }
+    
+    return displayOrder.map((item, index) => {
       if (item.type === 'text') {
         return (
-          <motion.p
-            key={index}
+          <motion.div
+            key={`text-${item.block.order}-${index}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="text-gray-700 text-lg leading-relaxed mb-6 whitespace-pre-wrap"
+            className="mb-6"
           >
-            {item.content}
-          </motion.p>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-gray-500">Đoạn văn {item.number}</span>
+            </div>
+            <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
+              {item.block.content}
+            </p>
+          </motion.div>
         );
       } else if (item.type === 'image') {
         return (
           <motion.div
-            key={index}
+            key={`image-${item.block.order}-${index}`}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}
-            className="mb-6 rounded-lg overflow-hidden shadow-lg"
+            className="mb-6"
           >
-            <img
-              src={item.content}
-              alt={`Image ${index + 1}`}
-              className="w-full h-auto object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-gray-500">Ảnh {item.number}</span>
+            </div>
+            <div className="rounded-lg overflow-hidden shadow-lg">
+              <img
+                src={item.block.content}
+                alt={`Ảnh ${item.number}`}
+                className="w-full h-auto object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            </div>
           </motion.div>
         );
       }
@@ -821,39 +859,6 @@ export const ForumDetailPage = () => {
                   <p className="text-gray-400 italic">Chưa có nội dung</p>
                 )}
               </div>
-
-              {/* Images from images array */}
-              {post.images && post.images.length > 0 && (
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {post.images.map((image: any, index: number) => {
-                    const resolvedUrl = extractImageUrl(image);
-                    if (!resolvedUrl) {
-                      return null;
-                    }
-
-                    return (
-                      <motion.div
-                        key={image?.id ?? index}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="rounded-lg overflow-hidden shadow-lg"
-                      >
-                        <img
-                          src={resolvedUrl}
-                          alt={`${post.title} - hình ảnh ${index + 1}`}
-                          className="w-full h-auto object-cover"
-                          loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
 
               {/* Action Buttons */}
               <div className="flex items-center gap-4 mt-8 pt-6 border-t border-gray-200">

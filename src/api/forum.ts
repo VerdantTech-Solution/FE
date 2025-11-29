@@ -435,7 +435,15 @@ export const createForumPost = async (
       formData.append('Tags', payload.tags);
     }
 
-    formData.append('Content', JSON.stringify(payload.content || []));
+    // Gửi từng content block như một string item riêng biệt trong array
+    if (payload.content && payload.content.length > 0) {
+      payload.content.forEach((block) => {
+        formData.append('Content', JSON.stringify(block));
+      });
+    } else {
+      // Nếu không có content, gửi array rỗng
+      formData.append('Content', JSON.stringify([]));
+    }
 
     payload.images?.forEach((file) => {
       formData.append('AddImages', file);
@@ -521,7 +529,15 @@ export const updateForumPost = async (
       formData.append('Tags', payload.tags);
     }
 
-    formData.append('Content', JSON.stringify(payload.content || []));
+    // Gửi từng content block như một string item riêng biệt trong array
+    if (payload.content && payload.content.length > 0) {
+      payload.content.forEach((block) => {
+        formData.append('Content', JSON.stringify(block));
+      });
+    } else {
+      // Nếu không có content, gửi array rỗng
+      formData.append('Content', JSON.stringify([]));
+    }
 
     payload.addImages?.forEach((file) => {
       formData.append('AddImages', file);
