@@ -56,6 +56,32 @@ export interface CreateFarmProfileRequest {
   status?: 'Active' | 'Maintenance' | 'Deleted';
 }
 
+// Interface cho request cập nhật farm profile (PATCH)
+export interface UpdateFarmProfileRequest {
+  farmName?: string;
+  farmSizeHectares?: number;
+  locationAddress?: string;
+  province?: string;
+  district?: string;
+  commune?: string;
+  provinceCode?: string;
+  districtCode?: string;
+  communeCode?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: 'Active' | 'Maintenance' | 'Deleted';
+  cropsUpdate?: Array<{
+    id: number;
+    cropName: string;
+    plantingDate: string;
+    isActive?: boolean;
+  }>;
+  cropsCreate?: Array<{
+    cropName: string;
+    plantingDate: string;
+  }>;
+}
+
 // Interface cho response tạo farm profile
 export interface CreateFarmProfileResponse {
   status: boolean;
@@ -236,11 +262,15 @@ export interface UpdateFarmProfileResponse {
  * Cập nhật farm profile
  * API endpoint: PATCH /api/FarmProfile/{id}
  */
-export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProfileRequest>): Promise<UpdateFarmProfileResponse> => {
+export const updateFarmProfile = async (id: number, data: UpdateFarmProfileRequest | Partial<CreateFarmProfileRequest>): Promise<UpdateFarmProfileResponse> => {
   try {
     console.log('Updating farm profile with data:', { id, data });
     
-    // Clean up the data - ensure all codes are strings and crops have proper format
+    // Check if data has cropsUpdate/cropsCreate (new format) or crops (old format)
+    const hasNewCropFormat = 'cropsUpdate' in data || 'cropsCreate' in data;
+    const hasOldCropFormat = 'crops' in data && data.crops !== undefined;
+    
+    // Clean up the data - ensure all codes are strings
     const cleanData: any = {
       ...(data.farmName && { farmName: data.farmName.trim() }),
       ...(data.farmSizeHectares !== undefined && { farmSizeHectares: data.farmSizeHectares }),
@@ -254,16 +284,59 @@ export const updateFarmProfile = async (id: number, data: Partial<CreateFarmProf
       ...(data.latitude !== undefined && data.latitude !== 0 && { latitude: data.latitude }),
       ...(data.longitude !== undefined && data.longitude !== 0 && { longitude: data.longitude }),
       ...(data.status && { status: data.status }),
-      // Process crops - ensure id is always present (0 for new crops)
-      ...(data.crops !== undefined && {
-        crops: data.crops.map((crop) => ({
-          id: crop.id ?? 0, // Always include id, use 0 for new crops
-          cropName: crop.cropName.trim(),
-          plantingDate: crop.plantingDate,
-          isActive: crop.isActive ?? true,
-        })),
-      }),
     };
+    
+    // Handle crops in new format (cropsUpdate and cropsCreate)
+    if (hasNewCropFormat) {
+      const updateRequest = data as UpdateFarmProfileRequest;
+      if (updateRequest.cropsUpdate && updateRequest.cropsUpdate.length > 0) {
+        cleanData.cropsUpdate = updateRequest.cropsUpdate
+          .filter((crop) => crop.cropName.trim() && crop.plantingDate)
+          .map((crop) => ({
+            id: crop.id,
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+            isActive: crop.isActive ?? true,
+          }));
+      }
+      if (updateRequest.cropsCreate && updateRequest.cropsCreate.length > 0) {
+        cleanData.cropsCreate = updateRequest.cropsCreate
+          .filter((crop) => crop.cropName.trim() && crop.plantingDate)
+          .map((crop) => ({
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+          }));
+      }
+    } 
+    // Handle crops in old format (backward compatibility)
+    else if (hasOldCropFormat) {
+      const oldData = data as Partial<CreateFarmProfileRequest>;
+      if (oldData.crops && oldData.crops.length > 0) {
+        // Separate into cropsUpdate and cropsCreate
+        const cropsUpdate = oldData.crops
+          .filter((crop) => crop.id && crop.id > 0)
+          .map((crop) => ({
+            id: crop.id!,
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+            isActive: crop.isActive ?? true,
+          }));
+        
+        const cropsCreate = oldData.crops
+          .filter((crop) => !crop.id || crop.id === 0)
+          .map((crop) => ({
+            cropName: crop.cropName.trim(),
+            plantingDate: crop.plantingDate,
+          }));
+        
+        if (cropsUpdate.length > 0) {
+          cleanData.cropsUpdate = cropsUpdate;
+        }
+        if (cropsCreate.length > 0) {
+          cleanData.cropsCreate = cropsCreate;
+        }
+      }
+    }
     
     console.log('Cleaned update data:', cleanData);
     

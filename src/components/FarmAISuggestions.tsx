@@ -320,12 +320,6 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
                             <span className="text-green-900 font-semibold">{data.co2.irrigation_energy}</span>
                           </div>
                         )}
-                        {data.co2.other && data.co2.other !== "0" && (
-                          <div className="flex justify-between items-center p-2 bg-green-50 rounded">
-                            <span className="text-green-700">Khác:</span>
-                            <span className="text-green-900 font-semibold">{data.co2.other}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}

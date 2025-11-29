@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, X, Loader2, Crop, Plus, Trash2 } from 'lucide-react';
-import { updateFarmProfile, getFarmProfileById, type FarmProfile, type CreateFarmProfileRequest, type CropInfo } from '@/api/farm';
+import { updateFarmProfile, getFarmProfileById, type FarmProfile, type UpdateFarmProfileRequest, type CropInfo } from '@/api/farm';
 import { toast } from 'sonner';
 import MapAreaPage from './MapAreaPage';
 import AddressSelector from '@/components/AddressSelector';
@@ -49,6 +49,7 @@ const UpdateFarmPage = () => {
   });
   
   const [crops, setCrops] = useState<CropInfo[]>([]);
+  const [originalCrops, setOriginalCrops] = useState<CropInfo[]>([]); // Lưu danh sách crops ban đầu từ API
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -70,14 +71,17 @@ const UpdateFarmPage = () => {
         
         // Load crops from farm data
         if (farm?.crops && Array.isArray(farm.crops) && farm.crops.length > 0) {
-          setCrops(farm.crops.map(crop => ({
+          const loadedCrops = farm.crops.map(crop => ({
             id: crop.id,
             cropName: crop.cropName,
             plantingDate: crop.plantingDate,
             isActive: crop.isActive ?? true,
-          })));
+          }));
+          setCrops(loadedCrops);
+          setOriginalCrops(loadedCrops); // Lưu danh sách crops ban đầu
         } else {
           setCrops([]);
+          setOriginalCrops([]);
         }
         
         // Populate form with existing data - handle different response structures
@@ -205,8 +209,31 @@ const UpdateFarmPage = () => {
     try {
       setIsSaving(true);
       
+      // Lấy danh sách tên crops đã tồn tại (từ originalCrops)
+      const existingCropNames = originalCrops
+        .map(crop => crop.cropName.trim().toLowerCase());
+      
+      // CHỈ lưu những cây trồng mới (chưa có id và chưa tồn tại)
+      // KHÔNG gửi cropsUpdate để tránh lỗi trùng lặp
+      const cropsCreate = crops
+        .filter(crop => {
+          // Chỉ lấy crops không có id (crops mới, chưa lưu)
+          if (crop.id && crop.id > 0) return false;
+          
+          // Kiểm tra xem tên cây trồng đã tồn tại chưa (không phân biệt hoa thường)
+          const cropNameLower = crop.cropName.trim().toLowerCase();
+          const isNewCrop = !existingCropNames.includes(cropNameLower);
+          
+          // Chỉ thêm crops mới, bỏ qua crops đã tồn tại
+          return isNewCrop;
+        })
+        .map(crop => ({
+          cropName: crop.cropName.trim(),
+          plantingDate: crop.plantingDate,
+        }));
+      
       // Ensure province and ProvinceCode follow API rule (both present or both null)
-      const updateData: Partial<CreateFarmProfileRequest> = {
+      const updateData: UpdateFarmProfileRequest = {
         farmName: formData.farmName.trim(),
         farmSizeHectares: formData.farmSizeHectares,
         locationAddress: formData.locationAddress.trim(),
@@ -219,13 +246,8 @@ const UpdateFarmPage = () => {
         latitude: formData.latitude,
         longitude: formData.longitude,
         status: formData.status,
-        // Send crops array - always include id (0 for new crops, existing id for existing crops)
-        crops: crops.map(crop => ({
-          id: crop.id && crop.id > 0 ? crop.id : 0, // Use 0 for new crops
-          cropName: crop.cropName.trim(),
-          plantingDate: crop.plantingDate,
-          isActive: crop.isActive ?? true,
-        })),
+        // CHỈ gửi cropsCreate (cây trồng mới), KHÔNG gửi cropsUpdate
+        ...(cropsCreate.length > 0 && { cropsCreate }),
       };
 
       // Fix rule: Province and ProvinceCode must both exist or both be null
@@ -408,8 +430,21 @@ const UpdateFarmPage = () => {
                   </h3>
                   
                   <div className="space-y-4">
-                    {crops.map((crop, index) => (
-                      <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    {crops.map((crop, index) => {
+                      const isNewCrop = !crop.id || crop.id === 0;
+                      return (
+                      <div key={index} className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg ${
+                        isNewCrop 
+                          ? 'border-blue-300 bg-blue-50' 
+                          : 'border-gray-200 bg-gray-50'
+                      }`}>
+                        {isNewCrop && (
+                          <div className="md:col-span-4 mb-2">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              Mới (chưa lưu)
+                            </span>
+                          </div>
+                        )}
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Tên rau củ</Label>
                           <Input
@@ -471,7 +506,8 @@ const UpdateFarmPage = () => {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                     
                     <Button
                       type="button"

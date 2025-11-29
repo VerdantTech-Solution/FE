@@ -370,7 +370,7 @@ export const FarmList = () => {
                  <tr>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-16">Hình</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/8">Tên trang trại</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Loại</th>
+                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Loại rau củ</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/3">Địa điểm</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-24">Diện tích</th>
                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-28">Trạng thái</th>
@@ -393,9 +393,6 @@ export const FarmList = () => {
                      <td className="px-3 py-3">
                        <div className="font-medium text-gray-900 text-sm" title={farm.name}>
                          {farm.name}
-                       </div>
-                       <div className="text-xs text-gray-500">
-                         Cây trồng: {farm.cropNames.length > 0 ? farm.cropNames.join(", ") : farm.type}
                        </div>
                      </td>
                      <td className="px-3 py-3">
