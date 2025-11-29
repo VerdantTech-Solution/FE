@@ -54,8 +54,10 @@ export const InventoryManagementPanel: React.FC = () => {
   const [selectedInventory, setSelectedInventory] = useState<BatchInventory | null>(null);
   const [importInventories, setImportInventories] = useState<BatchInventory[]>([]);
   const [importLoading, setImportLoading] = useState(false);
-  //const [importPage, setImportPage] = useState(1);
-  const [importPage] = useState(1);
+  const [importPage, setImportPage] = useState(1);
+  const [importPageSize] = useState(20);
+  const [importTotalPages, setImportTotalPages] = useState(1);
+  const [importTotalRecords, setImportTotalRecords] = useState(0);
   const [filterProductId, setFilterProductId] = useState<number | null>(null);
   const [filterVendorId, setFilterVendorId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -210,14 +212,50 @@ export const InventoryManagementPanel: React.FC = () => {
       let response;
       
       if (filterProductId) {
-        response = await getBatchInventoriesByProduct(filterProductId, { page: importPage, pageSize: 20 });
+        response = await getBatchInventoriesByProduct(filterProductId, { page: importPage, pageSize: importPageSize });
       } else if (filterVendorId) {
-        response = await getBatchInventoriesByVendor(filterVendorId, { page: importPage, pageSize: 20 });
+        response = await getBatchInventoriesByVendor(filterVendorId, { page: importPage, pageSize: importPageSize });
       } else {
-        response = await getBatchInventories({ page: importPage, pageSize: 20, productId: filterProductId || undefined, vendorId: filterVendorId || undefined });
+        response = await getBatchInventories({ page: importPage, pageSize: importPageSize, productId: filterProductId || undefined, vendorId: filterVendorId || undefined });
       }
       
-      setImportInventories(response.data || []);
+      console.log("Import inventories response:", response);
+      console.log("Total pages:", response.totalPages, "Total records:", response.totalRecords);
+      
+      const data = response.data || [];
+      let totalPages = response.totalPages;
+      let totalRecords = response.totalRecords;
+      
+      // If backend doesn't provide pagination metadata, calculate it
+      if (!totalPages && totalRecords === undefined) {
+        if (data.length === 0 && importPage > 1) {
+          // No data on this page, so previous page was the last
+          totalPages = importPage - 1;
+          const prevPageData = importInventories.length;
+          totalRecords = (importPage - 2) * importPageSize + prevPageData;
+        } else if (data.length < importPageSize && data.length > 0) {
+          // This is the last page (got some data but less than pageSize)
+          totalPages = importPage;
+          totalRecords = (importPage - 1) * importPageSize + data.length;
+        } else if (data.length === importPageSize) {
+          // Got full page, assume there might be more pages
+          // Set to at least current page + 1 to show pagination
+          totalPages = Math.max(importPage + 1, importTotalPages || importPage + 1);
+          totalRecords = importPage * importPageSize; // Minimum count
+        } else {
+          // No data at all
+          totalPages = 1;
+          totalRecords = 0;
+        }
+      } else {
+        // Backend provided metadata, use it
+        totalPages = totalPages || 1;
+        totalRecords = totalRecords || data.length;
+      }
+      
+      setImportInventories(data);
+      setImportTotalPages(totalPages);
+      setImportTotalRecords(totalRecords);
     } catch (err: any) {
       console.error("Error fetching import inventories:", err);
       setError(err?.message || "Không thể tải danh sách nhập hàng");
@@ -249,6 +287,13 @@ export const InventoryManagementPanel: React.FC = () => {
       setExportLoading(false);
     }
   };
+
+  // Reset import page when filters change
+  useEffect(() => {
+    if (activeTab === "import") {
+      setImportPage(1);
+    }
+  }, [activeTab, filterProductId, filterVendorId, searchTerm]);
 
   useEffect(() => {
     if (activeTab === "import") {
@@ -928,6 +973,59 @@ export const InventoryManagementPanel: React.FC = () => {
                   );
                 })
               )}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {(importTotalPages > 1 || (importInventories.length === importPageSize && importPage === 1)) && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Hiển thị {((importPage - 1) * importPageSize) + 1} - {Math.min(importPage * importPageSize, importTotalRecords)} 
+                trong tổng số {importTotalRecords} bản ghi
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setImportPage((p) => Math.max(1, p - 1))}
+                  disabled={importPage === 1 || importLoading}
+                >
+                  Trước
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, importTotalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, Math.min(importTotalPages - 4, importPage - 2)) + i;
+                    if (pageNum > importTotalPages) return null;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === importPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setImportPage(pageNum)}
+                        disabled={importLoading}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // If we're on the "last" page but got full pageSize items, try next page
+                    if (importPage >= importTotalPages && importInventories.length === importPageSize) {
+                      setImportPage(p => p + 1);
+                    } else {
+                      setImportPage((p) => Math.min(importTotalPages, p + 1));
+                    }
+                  }}
+                  disabled={importLoading || (importPage >= importTotalPages && importInventories.length < importPageSize)}
+                >
+                  Sau
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>
