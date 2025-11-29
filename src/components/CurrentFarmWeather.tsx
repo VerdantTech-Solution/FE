@@ -14,13 +14,13 @@ const StatCard = ({ title, value, subtitle, icon }: StatCardProps) => {
   console.log(`StatCard ${title}:`, { value, subtitle });
   
   return (
-    <div className="rounded-xl border border-slate-800 bg-[#0c0f14] text-slate-100 p-4">
+    <div className="rounded-xl border border-slate-800 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_60%)] text-black p-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-300">{title}</div>
+        <div className="text-sm text-gray-700">{title}</div>
         <div className="text-emerald-400">{icon}</div>
       </div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight">{value}</div>
-      {subtitle && <div className="mt-1 text-xs text-slate-400">{subtitle}</div>}
+      <div className="mt-3 text-3xl font-semibold tracking-tight text-gray-900">{value}</div>
+      {subtitle && <div className="mt-1 text-xs text-gray-600">{subtitle}</div>}
     </div>
   );
 };
@@ -63,7 +63,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-slate-800 bg-[#0c0f14] p-4 h-28 animate-pulse" />
+          <div key={i} className="rounded-xl border border-slate-800 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_60%)] p-4 h-28 animate-pulse" />
         ))}
       </div>
     );
@@ -89,7 +89,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-slate-300">
+      <div className="flex items-center justify-between text-gray-700">
         {currentWeather?.time && (
           <div className="text-xs">{new Date(currentWeather.time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
         )}
@@ -148,8 +148,8 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
       </div>
 
       {/* Soil moisture info */}
-      <div className="rounded-xl border border-slate-800 bg-[#0c0f14] text-slate-100 p-5">
-        <div className="text-lg font-semibold mb-4">Thông Tin Độ Ẩm Đất</div>
+      <div className="rounded-xl border border-slate-800 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_60%)] text-black p-5">
+        <div className="text-lg font-semibold mb-4 text-gray-900">Thông Tin Độ Ẩm Đất</div>
         {(() => {
           // Sử dụng dữ liệu thực từ API (đã được chuyển đổi từ 0-1 thành %)
           const topSoil = currentWeather?.soilMoistureTop ? Math.round(currentWeather.soilMoistureTop * 100) : 0;
@@ -163,23 +163,23 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
 
           return (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-slate-300 text-sm">
+              <div className="flex items-center justify-between text-gray-700 text-sm">
                 <span>Độ ẩm đất (0-1cm)</span>
-                <span className="font-semibold text-slate-100">{topSoil}%</span>
+                <span className="font-semibold text-gray-900">{topSoil}%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div className="h-full bg-emerald-500" style={{ width: `${topSoil}%` }} />
               </div>
 
-              <div className="flex items-center justify-between text-slate-300 text-sm mt-3">
+              <div className="flex items-center justify-between text-gray-700 text-sm mt-3">
                 <span>Độ ẩm đất (3-9cm)</span>
-                <span className="font-semibold text-slate-100">{deepSoil}%</span>
+                <span className="font-semibold text-gray-900">{deepSoil}%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div className="h-full bg-teal-500" style={{ width: `${deepSoil}%` }} />
               </div>
 
-              <div className="mt-4 rounded-lg bg-slate-900/70 border border-slate-800 p-3 text-sm text-slate-300">
+              <div className="mt-4 rounded-lg bg-slate-900/70 border border-slate-800 p-3 text-sm text-gray-300">
                 <span className="mr-2">💡</span>{tip}
               </div>
             </div>

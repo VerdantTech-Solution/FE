@@ -558,6 +558,20 @@ export const OrderManagementPanel: React.FC = () => {
     return new Date(dateString).toLocaleString("vi-VN");
   };
 
+  const getStatusDisplayName = (status: string) => {
+    const labels: Record<string, string> = {
+      Pending: "Chờ xử lý",
+      Paid: "Đã thanh toán",
+      Confirmed: "Đã xác nhận",
+      Processing: "Đang đóng gói",
+      Shipped: "Đã gửi",
+      Delivered: "Đã nhận",
+      Cancelled: "Đã hủy",
+      Refunded: "Đã hoàn tiền",
+    };
+    return labels[status] || status;
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { bg: string; text: string }> = {
       Pending: { bg: "bg-yellow-100", text: "text-yellow-700" },
@@ -571,11 +585,7 @@ export const OrderManagementPanel: React.FC = () => {
     };
 
     const config = statusConfig[status] || statusConfig.Pending;
-    return (
-      <Badge className={`${config.bg} ${config.text} border-0`}>
-        {status}
-      </Badge>
-    );
+    return <Badge className={`${config.bg} ${config.text} border-0`}>{getStatusDisplayName(status)}</Badge>;
   };
 
   const filteredOrders = useMemo(() => {
@@ -611,6 +621,11 @@ export const OrderManagementPanel: React.FC = () => {
     }
     return typeof images === "string" ? images : undefined;
   };
+
+  const statusSteps = getStatusSteps();
+  const currentStatusIndex = selectedOrder
+    ? statusSteps.findIndex((s) => s.status === selectedOrder.status)
+    : -1;
 
   return (
     <div>
@@ -913,7 +928,7 @@ export const OrderManagementPanel: React.FC = () => {
 
       {/* Order Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="px-[15px] py-[10px] max-w-3xl max-h-[90vh] overflow-x-hidden overflow-y-auto ">
+        <DialogContent className="w-full max-h-[90vh] overflow-y-auto px-6 py-6 sm:px-8 sm:py-8 lg:max-w-5xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">
               Chi tiết đơn hàng #{selectedOrder?.id}
@@ -1018,33 +1033,49 @@ export const OrderManagementPanel: React.FC = () => {
               )}
 
               {/* Status Step Indicator */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Loader2 className="w-5 h-5" />
-                  Tiến trình đơn hàng
-                </h3>
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-6">
-                    {getStatusSteps().map((step, index) => {
-                      const currentIndex = getStatusSteps().findIndex(s => s.status === selectedOrder.status);
-                      const isCompleted = index <= currentIndex;
-                      const isCurrent = step.status === selectedOrder.status;
+              <Card className="p-5 shadow-sm border border-slate-100 bg-gradient-to-br from-white to-slate-50">
+                <div className="flex flex-col gap-1 mb-4">
+                  <h3 className="font-semibold flex items-center gap-2 text-slate-900">
+                    <Loader2 className="w-5 h-5 text-blue-600" />
+                    Tiến trình đơn hàng
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Theo dõi trạng thái xử lý của đơn hàng qua từng giai đoạn
+                  </p>
+                </div>
+                <div className="relative pt-2">
+                  <div className="absolute left-8 right-8 top-[34px] h-0.5 bg-slate-200" aria-hidden />
+                  <div className="flex items-center justify-between gap-2">
+                    {statusSteps.map((step, index, arr) => {
+                      const isCompleted = index < currentStatusIndex;
+                      const isCurrent = index === currentStatusIndex || (currentStatusIndex === -1 && index === 0);
                       const Icon = step.icon;
-                      
+                      const stateClass = isCompleted
+                        ? "bg-green-500 text-white shadow-lg shadow-green-100"
+                        : isCurrent
+                          ? "bg-blue-600 text-white ring-4 ring-blue-100"
+                          : "bg-slate-100 text-slate-400";
+
                       return (
-                        <div key={step.status} className="flex flex-col items-center flex-1">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                            isCompleted 
-                              ? "bg-green-500 text-white" 
-                              : isCurrent 
-                                ? "bg-blue-500 text-white animate-pulse" 
-                                : "bg-gray-200 text-gray-400"
-                          }`}>
+                        <div
+                          key={step.status}
+                          className={`flex flex-1 flex-col items-center gap-2 text-center ${index !== arr.length - 1 ? "pr-2" : ""}`}
+                        >
+                          <div
+                            className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 ${stateClass}`}
+                          >
                             <Icon className="w-6 h-6" />
                           </div>
-                          <p className={`text-xs mt-2 text-center ${isCompleted ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                            {step.label}
-                          </p>
+                          <div className="space-y-1">
+                            <p
+                              className={`text-sm font-medium ${
+                                isCompleted || isCurrent ? "text-slate-900" : "text-slate-500"
+                              }`}
+                            >
+                              {step.label}
+                            </p>
+                            <p className="text-xs text-slate-400">{getStatusDisplayName(step.status)}</p>
+                          </div>
                         </div>
                       );
                     })}
@@ -1053,68 +1084,76 @@ export const OrderManagementPanel: React.FC = () => {
               </Card>
 
               {/* Update Status Control */}
-              <Card className="p-4 border-blue-200">
-                <h3 className="font-semibold mb-3">Cập nhật trạng thái</h3>
-                
-                {showCancelReason ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">Lý do hủy đơn hàng</label>
+              <Card className="overflow-hidden border border-blue-100 shadow-sm">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+                  <h3 className="font-semibold text-base">Cập nhật trạng thái</h3>
+                  <p className="text-xs text-blue-50">
+                    Chuyển đổi trạng thái theo tiến trình thực tế của đơn hàng
+                  </p>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Select value={newStatus || selectedOrder.status} onValueChange={handleNewStatusChange}>
+                      <SelectTrigger className="w-full sm:w-[220px] border-slate-200 focus:ring-blue-200">
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pending">Chờ xử lý</SelectItem>
+                        <SelectItem value="Paid">Đã thanh toán</SelectItem>
+                        <SelectItem value="Processing">Đang đóng gói</SelectItem>
+                        <SelectItem value="Shipped">Đã gửi</SelectItem>
+                        <SelectItem value="Delivered">Đã nhận</SelectItem>
+                        <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
+                        <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleUpdateStatus}
+                      disabled={!newStatus || isUpdatingStatus || newStatus === selectedOrder.status}
+                      className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto shadow-sm"
+                    >
+                      {isUpdatingStatus ? "Đang xử lý..." : "Cập nhật"}
+                    </Button>
+                  </div>
+                  <div className="rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-blue-700">
+                    Chọn trạng thái mới phù hợp với tiến trình xử lý. Với trạng thái hủy, vui lòng cung cấp thêm
+                    lý do để thông báo lại cho khách hàng.
+                  </div>
+
+                  {showCancelReason && (
+                    <div className="space-y-3 border-t border-slate-100 pt-3">
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Lý do hủy đơn hàng
+                      </label>
                       <Textarea
                         value={cancelReason}
                         onChange={(e) => setCancelReason(e.target.value)}
                         placeholder="Nhập lý do hủy đơn hàng..."
                         rows={3}
                       />
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button
+                          onClick={handleUpdateStatus}
+                          disabled={!cancelReason.trim() || isUpdatingStatus}
+                          className="bg-red-600 hover:bg-red-700 flex-1"
+                        >
+                          {isUpdatingStatus ? "Đang xử lý..." : "Xác nhận hủy"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowCancelReason(false);
+                            setCancelReason("");
+                            setNewStatus("");
+                          }}
+                          className="flex-1"
+                        >
+                          Hủy thao tác
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleUpdateStatus}
-                        disabled={!cancelReason.trim() || isUpdatingStatus}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        {isUpdatingStatus ? "Đang xử lý..." : "Xác nhận hủy"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowCancelReason(false);
-                          setCancelReason("");
-                          setNewStatus("");
-                        }}
-                      >
-                        Hủy
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Select value={newStatus || selectedOrder.status} onValueChange={handleNewStatusChange}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Pending">Chờ xử lý</SelectItem>
-                          <SelectItem value="Paid">Đã thanh toán</SelectItem>
-                          <SelectItem value="Processing">Đang đóng gói</SelectItem>
-                          <SelectItem value="Shipped">Đã gửi</SelectItem>
-                          <SelectItem value="Delivered">Đã nhận</SelectItem>
-                          <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
-                          <SelectItem value="Refunded">Đã hoàn tiền</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        onClick={handleUpdateStatus}
-                        disabled={!newStatus || isUpdatingStatus || newStatus === selectedOrder.status}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {isUpdatingStatus ? "Đang xử lý..." : "Cập nhật"}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">Chọn trạng thái mới và nhấn "Cập nhật" để thay đổi</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </Card>
 
               {/* Address */}
