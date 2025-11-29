@@ -108,9 +108,9 @@ export const StaffPage: React.FC = () => {
         </Sidebar>
       </motion.div>
 
-      <div className={collapsed ? "ml-16" : "ml-64"}>
+      <div className={collapsed ? "ml-16" : "ml-64"} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
+        <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Staff Dashboard</h1>
@@ -135,7 +135,7 @@ export const StaffPage: React.FC = () => {
         </div>
 
         {/* Content */}
-        <div className="p-8">
+        <div className="p-8 flex-1 overflow-y-auto">
           {selectedMenu === "warehouse" && (
 <WarehousePanel />          )}
           {selectedMenu === "inventory" && (

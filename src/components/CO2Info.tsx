@@ -368,7 +368,7 @@ const CO2Info: React.FC = () => {
               </div>
 
               <div>
-                <Label className="mb-1 block">Phân hữu cơ</Label>
+                <Label className="mb-1 block">Phân hữu cơ (kg)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -378,7 +378,7 @@ const CO2Info: React.FC = () => {
                 />
               </div>
               <div>
-                <Label className="mb-1 block">Phân NPK</Label>
+                <Label className="mb-1 block">Phân NPK (kg)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -388,7 +388,7 @@ const CO2Info: React.FC = () => {
                 />
               </div>
               <div>
-                <Label className="mb-1 block">Phân urê</Label>
+                <Label className="mb-1 block">Phân urê (kg)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -398,7 +398,7 @@ const CO2Info: React.FC = () => {
                 />
               </div>
               <div>
-                <Label className="mb-1 block">Phân lân</Label>
+                <Label className="mb-1 block">Phân lân (kg)</Label>
                 <Input
                   type="number"
                   step="0.01"

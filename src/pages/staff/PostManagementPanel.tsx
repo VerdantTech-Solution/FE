@@ -31,6 +31,7 @@ import {
   type ForumPost,
   type GetForumPostsResponse,
   type ForumCategory,
+  type ForumPostContent,
 } from "@/api/forum";
 import {
   AlertDialog,
@@ -43,6 +44,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { PostContentEditor, type ContentBlock } from "@/components/PostContentEditor";
 
 export const PostManagementPanel: React.FC = () => {
   const { user } = useAuth();
@@ -90,46 +92,59 @@ export const PostManagementPanel: React.FC = () => {
   const [createPostForm, setCreatePostForm] = useState<{
     title: string;
     tags: string;
-    body: string;
     forumCategoryId: number | null;
   }>({
     title: "",
     tags: "",
-    body: "",
     forumCategoryId: null,
   });
-  const [createPostImages, setCreatePostImages] = useState<File[]>([]);
+  const [createPostBlocks, setCreatePostBlocks] = useState<ContentBlock[]>([]);
   const resetCreatePostForm = () => {
     setCreatePostForm({
       title: "",
       tags: "",
-      body: "",
       forumCategoryId: selectedCategoryId ?? categories[0]?.id ?? null,
     });
-    setCreatePostImages([]);
+    setCreatePostBlocks([]);
     setCreatePostError(null);
   };
 
-  const getPrimaryTextContent = (post: ForumPost): string => {
-    if (!post.content || post.content.length === 0) {
-      return "";
-    }
-    const textBlock = post.content.find((block) => block.type === "text");
-    return textBlock?.content ?? "";
-  };
-
-  const buildContentBlocks = (body: string) => {
-    const trimmed = body.trim();
-    if (!trimmed) {
+  const convertPostContentToBlocks = (content: ForumPostContent[], existingImages?: any[]): ContentBlock[] => {
+    if (!content || content.length === 0) {
       return [];
     }
-    return [
-      {
-        order: 1,
-        type: "text" as const,
-        content: trimmed,
-      },
-    ];
+    
+    // Create a map of image URLs to publicIds from existing images
+    const imageUrlToPublicId = new Map<string, string>();
+    if (existingImages) {
+      existingImages.forEach((image: any) => {
+        const publicId =
+          image?.imagePublicId ||
+          image?.publicId ||
+          image?.id?.toString() ||
+          null;
+        const url =
+          typeof image === "string"
+            ? image
+            : image.imageUrl || image.url || image.image;
+        if (publicId && url) {
+          imageUrlToPublicId.set(url, publicId);
+        }
+      });
+    }
+    
+    return content
+      .sort((a, b) => a.order - b.order)
+      .map((block) => {
+        const publicId = block.type === 'image' ? imageUrlToPublicId.get(block.content) : undefined;
+        return {
+          id: `${block.type}-${block.order}-${Date.now()}`,
+          type: block.type,
+          content: block.content || '',
+          previewUrl: block.type === 'image' ? block.content : undefined,
+          publicId: publicId,
+        };
+      });
   };
 
   const resetEditPostState = () => {
@@ -138,10 +153,9 @@ export const PostManagementPanel: React.FC = () => {
       id: null,
       title: "",
       tags: "",
-      body: "",
       forumCategoryId: null,
     });
-    setEditPostImages([]);
+    setEditPostBlocks([]);
     setEditPostRemoveImageIds(new Set());
     setEditPostError(null);
   };
@@ -152,16 +166,14 @@ export const PostManagementPanel: React.FC = () => {
     id: number | null;
     title: string;
     tags: string;
-    body: string;
     forumCategoryId: number | null;
   }>({
     id: null,
     title: "",
     tags: "",
-    body: "",
     forumCategoryId: null,
   });
-  const [editPostImages, setEditPostImages] = useState<File[]>([]);
+  const [editPostBlocks, setEditPostBlocks] = useState<ContentBlock[]>([]);
   const [editPostRemoveImageIds, setEditPostRemoveImageIds] = useState<Set<string>>(new Set());
   const [editPostLoading, setEditPostLoading] = useState(false);
   const [editPostError, setEditPostError] = useState<string | null>(null);
@@ -372,15 +384,58 @@ export const PostManagementPanel: React.FC = () => {
     setIsCreatePostDialogOpen(true);
   };
 
-  const handleCreatePostImagesChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = event.target.files;
-    if (!files) {
-      setCreatePostImages([]);
-      return;
+  // Helper function để sắp xếp blocks theo format xen kẽ và gán order
+  const arrangeBlocksInAlternatingFormat = (blocks: ContentBlock[]) => {
+    // Lọc và sắp xếp text và image blocks
+    const textBlocks = blocks
+      .filter((block) => block.type === "text" && block.content.trim().length > 0)
+      .map((block) => ({
+        type: block.type as "text",
+        content: block.content.trim(),
+        file: block.file,
+        previewUrl: block.previewUrl,
+        publicId: block.publicId,
+      }));
+
+    const imageBlocks = blocks
+      .filter((block) => block.type === "image" && (block.content || block.previewUrl))
+      .map((block) => ({
+        type: block.type as "image",
+        content: block.content || block.previewUrl || "",
+        file: block.file,
+        previewUrl: block.previewUrl,
+        publicId: block.publicId,
+      }));
+
+    // Sắp xếp theo format xen kẽ: text[0], image[0], text[1], image[1], ...
+    const arrangedBlocks: Array<{
+      order: number;
+      type: "text" | "image";
+      content: string;
+    }> = [];
+
+    const maxCount = Math.max(textBlocks.length, imageBlocks.length);
+
+    for (let i = 0; i < maxCount; i++) {
+      // Thêm đoạn văn nếu có
+      if (i < textBlocks.length) {
+        arrangedBlocks.push({
+          order: arrangedBlocks.length + 1,
+          type: "text",
+          content: textBlocks[i].content,
+        });
+      }
+      // Thêm ảnh nếu có
+      if (i < imageBlocks.length) {
+        arrangedBlocks.push({
+          order: arrangedBlocks.length + 1,
+          type: "image",
+          content: imageBlocks[i].content,
+        });
+      }
     }
-    setCreatePostImages(Array.from(files));
+
+    return arrangedBlocks;
   };
 
   const handleCreatePostSubmit = async (event: React.FormEvent) => {
@@ -412,18 +467,25 @@ export const PostManagementPanel: React.FC = () => {
       return;
     }
 
-    if (!createPostForm.body.trim()) {
-      setCreatePostError("Nội dung bài viết không được để trống.");
+    if (createPostBlocks.length === 0) {
+      setCreatePostError("Vui lòng thêm ít nhất một đoạn văn hoặc ảnh.");
       return;
     }
 
-    const contentBlocks = [
-      {
-        order: 1,
-        type: "text" as const,
-        content: createPostForm.body.trim(),
-      },
-    ];
+    const hasTextContent = createPostBlocks.some(
+      (block) => block.type === "text" && block.content.trim().length > 0
+    );
+    if (!hasTextContent) {
+      setCreatePostError("Vui lòng thêm ít nhất một đoạn văn có nội dung.");
+      return;
+    }
+
+    // Sắp xếp blocks theo format xen kẽ và gán order
+    const contentBlocks = arrangeBlocksInAlternatingFormat(createPostBlocks);
+
+    const imageFiles = createPostBlocks
+      .filter((block) => block.type === "image" && block.file)
+      .map((block) => block.file!);
 
     try {
       setCreatePostLoading(true);
@@ -434,7 +496,7 @@ export const PostManagementPanel: React.FC = () => {
         title: createPostForm.title.trim(),
         tags: createPostForm.tags.trim() || undefined,
         content: contentBlocks,
-        images: createPostImages,
+        images: imageFiles,
         userId,
       });
 
@@ -475,35 +537,15 @@ export const PostManagementPanel: React.FC = () => {
       id: post.id,
       title: post.title,
       tags: post.tags || "",
-      body: getPrimaryTextContent(post),
       forumCategoryId: post.forumCategoryId ?? selectedCategoryId ?? categories[0]?.id ?? null,
     });
-    setEditPostImages([]);
+    setEditPostBlocks(convertPostContentToBlocks(post.content || [], post.images));
     setEditPostRemoveImageIds(new Set());
     setEditPostError(null);
     setIsEditPostDialogOpen(true);
   };
 
-  const handleEditPostImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    setEditPostImages(files ? Array.from(files) : []);
-  };
 
-  const toggleRemoveImage = (publicId?: string | null) => {
-    if (!publicId) {
-      return;
-    }
-
-    setEditPostRemoveImageIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(publicId)) {
-        next.delete(publicId);
-      } else {
-        next.add(publicId);
-      }
-      return next;
-    });
-  };
 
   const handleUpdatePostSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -517,7 +559,25 @@ export const PostManagementPanel: React.FC = () => {
       return;
     }
 
-    const contentBlocks = buildContentBlocks(editPostForm.body);
+    if (editPostBlocks.length === 0) {
+      setEditPostError("Vui lòng thêm ít nhất một đoạn văn hoặc ảnh.");
+      return;
+    }
+
+    const hasTextContent = editPostBlocks.some(
+      (block) => block.type === "text" && block.content.trim().length > 0
+    );
+    if (!hasTextContent) {
+      setEditPostError("Vui lòng thêm ít nhất một đoạn văn có nội dung.");
+      return;
+    }
+
+    // Sắp xếp blocks theo format xen kẽ và gán order
+    const contentBlocks = arrangeBlocksInAlternatingFormat(editPostBlocks);
+
+    const imageFiles = editPostBlocks
+      .filter((block) => block.type === "image" && block.file)
+      .map((block) => block.file!);
 
     try {
       setEditPostLoading(true);
@@ -528,7 +588,7 @@ export const PostManagementPanel: React.FC = () => {
         title: editPostForm.title.trim(),
         tags: editPostForm.tags.trim() || undefined,
         content: contentBlocks,
-        addImages: editPostImages,
+        addImages: imageFiles,
         removeImagePublicIds: Array.from(editPostRemoveImageIds),
       });
 
@@ -956,14 +1016,15 @@ export const PostManagementPanel: React.FC = () => {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Tạo bài viết mới</DialogTitle>
             <DialogDescription>
               Nhập thông tin bài viết và chọn danh mục phù hợp để đăng.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreatePostSubmit} className="space-y-4">
+          <div className="flex-1 overflow-y-auto pr-2 -mr-2">
+            <form onSubmit={handleCreatePostSubmit} className="space-y-4" id="create-post-form">
             <div className="grid gap-2">
               <label className="text-sm font-medium text-gray-700">
                 Tiêu đề <span className="text-red-500">*</span>
@@ -1022,59 +1083,39 @@ export const PostManagementPanel: React.FC = () => {
 
             <div className="grid gap-2">
               <label className="text-sm font-medium text-gray-700">
-                Nội dung <span className="text-red-500">*</span>
+                Nội dung bài viết <span className="text-red-500">*</span>
               </label>
-              <Textarea
-                rows={6}
-                value={createPostForm.body}
-                onChange={(e) =>
-                  setCreatePostForm((prev) => ({ ...prev, body: e.target.value }))
-                }
-                placeholder="Nhập nội dung bài viết..."
+              <PostContentEditor
+                blocks={createPostBlocks}
+                onChange={setCreatePostBlocks}
               />
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Ảnh minh họa (tùy chọn)
-              </label>
-              <Input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleCreatePostImagesChange}
-              />
-              {createPostImages.length > 0 && (
-                <p className="text-xs text-gray-500">
-                  Đã chọn {createPostImages.length} ảnh
-                </p>
+              {createPostError && (
+                <p className="text-sm text-red-600">{createPostError}</p>
               )}
-            </div>
-
-            {createPostError && (
-              <p className="text-sm text-red-600">{createPostError}</p>
-            )}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsCreatePostDialogOpen(false);
-                  resetCreatePostForm();
-                }}
-              >
-                Hủy
-              </Button>
-              <Button
-                type="submit"
-                disabled={createPostLoading}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {createPostLoading ? "Đang tạo..." : "Đăng bài"}
-              </Button>
-            </DialogFooter>
-          </form>
+            </form>
+          </div>
+          <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsCreatePostDialogOpen(false);
+                resetCreatePostForm();
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="submit"
+              form="create-post-form"
+              disabled={createPostLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {createPostLoading ? "Đang tạo..." : "Đăng bài"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1087,155 +1128,96 @@ export const PostManagementPanel: React.FC = () => {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Chỉnh sửa bài viết</DialogTitle>
             <DialogDescription>
               Cập nhật tiêu đề, nội dung, tags và quản lý hình ảnh của bài viết.
             </DialogDescription>
           </DialogHeader>
           {editingPost ? (
-            <form onSubmit={handleUpdatePostSubmit} className="space-y-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Tiêu đề <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={editPostForm.title}
-                  onChange={(e) =>
-                    setEditPostForm((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  placeholder="Nhập tiêu đề bài viết"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Danh mục <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  value={
-                    editPostForm.forumCategoryId
-                      ? String(editPostForm.forumCategoryId)
-                      : ""
-                  }
-                  onValueChange={(value) =>
-                    setEditPostForm((prev) => ({
-                      ...prev,
-                      forumCategoryId: Number(value),
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn danh mục" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={String(category.id)}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-700">Tags</label>
-                <Input
-                  value={editPostForm.tags}
-                  onChange={(e) =>
-                    setEditPostForm((prev) => ({ ...prev, tags: e.target.value }))
-                  }
-                  placeholder="Ví dụ: kỹ thuật, cà chua"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Nội dung
-                </label>
-                <Textarea
-                  rows={6}
-                  value={editPostForm.body}
-                  onChange={(e) =>
-                    setEditPostForm((prev) => ({ ...prev, body: e.target.value }))
-                  }
-                  placeholder="Nhập nội dung bài viết..."
-                />
-              </div>
-
-              {editingPost.images && editingPost.images.length > 0 && (
-                <div className="space-y-2">
+            <>
+              <div className="flex-1 overflow-y-auto pr-2 -mr-2">
+                <form onSubmit={handleUpdatePostSubmit} className="space-y-4" id="edit-post-form">
+                <div className="grid gap-2">
                   <label className="text-sm font-medium text-gray-700">
-                    Ảnh hiện tại
+                    Tiêu đề <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {editingPost.images.map((image: any, index: number) => {
-                      const preview =
-                        typeof image === "string"
-                          ? image
-                          : image.imageUrl || image.url || image.image;
-                      const publicId =
-                        image?.imagePublicId ||
-                        image?.publicId ||
-                        image?.id?.toString() ||
-                        null;
-
-                      return (
-                        <div
-                          key={publicId || index}
-                          className="border rounded-md p-3 space-y-2"
-                        >
-                          {preview && (
-                            <img
-                              src={preview}
-                              alt={`Ảnh ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-md"
-                            />
-                          )}
-                          <label className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              disabled={!publicId}
-                              checked={publicId ? editPostRemoveImageIds.has(publicId) : false}
-                              onChange={() => toggleRemoveImage(publicId)}
-                            />
-                            <span>
-                              {publicId
-                                ? "Đánh dấu xóa ảnh này"
-                                : "Không thể xóa do thiếu mã hình ảnh"}
-                            </span>
-                          </label>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <Input
+                    value={editPostForm.title}
+                    onChange={(e) =>
+                      setEditPostForm((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                    placeholder="Nhập tiêu đề bài viết"
+                  />
                 </div>
-              )}
 
-              <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Thêm ảnh mới (tùy chọn)
-                </label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleEditPostImagesChange}
-                />
-                {editPostImages.length > 0 && (
-                  <p className="text-xs text-gray-500">
-                    Đã chọn {editPostImages.length} ảnh
-                  </p>
-                )}
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Danh mục <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    value={
+                      editPostForm.forumCategoryId
+                        ? String(editPostForm.forumCategoryId)
+                        : ""
+                    }
+                    onValueChange={(value) =>
+                      setEditPostForm((prev) => ({
+                        ...prev,
+                        forumCategoryId: Number(value),
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn danh mục" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={String(category.id)}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium text-gray-700">Tags</label>
+                  <Input
+                    value={editPostForm.tags}
+                    onChange={(e) =>
+                      setEditPostForm((prev) => ({ ...prev, tags: e.target.value }))
+                    }
+                    placeholder="Ví dụ: kỹ thuật, cà chua"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Nội dung bài viết
+                  </label>
+                  <PostContentEditor
+                    blocks={editPostBlocks}
+                    onChange={setEditPostBlocks}
+                    existingImages={editingPost.images}
+                    removedImageIds={editPostRemoveImageIds}
+                    onRemoveImage={(publicId) => {
+                      setEditPostRemoveImageIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(publicId);
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+
+                  {editPostError && (
+                    <p className="text-sm text-red-600">{editPostError}</p>
+                  )}
+                </form>
               </div>
-
-              {editPostError && (
-                <p className="text-sm text-red-600">{editPostError}</p>
-              )}
-
-              <DialogFooter>
+              <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -1249,16 +1231,19 @@ export const PostManagementPanel: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
+                  form="edit-post-form"
                   disabled={editPostLoading}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   {editPostLoading ? "Đang lưu..." : "Cập nhật"}
                 </Button>
               </DialogFooter>
-            </form>
+            </>
           ) : (
-            <div className="py-8 text-center text-gray-500">
-              Không tìm thấy dữ liệu bài viết.
+            <div className="flex-1 overflow-y-auto">
+              <div className="py-8 text-center text-gray-500">
+                Không tìm thấy dữ liệu bài viết.
+              </div>
             </div>
           )}
         </DialogContent>
