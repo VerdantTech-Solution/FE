@@ -233,13 +233,17 @@ export const RegisterProductPage = () => {
   const handleCertificateFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Chỉ chấp nhận PDF hoặc image
-      if (file.type === 'application/pdf' || 
-          file.name.toLowerCase().endsWith('.pdf') ||
-          file.type.startsWith('image/')) {
+      // Chỉ chấp nhận PDF
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      
+      if (isPdf) {
         updateCertificate(index, 'file', file);
       } else {
-        alert('Vui lòng chọn file PDF hoặc hình ảnh');
+        alert(`Lỗi: File "${file.name}" không phải là file PDF. Vui lòng chọn file PDF (.pdf)`);
+        // Reset input để có thể chọn lại cùng file
+        e.target.value = '';
+        // Xóa file đã chọn nếu có
+        updateCertificate(index, 'file', null);
       }
     }
     // Reset input để có thể chọn lại cùng file
@@ -338,6 +342,20 @@ export const RegisterProductPage = () => {
       
       if (invalidCertificates.length > 0) {
         alert('Vui lòng nhập đầy đủ tên chứng chỉ và tải lên file cho tất cả các chứng chỉ');
+        setSubmitting(false);
+        return;
+      }
+
+      // Validate certificate files: chỉ cho phép PDF
+      const invalidCertificateFiles = validCertificates.filter(cert => {
+        if (!cert.file) return false;
+        const isPdf = cert.file.type === 'application/pdf' || cert.file.name.toLowerCase().endsWith('.pdf');
+        return !isPdf;
+      });
+
+      if (invalidCertificateFiles.length > 0) {
+        const invalidFileNames = invalidCertificateFiles.map(cert => cert.file?.name).filter(Boolean).join(', ');
+        alert(`Lỗi: Các file chứng chỉ sau không phải là PDF: ${invalidFileNames}\nVui lòng chỉ tải lên file PDF (.pdf)`);
         setSubmitting(false);
         return;
       }
@@ -915,7 +933,7 @@ export const RegisterProductPage = () => {
                             </Button>
                             <input
                               type="file"
-                              accept="image/*,.pdf"
+                              accept=".pdf,application/pdf"
                               onChange={(e) => handleCertificateFileChange(index, e)}
                               disabled={submitting}
                               className="hidden"

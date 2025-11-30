@@ -321,37 +321,6 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
   );
 };
 
-const BusinessStats = () => {
-  const stats = [
-    { label: "Sản phẩm đã đăng", value: "24", icon: Building },
-    { label: "Đơn hàng thành công", value: "156", icon: Phone },
-    { label: "Đánh giá trung bình", value: "4.8/5", icon: Mail },
-    { label: "Thời gian hoạt động", value: "2 năm", icon: MapPin }
-  ];
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {stats.map((stat, index) => {
-        const Icon = stat.icon;
-        return (
-          <Card key={index} className="border border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-50 text-green-600 rounded-lg flex items-center justify-center">
-                  <Icon size={24} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-};
 
 const CertificatesSection = ({ vendorData }: { vendorData: VendorProfileResponse | null }) => {
   if (!vendorData || !vendorData.files || vendorData.files.length === 0) {
@@ -578,7 +547,6 @@ const VendorInfoPage = () => {
               </CardContent>
             </Card>
           )}
-          {vendorData && <BusinessStats />}
           <div className="space-y-6">
             <VendorProfile 
               vendorData={vendorData} 
