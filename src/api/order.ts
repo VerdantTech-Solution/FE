@@ -361,11 +361,15 @@ export const updateOrderStatus = async (
 };
 
 // ===== Ship Order =====
-export interface ShipOrderItem {
-  orderDetailId: number;
-  quantity: number;
+export interface IdentityNumber {
   serialNumber?: string;
   lotNumber: string;
+  quantity: number;
+}
+
+export interface ShipOrderItem {
+  orderDetailId: number;
+  identityNumbers: IdentityNumber[];
 }
 
 export type ShipOrderRequest = ShipOrderItem[];
