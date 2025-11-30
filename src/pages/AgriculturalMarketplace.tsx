@@ -13,7 +13,7 @@ import {
     AlertDialogFooter,
     AlertDialogAction
 } from "@/components/ui/alert-dialog";
-import { getAllProducts, type Product } from "@/api/product";
+import { getAllProducts, getProductById, type Product } from "@/api/product";
 import { addToCart } from "@/api/cart";
 
 export default function AgriculturalMarketplace() {
@@ -35,8 +35,27 @@ export default function AgriculturalMarketplace() {
             try {
                 setLoading(true);
                 setError(null);
-                const data = await getAllProducts();
-                setProducts(data);
+                const products = await getAllProducts({ page: 1, pageSize: 100 });
+                
+                // Vì getAllProducts không trả về stockQuantity, fetch thêm từ getProductById
+                const productsWithStock = await Promise.all(
+                    products.map(async (product) => {
+                        try {
+                            const productDetail = await getProductById(product.id);
+                            return {
+                                ...product,
+                                stockQuantity: productDetail.stockQuantity,
+                            };
+                        } catch (err) {
+                            console.error(`Error fetching stock for product ${product.id}:`, err);
+                            // Nếu lỗi, giữ nguyên product
+                            return product;
+                        }
+                    })
+                );
+                
+                console.log('Products with stock:', productsWithStock.map(p => ({ id: p.id, name: p.productName, stockQuantity: p.stockQuantity })));
+                setProducts(productsWithStock);
             } catch (err: any) {
                 const message = err?.response?.data?.message || err?.message || "Không thể tải dữ liệu sản phẩm.";
                 setError(message);
@@ -148,8 +167,26 @@ export default function AgriculturalMarketplace() {
               setLoading(true);
               (async () => {
                 try {
-                  const data = await getAllProducts();
-                  setProducts(data);
+                  const products = await getAllProducts({ page: 1, pageSize: 100 });
+                  
+                  // Vì getAllProducts không trả về stockQuantity, fetch thêm từ getProductById
+                  const productsWithStock = await Promise.all(
+                      products.map(async (product) => {
+                          try {
+                              const productDetail = await getProductById(product.id);
+                              return {
+                                  ...product,
+                                  stockQuantity: productDetail.stockQuantity,
+                              };
+                          } catch (err) {
+                              console.error(`Error fetching stock for product ${product.id}:`, err);
+                              // Nếu lỗi, giữ nguyên product
+                              return product;
+                          }
+                      })
+                  );
+                  
+                  setProducts(productsWithStock);
                 } catch (err: any) {
                   const message = err?.response?.data?.message || err?.message || "Không thể tải dữ liệu sản phẩm.";
                   setError(message);

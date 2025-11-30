@@ -3,15 +3,16 @@ import { Button } from '@/components/ui/button';
 import VendorSidebar from './VendorSidebar';
 import { 
   Bell,
-  TrendingUp,
   DollarSign,
-  Users,
-  Package
+  Building,
+  ShoppingCart,
+  Star
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 
 
+// Dashboard tóm tắt - hiển thị các thông tin quan trọng nhất
 const DashboardStats = () => {
   const stats = [
     { 
@@ -22,49 +23,52 @@ const DashboardStats = () => {
       color: "bg-green-50 text-green-600"
     },
     { 
-      label: "Sản phẩm bán được", 
-      value: "1,234", 
-      change: "+8.2%",
-      icon: Package,
+      label: "Sản phẩm đã đăng", 
+      value: "24", 
+      change: "+3",
+      icon: Building,
       color: "bg-blue-50 text-blue-600"
     },
     { 
-      label: "Khách hàng mới", 
-      value: "89", 
-      change: "+15.3%",
-      icon: Users,
+      label: "Đơn hàng thành công", 
+      value: "156", 
+      change: "+12",
+      icon: ShoppingCart,
       color: "bg-purple-50 text-purple-600"
     },
     { 
-      label: "Tỷ lệ chuyển đổi", 
-      value: "3.2%", 
-      change: "+2.1%",
-      icon: TrendingUp,
-      color: "bg-orange-50 text-orange-600"
+      label: "Đánh giá trung bình", 
+      value: "4.8/5", 
+      change: "+0.2",
+      icon: Star,
+      color: "bg-yellow-50 text-yellow-600"
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {stats.map((stat, index) => {
-        const Icon = stat.icon;
-        return (
-          <Card key={index} className="border border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                  <p className="text-sm text-green-600 mt-1">{stat.change}</p>
+    <div className="mb-8">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Tóm tắt</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={index} className="border border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                    <p className="text-sm text-green-600 mt-1">{stat.change}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-lg ${stat.color} flex items-center justify-center`}>
+                    <Icon size={24} />
+                  </div>
                 </div>
-                <div className={`w-12 h-12 rounded-lg ${stat.color} flex items-center justify-center`}>
-                  <Icon size={24} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -143,19 +147,25 @@ const VendorDashboard = () => {
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
+          {/* Dashboard tóm tắt ở trên */}
           <DashboardStats />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RecentActivity />
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Biểu đồ doanh thu</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  Biểu đồ doanh thu sẽ được hiển thị ở đây
-                </div>
-              </CardContent>
-            </Card>
+          
+          {/* Dashboard chi tiết ở dưới */}
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Chi tiết</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RecentActivity />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Biểu đồ doanh thu</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64 flex items-center justify-center text-gray-500">
+                    Biểu đồ doanh thu sẽ được hiển thị ở đây
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </main>
       </div>

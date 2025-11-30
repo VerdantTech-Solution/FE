@@ -105,81 +105,6 @@ const TransactionStats = () => {
   );
 };
 
-const RecentTransactions = () => {
-  const transactions = [
-    { 
-      type: "income", 
-      description: "Thanh toán từ khách hàng", 
-      amount: "₫2,500,000", 
-      date: "15/01/2024",
-      status: "completed"
-    },
-    { 
-      type: "expense", 
-      description: "Phí dịch vụ platform", 
-      amount: "₫125,000", 
-      date: "14/01/2024",
-      status: "completed"
-    },
-    { 
-      type: "income", 
-      description: "Bán sản phẩm", 
-      amount: "₫1,800,000", 
-      date: "13/01/2024",
-      status: "completed"
-    },
-    { 
-      type: "pending", 
-      description: "Thanh toán đang chờ", 
-      amount: "₫3,200,000", 
-      date: "12/01/2024",
-      status: "pending"
-    }
-  ];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Giao dịch gần đây</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {transactions.map((transaction, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  transaction.type === 'income' ? 'bg-green-100' : 
-                  transaction.type === 'expense' ? 'bg-red-100' : 'bg-yellow-100'
-                }`}>
-                  {transaction.type === 'income' ? (
-                    <ArrowUpRight size={20} className="text-green-600" />
-                  ) : transaction.type === 'expense' ? (
-                    <ArrowDownLeft size={20} className="text-red-600" />
-                  ) : (
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{transaction.description}</p>
-                  <p className="text-sm text-gray-500">{transaction.date}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={`font-bold ${
-                  transaction.type === 'income' ? 'text-green-600' : 
-                  transaction.type === 'expense' ? 'text-red-600' : 'text-yellow-600'
-                }`}>
-                  {transaction.type === 'expense' ? '-' : '+'}{transaction.amount}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">{transaction.status}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
 
 const WithdrawForm = ({ 
   onWithdrawClick, 
@@ -340,7 +265,6 @@ const WalletPage = () => {
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RecentTransactions />
             <WithdrawForm 
               onWithdrawClick={() => setIsWithdrawDialogOpen(true)}
               balance={balance}

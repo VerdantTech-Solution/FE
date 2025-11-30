@@ -262,10 +262,16 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       // Chỉ chấp nhận PDF
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      
+      if (isPdf) {
         updateCertificate(index, 'file', file);
       } else {
-        alert('Vui lòng chọn file PDF');
+        alert(`Lỗi: File "${file.name}" không phải là file PDF. Vui lòng chọn file PDF (.pdf)`);
+        // Reset input để có thể chọn lại cùng file
+        e.target.value = '';
+        // Xóa file đã chọn nếu có
+        updateCertificate(index, 'file', null);
       }
     }
     // Reset input để có thể chọn lại cùng file
@@ -318,6 +324,20 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
       
       if (invalidCertificates.length > 0) {
         alert('Vui lòng nhập đầy đủ tên chứng chỉ và tải lên file cho tất cả các chứng chỉ');
+        setIsLoading(false);
+        return;
+      }
+
+      // Validate certificate files: chỉ cho phép PDF
+      const invalidCertificateFiles = validCertificates.filter(cert => {
+        if (!cert.file) return false;
+        const isPdf = cert.file.type === 'application/pdf' || cert.file.name.toLowerCase().endsWith('.pdf');
+        return !isPdf;
+      });
+
+      if (invalidCertificateFiles.length > 0) {
+        const invalidFileNames = invalidCertificateFiles.map(cert => cert.file?.name).filter(Boolean).join(', ');
+        alert(`Lỗi: Các file chứng chỉ sau không phải là PDF: ${invalidFileNames}\nVui lòng chỉ tải lên file PDF (.pdf)`);
         setIsLoading(false);
         return;
       }
