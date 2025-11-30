@@ -7,7 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, X, Search, Edit, Eye, Trash2, Bell } from "lucide-react";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogContent, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2 } from "lucide-react";
 import { getProductCategories, createProductCategory, updateProductCategory } from "@/api/product";
 import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
 
@@ -22,10 +31,14 @@ export const MonitoringPage: React.FC = () => {
   // Create form states
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isCreateLoading, setIsCreateLoading] = useState(false);
-  const [parentCategories, setParentCategories] = useState<ProductCategory[]>([]);
+  const [allCategories, setAllCategories] = useState<ProductCategory[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState<number | null>(null);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successData, setSuccessData] = useState<{name: string} | null>(null);
   const [formData, setFormData] = useState<CreateProductCategoryRequest>({
     name: '',
     parentId: null,
+    serialRequired: false,
     description: '',
   });
 
@@ -37,6 +50,7 @@ export const MonitoringPage: React.FC = () => {
   const [editData, setEditData] = useState<UpdateProductCategoryRequest>({
     name: '',
     parentId: null,
+    serialRequired: false,
     description: '',
     isActive: true,
   });
@@ -82,12 +96,37 @@ export const MonitoringPage: React.FC = () => {
     }
   };
 
-  const handleInputChange = (field: keyof CreateProductCategoryRequest, value: string | number | null) => {
+  const handleInputChange = (field: keyof CreateProductCategoryRequest, value: string | number | boolean | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
+  // Filter parent categories (không có parent)
+  const parentCategories = allCategories.filter(cat => {
+    const hasParentId = cat.parentId !== null && cat.parentId !== undefined;
+    const hasParent = cat.parent !== null && cat.parent !== undefined;
+    return !hasParentId && !hasParent;
+  });
+
+  // Filter subcategories của parent đã chọn
+  const subCategories = selectedParentId 
+    ? allCategories.filter(cat => {
+        const catParentId = cat.parentId || cat.parent?.id || (cat as any).parent_id;
+        return catParentId === selectedParentId;
+      })
+    : [];
+
+  // Handler khi chọn parent category
+  const handleParentChange = (value: string) => {
+    const parentId = value === 'null' ? null : parseInt(value);
+    setSelectedParentId(parentId);
+    // Nếu chọn parent, set parentId = parent đó
+    // Nếu chọn "Không có", reset về null
+    handleInputChange('parentId', parentId);
+  };
+
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,11 +137,17 @@ export const MonitoringPage: React.FC = () => {
       const payload = {
         name: formData.name.trim(),
         parentId: formData.parentId,
+        serialRequired: formData.serialRequired,
         description: formData.description.trim(),
       };
       const result = await createProductCategory(payload);
-      alert(`Tạo thiết bị giám sát "${result.name}" thành công!`);
-      setFormData({ name: '', parentId: null, description: '' });
+      
+      // Set success data and show alert
+      setSuccessData({ name: result.name });
+      setShowSuccessAlert(true);
+      
+      setFormData({ name: '', parentId: null, serialRequired: false, description: '' });
+      setSelectedParentId(null);
       setIsCreateFormOpen(false);
       handleMonitoringCreated();
     } catch (error: any) {
@@ -120,16 +165,17 @@ export const MonitoringPage: React.FC = () => {
     setEditData({
       name: item.name,
       parentId: item.parent?.id ?? null,
+      serialRequired: item.serialRequired ?? false,
       description: item.description,
       isActive: item.isActive,
     });
     
-    // Load parent categories for the dropdown
+    // Load categories for the dropdown
     try { 
       const categories = await getProductCategories(); 
-      setParentCategories(categories); 
+      setAllCategories(categories); 
     } catch (error) {
-      console.error('Error fetching parent categories for edit:', error);
+      console.error('Error fetching categories for edit:', error);
     } finally {
       setIsEditDialogLoading(false);
     }
@@ -158,6 +204,7 @@ export const MonitoringPage: React.FC = () => {
       const payload: Partial<UpdateProductCategoryRequest> = {
         name: editData.name.trim(),
         parentId: editData.parentId,
+        serialRequired: editData.serialRequired,
         description: editData.description.trim(),
         isActive: editData.isActive,
       };
@@ -177,7 +224,7 @@ export const MonitoringPage: React.FC = () => {
       // Close dialog and refresh data
       setIsEditFormOpen(false);
       setEditItemId(null);
-      setEditData({ name: '', parentId: null, description: '', isActive: true });
+      setEditData({ name: '', parentId: null, serialRequired: false, description: '', isActive: true });
       await fetchMonitoringItems();
       
     } catch (err: any) {
@@ -207,10 +254,17 @@ export const MonitoringPage: React.FC = () => {
 
   useEffect(() => { fetchMonitoringItems(); }, []);
   useEffect(() => {
-    const fetchParentCategories = async () => {
-      try { const categories = await getProductCategories(); setParentCategories(categories); } catch (error) { console.error('Error fetching parent categories:', error); }
+    const fetchCategories = async () => {
+      try { 
+        const categories = await getProductCategories(); 
+        setAllCategories(categories); 
+      } catch (error) { 
+        console.error('Error fetching categories:', error); 
+      }
     };
-    if (isCreateFormOpen) { fetchParentCategories(); }
+    if (isCreateFormOpen) { 
+      fetchCategories(); 
+    }
   }, [isCreateFormOpen]);
 
   return (
@@ -240,8 +294,8 @@ export const MonitoringPage: React.FC = () => {
                     <Input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Nhập tên thiết bị giám sát" required disabled={isCreateLoading} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="parentId" className="text-sm font-medium">Danh mục cha</Label>
-                    <Select value={formData.parentId?.toString() || 'null'} onValueChange={(value) => handleInputChange('parentId', value === 'null' ? null : parseInt(value))} disabled={isCreateLoading}>
+                    <Label htmlFor="parentCategory" className="text-sm font-medium">Danh mục cha</Label>
+                    <Select value={selectedParentId?.toString() || 'null'} onValueChange={handleParentChange} disabled={isCreateLoading}>
                       <SelectTrigger>
                         <SelectValue placeholder="Chọn danh mục cha" />
                       </SelectTrigger>
@@ -253,6 +307,40 @@ export const MonitoringPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                {/* Hiển thị subcategories khi chọn parent - chỉ để tham khảo */}
+                {selectedParentId && subCategories.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subCategory" className="text-sm font-medium">
+                      Danh mục con (chỉ để tham khảo)
+                    </Label>
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        {parentCategories.find(p => p.id === selectedParentId)?.name || 'Danh mục cha'} có các danh mục con:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1">
+                        {subCategories.map((category) => (
+                          <li key={category.id} className="text-sm text-gray-600">
+                            {category.name}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Lưu ý: Chỉ có thể chọn danh mục cha làm parent. Danh mục con không thể làm parent vì đã là con của danh mục khác.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+                  <Switch
+                    id="serialRequired"
+                    checked={formData.serialRequired}
+                    onCheckedChange={(checked) => handleInputChange('serialRequired', checked)}
+                    disabled={isCreateLoading}
+                  />
+                  <Label htmlFor="serialRequired" className="text-sm font-medium cursor-pointer">
+                    Yêu cầu số serial
+                  </Label>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">Mô tả <span className="text-red-500">*</span></Label>
@@ -529,6 +617,37 @@ export const MonitoringPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Success Alert Dialog */}
+      <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-white" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-bold text-emerald-700">
+              🎉 Tạo danh mục thành công!
+            </AlertDialogTitle>
+            <div className="text-gray-600 space-y-2">
+              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                <div className="font-semibold text-emerald-800 mb-2">Thông tin danh mục:</div>
+                <div><strong>Tên danh mục:</strong> {successData?.name}</div>
+              </div>
+              <div className="text-sm">
+                Danh mục của bạn đã được tạo thành công và sẵn sàng sử dụng.
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-center">
+            <AlertDialogAction 
+              onClick={() => setShowSuccessAlert(false)}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-2 rounded-lg"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

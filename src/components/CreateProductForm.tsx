@@ -5,13 +5,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, X } from 'lucide-react';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogContent, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
+import { Plus, X, CheckCircle2 } from 'lucide-react';
 import { createProductCategory, getProductCategories } from '../api/product';
 import type { ProductCategory } from '../api/product';
 
 interface CreateProductCategoryRequest {
   name: string;
   parentId: number | null;
+  serialRequired: boolean;
   description: string;
   iconUrl: string | null;
 }
@@ -23,36 +33,65 @@ interface CreateProductFormProps {
 const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [parentCategories, setParentCategories] = useState<ProductCategory[]>([]);
+  const [allCategories, setAllCategories] = useState<ProductCategory[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState<number | null>(null);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successData, setSuccessData] = useState<{name: string} | null>(null);
   const [formData, setFormData] = useState<CreateProductCategoryRequest>({
     name: '',
     parentId: null,
+    serialRequired: false,
     description: '',
     iconUrl: ''
   });
 
-  // Fetch parent categories when component mounts
+  // Fetch all categories when component mounts
   useEffect(() => {
-    const fetchParentCategories = async () => {
+    const fetchCategories = async () => {
       try {
         const categories = await getProductCategories();
-        setParentCategories(categories);
+        setAllCategories(categories);
       } catch (error) {
-        console.error('Error fetching parent categories:', error);
+        console.error('Error fetching categories:', error);
       }
     };
 
     if (isOpen) {
-      fetchParentCategories();
+      fetchCategories();
     }
   }, [isOpen]);
 
-  const handleInputChange = (field: keyof CreateProductCategoryRequest, value: string | number | null) => {
+  // Filter parent categories (không có parent)
+  const parentCategories = allCategories.filter(cat => {
+    const hasParentId = cat.parentId !== null && cat.parentId !== undefined;
+    const hasParent = cat.parent !== null && cat.parent !== undefined;
+    return !hasParentId && !hasParent;
+  });
+
+  // Filter subcategories của parent đã chọn
+  const subCategories = selectedParentId 
+    ? allCategories.filter(cat => {
+        const catParentId = cat.parentId || cat.parent?.id || (cat as any).parent_id;
+        return catParentId === selectedParentId;
+      })
+    : [];
+
+  const handleInputChange = (field: keyof CreateProductCategoryRequest, value: string | number | boolean | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
+  // Handler khi chọn parent category
+  const handleParentChange = (value: string) => {
+    const parentId = value === 'null' ? null : parseInt(value);
+    setSelectedParentId(parentId);
+    // Nếu chọn parent, set parentId = parent đó
+    // Nếu chọn "Không có", reset về null
+    handleInputChange('parentId', parentId);
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,20 +112,26 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
       const payload = {
         name: formData.name.trim(),
         parentId: formData.parentId,
+        serialRequired: formData.serialRequired,
         description: formData.description.trim(),
         iconUrl: formData.iconUrl?.trim() || null
       };
       
       const result = await createProductCategory(payload);
-      alert(`Tạo danh mục sản phẩm "${result.name}" thành công!`);
+      
+      // Set success data and show alert
+      setSuccessData({ name: result.name });
+      setShowSuccessAlert(true);
       
       // Reset form
       setFormData({
         name: '',
         parentId: null,
+        serialRequired: false,
         description: '',
         iconUrl: ''
       });
+      setSelectedParentId(null);
       
       setIsOpen(false);
       onProductCreated?.();
@@ -94,7 +139,7 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
       console.error('Lỗi khi tạo danh mục sản phẩm:', error);
       
       // Hiển thị chi tiết lỗi từ server
-      const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi tạo danh mục sản phẩm';
+      const errorMessage = error?.response?.data?.message || error?.response?.data?.errors?.join(', ') || error?.message || 'Có lỗi xảy ra khi tạo danh mục sản phẩm';
       alert(`Lỗi: ${errorMessage}`);
     } finally {
       setIsLoading(false);
@@ -107,9 +152,11 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
       setFormData({
         name: '',
         parentId: null,
+        serialRequired: false,
         description: '',
         iconUrl: ''
       });
+      setSelectedParentId(null);
     }
   };
 
@@ -146,12 +193,12 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
 
             {/* Danh mục cha */}
             <div className="space-y-2">
-              <Label htmlFor="parentId" className="text-sm font-medium">
+              <Label htmlFor="parentCategory" className="text-sm font-medium">
                 Danh mục cha
               </Label>
               <Select
-                value={formData.parentId?.toString() || 'null'}
-                onValueChange={(value) => handleInputChange('parentId', value === 'null' ? null : parseInt(value))}
+                value={selectedParentId?.toString() || 'null'}
+                onValueChange={handleParentChange}
                 disabled={isLoading}
               >
                 <SelectTrigger>
@@ -167,6 +214,43 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Hiển thị subcategories khi chọn parent - chỉ để tham khảo */}
+          {selectedParentId && subCategories.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="subCategory" className="text-sm font-medium">
+                Danh mục con (chỉ để tham khảo)
+              </Label>
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  {parentCategories.find(p => p.id === selectedParentId)?.name || 'Danh mục cha'} có các danh mục con:
+                </p>
+                <ul className="list-disc list-inside space-y-1">
+                  {subCategories.map((category) => (
+                    <li key={category.id} className="text-sm text-gray-600">
+                      {category.name}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-gray-500 mt-2">
+                  Lưu ý: Chỉ có thể chọn danh mục cha làm parent. Danh mục con không thể làm parent vì đã là con của danh mục khác.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Serial Required */}
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Switch
+              id="serialRequired"
+              checked={formData.serialRequired}
+              onCheckedChange={(checked) => handleInputChange('serialRequired', checked)}
+              disabled={isLoading}
+            />
+            <Label htmlFor="serialRequired" className="text-sm font-medium cursor-pointer">
+              Yêu cầu số serial
+            </Label>
           </div>
 
           {/* Mô tả */}
@@ -257,6 +341,37 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
           </div>
         </form>
       </DialogContent>
+      
+      {/* Success Alert Dialog */}
+      <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-white" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-bold text-emerald-700">
+              🎉 Tạo danh mục thành công!
+            </AlertDialogTitle>
+            <div className="text-gray-600 space-y-2">
+              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                <div className="font-semibold text-emerald-800 mb-2">Thông tin danh mục:</div>
+                <div><strong>Tên danh mục:</strong> {successData?.name}</div>
+              </div>
+              <div className="text-sm">
+                Danh mục của bạn đã được tạo thành công và sẵn sàng sử dụng.
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-center">
+            <AlertDialogAction 
+              onClick={() => setShowSuccessAlert(false)}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-2 rounded-lg"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
