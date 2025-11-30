@@ -464,20 +464,53 @@ export const OrderManagementPanel: React.FC = () => {
     setIsShipping(true);
     setShipFormError("");
     try {
-      const payload: ShipOrderItem[] = shipItems.map(item => {
-        const requiresSerial = isMachineryCategory(item.categoryId);
-        const payloadItem: ShipOrderItem = {
-          orderDetailId: item.orderDetailId,
-          quantity: item.quantity,
-          lotNumber: item.lotNumber.trim(),
-        };
-        if (requiresSerial) {
-          payloadItem.serialNumber = item.serialNumber.trim();
+      // Group items by orderDetailId
+      const groupedByOrderDetail = shipItems.reduce((acc, item) => {
+        if (!acc[item.orderDetailId]) {
+          acc[item.orderDetailId] = [];
         }
-        return payloadItem;
+        acc[item.orderDetailId].push(item);
+        return acc;
+      }, {} as Record<number, typeof shipItems>);
+
+      // Build payload in new format and check for duplicates
+      const payload: ShipOrderItem[] = Object.entries(groupedByOrderDetail).map(([orderDetailId, items]) => {
+        const requiresSerial = isMachineryCategory(items[0].categoryId);
+        
+        // Check for duplicate serial numbers within the same orderDetailId
+        if (requiresSerial) {
+          const serialNumbers = items
+            .map(item => item.serialNumber?.trim())
+            .filter(Boolean) as string[];
+          const uniqueSerialNumbers = new Set(serialNumbers);
+          
+          if (serialNumbers.length !== uniqueSerialNumbers.size) {
+            const duplicates = serialNumbers.filter((serial, index) => serialNumbers.indexOf(serial) !== index);
+            throw new Error(
+              `Số seri bị trùng lặp trong cùng một đơn hàng chi tiết #${orderDetailId}: ${[...new Set(duplicates)].join(", ")}`
+            );
+          }
+        }
+
+        const identityNumbers = items.map(item => {
+          const identityNumber: any = {
+            lotNumber: item.lotNumber.trim(),
+            quantity: item.quantity,
+          };
+          if (requiresSerial && item.serialNumber) {
+            identityNumber.serialNumber = item.serialNumber.trim();
+          }
+          return identityNumber;
+        });
+
+        return {
+          orderDetailId: Number(orderDetailId),
+          identityNumbers,
+        };
       });
 
-      console.log("Shipping order with payload:", payload);
+      console.log("Shipping order with payload:", JSON.stringify(payload, null, 2));
+      console.log("Ship items before grouping:", shipItems);
       const response = await shipOrder(selectedOrder.id, payload);
       console.log("Ship order response:", response);
       
@@ -1420,15 +1453,27 @@ export const OrderManagementPanel: React.FC = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {availableSerials.length > 0 ? (
-                                availableSerials.map((id) => (
-                                  <SelectItem 
-                                    key={id.serialNumber} 
-                                    value={id.serialNumber!}
-                                  >
-                                    {id.serialNumber}
-                                    {id.lotNumber && ` (Lô: ${id.lotNumber})`}
-                                  </SelectItem>
-                                ))
+                                availableSerials.map((id) => {
+                                  // Check if this serial number is already selected by another item with the same orderDetailId
+                                  const isAlreadySelected = shipItems.some(
+                                    (otherItem) => 
+                                      otherItem.orderDetailId === item.orderDetailId &&
+                                      otherItem.id !== item.id &&
+                                      otherItem.serialNumber === id.serialNumber
+                                  );
+                                  
+                                  return (
+                                    <SelectItem 
+                                      key={id.serialNumber} 
+                                      value={id.serialNumber!}
+                                      disabled={isAlreadySelected}
+                                    >
+                                      {id.serialNumber}
+                                      {id.lotNumber && ` (Lô: ${id.lotNumber})`}
+                                      {isAlreadySelected && " (Đã chọn)"}
+                                    </SelectItem>
+                                  );
+                                })
                               ) : (
                                 <SelectItem value="none" disabled>
                                   {item.lotNumber 

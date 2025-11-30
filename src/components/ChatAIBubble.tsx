@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/card';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendChatbotMessage } from '@/api/chatbot';
+import { parseProductsFromMessage } from '@/utils/parseChatProducts';
+import { ChatProductCarousel } from '@/components/ChatProductCarousel';
 
 interface Message {
   id: string;
@@ -439,41 +441,75 @@ export const ChatAIBubble = () => {
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
               >
-                {messages.map((message) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {message.sender === 'ai' && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-5 h-5 text-white" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                        message.sender === 'user'
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                          : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-                      }`}
+                {messages.map((message) => {
+                  // Parse products from AI messages
+                  const { products, textWithoutProducts } = 
+                    message.sender === 'ai' 
+                      ? parseProductsFromMessage(message.text)
+                      : { products: [], textWithoutProducts: message.text };
+
+                  return (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <p className="text-sm whitespace-pre-line">{message.text}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                      {message.sender === 'ai' && (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[75%] ${
+                          message.sender === 'user'
+                            ? 'rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                            : 'w-full'
                         }`}
                       >
-                        {formatTime(message.timestamp)}
-                      </p>
-                    </div>
-                    {message.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-gray-600" />
+                        {message.sender === 'ai' && products.length > 0 ? (
+                          <div className="bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-200 w-full">
+                            {/* Text content if any */}
+                            {textWithoutProducts && (
+                              <p className="text-sm whitespace-pre-line text-gray-800 mb-3 leading-relaxed">
+                                {textWithoutProducts}
+                              </p>
+                            )}
+                            {/* Products Carousel */}
+                            <div className="w-full">
+                              <ChatProductCarousel products={products} />
+                            </div>
+                            <p className="text-xs mt-3 text-gray-500 text-right">
+                              {formatTime(message.timestamp)}
+                            </p>
+                          </div>
+                        ) : (
+                          <div
+                            className={`rounded-2xl px-4 py-2 ${
+                              message.sender === 'user'
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                                : 'bg-white text-gray-800 shadow-sm border border-gray-200'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-line">{message.text}</p>
+                            <p
+                              className={`text-xs mt-1 ${
+                                message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                              }`}
+                            >
+                              {formatTime(message.timestamp)}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </motion.div>
-                ))}
+                      {message.sender === 'user' && (
+                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-gray-600" />
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
 
                 {isTyping && (
                   <motion.div
