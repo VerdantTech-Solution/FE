@@ -68,6 +68,7 @@ export interface Certificate {
 export interface CreateProductCategoryRequest {
   name: string;
   parentId: number | null;
+  serialRequired: boolean;
   description: string;
 }
 
@@ -87,6 +88,7 @@ export interface ProductCategory {
   name: string;
   slug: string;
   description: string;
+  serialRequired?: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
