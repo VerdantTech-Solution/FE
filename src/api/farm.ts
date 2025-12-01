@@ -1,5 +1,37 @@
 import { apiClient } from './apiClient';
 
+// Enum/string-union tương ứng backend
+export type FarmProfileStatus = 'Active' | 'Maintenance' | 'Deleted';
+
+export type PlantingMethod =
+  | 'DirectSeeding'
+  | 'TrayNursery'
+  | 'Transplanting'
+  | 'VegetativePropagation'
+  | 'Cutting';
+
+export type CropType =
+  | 'LeafyGreen'
+  | 'Fruiting'
+  | 'RootVegetable'
+  | 'Herb';
+
+export type FarmingType =
+  | 'Intensive'
+  | 'CropRotation'
+  | 'Intercropping'
+  | 'Greenhouse'
+  | 'Hydroponics';
+
+export type CropStatus =
+  | 'Planning'
+  | 'Seedling'
+  | 'Growing'
+  | 'Harvesting'
+  | 'Completed'
+  | 'Failed'
+  | 'Deleted';
+
 export interface Address {
   id: number;
   locationAddress: string;
@@ -14,6 +46,11 @@ export interface CropInfo {
   id?: number;
   cropName: string;
   plantingDate: string;
+  // Các trường mới theo schema API /api/FarmProfile
+  plantingMethod?: PlantingMethod;
+  cropType?: CropType;
+  farmingType?: FarmingType;
+  status?: CropStatus;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -30,7 +67,7 @@ export interface FarmProfile {
    */
   primaryCrops?: string;
   crops?: CropInfo[];
-  status?: 'Active' | 'Maintenance' | 'Deleted';
+  status?: FarmProfileStatus;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -53,7 +90,7 @@ export interface CreateFarmProfileRequest {
    * @deprecated Thuộc tính cũ, giữ lại để tương thích ngược.
    */
   primaryCrops?: string;
-  status?: 'Active' | 'Maintenance' | 'Deleted';
+  status?: FarmProfileStatus;
 }
 
 // Interface cho request cập nhật farm profile (PATCH)
@@ -142,6 +179,47 @@ export interface GetFarmProfilesResponse {
 }
 
 /**
+ * Request body cho API thêm cây trồng vào trang trại
+ * Endpoint: POST /api/farm/{farmId}/Crop
+ */
+export interface AddFarmCropRequest {
+  cropName: string;
+  plantingDate: string;
+  plantingMethod: PlantingMethod;
+  cropType: CropType;
+  farmingType: FarmingType;
+  status: CropStatus;
+}
+
+export interface AddFarmCropsResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: string;
+  errors: string[];
+}
+
+/**
+ * Request body cho API cập nhật cây trồng của trang trại
+ * Endpoint: PATCH /api/farm/{farmId}/Crop
+ */
+export interface UpdateFarmCropRequest {
+  id: number;
+  cropName: string;
+  plantingDate: string;
+  plantingMethod: PlantingMethod;
+  cropType: CropType;
+  farmingType: FarmingType;
+  status: CropStatus;
+}
+
+export interface UpdateFarmCropsResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: string;
+  errors: string[];
+}
+
+/**
  * Tạo farm profile mới cho user hiện tại
  * API endpoint: POST /api/FarmProfile
  */
@@ -175,6 +253,11 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
           .map((crop) => ({
             cropName: crop.cropName.trim(),
             plantingDate: crop.plantingDate,
+            // Bổ sung các trường mới, dùng default nếu FE chưa cung cấp
+            plantingMethod: crop.plantingMethod || 'DirectSeeding',
+            cropType: crop.cropType || 'LeafyGreen',
+            farmingType: crop.farmingType || 'Intensive',
+            status: crop.status || 'Planning',
           })),
       }),
     };
@@ -212,6 +295,117 @@ export const createFarmProfile = async (data: CreateFarmProfileRequest): Promise
     }
     
     throw error;
+  }
+};
+
+/**
+ * Thêm một hoặc nhiều cây trồng vào trang trại
+ * API endpoint: POST /api/farm/{farmId}/Crop
+ */
+export const addFarmCrops = async (
+  farmId: number,
+  crops: AddFarmCropRequest[]
+): Promise<AddFarmCropsResponse> => {
+  try {
+    console.log('Adding crops to farm:', { farmId, crops });
+
+    const payload = crops.map((crop) => ({
+      cropName: crop.cropName.trim(),
+      plantingDate: crop.plantingDate,
+      plantingMethod: crop.plantingMethod,
+      cropType: crop.cropType,
+      farmingType: crop.farmingType,
+      status: crop.status,
+    }));
+
+    const response = await apiClient.post(`/api/farm/${farmId}/Crop`, payload);
+    const raw: any = response;
+
+    if (raw && typeof raw === 'object' && 'status' in raw) {
+      return raw as AddFarmCropsResponse;
+    }
+
+    return {
+      status: true,
+      statusCode: 'OK',
+      data: typeof raw === 'string' ? raw : JSON.stringify(raw),
+      errors: [],
+    };
+  } catch (error: any) {
+    console.error('Error adding crops to farm:', error);
+
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as AddFarmCropsResponse;
+    }
+
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as AddFarmCropsResponse;
+    }
+
+    return {
+      status: false,
+      statusCode: error?.response?.status || 'Error',
+      data: '',
+      errors: error?.response?.data?.errors ||
+        (error?.message ? [error.message] : ['Không thể thêm cây trồng vào trang trại']),
+    };
+  }
+};
+
+/**
+ * Cập nhật thông tin các cây trồng của trang trại
+ * API endpoint: PATCH /api/farm/{farmId}/Crop
+ * Backend expect body là danh sách CropsUpdateDTO (array)
+ */
+export const updateFarmCrops = async (
+  farmId: number,
+  crops: UpdateFarmCropRequest[]
+): Promise<UpdateFarmCropsResponse> => {
+  try {
+    console.log('Updating farm crops:', { farmId, crops });
+
+    // Body phải là array, không bọc trong { dtos: ... }
+    const payload = crops.map((crop) => ({
+      id: crop.id,
+      cropName: crop.cropName.trim(),
+      plantingDate: crop.plantingDate,
+      plantingMethod: crop.plantingMethod,
+      cropType: crop.cropType,
+      farmingType: crop.farmingType,
+      status: crop.status,
+    }));
+
+    const response = await apiClient.patch(`/api/farm/${farmId}/Crop`, payload);
+    const raw: any = response;
+
+    if (raw && typeof raw === 'object' && 'status' in raw) {
+      return raw as UpdateFarmCropsResponse;
+    }
+
+    return {
+      status: true,
+      statusCode: 'OK',
+      data: typeof raw === 'string' ? raw : JSON.stringify(raw),
+      errors: [],
+    };
+  } catch (error: any) {
+    console.error('Error updating farm crops:', error);
+
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as UpdateFarmCropsResponse;
+    }
+
+    if (error?.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      return error.response.data as UpdateFarmCropsResponse;
+    }
+
+    return {
+      status: false,
+      statusCode: error?.response?.status || 'Error',
+      data: '',
+      errors: error?.response?.data?.errors ||
+        (error?.message ? [error.message] : ['Không thể cập nhật cây trồng của trang trại']),
+    };
   }
 };
 

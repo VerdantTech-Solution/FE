@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -13,7 +14,15 @@ import {
 import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText, Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createFarmProfile, getCropVarietySuggestions } from "@/api";
-import type { CreateFarmProfileRequest, CropInfo, CropVarietySuggestion } from "@/api";
+import type { 
+  CreateFarmProfileRequest, 
+  CropInfo, 
+  CropVarietySuggestion,
+  PlantingMethod,
+  CropType,
+  FarmingType,
+  CropStatus
+} from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
 import MapAreaPage from "./MapAreaPage";
 import StepIndicator from "@/components/StepIndicator";
@@ -23,6 +32,10 @@ type CropFormValues = {
   id: string;
   cropName: string;
   plantingDate: string;
+  plantingMethod: PlantingMethod;
+  cropType: CropType;
+  farmingType: FarmingType;
+  status: CropStatus;
 };
 
 type CropSuggestionState = {
@@ -44,6 +57,10 @@ const createEmptyCrop = (): CropFormValues => ({
   id: generateCropId(),
   cropName: "",
   plantingDate: "",
+  plantingMethod: "DirectSeeding",
+  cropType: "LeafyGreen",
+  farmingType: "Intensive",
+  status: "Planning",
 });
 
 export const CreateFarmPage = () => {
@@ -350,6 +367,11 @@ export const CreateFarmPage = () => {
         .map((crop) => ({
           cropName: crop.cropName.trim(),
           plantingDate: crop.plantingDate,
+          // Lấy đúng các giá trị người dùng đã chọn
+          plantingMethod: crop.plantingMethod,
+          cropType: crop.cropType,
+          farmingType: crop.farmingType,
+          status: crop.status,
         }));
 
       const payload: CreateFarmProfileRequest = {
@@ -742,6 +764,94 @@ export const CreateFarmPage = () => {
                               value={crop.plantingDate}
                               onChange={(e) => handleCropChange(index, 'plantingDate', e.target.value)}
                             />
+                          </div>
+
+                          {/* Nhóm dropdown cho phương thức trồng, loại cây, hình thức canh tác, trạng thái */}
+                          <div className="md:col-span-5 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Phương thức trồng
+                              </label>
+                              <Select
+                                value={crop.plantingMethod}
+                                onValueChange={(value) => handleCropChange(index, 'plantingMethod', value)}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Chọn phương thức" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="DirectSeeding">Gieo thẳng</SelectItem>
+                                  <SelectItem value="TrayNursery">Ươm khay</SelectItem>
+                                  <SelectItem value="Transplanting">Cấy cây con</SelectItem>
+                                  <SelectItem value="VegetativePropagation">Nhân giống vô tính</SelectItem>
+                                  <SelectItem value="Cutting">Giâm cành</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Nhóm cây trồng
+                              </label>
+                              <Select
+                                value={crop.cropType}
+                                onValueChange={(value) => handleCropChange(index, 'cropType', value)}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Chọn nhóm" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="LeafyGreen">Rau lá</SelectItem>
+                                  <SelectItem value="Fruiting">Rau/cây cho quả</SelectItem>
+                                  <SelectItem value="RootVegetable">Rau củ (rễ)</SelectItem>
+                                  <SelectItem value="Herb">Rau gia vị / thảo mộc</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Hình thức canh tác
+                              </label>
+                              <Select
+                                value={crop.farmingType}
+                                onValueChange={(value) => handleCropChange(index, 'farmingType', value)}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Chọn hình thức" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Intensive">Thâm canh</SelectItem>
+                                  <SelectItem value="CropRotation">Luân canh</SelectItem>
+                                  <SelectItem value="Intercropping">Xen canh</SelectItem>
+                                  <SelectItem value="Greenhouse">Nhà kính</SelectItem>
+                                  <SelectItem value="Hydroponics">Thủy canh</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Trạng thái
+                              </label>
+                              <Select
+                                value={crop.status}
+                                onValueChange={(value) => handleCropChange(index, 'status', value)}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Chọn trạng thái" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Planning">Đang lên kế hoạch</SelectItem>
+                                  <SelectItem value="Seedling">Cây con</SelectItem>
+                                  <SelectItem value="Growing">Đang sinh trưởng</SelectItem>
+                                  <SelectItem value="Harvesting">Đang thu hoạch</SelectItem>
+                                  <SelectItem value="Completed">Hoàn thành vụ</SelectItem>
+                                  <SelectItem value="Failed">Thất bại</SelectItem>
+                                  <SelectItem value="Deleted">Đã xóa</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                           {form.crops.length > 1 && (
                             <div className="md:col-span-5 flex justify-end">
