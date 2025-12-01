@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, Upload, X } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, Upload, X, CreditCard } from 'lucide-react';
 import {
   getMyTickets,
   getTicketById,
@@ -13,6 +13,13 @@ import {
 } from '@/api/ticket';
 import { useAuth } from '@/contexts/AuthContext';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  getSupportedBanks,
+  getVendorBankAccounts,
+  type VendorBankAccount,
+  type SupportedBank,
+} from '@/api/vendorbankaccounts';
+import CreateBankDialog from '@/components/bank/CreateBankDialog';
 
 interface TicketListProps {
   refreshKey?: number;
@@ -34,6 +41,11 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
   const [isUploadingMessageImage, setIsUploadingMessageImage] = useState(false);
   const selectedTicketIdRef = useRef<number | null>(null);
   const { user, isAuthenticated } = useAuth();
+  const [bankAccounts, setBankAccounts] = useState<VendorBankAccount[]>([]);
+  const [supportedBanks, setSupportedBanks] = useState<SupportedBank[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState('');
+  const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
 
   type TicketWithFallbackImages = TicketItem & {
     requestTicketImages?: TicketImage[];
@@ -112,6 +124,66 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
     const timeout = setTimeout(() => setMessageSuccess(''), 5000);
     return () => clearTimeout(timeout);
   }, [messageSuccess]);
+
+  const loadSupportedBanks = useCallback(async () => {
+    try {
+      const banks = await getSupportedBanks();
+      setSupportedBanks(banks);
+    } catch (err) {
+      console.error('Load supported banks error:', err);
+    }
+  }, []);
+
+  const loadBankAccounts = useCallback(async () => {
+    const currentUserId = user?.id ? Number(user.id) : undefined;
+    if (!currentUserId || !isAuthenticated) {
+      setBankAccounts([]);
+      return;
+    }
+
+    try {
+      setBankLoading(true);
+      setBankError('');
+      const accounts = await getVendorBankAccounts(currentUserId);
+      setBankAccounts(accounts || []);
+    } catch (err: any) {
+      console.error('Load user bank accounts error:', err);
+      setBankAccounts([]);
+      const message =
+        err?.response?.data?.errors?.[0] ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Không thể tải thông tin ngân hàng';
+      setBankError(message);
+    } finally {
+      setBankLoading(false);
+    }
+  }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    void loadSupportedBanks();
+    void loadBankAccounts();
+  }, [isAuthenticated, user?.id, loadSupportedBanks, loadBankAccounts]);
+
+  const handleBankAccountSuccess = useCallback(() => {
+    void loadBankAccounts();
+  }, [loadBankAccounts]);
+
+  const findBankInfo = useCallback(
+    (bankCode: string) => supportedBanks.find((bank) => bank.bin === bankCode || bank.code === bankCode),
+    [supportedBanks]
+  );
+
+  const userIdForBank = user?.id ? Number(user.id) : 0;
+  const bankDialog = (
+    <CreateBankDialog
+      open={isBankDialogOpen}
+      onOpenChange={setIsBankDialogOpen}
+      userId={userIdForBank}
+      onSuccess={handleBankAccountSuccess}
+    />
+  );
 
   const getStatusBadge = (status: string) => {
     const normalizedStatus = status.toLowerCase();
@@ -358,65 +430,75 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
 
   if (loading) {
     return (
-      <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-        <CardContent className="py-12">
-          <div className="flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm text-gray-500">Đang tải...</span>
+      <>
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardContent className="py-12">
+            <div className="flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-gray-500">Đang tải...</span>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        {bankDialog}
+      </>
     );
   }
 
   if (error) {
     return (
-      <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-        <CardContent className="py-10">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+      <>
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardContent className="py-10">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <p className="text-sm text-red-600 font-medium">Không thể tải danh sách yêu cầu hỗ trợ</p>
+              <p className="text-sm text-gray-600">{error}</p>
+              <Button
+                variant="outline"
+                onClick={fetchTickets}
+                className="mt-2"
+              >
+                Thử lại
+              </Button>
             </div>
-            <p className="text-sm text-red-600 font-medium">Không thể tải danh sách yêu cầu hỗ trợ</p>
-            <p className="text-sm text-gray-600">{error}</p>
-            <Button
-              variant="outline"
-              onClick={fetchTickets}
-              className="mt-2"
-            >
-              Thử lại
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        {bankDialog}
+      </>
     );
   }
 
   if (tickets.length === 0) {
     return (
-      <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-        <CardContent className="py-12">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 mb-4">
-              <MessageSquare className="text-blue-500" size={32} />
+      <>
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 mb-4">
+                <MessageSquare className="text-blue-500" size={32} />
+              </div>
+              <h3 className="text-sm font-medium text-gray-900 mb-1">Chưa có yêu cầu hỗ trợ</h3>
+              <p className="text-xs text-gray-500">Tạo yêu cầu mới để được hỗ trợ</p>
             </div>
-            <h3 className="text-sm font-medium text-gray-900 mb-1">Chưa có yêu cầu hỗ trợ</h3>
-            <p className="text-xs text-gray-500">Tạo yêu cầu mới để được hỗ trợ</p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        {bankDialog}
+      </>
     );
   }
 
   return (
-    <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold">Danh sách yêu cầu hỗ trợ</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+    <>
+      <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">Danh sách yêu cầu hỗ trợ</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
           {tickets.map((ticket) => {
             const isSelected = selectedTicketId === ticket.id;
             const currentDetail =
@@ -479,6 +561,75 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
                   className="mt-4 border-t pt-3"
                   onClick={(event) => event.stopPropagation()}
                 >
+                  {ticket.requestType === 'RefundRequest' &&
+                    ticket.status?.toLowerCase() === 'approved' && (
+                      <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-full bg-blue-100 p-2">
+                            <CreditCard className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 space-y-2 text-sm text-gray-700">
+                            <p className="font-semibold text-gray-900">
+                              Yêu cầu hoàn hàng đã được phê duyệt. Để nhận tiền hoàn, vui lòng cung
+                              cấp thông tin ngân hàng.
+                            </p>
+                            {bankLoading ? (
+                              <p className="text-xs text-gray-600">
+                                Đang kiểm tra thông tin ngân hàng...
+                              </p>
+                            ) : bankAccounts.find((account) => account.isActive) ? (
+                              (() => {
+                                const activeAccount = bankAccounts.find((account) => account.isActive)!;
+                                const bankInfo = findBankInfo(activeAccount.bankCode);
+                                return (
+                                  <>
+                                    <div className="text-sm text-gray-800">
+                                      <p>
+                                        {bankInfo?.shortName ||
+                                          bankInfo?.name ||
+                                          activeAccount.bankCode}
+                                      </p>
+                                      <p className="font-mono text-base text-gray-900">
+                                        {activeAccount.accountNumber}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setIsBankDialogOpen(true)}
+                                      className="border-blue-200 text-blue-700 hover:bg-blue-100"
+                                    >
+                                      Cập nhật ngân hàng
+                                    </Button>
+                                  </>
+                                );
+                              })()
+                            ) : (
+                              <>
+                                <p>
+                                  Bạn chưa có tài khoản ngân hàng để nhận tiền. Thêm thông tin ngân
+                                  hàng để chúng tôi chuyển khoản hoàn tiền cho bạn.
+                                </p>
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 text-white hover:bg-blue-700"
+                                  onClick={() => setIsBankDialogOpen(true)}
+                                  disabled={!user?.id}
+                                >
+                                  Cung cấp thông tin ngân hàng
+                                </Button>
+                              </>
+                            )}
+                            {bankError && (
+                              <p className="text-xs text-red-600">
+                                {bankError}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   {detailLoading && (
                     <p className="text-xs text-gray-500">Đang tải chi tiết...</p>
                   )}
@@ -644,9 +795,11 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
               </div>
             );
           })}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
+      {bankDialog}
+    </>
   );
 };
 

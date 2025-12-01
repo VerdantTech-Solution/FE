@@ -13,12 +13,17 @@ type CropVarietyPayload =
 
 const pickName = (item: Record<string, unknown>): string => {
   return (
+    // Common English keys
     (item.name as string) ||
     (item.variety as string) ||
     (item.title as string) ||
     (item.label as string) ||
     (item.cropName as string) ||
     (item.value as string) ||
+    // Vietnamese-style keys from AI response
+    (item["Tên giống"] as string) ||
+    (item["tenGiong"] as string) ||
+    (item["giong"] as string) ||
     ""
   );
 };
@@ -49,7 +54,9 @@ const toSuggestion = (entry: CropVarietyPayload): CropVarietySuggestion | null =
       (record.details as string) ||
       (record.detail as string) ||
       (record.note as string) ||
-      (record.subtitle as string);
+      (record.subtitle as string) ||
+      // Vietnamese field used in AI response
+      (record["Thời gian trồng"] as string);
 
     const source = (record.source as string) || (record.origin as string);
 
@@ -71,7 +78,28 @@ const normalizePayload = (payload: unknown): CropVarietySuggestion[] => {
   }
 
   if (Array.isArray(payload)) {
-    return parseArray(payload);
+    // Try to parse the array directly first
+    const direct = parseArray(payload);
+    if (direct.length) {
+      return direct;
+    }
+
+    // Handle structures like [{ crop: "Cà rốt", varieties: [...] }, ...]
+    const nestedVarieties: unknown[] = [];
+    for (const item of payload) {
+      if (item && typeof item === "object") {
+        const record = item as Record<string, unknown>;
+        if (Array.isArray(record.varieties)) {
+          nestedVarieties.push(...record.varieties);
+        }
+      }
+    }
+
+    if (nestedVarieties.length) {
+      return parseArray(nestedVarieties);
+    }
+
+    return [];
   }
 
   if (typeof payload === "string") {

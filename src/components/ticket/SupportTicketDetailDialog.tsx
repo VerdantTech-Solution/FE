@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertCircle, CheckCircle, Upload, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Upload, X, HandCoins, Wallet, Banknote, Loader2 } from "lucide-react";
 import {
   processTicket,
   type ProcessTicketRequest,
@@ -33,6 +33,12 @@ import {
   type TicketMessage,
   type TicketImage,
 } from "@/api/ticket";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { getOrderById, type OrderWithCustomer } from "@/api/order";
+import { getVendorBankAccounts, type VendorBankAccount } from "@/api/vendorbankaccounts";
+import { processRefundRequest, type ProcessRefundRequestPayload } from "@/api/cashout";
 
 const PROCESSABLE_STATUSES: Array<ProcessTicketRequest["status"]> = [
   "InReview",
@@ -51,6 +57,11 @@ const STATUS_BADGE_MAP: Record<string, string> = {
   resolved: "bg-green-100 text-green-700",
   closed: "bg-gray-100 text-gray-700",
 };
+
+const MACHINERY_CATEGORY_IDS = [24, 25, 28, 29];
+
+const requiresSerialForCategory = (categoryId?: number | null) =>
+  Boolean(categoryId && MACHINERY_CATEGORY_IDS.includes(categoryId));
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "---";
@@ -143,6 +154,9 @@ export const SupportTicketDetailDialog = ({
   );
   const reachedMessageLimit = messageCount >= 3;
   const canSendNewMessage = !reachedMessageLimit && !isDetailLoading && !detailError;
+  const isRefundRequestApproved =
+    ticket.requestType === "RefundRequest" &&
+    ticket.status?.toLowerCase() === "approved";
 
   const validatePayload = () => {
     if (!status) {
@@ -604,6 +618,13 @@ export const SupportTicketDetailDialog = ({
               )}
             </div>
 
+            {isRefundRequestApproved && (
+              <RefundProcessingPanel
+                ticket={ticket}
+                onRefreshTicket={onRefreshTicket}
+              />
+            )}
+
             <div className="rounded-md border border-gray-200 bg-white p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-900">Gửi tin nhắn đến khách hàng</p>
@@ -784,5 +805,643 @@ export const SupportTicketDetailDialog = ({
       </AlertDialog>
     </>
   );
+};
+
+interface RefundDetailForm {
+  orderDetailId: number;
+  productName: string;
+  maxQuantity: number;
+  quantity: number;
+  lotNumber: string;
+  serialNumber: string;
+  include: boolean;
+  requiresSerial: boolean;
+  unitPrice: number;
+  discountAmount: number;
+}
+
+interface RefundProcessingPanelProps {
+  ticket: TicketItem & { requestMessages?: TicketMessage[] };
+  onRefreshTicket?: (ticketId: number) => Promise<void> | void;
+}
+
+const RefundProcessingPanel = ({
+  ticket,
+  onRefreshTicket,
+}: RefundProcessingPanelProps) => {
+  const [orderInfo, setOrderInfo] = useState<OrderWithCustomer | null>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [orderError, setOrderError] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<VendorBankAccount[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState("");
+  const [selectedBankId, setSelectedBankId] = useState<number | null>(null);
+  const [refundAmount, setRefundAmount] = useState<string>("0");
+  const [refundMode, setRefundMode] = useState<"payos" | "manual">("payos");
+  const [gatewayPaymentId, setGatewayPaymentId] = useState("");
+  const [detailForms, setDetailForms] = useState<RefundDetailForm[]>([]);
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [isCustomRefundAmount, setIsCustomRefundAmount] = useState(false);
+
+  const derivedOrderId = useMemo(() => extractOrderIdFromTicket(ticket), [ticket]);
+
+  useEffect(() => {
+    setOrderInfo(null);
+    setOrderError("");
+    setBankAccounts([]);
+    setBankError("");
+    setSelectedBankId(null);
+    setRefundAmount("0");
+    setRefundMode("payos");
+    setGatewayPaymentId("");
+    setDetailForms([]);
+    setSubmitError("");
+    setSubmitSuccess("");
+    setIsCustomRefundAmount(false);
+
+    if (!ticket) return;
+
+    if (ticket.user?.id) {
+      void (async () => {
+        try {
+          setBankLoading(true);
+          setBankError("");
+          const accounts = await getVendorBankAccounts(ticket.user!.id);
+          setBankAccounts(accounts);
+          const activeAccount = accounts.find((acc) => acc.isActive) || accounts[0];
+          setSelectedBankId(activeAccount ? activeAccount.id : null);
+          if (!accounts.length) {
+            setBankError("Khách hàng chưa cung cấp tài khoản ngân hàng.");
+          }
+        } catch (err: any) {
+          setBankAccounts([]);
+          setBankError(
+            err?.response?.data?.errors?.[0] ||
+              err?.message ||
+              "Không thể tải danh sách tài khoản ngân hàng của khách hàng."
+          );
+        } finally {
+          setBankLoading(false);
+        }
+      })();
+    } else {
+      setBankError("Không tìm thấy thông tin người dùng để truy xuất tài khoản ngân hàng.");
+    }
+
+    if (derivedOrderId) {
+      void (async () => {
+        try {
+          setOrderLoading(true);
+          setOrderError("");
+          const response = await getOrderById(derivedOrderId);
+          if (response.status && response.data) {
+            setOrderInfo(response.data);
+            const canAuto = response.data.orderPaymentMethod === "Banking";
+            setRefundMode(canAuto ? "payos" : "manual");
+            setRefundAmount(String(response.data.totalAmount ?? 0));
+            setDetailForms(
+              response.data.orderDetails.map((detail) => ({
+                orderDetailId: detail.id,
+                productName: detail.product.productName,
+                maxQuantity: detail.quantity,
+                quantity: 0,
+                lotNumber: "",
+                serialNumber: "",
+                include: false,
+                requiresSerial: requiresSerialForCategory(detail.product.categoryId),
+                unitPrice: detail.unitPrice,
+                discountAmount: detail.discountAmount,
+              }))
+            );
+          } else {
+            setOrderInfo(null);
+            setOrderError(response.errors?.[0] || "Không thể tải thông tin đơn hàng.");
+          }
+        } catch (err: any) {
+          setOrderInfo(null);
+          setOrderError(err?.message || "Không thể tải thông tin đơn hàng.");
+        } finally {
+          setOrderLoading(false);
+        }
+      })();
+    } else {
+      setOrderError("Không tìm thấy mã đơn hàng trong yêu cầu hoàn hàng.");
+    }
+  }, [ticket, derivedOrderId]);
+
+  const deliveredAt = orderInfo?.deliveredAt ? new Date(orderInfo.deliveredAt) : null;
+  const deliveredWithin7Days = deliveredAt
+    ? Date.now() - deliveredAt.getTime() <= 7 * 24 * 60 * 60 * 1000
+    : false;
+  const isDeliveredStatus = orderInfo?.status?.toLowerCase() === "delivered";
+  const refundEligible = Boolean(orderInfo) && deliveredWithin7Days && isDeliveredStatus;
+
+  const handleDetailToggle = (detailId: number, include: boolean) => {
+    setDetailForms((prev) =>
+      prev.map((detail) =>
+        detail.orderDetailId === detailId
+          ? {
+              ...detail,
+              include,
+              quantity: include
+                ? Math.min(detail.maxQuantity, detail.quantity > 0 ? detail.quantity : 1)
+                : 0,
+            }
+          : detail
+      )
+    );
+    if (!include) {
+      setIsCustomRefundAmount(false);
+    }
+  };
+
+  const handleDetailFieldChange = (
+    detailId: number,
+    field: keyof Pick<RefundDetailForm, "quantity" | "lotNumber" | "serialNumber">,
+    value: string
+  ) => {
+    setDetailForms((prev) =>
+      prev.map((detail) => {
+        if (detail.orderDetailId !== detailId) return detail;
+        if (field === "quantity") {
+          const parsed = Math.max(
+            0,
+            Math.min(detail.maxQuantity, Number.isNaN(Number(value)) ? 0 : Number(value))
+          );
+          return { ...detail, quantity: parsed };
+        }
+        return { ...detail, [field]: value };
+      })
+    );
+    if (field === "quantity") {
+      setIsCustomRefundAmount(false);
+    }
+  };
+
+  const handleRestoreAutoAmount = () => {
+    setIsCustomRefundAmount(false);
+    setRefundAmount(String(Math.round(autoCalculatedAmount)));
+  };
+
+  const selectedDetails = useMemo(
+    () => detailForms.filter((detail) => detail.include && detail.quantity > 0),
+    [detailForms]
+  );
+  const autoCalculatedAmount = useMemo(
+    () =>
+      selectedDetails.reduce(
+        (sum, detail) => sum + calculateDetailRefundAmount(detail),
+        0
+      ),
+    [selectedDetails]
+  );
+  const parsedRefundAmount = Number(refundAmount || 0);
+  const canUseAutomaticPayOS = orderInfo?.orderPaymentMethod === "Banking";
+
+  useEffect(() => {
+    if (!isCustomRefundAmount) {
+      setRefundAmount(String(Math.round(autoCalculatedAmount)));
+    }
+  }, [autoCalculatedAmount, isCustomRefundAmount]);
+
+  const validateRefundPayload = (): string | null => {
+    if (!orderInfo) return "Không thể xác định thông tin đơn hàng.";
+    if (!selectedBankId) return "Vui lòng chọn tài khoản ngân hàng để hoàn tiền.";
+    if (!selectedDetails.length) return "Vui lòng chọn ít nhất một sản phẩm để hoàn.";
+    if (!parsedRefundAmount || parsedRefundAmount <= 0) {
+      return "Số tiền hoàn phải lớn hơn 0.";
+    }
+    if (parsedRefundAmount > orderInfo.totalAmount) {
+      return "Số tiền hoàn không được vượt quá tổng giá trị đơn hàng.";
+    }
+    if (refundMode === "payos" && !canUseAutomaticPayOS) {
+      return "Đơn hàng này không được thanh toán qua PayOS. Vui lòng chọn hoàn tiền thủ công.";
+    }
+    if (!refundEligible) {
+      return "Đơn hàng không đủ điều kiện hoàn tiền (phải đã giao và trong vòng 7 ngày).";
+    }
+    if (refundMode === "manual" && !gatewayPaymentId.trim()) {
+      return "Vui lòng nhập mã giao dịch khi hoàn tiền thủ công.";
+    }
+
+    for (const detail of selectedDetails) {
+      if (!detail.lotNumber.trim()) {
+        return `Vui lòng nhập số lô cho sản phẩm "${detail.productName}".`;
+      }
+      if (detail.requiresSerial) {
+        if (!detail.serialNumber.trim()) {
+          return `Sản phẩm "${detail.productName}" yêu cầu số seri cho mỗi mục hoàn.`;
+        }
+        if (detail.quantity !== 1) {
+          return `Sản phẩm "${detail.productName}" yêu cầu số seri nên số lượng mỗi lần hoàn phải là 1.`;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const handleSubmitRefund = async () => {
+    const validationMessage = validateRefundPayload();
+    if (validationMessage) {
+      setSubmitError(validationMessage);
+      setSubmitSuccess("");
+      return;
+    }
+
+    setSubmitError("");
+    setSubmitSuccess("");
+    setSubmitting(true);
+
+    const payload: ProcessRefundRequestPayload = {
+      refundAmount: Math.round(parsedRefundAmount),
+      bankAccountId: selectedBankId!,
+      gatewayPaymentId: refundMode === "manual" ? gatewayPaymentId.trim() : null,
+      orderDetails: selectedDetails.map((detail) => ({
+        orderDetailId: detail.orderDetailId,
+        identityNumbers: [
+          {
+            lotNumber: detail.lotNumber.trim(),
+            quantity: detail.quantity,
+            ...(detail.serialNumber.trim()
+              ? { serialNumber: detail.serialNumber.trim() }
+              : {}),
+          },
+        ],
+      })),
+    };
+
+    try {
+      const response = await processRefundRequest(ticket.id, payload);
+      if (response.status) {
+        setSubmitSuccess(response.data || "Đã gửi yêu cầu hoàn tiền thành công.");
+        setSubmitError("");
+        setDetailForms((prev) =>
+          prev.map((detail) => ({
+            ...detail,
+            include: false,
+            quantity: 0,
+            lotNumber: "",
+            serialNumber: "",
+          }))
+        );
+        setRefundMode("payos");
+        setGatewayPaymentId("");
+        if (onRefreshTicket) {
+          await onRefreshTicket(ticket.id);
+        }
+      } else {
+        setSubmitSuccess("");
+        setSubmitError(
+          response.errors?.join("\n") || "Không thể xử lý hoàn tiền. Vui lòng thử lại."
+        );
+      }
+    } catch (err: any) {
+      setSubmitSuccess("");
+      setSubmitError(
+        err?.response?.data?.errors?.[0] ||
+          err?.message ||
+          "Không thể xử lý hoàn tiền. Vui lòng thử lại."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="rounded-full bg-emerald-100 p-2">
+          <HandCoins className="h-5 w-5 text-emerald-600" />
+        </div>
+        <div>
+          <p className="font-semibold text-emerald-900">Hoàn tiền cho khách hàng</p>
+          <p className="text-sm text-emerald-800">
+            Đơn hàng phải đã giao và trong vòng 7 ngày để được hoàn. Vui lòng xác thực thông tin
+            ngân hàng trước khi chuyển.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-white bg-white/80 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-gray-900">Thông tin đơn hàng</h4>
+          {orderLoading && (
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Đang tải...
+            </div>
+          )}
+        </div>
+        {orderError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+            {orderError}
+          </p>
+        )}
+        {orderInfo && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
+            <div>
+              <p className="text-gray-500">Mã đơn hàng</p>
+              <p className="font-semibold text-gray-900">#{orderInfo.id}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Trạng thái</p>
+              <p className="font-semibold text-gray-900">{orderInfo.status}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Ngày giao</p>
+              <p className="font-semibold text-gray-900">
+                {orderInfo.deliveredAt ? formatDateTime(orderInfo.deliveredAt) : "Chưa xác định"}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-500">Tổng giá trị</p>
+              <p className="font-semibold text-gray-900">
+                {formatCurrency(orderInfo.totalAmount || 0)}
+              </p>
+            </div>
+          </div>
+        )}
+        {!refundEligible && orderInfo && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+            Đơn hàng phải ở trạng thái "Delivered" và chưa quá 7 ngày kể từ ngày giao để được hoàn
+            tiền.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-white bg-white/80 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-gray-900">Tài khoản ngân hàng nhận hoàn</h4>
+          {bankLoading && (
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Đang tải...
+            </div>
+          )}
+        </div>
+        {bankError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+            {bankError}
+          </p>
+        )}
+        {bankAccounts.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {bankAccounts.map((account) => {
+              const isSelected = selectedBankId === account.id;
+              return (
+                <button
+                  key={account.id}
+                  type="button"
+                  onClick={() => setSelectedBankId(account.id)}
+                  className={`rounded-lg border p-3 text-left transition ${
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                      : "border-gray-200 bg-white"
+                  } ${!account.isActive ? "opacity-60" : ""}`}
+                  disabled={!account.isActive}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {account.accountHolder || "Chủ tài khoản"}
+                    </p>
+                    {isSelected && (
+                      <span className="text-[10px] uppercase font-semibold text-emerald-700">
+                        Đang chọn
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">{account.accountNumber}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ngân hàng: {account.bankCode}
+                  </p>
+                  {!account.isActive && (
+                    <p className="text-[10px] text-red-600 mt-2">Tài khoản đã vô hiệu hóa</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-white bg-white/80 p-4 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full bg-emerald-100 p-2">
+            <Banknote className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="flex-1 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="refundAmount">Số tiền hoàn (VND)</Label>
+                  <button
+                    type="button"
+                    onClick={handleRestoreAutoAmount}
+                    disabled={!isCustomRefundAmount}
+                    className="text-xs text-emerald-600 disabled:text-gray-400"
+                  >
+                    Khôi phục tự tính
+                  </button>
+                </div>
+                <Input
+                  id="refundAmount"
+                  type="number"
+                  min={0}
+                  max={orderInfo?.totalAmount || undefined}
+                  value={refundAmount}
+                  onChange={(e) => {
+                    setRefundAmount(e.target.value);
+                    setIsCustomRefundAmount(true);
+                  }}
+                  disabled={!orderInfo}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Hệ thống tự tính: {formatCurrency(autoCalculatedAmount)} (chỉ gồm giá sản phẩm, không
+                  bao gồm phí vận chuyển). Tối đa: {formatCurrency(orderInfo?.totalAmount || 0)}
+                </p>
+              </div>
+              <div>
+                <Label>Phương thức hoàn</Label>
+                <Select
+                  value={refundMode}
+                  onValueChange={(value: "payos" | "manual") => setRefundMode(value)}
+                >
+                  <SelectTrigger className="h-11 mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="payos" disabled={!canUseAutomaticPayOS}>
+                      Thanh toán tự động qua PayOS
+                      {!canUseAutomaticPayOS ? " (không khả dụng cho đơn này)" : ""}
+                    </SelectItem>
+                    <SelectItem value="manual">Hoàn tiền thủ công (đã chuyển tay)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!canUseAutomaticPayOS && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Đơn hàng không được thanh toán qua PayOS nên chỉ có thể hoàn tiền thủ công.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {refundMode === "manual" && (
+              <div>
+                <Label htmlFor="gatewayPaymentId">Mã giao dịch thủ công</Label>
+                <Input
+                  id="gatewayPaymentId"
+                  placeholder="Nhập reference/mã giao dịch đã chuyển tay"
+                  value={gatewayPaymentId}
+                  onChange={(e) => setGatewayPaymentId(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-900">Sản phẩm được hoàn</p>
+          {detailForms.length === 0 && (
+            <p className="text-xs text-gray-500">Chưa có dữ liệu sản phẩm.</p>
+          )}
+          {detailForms.map((detail) => (
+            <div
+              key={detail.orderDetailId}
+              className="rounded-lg border border-gray-200 p-3 space-y-3 bg-white"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{detail.productName}</p>
+                  <p className="text-xs text-gray-500">
+                    Tối đa: {detail.maxQuantity} sản phẩm
+                    {detail.requiresSerial && " · Yêu cầu số seri"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={detail.include}
+                    onCheckedChange={(checked) => handleDetailToggle(detail.orderDetailId, checked)}
+                  />
+                  <span className="text-xs text-gray-600">Hoàn sản phẩm này</span>
+                </div>
+              </div>
+
+              {detail.include && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Số lượng</Label>
+                    <Input
+                      type="number"
+                      min={detail.requiresSerial ? 1 : 1}
+                      max={detail.maxQuantity}
+                      value={detail.quantity}
+                      onChange={(e) => handleDetailFieldChange(detail.orderDetailId, "quantity", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Số lô</Label>
+                    <Input
+                      value={detail.lotNumber}
+                      onChange={(e) => handleDetailFieldChange(detail.orderDetailId, "lotNumber", e.target.value)}
+                      placeholder="Nhập số lô nhận lại"
+                    />
+                  </div>
+                  <div>
+                    <Label>Số seri (nếu có)</Label>
+                    <Input
+                      value={detail.serialNumber}
+                      onChange={(e) => handleDetailFieldChange(detail.orderDetailId, "serialNumber", e.target.value)}
+                      placeholder={detail.requiresSerial ? "Bắt buộc với máy móc" : "Không bắt buộc"}
+                      disabled={!detail.requiresSerial}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {submitError && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+          {submitError}
+        </p>
+      )}
+      {submitSuccess && (
+        <p className="text-xs text-green-600 bg-green-50 border border-green-100 rounded-md p-2">
+          {submitSuccess}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs text-gray-500 flex items-center gap-1">
+          <Wallet className="h-4 w-4 text-emerald-600" />
+          Hoàn tiền sẽ chuyển về tài khoản khách hàng đã chọn.
+        </div>
+        <Button
+          onClick={handleSubmitRefund}
+          disabled={
+            submitting ||
+            !refundEligible ||
+            !orderInfo ||
+            !selectedBankId ||
+            bankLoading ||
+            orderLoading ||
+            (refundMode === "payos" && !canUseAutomaticPayOS)
+          }
+          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          {submitting ? "Đang xử lý hoàn tiền..." : "Thực hiện hoàn tiền"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const extractOrderIdFromText = (value?: string | null): number | null => {
+  if (!value) return null;
+  const match = value.match(/#(\d+)/);
+  if (match) {
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const extractOrderIdFromTicket = (
+  ticket?: (TicketItem & { requestMessages?: TicketMessage[] }) | null
+): number | null => {
+  if (!ticket) return null;
+  const candidates: Array<string | null | undefined> = [
+    ticket.title,
+    ticket.description,
+    ticket.replyNotes,
+    ...((ticket.requestMessages || []).map((msg) => msg.description) || []),
+  ];
+
+  for (const text of candidates) {
+    const orderId = extractOrderIdFromText(text);
+    if (orderId) {
+      return orderId;
+    }
+  }
+
+  return null;
+};
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(value || 0);
+
+const calculateDetailRefundAmount = (detail: RefundDetailForm) => {
+  const perUnitDiscount =
+    detail.maxQuantity > 0 ? detail.discountAmount / detail.maxQuantity : 0;
+  const effectiveUnitPrice = Math.max(0, detail.unitPrice - perUnitDiscount);
+  return Math.max(0, detail.quantity) * effectiveUnitPrice;
 };
 

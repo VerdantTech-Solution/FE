@@ -6,7 +6,21 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, X, Loader2, Crop, Plus, Trash2 } from 'lucide-react';
-import { updateFarmProfile, getFarmProfileById, type FarmProfile, type UpdateFarmProfileRequest, type CropInfo } from '@/api/farm';
+import { 
+  updateFarmProfile, 
+  getFarmProfileById, 
+  addFarmCrops,
+  updateFarmCrops,
+  type FarmProfile, 
+  type UpdateFarmProfileRequest, 
+  type CropInfo,
+  type AddFarmCropRequest,
+  type UpdateFarmCropRequest,
+  type PlantingMethod,
+  type CropType,
+  type FarmingType,
+  type CropStatus,
+} from '@/api/farm';
 import { toast } from 'sonner';
 import MapAreaPage from './MapAreaPage';
 import AddressSelector from '@/components/AddressSelector';
@@ -75,6 +89,10 @@ const UpdateFarmPage = () => {
             id: crop.id,
             cropName: crop.cropName,
             plantingDate: crop.plantingDate,
+            plantingMethod: (crop.plantingMethod as PlantingMethod) || 'DirectSeeding',
+            cropType: (crop.cropType as CropType) || 'LeafyGreen',
+            farmingType: (crop.farmingType as FarmingType) || 'Intensive',
+            status: (crop.status as CropStatus) || 'Planning',
             isActive: crop.isActive ?? true,
           }));
           setCrops(loadedCrops);
@@ -187,50 +205,12 @@ const UpdateFarmPage = () => {
       return;
     }
 
-    // Validate crops
-    if (crops.length > 0) {
-      const invalidCrops = crops.filter(crop => !crop.cropName.trim());
-      if (invalidCrops.length > 0) {
-        toast.error('Vui lòng nhập tên cây trồng cho tất cả các mục');
-        return;
-      }
-      
-      // Check for duplicate crop ids (only for existing crops with id > 0)
-      const existingCropIds = crops
-        .filter(crop => crop.id && crop.id > 0)
-        .map(crop => crop.id);
-      const duplicateIds = existingCropIds.filter((id, index) => existingCropIds.indexOf(id) !== index);
-      if (duplicateIds.length > 0) {
-        toast.error('Có crops trùng lặp. Vui lòng kiểm tra lại.');
-        return;
-      }
-    }
+    // Chuẩn hóa ngày hôm nay để validate plantingDate không lớn hơn hiện tại
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     try {
       setIsSaving(true);
-      
-      // Lấy danh sách tên crops đã tồn tại (từ originalCrops)
-      const existingCropNames = originalCrops
-        .map(crop => crop.cropName.trim().toLowerCase());
-      
-      // CHỈ lưu những cây trồng mới (chưa có id và chưa tồn tại)
-      // KHÔNG gửi cropsUpdate để tránh lỗi trùng lặp
-      const cropsCreate = crops
-        .filter(crop => {
-          // Chỉ lấy crops không có id (crops mới, chưa lưu)
-          if (crop.id && crop.id > 0) return false;
-          
-          // Kiểm tra xem tên cây trồng đã tồn tại chưa (không phân biệt hoa thường)
-          const cropNameLower = crop.cropName.trim().toLowerCase();
-          const isNewCrop = !existingCropNames.includes(cropNameLower);
-          
-          // Chỉ thêm crops mới, bỏ qua crops đã tồn tại
-          return isNewCrop;
-        })
-        .map(crop => ({
-          cropName: crop.cropName.trim(),
-          plantingDate: crop.plantingDate,
-        }));
       
       // Ensure province and ProvinceCode follow API rule (both present or both null)
       const updateData: UpdateFarmProfileRequest = {
@@ -246,8 +226,6 @@ const UpdateFarmPage = () => {
         latitude: formData.latitude,
         longitude: formData.longitude,
         status: formData.status,
-        // CHỈ gửi cropsCreate (cây trồng mới), KHÔNG gửi cropsUpdate
-        ...(cropsCreate.length > 0 && { cropsCreate }),
       };
 
       // Fix rule: Province and ProvinceCode must both exist or both be null
@@ -260,19 +238,107 @@ const UpdateFarmPage = () => {
         return;
       }
 
+      // 1. Cập nhật thông tin trang trại (không đụng tới crops)
       const response = await updateFarmProfile(Number(id), updateData);
-      
-      // Check response status
-      if (response.status) {
-        toast.success('Cập nhật trang trại thành công!');
-        navigate('/farmlist');
-      } else {
-        // Show errors from API
+      if (!response.status) {
         const errorMessages = response.errors && response.errors.length > 0 
           ? response.errors.join(', ') 
           : 'Có lỗi xảy ra khi cập nhật trang trại';
         toast.error(errorMessages);
+        setIsSaving(false);
+        return;
       }
+
+      // 2. Chuẩn bị danh sách cây trồng CŨ để gọi API PATCH /api/farm/{farmId}/Crop
+      const existingCropsPayload: UpdateFarmCropRequest[] = crops
+        .filter(crop => crop.id && crop.id > 0)
+        .map(crop => ({
+          id: crop.id!,
+          cropName: crop.cropName.trim(),
+          plantingDate: crop.plantingDate,
+          plantingMethod: (crop.plantingMethod as PlantingMethod) || 'DirectSeeding',
+          cropType: (crop.cropType as CropType) || 'LeafyGreen',
+          farmingType: (crop.farmingType as FarmingType) || 'Intensive',
+          status: (crop.status as CropStatus) || 'Planning',
+        }));
+
+      // Validate: tên, ngày trồng không rỗng và không lớn hơn hôm nay
+      const invalidExisting = existingCropsPayload.filter(crop => {
+        if (!crop.cropName.trim() || !crop.plantingDate) return true;
+        const d = new Date(crop.plantingDate);
+        if (Number.isNaN(d.getTime())) return true;
+        d.setHours(0, 0, 0, 0);
+        return d > today;
+      });
+
+      if (invalidExisting.length > 0) {
+        toast.error('Cây trồng hiện tại không hợp lệ (thiếu tên/ngày trồng hoặc ngày trồng lớn hơn hiện tại).');
+        setIsSaving(false);
+        return;
+      }
+
+      // 3. Chuẩn bị danh sách cây trồng MỚI để gọi API POST /api/farm/{farmId}/Crop
+      const existingCropKeys = new Set(
+        originalCrops.map(c => `${c.cropName.trim().toLowerCase()}|${c.plantingDate}`)
+      );
+
+      const newCropsPayload: AddFarmCropRequest[] = crops
+        .filter(crop => !crop.id || crop.id === 0) // chỉ cây mới
+        .map(crop => ({
+          cropName: crop.cropName.trim(),
+          plantingDate: crop.plantingDate,
+          plantingMethod: (crop.plantingMethod as PlantingMethod) || 'DirectSeeding',
+          cropType: (crop.cropType as CropType) || 'LeafyGreen',
+          farmingType: (crop.farmingType as FarmingType) || 'Intensive',
+          status: (crop.status as CropStatus) || 'Planning',
+        }))
+        // bỏ trùng (tên + ngày trồng) với cây đã có
+        .filter(crop => !existingCropKeys.has(`${crop.cropName.trim().toLowerCase()}|${crop.plantingDate}`));
+
+      // Validate cây trồng mới (FE phụ trợ cho rule backend)
+      const invalidNewCrops = newCropsPayload.filter(crop => {
+        if (!crop.cropName.trim() || !crop.plantingDate) return true;
+        if (['Completed', 'Deleted', 'Failed'].includes(crop.status)) return true;
+        const d = new Date(crop.plantingDate);
+        if (Number.isNaN(d.getTime())) return true;
+        d.setHours(0, 0, 0, 0);
+        return d > today;
+      });
+
+      if (invalidNewCrops.length > 0) {
+        toast.error('Cây trồng mới không hợp lệ (thiếu tên/ngày trồng hoặc trạng thái không cho phép).');
+        setIsSaving(false);
+        return;
+      }
+
+      // 4. Gọi API cập nhật cây trồng hiện có nếu có
+      if (existingCropsPayload.length > 0) {
+        const updateCropsRes = await updateFarmCrops(Number(id), existingCropsPayload);
+        if (!updateCropsRes.status) {
+          const errorMessages = updateCropsRes.errors && updateCropsRes.errors.length > 0
+            ? updateCropsRes.errors.join(', ')
+            : 'Có lỗi xảy ra khi cập nhật cây trồng hiện tại';
+          toast.error(errorMessages);
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // 5. Gọi API thêm cây trồng nếu có cây mới
+      if (newCropsPayload.length > 0) {
+        const addCropsRes = await addFarmCrops(Number(id), newCropsPayload);
+        if (!addCropsRes.status) {
+          const errorMessages = addCropsRes.errors && addCropsRes.errors.length > 0
+            ? addCropsRes.errors.join(', ')
+            : 'Có lỗi xảy ra khi thêm cây trồng mới';
+          toast.error(errorMessages);
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      toast.success('Cập nhật trang trại và cây trồng thành công!');
+      navigate('/farmlist');
     } catch (error: any) {
       console.error('Error updating farm:', error);
       
@@ -471,22 +537,97 @@ const UpdateFarmPage = () => {
                             className="h-10 text-sm"
                           />
                         </div>
+                        {/* Thông tin chi tiết về phương thức trồng, loại cây, hình thức canh tác, trạng thái */}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-600">Phương thức trồng</Label>
+                          <Select
+                            value={crop.plantingMethod || 'DirectSeeding'}
+                            onValueChange={(value) => {
+                              const newCrops = [...crops];
+                              newCrops[index].plantingMethod = value as PlantingMethod;
+                              setCrops(newCrops);
+                            }}
+                            disabled={!isNewCrop}
+                          >
+                            <SelectTrigger className="h-10 text-sm">
+                              <SelectValue placeholder="Chọn phương thức" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="DirectSeeding">Gieo thẳng</SelectItem>
+                              <SelectItem value="TrayNursery">Ươm khay</SelectItem>
+                              <SelectItem value="Transplanting">Cấy cây con</SelectItem>
+                              <SelectItem value="VegetativePropagation">Nhân giống vô tính</SelectItem>
+                              <SelectItem value="Cutting">Giâm cành</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-600">Nhóm cây trồng</Label>
+                          <Select
+                            value={crop.cropType || 'LeafyGreen'}
+                            onValueChange={(value) => {
+                              const newCrops = [...crops];
+                              newCrops[index].cropType = value as CropType;
+                              setCrops(newCrops);
+                            }}
+                            disabled={!isNewCrop}
+                          >
+                            <SelectTrigger className="h-10 text-sm">
+                              <SelectValue placeholder="Chọn nhóm" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="LeafyGreen">Rau lá</SelectItem>
+                              <SelectItem value="Fruiting">Rau/cây cho quả</SelectItem>
+                              <SelectItem value="RootVegetable">Rau củ (rễ)</SelectItem>
+                              <SelectItem value="Herb">Rau gia vị / thảo mộc</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-600">Hình thức canh tác</Label>
+                          <Select
+                            value={crop.farmingType || 'Intensive'}
+                            onValueChange={(value) => {
+                              const newCrops = [...crops];
+                              newCrops[index].farmingType = value as FarmingType;
+                              setCrops(newCrops);
+                            }}
+                            disabled={!isNewCrop}
+                          >
+                            <SelectTrigger className="h-10 text-sm">
+                              <SelectValue placeholder="Chọn hình thức" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Intensive">Thâm canh</SelectItem>
+                              <SelectItem value="CropRotation">Luân canh</SelectItem>
+                              <SelectItem value="Intercropping">Xen canh</SelectItem>
+                              <SelectItem value="Greenhouse">Nhà kính</SelectItem>
+                              <SelectItem value="Hydroponics">Thủy canh</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Trạng thái</Label>
                           <Select
-                            value={crop.isActive ? 'true' : 'false'}
+                            value={crop.status || 'Planning'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
-                              newCrops[index].isActive = value === 'true';
+                              newCrops[index].status = value as CropStatus;
                               setCrops(newCrops);
                             }}
                           >
                             <SelectTrigger className="h-10 text-sm">
-                              <SelectValue />
+                              <SelectValue placeholder="Chọn trạng thái" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="true">Đang hoạt động</SelectItem>
-                              <SelectItem value="false">Không hoạt động</SelectItem>
+                              <SelectItem value="Planning">Đang lên kế hoạch</SelectItem>
+                              <SelectItem value="Seedling">Cây con</SelectItem>
+                              <SelectItem value="Growing">Đang sinh trưởng</SelectItem>
+                              <SelectItem value="Harvesting">Đang thu hoạch</SelectItem>
+                              {/* Các trạng thái còn lại dùng cho cập nhật */}
+                              <SelectItem value="Completed">Hoàn thành vụ</SelectItem>
+                              <SelectItem value="Failed">Thất bại</SelectItem>
+                              <SelectItem value="Deleted">Đã xóa</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -516,6 +657,10 @@ const UpdateFarmPage = () => {
                         setCrops([...crops, {
                           cropName: '',
                           plantingDate: new Date().toISOString().split('T')[0],
+                          plantingMethod: 'DirectSeeding',
+                          cropType: 'LeafyGreen',
+                          farmingType: 'Intensive',
+                          status: 'Planning',
                           isActive: true,
                         }]);
                       }}
