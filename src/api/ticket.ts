@@ -107,10 +107,11 @@ export interface GetTicketsParams {
 export interface ProcessTicketMessagePayload {
   id?: number; // Backend ví dụ: 0. Có thể dùng 0/undefined để tạo message mới.
   replyNotes?: string | null;
+  images?: TicketImage[];
 }
 
 export interface ProcessTicketRequest {
-  status: "InReview" | "Approved" | "Rejected" | "Cancelled";
+  status?: "InReview" | "Approved" | "Rejected" | "Cancelled";
   requestMessages?: ProcessTicketMessagePayload | null;
 }
 

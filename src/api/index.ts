@@ -45,3 +45,6 @@ export * from './aiSuggestions';
 
 // Export export inventory API
 export * from './export';
+
+// Export crop variety suggestions API
+export * from './cropVarieties';

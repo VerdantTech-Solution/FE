@@ -461,25 +461,38 @@ export const ChatAIBubble = () => {
                         </div>
                       )}
                       <div
-                        className={`max-w-[75%] ${
+                        className={`${
                           message.sender === 'user'
-                            ? 'rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                            : 'w-full'
+                            ? 'max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                            : 'w-full max-w-full'
                         }`}
                       >
                         {message.sender === 'ai' && products.length > 0 ? (
-                          <div className="bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-200 w-full">
+                          <div className="bg-white rounded-2xl px-4 py-4 shadow-md border border-green-100 w-full overflow-hidden">
                             {/* Text content if any */}
                             {textWithoutProducts && (
-                              <p className="text-sm whitespace-pre-line text-gray-800 mb-3 leading-relaxed">
-                                {textWithoutProducts}
-                              </p>
+                              <div className="mb-4 pb-4 border-b border-gray-100">
+                                <p className="text-sm whitespace-pre-line text-gray-800 leading-relaxed">
+                                  {textWithoutProducts}
+                                </p>
+                              </div>
                             )}
+                            
+                            {/* Products Section Header */}
+                            <div className="mb-3 flex items-center gap-2">
+                              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-200 to-transparent"></div>
+                              <span className="text-xs font-semibold text-green-600 px-2">
+                                {products.length} {products.length === 1 ? 'sản phẩm' : 'sản phẩm'}
+                              </span>
+                              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-200 to-transparent"></div>
+                            </div>
+                            
                             {/* Products Carousel */}
-                            <div className="w-full">
+                            <div className="w-full overflow-visible">
                               <ChatProductCarousel products={products} />
                             </div>
-                            <p className="text-xs mt-3 text-gray-500 text-right">
+                            
+                            <p className="text-xs mt-4 pt-3 text-gray-400 text-right border-t border-gray-50">
                               {formatTime(message.timestamp)}
                             </p>
                           </div>

@@ -20,14 +20,12 @@ import {
   SidebarSectionTitle
 } from "@/components/ui/sidebar";
 import { 
-  Home,
-  Settings
+  Home
 } from "lucide-react";
 
 // Import admin pages
 import { 
   AdminOverviewPage, 
-  AdminSettingsPage,
   AdminWarehousePanel,
   AdminProductManagementPanel,
   AdminUserManagementPanel,
@@ -41,7 +39,6 @@ import {
 
 type AdminView =
   | 'overview'
-  | 'settings'
   | 'warehouse'
   | 'products'
   | 'users'
@@ -140,6 +137,20 @@ export const AdminPage = () => {
           
           <SidebarNav>
             <SidebarSection>
+              <SidebarSectionTitle>Chung</SidebarSectionTitle>
+              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
+                <SidebarNavItem
+                  collapsed={collapsed}
+                  active={selectedView === 'overview'}
+                  onClick={() => setSelectedView('overview')}
+                  icon={<Home className="w-5 h-5" />}
+                >
+                  Tổng quan
+                </SidebarNavItem>
+              </motion.div>
+            </SidebarSection>
+
+            <SidebarSection>
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
               <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                 <SidebarNavItem
@@ -232,30 +243,6 @@ export const AdminPage = () => {
                 </SidebarNavItem>
               </motion.div>
             </SidebarSection>
-            
-            <SidebarSection>
-              <SidebarSectionTitle>Chung</SidebarSectionTitle>
-              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'overview'}
-                  onClick={() => setSelectedView('overview')}
-                  icon={<Home className="w-5 h-5" />}
-                >
-                  Tổng quan
-                </SidebarNavItem>
-              </motion.div>
-              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
-                <SidebarNavItem
-                  collapsed={collapsed}
-                  active={selectedView === 'settings'}
-                  onClick={() => setSelectedView('settings')}
-                  icon={<Settings className="w-5 h-5" />}
-                >
-                  Cài đặt
-                </SidebarNavItem>
-              </motion.div>
-            </SidebarSection>
           </SidebarNav>
           
           <SidebarFooter>
@@ -304,7 +291,6 @@ export const AdminPage = () => {
                 {selectedView === 'cashout' && 'Quản lý rút tiền'}
                 {selectedView === 'support' && 'Yêu cầu hỗ trợ'}
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}
-                {selectedView === 'settings' && 'Cài đặt hệ thống'}
               </motion.h1>
               <motion.p 
                 className="text-gray-600 mt-1"
@@ -488,17 +474,6 @@ export const AdminPage = () => {
                   selectedPeriod={selectedPeriod}
                   setSelectedPeriod={setSelectedPeriod}
                 />
-              </motion.div>
-            )}
-            {selectedView === 'settings' && (
-              <motion.div
-                key="settings"
-                variants={pageVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <AdminSettingsPage />
               </motion.div>
             )}
           </AnimatePresence>

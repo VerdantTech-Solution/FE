@@ -28,7 +28,6 @@ import {
 import { AlertCircle, CheckCircle, Upload, X } from "lucide-react";
 import {
   processTicket,
-  createTicketMessage,
   type ProcessTicketRequest,
   type TicketItem,
   type TicketMessage,
@@ -258,10 +257,24 @@ export const SupportTicketDetailDialog = ({
     setMessageSuccess("");
 
     try {
-      const response = await createTicketMessage(ticket.id, {
-        description: trimmedMessage,
-        images: messageImages.length > 0 ? messageImages : undefined,
-      });
+      // Staff gửi tin nhắn sử dụng PATCH /api/RequestTicket/{requestId}/process
+      // Chỉ gửi tin nhắn, không thay đổi trạng thái (không gửi status)
+      const messagePayload: ProcessTicketRequest["requestMessages"] = {
+        replyNotes: trimmedMessage,
+        ...(messageImages.length > 0 && { images: messageImages }),
+      };
+
+      // Nếu có requestMessageId, thêm vào để cập nhật message hiện có
+      if (ticket.requestMessageId != null) {
+        messagePayload.id = ticket.requestMessageId;
+      }
+
+      // Chỉ gửi requestMessages, không gửi status để tránh lỗi "Trạng thái mới phải khác với trạng thái hiện tại"
+      const payload: ProcessTicketRequest = {
+        requestMessages: messagePayload,
+      };
+
+      const response = await processTicket(ticket.id, payload);
 
       if (response.status) {
         resetMessageInputs();

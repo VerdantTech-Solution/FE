@@ -43,14 +43,14 @@ export const ChatProductCarousel = ({ products }: ChatProductCarouselProps) => {
   // If only one product, show it without carousel
   if (products.length === 1) {
     return (
-      <div className="w-full">
+      <div className="w-full py-1">
         <ChatProductCard product={products[0]} />
       </div>
     );
   }
 
   return (
-    <div className="relative w-full max-w-full overflow-hidden">
+    <div className="relative w-full max-w-full py-2 px-8">
       <Carousel
         setApi={setApi}
         opts={{
@@ -60,11 +60,11 @@ export const ChatProductCarousel = ({ products }: ChatProductCarouselProps) => {
         }}
         className="w-full max-w-full"
       >
-        <CarouselContent className="-ml-2 md:-ml-3 max-w-full">
+        <CarouselContent className="-ml-2 max-w-full">
           {products.map((product, index) => (
             <CarouselItem
               key={index}
-              className="pl-2 md:pl-3 basis-full sm:basis-[85%] md:basis-[75%] lg:basis-[65%] max-w-full"
+              className="pl-2 basis-full sm:basis-[100%] max-w-full"
             >
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -77,26 +77,26 @@ export const ChatProductCarousel = ({ products }: ChatProductCarouselProps) => {
           ))}
         </CarouselContent>
         
-        {/* Custom Navigation Buttons */}
+        {/* Custom Navigation Buttons - Positioned outside content */}
         {canScrollPrev && (
-          <CarouselPrevious className="left-1 h-7 w-7 bg-white/95 hover:bg-white shadow-md border border-green-200 text-green-600 hover:text-green-700 hover:shadow-lg transition-all z-10" />
+          <CarouselPrevious className="left-0 h-8 w-8 bg-white/95 hover:bg-white shadow-lg border-2 border-green-300 text-green-600 hover:text-green-700 hover:shadow-xl transition-all z-30 top-1/2 -translate-y-1/2 -translate-x-1/2" />
         )}
         {canScrollNext && (
-          <CarouselNext className="right-1 h-7 w-7 bg-white/95 hover:bg-white shadow-md border border-green-200 text-green-600 hover:text-green-700 hover:shadow-lg transition-all z-10" />
+          <CarouselNext className="right-0 h-8 w-8 bg-white/95 hover:bg-white shadow-lg border-2 border-green-300 text-green-600 hover:text-green-700 hover:shadow-xl transition-all z-30 top-1/2 -translate-y-1/2 translate-x-1/2" />
         )}
       </Carousel>
 
       {/* Dots Indicator */}
       {products.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-3">
+        <div className="flex justify-center gap-2 mt-4">
           {products.map((_, index) => (
             <button
               key={index}
               onClick={() => api?.scrollTo(index)}
-              className={`h-1.5 rounded-full transition-all duration-200 ${
+              className={`h-2 rounded-full transition-all duration-300 ${
                 index === current
-                  ? 'w-6 bg-green-500'
-                  : 'w-1.5 bg-gray-300 hover:bg-gray-400'
+                  ? 'w-8 bg-gradient-to-r from-green-500 to-emerald-500 shadow-sm'
+                  : 'w-2 bg-gray-300 hover:bg-gray-400'
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />

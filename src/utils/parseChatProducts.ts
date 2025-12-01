@@ -13,27 +13,52 @@ export const parseProductsFromMessage = (message: string): {
   let textWithoutProducts = message;
 
   try {
-    // Try to find JSON objects in the message
-    // Look for patterns like {"name": "...", "price": ..., ...}
-    const jsonPattern = /\{[\s\S]*?"(?:name|title|productName)"[\s\S]*?\}/g;
-    const jsonMatches = message.match(jsonPattern);
-
-    if (jsonMatches) {
-      for (const match of jsonMatches) {
-        try {
-          const parsed = JSON.parse(match);
+    // First, try to parse the entire message as JSON (in case API returns JSON string)
+    try {
+      const parsedMessage = JSON.parse(message);
+      if (parsedMessage && typeof parsedMessage === 'object') {
+        // If it's a JSON object with products array, process it directly
+        if (parsedMessage.products && Array.isArray(parsedMessage.products) && parsedMessage.products.length > 0) {
+          console.log('[ChatProductParser] Found JSON with products array:', parsedMessage.products.length);
           
-          // Check if it's a product object
-          if (parsed.name || parsed.title || parsed.productName) {
+          // Helper function to parse product with Vietnamese field names
+          const parseProductItem = (item: any): ChatProduct | null => {
+            // Support Vietnamese field names
+            const name = item['Tên sản phẩm'] || item.name || item.title || item.productName || '';
+            const description = item['Mô tả'] || item.description || '';
+            const priceStr = item['Giá'] || item.price || item.unitPrice;
+            const imageUrl = item['Ảnh'] || item.imageUrl || item.image || item.imageLink || '';
+            const productLink = item['Link'] || item.productLink || item.link || item.url || '';
+            const productId = item.productId || item.id || undefined;
+            
+            // Parse price - handle Vietnamese format like "1000 VNĐ" or "1000"
+            let price: number | undefined = undefined;
+            if (priceStr) {
+              if (typeof priceStr === 'number') {
+                price = priceStr;
+              } else if (typeof priceStr === 'string') {
+                // Remove "VNĐ", "đ", spaces, commas, and parse
+                const priceNum = priceStr.replace(/[VNĐđ,\s]/gi, '').trim();
+                const parsedPrice = parseFloat(priceNum);
+                if (!isNaN(parsedPrice)) {
+                  price = parsedPrice;
+                }
+              }
+            }
+            
+            if (!name && !productLink && !productId) {
+              return null;
+            }
+            
             const product: ChatProduct = {
-              name: parsed.name || parsed.title || parsed.productName || '',
-              description: parsed.description || '',
-              price: parsed.price || parsed.unitPrice || undefined,
-              imageUrl: parsed.imageUrl || parsed.image || parsed.imageLink || '',
-              productLink: parsed.productLink || parsed.link || parsed.url || '',
-              productId: parsed.productId || parsed.id || undefined,
+              name: name || (productId ? `Sản phẩm #${productId}` : 'Sản phẩm'),
+              description: description,
+              price: price,
+              imageUrl: imageUrl,
+              productLink: productLink,
+              productId: productId,
             };
-
+            
             // Extract product ID from link if not provided
             if (!product.productId && product.productLink) {
               const idMatch = product.productLink.match(/\/product\/(\d+)/);
@@ -41,7 +66,94 @@ export const parseProductsFromMessage = (message: string): {
                 product.productId = parseInt(idMatch[1], 10);
               }
             }
+            
+            return product;
+          };
+          
+          // Parse all products
+          parsedMessage.products.forEach((item: any) => {
+            const product = parseProductItem(item);
+            if (product) {
+              products.push(product);
+            }
+          });
+          
+          // Extract message text
+          textWithoutProducts = parsedMessage.message || parsedMessage.intro || parsedMessage.outro || '';
+          
+          console.log('[ChatProductParser] Parsed products:', products.length, products);
+          console.log('[ChatProductParser] Text without products:', textWithoutProducts);
+          
+          // Return early since we've processed the JSON
+          return { products, textWithoutProducts };
+        }
+      }
+    } catch (e) {
+      // Not a pure JSON string, continue with normal parsing
+      console.log('[ChatProductParser] Message is not pure JSON, trying other patterns...');
+    }
+    // Try to find JSON objects in the message
+    // Look for patterns like {"name": "...", "price": ..., ...} or {"Tên sản phẩm": "...", ...}
+    const jsonPattern = /\{[\s\S]*?"(?:name|title|productName|Tên sản phẩm)"[\s\S]*?\}/g;
+    const jsonMatches = message.match(jsonPattern);
 
+    if (jsonMatches) {
+      for (const match of jsonMatches) {
+        try {
+          const parsed = JSON.parse(match);
+          
+          // Helper function to parse product with Vietnamese field names
+          const parseProductItem = (item: any): ChatProduct | null => {
+            // Support Vietnamese field names
+            const name = item['Tên sản phẩm'] || item.name || item.title || item.productName || '';
+            const description = item['Mô tả'] || item.description || '';
+            const priceStr = item['Giá'] || item.price || item.unitPrice;
+            const imageUrl = item['Ảnh'] || item.imageUrl || item.image || item.imageLink || '';
+            const productLink = item['Link'] || item.productLink || item.link || item.url || '';
+            const productId = item.productId || item.id || undefined;
+            
+            // Parse price - handle Vietnamese format like "1000 VNĐ" or "1000"
+            let price: number | undefined = undefined;
+            if (priceStr) {
+              if (typeof priceStr === 'number') {
+                price = priceStr;
+              } else if (typeof priceStr === 'string') {
+                // Remove "VNĐ", "đ", spaces, commas, and parse
+                const priceNum = priceStr.replace(/[VNĐđ,\s]/gi, '').trim();
+                const parsedPrice = parseFloat(priceNum);
+                if (!isNaN(parsedPrice)) {
+                  price = parsedPrice;
+                }
+              }
+            }
+            
+            if (!name && !productLink && !productId) {
+              return null;
+            }
+            
+            const product: ChatProduct = {
+              name: name || (productId ? `Sản phẩm #${productId}` : 'Sản phẩm'),
+              description: description,
+              price: price,
+              imageUrl: imageUrl,
+              productLink: productLink,
+              productId: productId,
+            };
+            
+            // Extract product ID from link if not provided
+            if (!product.productId && product.productLink) {
+              const idMatch = product.productLink.match(/\/product\/(\d+)/);
+              if (idMatch) {
+                product.productId = parseInt(idMatch[1], 10);
+              }
+            }
+            
+            return product;
+          };
+          
+          // Check if it's a product object
+          const product = parseProductItem(parsed);
+          if (product) {
             products.push(product);
             // Remove the JSON from text
             textWithoutProducts = textWithoutProducts.replace(match, '').trim();
@@ -78,62 +190,79 @@ export const parseProductsFromMessage = (message: string): {
         const jsonStr = trimmed.substring(jsonStart, jsonEnd);
         const parsed = JSON.parse(jsonStr);
         
+        // Helper function to parse product with Vietnamese field names
+        const parseProductItem = (item: any): ChatProduct | null => {
+          // Support Vietnamese field names
+          const name = item['Tên sản phẩm'] || item.name || item.title || item.productName || '';
+          const description = item['Mô tả'] || item.description || '';
+          const priceStr = item['Giá'] || item.price || item.unitPrice;
+          const imageUrl = item['Ảnh'] || item.imageUrl || item.image || item.imageLink || '';
+          const productLink = item['Link'] || item.productLink || item.link || item.url || '';
+          const productId = item.productId || item.id || undefined;
+          
+          // Parse price - handle Vietnamese format like "1000 VNĐ" or "1000"
+          let price: number | undefined = undefined;
+          if (priceStr) {
+            if (typeof priceStr === 'number') {
+              price = priceStr;
+            } else if (typeof priceStr === 'string') {
+              // Remove "VNĐ", "đ", spaces, commas, and parse
+              const priceNum = priceStr.replace(/[VNĐđ,\s]/gi, '').trim();
+              const parsedPrice = parseFloat(priceNum);
+              if (!isNaN(parsedPrice)) {
+                price = parsedPrice;
+              }
+            }
+          }
+          
+          if (!name && !productLink && !productId) {
+            return null;
+          }
+          
+          const product: ChatProduct = {
+            name: name || (productId ? `Sản phẩm #${productId}` : 'Sản phẩm'),
+            description: description,
+            price: price,
+            imageUrl: imageUrl,
+            productLink: productLink,
+            productId: productId,
+          };
+          
+          // Extract product ID from link if not provided
+          if (!product.productId && product.productLink) {
+            const idMatch = product.productLink.match(/\/product\/(\d+)/);
+            if (idMatch) {
+              product.productId = parseInt(idMatch[1], 10);
+            }
+          }
+          
+          return product;
+        };
+        
         if (Array.isArray(parsed)) {
           // Array of products
           parsed.forEach((item: any) => {
-            if (item.name || item.title || item.productName) {
-              const product: ChatProduct = {
-                name: item.name || item.title || item.productName || '',
-                description: item.description || '',
-                price: item.price || item.unitPrice || undefined,
-                imageUrl: item.imageUrl || item.image || item.imageLink || '',
-                productLink: item.productLink || item.link || item.url || '',
-                productId: item.productId || item.id || undefined,
-              };
-              
-              // Extract product ID from link if not provided
-              if (!product.productId && product.productLink) {
-                const idMatch = product.productLink.match(/\/product\/(\d+)/);
-                if (idMatch) {
-                  product.productId = parseInt(idMatch[1], 10);
-                }
-              }
-              
+            const product = parseProductItem(item);
+            if (product) {
               products.push(product);
             }
           });
           textWithoutProducts = (trimmed.substring(0, jsonStart) + trimmed.substring(jsonEnd)).trim();
         } else if (parsed.products && Array.isArray(parsed.products)) {
-          // Object with products array (e.g., {intro: "", products: [], outro: ""})
+          // Object with products array (e.g., {message: "", products: []})
           if (parsed.products.length > 0) {
             parsed.products.forEach((item: any) => {
-              if (item.name || item.title || item.productName) {
-                const product: ChatProduct = {
-                  name: item.name || item.title || item.productName || '',
-                  description: item.description || '',
-                  price: item.price || item.unitPrice || undefined,
-                  imageUrl: item.imageUrl || item.image || item.imageLink || '',
-                  productLink: item.productLink || item.link || item.url || '',
-                  productId: item.productId || item.id || undefined,
-                };
-                
-                // Extract product ID from link if not provided
-                if (!product.productId && product.productLink) {
-                  const idMatch = product.productLink.match(/\/product\/(\d+)/);
-                  if (idMatch) {
-                    product.productId = parseInt(idMatch[1], 10);
-                  }
-                }
-                
+              const product = parseProductItem(item);
+              if (product) {
                 products.push(product);
               }
             });
           }
           
-          // Combine intro and outro as text, but keep the rest of the message for parsing
-          const intro = parsed.intro || '';
+          // Use message field as text content
+          const messageText = parsed.message || parsed.intro || '';
           const outro = parsed.outro || '';
-          const combinedText = [intro, outro].filter(Boolean).join('\n\n').trim();
+          const combinedText = [messageText, outro].filter(Boolean).join('\n\n').trim();
           
           // If products array is empty, we'll parse from the rest of the message
           // Remove the JSON part but keep the rest for text parsing
@@ -141,6 +270,13 @@ export const parseProductsFromMessage = (message: string): {
             textWithoutProducts = message; // Keep full message for text parsing
           } else {
             textWithoutProducts = combinedText || (trimmed.substring(0, jsonStart) + trimmed.substring(jsonEnd)).trim();
+          }
+        } else {
+          // Try to parse as a single product object
+          const product = parseProductItem(parsed);
+          if (product) {
+            products.push(product);
+            textWithoutProducts = (trimmed.substring(0, jsonStart) + trimmed.substring(jsonEnd)).trim();
           }
         }
       }
@@ -402,8 +538,12 @@ export const parseProductsFromMessage = (message: string): {
 
   // Debug log
   if (products.length > 0) {
-    console.log('[ChatProductParser] Found products:', products.length, products);
+    console.log('[ChatProductParser] ✅ Found products:', products.length);
+    console.log('[ChatProductParser] Products:', products);
     console.log('[ChatProductParser] Text without products:', textWithoutProducts.substring(0, 100));
+  } else {
+    console.log('[ChatProductParser] ⚠️ No products found in message');
+    console.log('[ChatProductParser] Message preview:', message.substring(0, 200));
   }
 
   return { products, textWithoutProducts };
