@@ -10,20 +10,38 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText, Plus, Trash2 } from "lucide-react";
+import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText, Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createFarmProfile, type CreateFarmProfileRequest, type CropInfo } from "@/api";
+import { createFarmProfile, getCropVarietySuggestions } from "@/api";
+import type { CreateFarmProfileRequest, CropInfo, CropVarietySuggestion } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
 import MapAreaPage from "./MapAreaPage";
 import StepIndicator from "@/components/StepIndicator";
 import AddressSelector from "@/components/AddressSelector";
 
 type CropFormValues = {
+  id: string;
   cropName: string;
   plantingDate: string;
 };
 
+type CropSuggestionState = {
+  options: CropVarietySuggestion[];
+  loading: boolean;
+  error?: string;
+  open: boolean;
+  lastQuery?: string;
+};
+
+const generateCropId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `crop-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 const createEmptyCrop = (): CropFormValues => ({
+  id: generateCropId(),
   cropName: "",
   plantingDate: "",
 });
@@ -35,7 +53,8 @@ export const CreateFarmPage = () => {
   // const [message, setMessage] = useState<string | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [successData, setSuccessData] = useState<{farmName: string, farmSize: string, crops: CropFormValues[]} | null>(null);
+  const [successData, setSuccessData] = useState<{farmName: string, farmSize: string, crops: CropInfo[]} | null>(null);
+  const [cropSuggestionsState, setCropSuggestionsState] = useState<Record<string, CropSuggestionState>>({});
 
   // Ẩn loading sau khi component mount
   useEffect(() => {
@@ -44,6 +63,124 @@ export const CreateFarmPage = () => {
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleCropChange = useCallback((index: number, field: keyof CropFormValues, value: string) => {
+    let targetCropId: string | undefined;
+    setForm((prev) => {
+      const updated = [...prev.crops];
+      const target = updated[index];
+      if (!target) {
+        return prev;
+      }
+      targetCropId = target.id;
+      updated[index] = { ...target, [field]: value };
+      return { ...prev, crops: updated };
+    });
+
+    if (field === "cropName" && targetCropId) {
+      setCropSuggestionsState((prev) => {
+        if (!prev[targetCropId!]) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [targetCropId!]: {
+            ...prev[targetCropId!],
+            open: false,
+            error: undefined,
+          },
+        };
+      });
+    }
+  }, [setCropSuggestionsState]);
+
+  const toggleCropSuggestions = useCallback(async (crop: CropFormValues) => {
+    let shouldFetch = true;
+    const trimmedName = crop.cropName.trim();
+
+    setCropSuggestionsState((prev) => {
+      const current = prev[crop.id];
+      if (current?.open && !current.loading) {
+        shouldFetch = false;
+        return {
+          ...prev,
+          [crop.id]: {
+            ...current,
+            open: false,
+          },
+        };
+      }
+
+      if (!trimmedName) {
+        shouldFetch = false;
+        return {
+          ...prev,
+          [crop.id]: {
+            options: [],
+            loading: false,
+            error: "Vui lòng nhập tên rau củ trước khi lấy gợi ý.",
+            open: true,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [crop.id]: {
+          options: current?.options || [],
+          loading: true,
+          error: undefined,
+          open: true,
+          lastQuery: trimmedName,
+        },
+      };
+    });
+
+    if (!shouldFetch || !trimmedName) {
+      return;
+    }
+
+    try {
+      const options = await getCropVarietySuggestions(trimmedName);
+      setCropSuggestionsState((prev) => {
+        const current = prev[crop.id];
+        if (!current) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [crop.id]: {
+            ...current,
+            options,
+            loading: false,
+            error: options.length ? undefined : "Không tìm thấy giống phù hợp.",
+            open: true,
+            lastQuery: trimmedName,
+          },
+        };
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể lấy gợi ý. Vui lòng thử lại.";
+      setCropSuggestionsState((prev) => {
+        const current = prev[crop.id];
+        if (!current) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [crop.id]: {
+            ...current,
+            loading: false,
+            error: message,
+          },
+        };
+      });
+    }
+  }, [setCropSuggestionsState]);
+
+  const handleSuggestionSelect = useCallback((index: number, suggestion: CropVarietySuggestion) => {
+    handleCropChange(index, "cropName", suggestion.name);
+  }, [handleCropChange]);
 
   // Form state theo API schema
   const [form, setForm] = useState({
@@ -106,14 +243,6 @@ export const CreateFarmPage = () => {
     // Area updated from map
   }, []);
 
-  const handleCropChange = useCallback((index: number, field: keyof CropFormValues, value: string) => {
-    setForm((prev) => {
-      const updated = [...prev.crops];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, crops: updated };
-    });
-  }, []);
-
   const addCropField = useCallback(() => {
     setForm((prev) => ({
       ...prev,
@@ -123,13 +252,25 @@ export const CreateFarmPage = () => {
 
   const removeCropField = useCallback((index: number) => {
     setForm((prev) => {
-      if (prev.crops.length === 1) {
-        return { ...prev, crops: [createEmptyCrop()] };
-      }
-      const updated = prev.crops.filter((_, i) => i !== index);
-      return { ...prev, crops: updated.length ? updated : [createEmptyCrop()] };
+      const remaining = prev.crops.filter((_, i) => i !== index);
+      const updated = remaining.length ? remaining : [createEmptyCrop()];
+
+      const validIds = new Set(updated.map((crop) => crop.id));
+      setCropSuggestionsState((prevState) => {
+        let hasChanges = false;
+        const nextState = { ...prevState };
+        Object.keys(nextState).forEach((key) => {
+          if (!validIds.has(key)) {
+            delete nextState[key];
+            hasChanges = true;
+          }
+        });
+        return hasChanges ? nextState : prevState;
+      });
+
+      return { ...prev, crops: updated };
     });
-  }, []);
+  }, [setCropSuggestionsState]);
 
   const nextStep = () => {
     if (currentStep < steps.length) {
@@ -254,6 +395,7 @@ export const CreateFarmPage = () => {
         longitude: "",
         crops: [createEmptyCrop()],
       });
+      setCropSuggestionsState({});
       
       // Reset to first step
       setCurrentStep(1);
@@ -480,52 +622,143 @@ export const CreateFarmPage = () => {
                 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Danh sách cây trồng <span className="text-red-500">*</span>
+                    Danh sách rau củ <span className="text-red-500">*</span>
                   </label>
                   <p className="text-xs text-gray-500 mb-4">
                     Nhập từng loại cây trồng và ngày trồng cụ thể. Cần ít nhất một cây trồng có đầy đủ thông tin.
                   </p>
                   <div className="space-y-4">
-                    {form.crops.map((crop, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border border-gray-200 rounded-lg bg-white shadow-sm"
-                      >
-                        <div className="md:col-span-3">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Tên loại rau củ 
-                          </label>
-                          <Input
-                            value={crop.cropName}
-                            onChange={(e) => handleCropChange(index, 'cropName', e.target.value)}
-                            placeholder="Ví dụ: Cà rốt, Bắp cải..."
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Ngày trồng
-                          </label>
-                          <Input
-                            type="date"
-                            value={crop.plantingDate}
-                            onChange={(e) => handleCropChange(index, 'plantingDate', e.target.value)}
-                          />
-                        </div>
-                        {form.crops.length > 1 && (
-                          <div className="md:col-span-5 flex justify-end">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => removeCropField(index)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Xoá
-                            </Button>
+                    {form.crops.map((crop, index) => {
+                      const suggestionMeta = cropSuggestionsState[crop.id];
+                      return (
+                        <div
+                          key={crop.id}
+                          className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border border-gray-200 rounded-lg bg-white shadow-sm"
+                        >
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Tên loại rau củ 
+                            </label>
+                            <div className="relative">
+                              <Input
+                                value={crop.cropName}
+                                onChange={(e) => handleCropChange(index, 'cropName', e.target.value)}
+                                placeholder="Ví dụ: Cà rốt, Bắp cải..."
+                                className="pr-28"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => toggleCropSuggestions(crop)}
+                                className="absolute inset-y-1 right-1 flex items-center gap-1 rounded-lg border border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50"
+                                disabled={suggestionMeta?.loading}
+                              >
+                                {suggestionMeta?.loading ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                )}
+                                Gợi ý
+                              </Button>
+                            </div>
+                            {suggestionMeta?.open && (
+                              <div className="mt-2 rounded-xl border border-emerald-200 bg-white shadow-lg">
+                                <div className="flex items-center justify-between px-3 py-2 text-xs text-gray-500">
+                                  <span>
+                                    Gợi ý cho "{suggestionMeta.lastQuery || crop.cropName || 'giống rau'}"
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="text-emerald-600 font-semibold"
+                                    onClick={() =>
+                                      setCropSuggestionsState((prev) => {
+                                        const current = prev[crop.id];
+                                        if (!current) {
+                                          return prev;
+                                        }
+                                        return {
+                                          ...prev,
+                                          [crop.id]: { ...current, open: false },
+                                        };
+                                      })
+                                    }
+                                  >
+                                    Đóng
+                                  </button>
+                                </div>
+                                <div className="max-h-56 overflow-y-auto">
+                                  {suggestionMeta.loading && (
+                                    <div className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600">
+                                      <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                                      Đang lấy gợi ý...
+                                    </div>
+                                  )}
+                                  {!suggestionMeta.loading && suggestionMeta.error && (
+                                    <div className="px-4 py-3 text-sm text-red-600">
+                                      {suggestionMeta.error}
+                                    </div>
+                                  )}
+                                  {!suggestionMeta.loading &&
+                                    !suggestionMeta.error &&
+                                    !suggestionMeta.options.length && (
+                                      <div className="px-4 py-3 text-sm text-gray-500">
+                                        Chưa có gợi ý cho từ khoá này.
+                                      </div>
+                                    )}
+                                  {!suggestionMeta.loading &&
+                                    !suggestionMeta.error &&
+                                    suggestionMeta.options.length > 0 && (
+                                      <div className="divide-y divide-gray-100">
+                                        {suggestionMeta.options.map((option, optionIndex) => (
+                                          <button
+                                            key={`${crop.id}-${option.name}-${optionIndex}`}
+                                            type="button"
+                                            className="w-full px-4 py-3 text-left hover:bg-emerald-50"
+                                            onClick={() => handleSuggestionSelect(index, option)}
+                                          >
+                                            <div className="font-semibold text-gray-900">
+                                              {option.name}
+                                            </div>
+                                            {option.description && (
+                                              <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+                                                {option.description}
+                                              </p>
+                                            )}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Ngày trồng
+                            </label>
+                            <Input
+                              type="date"
+                              value={crop.plantingDate}
+                              onChange={(e) => handleCropChange(index, 'plantingDate', e.target.value)}
+                            />
+                          </div>
+                          {form.crops.length > 1 && (
+                            <div className="md:col-span-5 flex justify-end">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => removeCropField(index)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Xoá
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <Button
                     type="button"
