@@ -17,8 +17,11 @@ import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
+const getStatusColor = (status: string, paymentMethod?: string) => {
+  // Với Banking: Nếu status là "Pending", hiển thị như "Paid" (vì Banking phải thanh toán trước)
+  const displayStatus = paymentMethod === "Banking" && status === "Pending" ? "Paid" : status;
+  
+  switch (displayStatus.toLowerCase()) {
     case 'pending':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'paid':
@@ -40,8 +43,11 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const getStatusText = (status: string) => {
-  switch (status.toLowerCase()) {
+const getStatusText = (status: string, paymentMethod?: string) => {
+  // Với Banking: Nếu status là "Pending", hiển thị như "Paid" (vì Banking phải thanh toán trước)
+  const displayStatus = paymentMethod === "Banking" && status === "Pending" ? "Paid" : status;
+  
+  switch (displayStatus.toLowerCase()) {
     case 'pending':
       return 'Chờ xử lý';
     case 'paid':
@@ -165,6 +171,10 @@ export default function OrderHistoryPage() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
+  const [confirmingOrderId, setConfirmingOrderId] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmSuccess, setConfirmSuccess] = useState<string | null>(null);
 
   const loadOrders = async (page: number = 1) => {
     try {
@@ -616,6 +626,41 @@ export default function OrderHistoryPage() {
     }
   };
 
+  const handleConfirmDelivered = async (orderId: number) => {
+    if (confirming) return;
+
+    setConfirmingOrderId(orderId);
+    setConfirming(true);
+    setConfirmError(null);
+    setConfirmSuccess(null);
+
+    try {
+      const response = await updateOrderStatus(orderId, {
+        status: 'Delivered',
+      });
+
+      if (response?.status === false) {
+        const message = response.errors?.[0] || 'Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại sau.';
+        setConfirmError(message);
+        return;
+      }
+
+      setConfirmSuccess('Đã xác nhận nhận hàng thành công.');
+      await loadOrders(currentPage);
+      setTimeout(() => {
+        setConfirmingOrderId(null);
+        setConfirmError(null);
+        setConfirmSuccess(null);
+      }, 2000);
+    } catch (err: any) {
+      console.error('Confirm delivered error:', err);
+      const message = err?.errors?.[0] || err?.message || 'Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại sau.';
+      setConfirmError(message);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   if (loading && orders.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 mt-[100px] flex items-center justify-center">
@@ -722,8 +767,8 @@ export default function OrderHistoryPage() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex flex-wrap items-center gap-3">
                           <CardTitle className="text-lg">Đơn hàng #{order.id}</CardTitle>
-                          <Badge className={`px-3 py-1 ${getStatusColor(order.status)}`}>
-                            {getStatusText(order.status)}
+                          <Badge className={`px-3 py-1 ${getStatusColor(order.status, order.orderPaymentMethod)}`}>
+                            {getStatusText(order.status, order.orderPaymentMethod)}
                           </Badge>
                         </div>
                         <div className="flex flex-col items-end gap-2 sm:items-end sm:flex-row sm:gap-3">
@@ -760,7 +805,29 @@ export default function OrderHistoryPage() {
                               </Button>
                             )
                           )}
-                          {order.status.toLowerCase() === 'pending' && (
+                          {order.status.toLowerCase() === 'shipped' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleConfirmDelivered(order.id)}
+                              className="flex items-center gap-2 border-green-300 text-green-600 hover:bg-green-50"
+                              disabled={confirming && confirmingOrderId === order.id}
+                            >
+                              {confirming && confirmingOrderId === order.id ? (
+                                <>
+                                  <Spinner
+                                    variant="circle-filled"
+                                    size={14}
+                                    className="text-green-500"
+                                  />
+                                  Đang xác nhận...
+                                </>
+                              ) : (
+                                'Xác nhận đã nhận hàng'
+                              )}
+                            </Button>
+                          )}
+                          {order.status.toLowerCase() === 'pending' && order.orderPaymentMethod !== 'Banking' && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -794,6 +861,15 @@ export default function OrderHistoryPage() {
                           <span className="text-sm text-gray-500">+{order.orderDetails.length - 5} nữa</span>
                         )}
                       </div>
+                      {(confirmError || confirmSuccess) && confirmingOrderId === order.id && (
+                        <div className={`rounded-md border px-3 py-2 text-sm ${
+                          confirmError 
+                            ? 'border-red-200 bg-red-50 text-red-600' 
+                            : 'border-green-200 bg-green-50 text-green-700'
+                        }`}>
+                          {confirmError || confirmSuccess}
+                        </div>
+                      )}
                       <div className="flex justify-end">
                         <Button variant="outline" size="sm" onClick={() => toggleExpanded(order.id)}>
                           {expandedOrders[order.id] ? 'Ẩn chi tiết' : 'Xem chi tiết'}

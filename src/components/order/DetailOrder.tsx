@@ -70,14 +70,21 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
     }
   }, [open, order]);
 
-  const getStatusSteps = () => {
-    return [
+  const getStatusSteps = (paymentMethod?: string) => {
+    const allSteps = [
       { status: "Pending", label: "Chờ xử lý", icon: Clock },
       { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
       { status: "Processing", label: "Đang đóng gói", icon: Loader2 },
       { status: "Shipped", label: "Đã vận chuyển", icon: Truck },
       { status: "Delivered", label: "Đã nhận", icon: CheckCircle },
     ];
+    
+    // Nếu là COD, bỏ bước "Đã thanh toán"
+    if (paymentMethod === "COD") {
+      return allSteps.filter(step => step.status !== "Paid");
+    }
+    
+    return allSteps;
   };
 
   const formatPrice = (price: number) => {
@@ -319,13 +326,26 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
               </h3>
               <div className="relative">
                 <div className="flex items-center justify-between mb-6">
-                  {getStatusSteps().map((step, index) => {
-                    const currentIndex = getStatusSteps().findIndex(
-                      (s) => s.status === selectedOrder.status
-                    );
-                    const isCompleted = index <= currentIndex;
-                    const isCurrent = step.status === selectedOrder.status;
-                    const Icon = step.icon;
+                  {(() => {
+                    const statusSteps = getStatusSteps(selectedOrder?.orderPaymentMethod);
+                    const getCurrentStatusIndex = () => {
+                      const orderStatus = selectedOrder.status;
+                      const paymentMethod = selectedOrder.orderPaymentMethod;
+                      // Với Banking: Nếu status là "Pending", map sang "Paid" (vì Banking phải thanh toán trước)
+                      if (paymentMethod === "Banking" && orderStatus === "Pending") {
+                        return statusSteps.findIndex((s) => s.status === "Paid");
+                      }
+                      // Nếu là COD và status là "Paid", map sang "Processing" (bỏ qua bước Paid)
+                      if (paymentMethod === "COD" && orderStatus === "Paid") {
+                        return statusSteps.findIndex((s) => s.status === "Processing");
+                      }
+                      return statusSteps.findIndex((s) => s.status === orderStatus);
+                    };
+                    const currentIndex = getCurrentStatusIndex();
+                    return statusSteps.map((step, index) => {
+                      const isCompleted = index <= currentIndex;
+                      const isCurrent = step.status === selectedOrder.status || (currentIndex === -1 && index === 0);
+                      const Icon = step.icon;
 
                     return (
                       <div key={step.status} className="flex flex-col items-center flex-1">
@@ -349,7 +369,8 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
                         </p>
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
               </div>
             </Card>

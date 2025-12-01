@@ -185,10 +185,21 @@ export const AdminOrderManagementPanel: React.FC = () => {
   }, []);
 
 
+  // Helper function to get display status based on payment method
+  const getDisplayStatus = (status: string, paymentMethod?: string): string => {
+    // Với Banking: Nếu status là "Pending", hiển thị như "Paid" (vì Banking phải thanh toán trước)
+    if (paymentMethod === "Banking" && status === "Pending") {
+      return "Paid";
+    }
+    return status;
+  };
+
   // Reset newStatus when order changes
   useEffect(() => {
     if (selectedOrder) {
-      setNewStatus(selectedOrder.status);
+      // Map status để hiển thị đúng cho Banking
+      const displayStatus = getDisplayStatus(selectedOrder.status, selectedOrder.orderPaymentMethod);
+      setNewStatus(displayStatus);
       setShowCancelReason(false);
       setCancelReason("");
     }
@@ -235,6 +246,19 @@ export const AdminOrderManagementPanel: React.FC = () => {
 
   const handleUpdateStatus = async () => {
     if (!selectedOrder || !newStatus) return;
+
+    // Với Banking: Nếu status hiện tại là "Pending" và chọn "Paid", không cần update (vì đã đúng)
+    if (selectedOrder.orderPaymentMethod === "Banking" && selectedOrder.status === "Pending" && newStatus === "Paid") {
+      // Không cần update, chỉ cần refresh để hiển thị đúng
+      await fetchOrders();
+      if (selectedOrder) {
+        const orderResponse = await getOrderById(selectedOrder.id);
+        if (orderResponse.status && orderResponse.data) {
+          setSelectedOrder(orderResponse.data);
+        }
+      }
+      return;
+    }
 
     // If cancelling, check for reason
     if (newStatus === "Cancelled" && !cancelReason.trim()) {
@@ -564,14 +588,21 @@ export const AdminOrderManagementPanel: React.FC = () => {
     }
   };
 
-  const getStatusSteps = () => {
-    return [
+  const getStatusSteps = (paymentMethod?: string) => {
+    const allSteps = [
       { status: "Pending", label: "Chờ xử lý", icon: Clock },
       { status: "Paid", label: "Đã thanh toán", icon: DollarSign },
       { status: "Processing", label: "Đang đóng gói", icon: Loader2 },
       { status: "Shipped", label: "Đã gửi", icon: Truck },
       { status: "Delivered", label: "Đã nhận", icon: CheckCircle },
     ];
+    
+    // Nếu là COD, bỏ bước "Đã thanh toán"
+    if (paymentMethod === "COD") {
+      return allSteps.filter(step => step.status !== "Paid");
+    }
+    
+    return allSteps;
   };
 
   const formatPrice = (price: number) => {
@@ -585,7 +616,10 @@ export const AdminOrderManagementPanel: React.FC = () => {
     return new Date(dateString).toLocaleString("vi-VN");
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, paymentMethod?: string) => {
+    // Với Banking: Nếu status là "Pending", hiển thị như "Paid" (vì Banking phải thanh toán trước)
+    const displayStatus = paymentMethod === "Banking" && status === "Pending" ? "Paid" : status;
+    
     const statusConfig: Record<string, { bg: string; text: string }> = {
       Pending: { bg: "bg-yellow-100", text: "text-yellow-700" },
       Paid: { bg: "bg-blue-100", text: "text-blue-700" },
@@ -597,10 +631,10 @@ export const AdminOrderManagementPanel: React.FC = () => {
       Refunded: { bg: "bg-gray-100", text: "text-gray-700" },
     };
 
-    const config = statusConfig[status] || statusConfig.Pending;
+    const config = statusConfig[displayStatus] || statusConfig.Pending;
     return (
       <Badge className={`${config.bg} ${config.text} border-0`}>
-        {status}
+        {displayStatus}
       </Badge>
     );
   };
@@ -868,7 +902,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
                   <div className="font-medium text-gray-900">{order.customer.fullName}</div>
                   <div className="text-xs text-gray-500">{order.customer.email}</div>
                 </div>
-                <div className="col-span-2">{getStatusBadge(order.status)}</div>
+                <div className="col-span-2">{getStatusBadge(order.status, order.orderPaymentMethod)}</div>
                 <div className="col-span-2">
                   <div className="font-semibold text-gray-900">{formatPrice(order.totalAmount)}</div>
                   <div className="text-xs text-gray-500">
@@ -991,7 +1025,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-500">Trạng thái:</span>
-                    <p>{getStatusBadge(selectedOrder.status)}</p>
+                    <p>{getStatusBadge(selectedOrder.status, selectedOrder.orderPaymentMethod)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Phương thức thanh toán:</span>
@@ -1052,11 +1086,27 @@ export const AdminOrderManagementPanel: React.FC = () => {
                 </h3>
                 <div className="relative">
                   <div className="flex items-center justify-between mb-6">
-                    {getStatusSteps().map((step, index) => {
-                      const currentIndex = getStatusSteps().findIndex(s => s.status === selectedOrder.status);
-                      const isCompleted = index <= currentIndex;
-                      const isCurrent = step.status === selectedOrder.status;
-                      const Icon = step.icon;
+                    {(() => {
+                      const statusSteps = getStatusSteps(selectedOrder?.orderPaymentMethod);
+                      const getCurrentStatusIndex = () => {
+                        if (!selectedOrder) return -1;
+                        const orderStatus = selectedOrder.status;
+                        const paymentMethod = selectedOrder.orderPaymentMethod;
+                        // Với Banking: Nếu status là "Pending", map sang "Paid" (vì Banking phải thanh toán trước)
+                        if (paymentMethod === "Banking" && orderStatus === "Pending") {
+                          return statusSteps.findIndex((s) => s.status === "Paid");
+                        }
+                        // Nếu là COD và status là "Paid", map sang "Processing" (bỏ qua bước Paid)
+                        if (paymentMethod === "COD" && orderStatus === "Paid") {
+                          return statusSteps.findIndex((s) => s.status === "Processing");
+                        }
+                        return statusSteps.findIndex((s) => s.status === orderStatus);
+                      };
+                      const currentIndex = getCurrentStatusIndex();
+                      return statusSteps.map((step, index) => {
+                        const isCompleted = index <= currentIndex;
+                        const isCurrent = step.status === selectedOrder.status || (currentIndex === -1 && index === 0);
+                        const Icon = step.icon;
                       
                       return (
                         <div key={step.status} className="flex flex-col items-center flex-1">
@@ -1074,7 +1124,8 @@ export const AdminOrderManagementPanel: React.FC = () => {
                           </p>
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                 </div>
               </Card>
@@ -1117,12 +1168,14 @@ export const AdminOrderManagementPanel: React.FC = () => {
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Select value={newStatus || selectedOrder.status} onValueChange={handleNewStatusChange}>
+                      <Select value={newStatus || getDisplayStatus(selectedOrder.status, selectedOrder.orderPaymentMethod)} onValueChange={handleNewStatusChange}>
                         <SelectTrigger className="w-[200px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Pending">Chờ xử lý</SelectItem>
+                          {selectedOrder.orderPaymentMethod !== "Banking" && (
+                            <SelectItem value="Pending">Chờ xử lý</SelectItem>
+                          )}
                           <SelectItem value="Paid">Đã thanh toán</SelectItem>
                           <SelectItem value="Processing">Đang đóng gói</SelectItem>
                           <SelectItem value="Shipped">Đã gửi</SelectItem>
@@ -1133,7 +1186,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
                       </Select>
                       <Button
                         onClick={handleUpdateStatus}
-                        disabled={!newStatus || isUpdatingStatus || newStatus === selectedOrder.status}
+                        disabled={!newStatus || isUpdatingStatus || newStatus === getDisplayStatus(selectedOrder.status, selectedOrder.orderPaymentMethod)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         {isUpdatingStatus ? "Đang xử lý..." : "Cập nhật"}
