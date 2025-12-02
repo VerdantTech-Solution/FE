@@ -1176,7 +1176,9 @@ export const AdminOrderManagementPanel: React.FC = () => {
                           {selectedOrder.orderPaymentMethod !== "Banking" && (
                             <SelectItem value="Pending">Chờ xử lý</SelectItem>
                           )}
-                          <SelectItem value="Paid">Đã thanh toán</SelectItem>
+                          {selectedOrder.orderPaymentMethod !== "COD" && (
+                            <SelectItem value="Paid">Đã thanh toán</SelectItem>
+                          )}
                           <SelectItem value="Processing">Đang đóng gói</SelectItem>
                           <SelectItem value="Shipped">Đã gửi</SelectItem>
                           <SelectItem value="Delivered">Đã nhận</SelectItem>

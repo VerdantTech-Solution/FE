@@ -204,6 +204,22 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
             Đang xử lý
           </Badge>
         );
+      case 'approved':
+        return (
+          <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Đã phê duyệt
+          </Badge>
+        );
+      case 'cancel':
+      case 'cancelled':
+      case 'canceled':
+        return (
+          <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+            <XCircle className="w-3 h-3 mr-1" />
+            Đã hủy
+          </Badge>
+        );
       case 'resolved':
       case 'completed':
         return (

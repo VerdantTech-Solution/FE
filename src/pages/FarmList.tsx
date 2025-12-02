@@ -74,7 +74,7 @@ const convertFarmProfileToFarmItem = (farm: FarmProfile): FarmItem => {
   const createdAt = farm.createdAt || new Date().toISOString();
   
   const cropNames = (farm.crops || [])
-    .filter((crop) => crop.cropName?.trim())
+    .filter((crop) => crop.cropName?.trim() && crop.status !== 'Deleted') // Ẩn các cây trồng có trạng thái Deleted
     .map((crop) => crop.cropName.trim());
 
   const primaryCropDisplay =

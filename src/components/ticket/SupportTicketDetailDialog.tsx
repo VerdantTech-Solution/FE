@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { getOrderById, type OrderWithCustomer } from "@/api/order";
 import { getVendorBankAccounts, type VendorBankAccount } from "@/api/vendorbankaccounts";
 import { processRefundRequest, type ProcessRefundRequestPayload } from "@/api/cashout";
+import { getExportedIdentityNumbersByOrderDetailId, type IdentityNumberItem } from "@/api/export";
 
 const PROCESSABLE_STATUSES: Array<ProcessTicketRequest["status"]> = [
   "InReview",
@@ -464,7 +465,7 @@ export const SupportTicketDetailDialog = ({
                 </p>
                 <Select
                   value={status}
-                  onValueChange={(value: ProcessTicketRequest["status"]) => setStatus(value)}
+                  onValueChange={(value) => setStatus(value as ProcessTicketRequest["status"])}
                   disabled={isProcessing}
                 >
                   <SelectTrigger className="h-11">
@@ -472,7 +473,7 @@ export const SupportTicketDetailDialog = ({
                   </SelectTrigger>
                   <SelectContent>
                     {PROCESSABLE_STATUSES.map((statusOption) => (
-                      <SelectItem key={statusOption} value={statusOption}>
+                      <SelectItem key={statusOption} value={statusOption as string}>
                         {statusOption === "InReview"
                           ? "In Review"
                           : statusOption === "Approved"
@@ -818,6 +819,8 @@ interface RefundDetailForm {
   requiresSerial: boolean;
   unitPrice: number;
   discountAmount: number;
+  exportedIdentityNumbers: IdentityNumberItem[];
+  identityNumbersLoading: boolean;
 }
 
 interface RefundProcessingPanelProps {
@@ -898,23 +901,59 @@ const RefundProcessingPanel = ({
           const response = await getOrderById(derivedOrderId);
           if (response.status && response.data) {
             setOrderInfo(response.data);
-            const canAuto = response.data.orderPaymentMethod === "Banking";
-            setRefundMode(canAuto ? "payos" : "manual");
+            // Cho phép tất cả đơn hàng chọn cả PayOS và Manual
+            setRefundMode("payos");
             setRefundAmount(String(response.data.totalAmount ?? 0));
-            setDetailForms(
-              response.data.orderDetails.map((detail) => ({
-                orderDetailId: detail.id,
-                productName: detail.product.productName,
-                maxQuantity: detail.quantity,
-                quantity: 0,
-                lotNumber: "",
-                serialNumber: "",
-                include: false,
-                requiresSerial: requiresSerialForCategory(detail.product.categoryId),
-                unitPrice: detail.unitPrice,
-                discountAmount: detail.discountAmount,
-              }))
-            );
+            const initialForms = response.data.orderDetails.map((detail) => ({
+              orderDetailId: detail.id,
+              productName: detail.product.productName,
+              maxQuantity: detail.quantity,
+              quantity: 0,
+              lotNumber: "",
+              serialNumber: "",
+              include: false,
+              requiresSerial: requiresSerialForCategory(detail.product.categoryId),
+              unitPrice: detail.unitPrice,
+              discountAmount: detail.discountAmount,
+              exportedIdentityNumbers: [] as IdentityNumberItem[],
+              identityNumbersLoading: false,
+            }));
+            setDetailForms(initialForms);
+
+            // Fetch exported identity numbers for each order detail
+            initialForms.forEach(async (form) => {
+              try {
+                setDetailForms((prev) =>
+                  prev.map((f) =>
+                    f.orderDetailId === form.orderDetailId
+                      ? { ...f, identityNumbersLoading: true }
+                      : f
+                  )
+                );
+                const identityNumbers = await getExportedIdentityNumbersByOrderDetailId(
+                  form.orderDetailId
+                );
+                setDetailForms((prev) =>
+                  prev.map((f) =>
+                    f.orderDetailId === form.orderDetailId
+                      ? { ...f, exportedIdentityNumbers: identityNumbers, identityNumbersLoading: false }
+                      : f
+                  )
+                );
+              } catch (err) {
+                console.error(
+                  `Error fetching exported identity numbers for order detail ${form.orderDetailId}:`,
+                  err
+                );
+                setDetailForms((prev) =>
+                  prev.map((f) =>
+                    f.orderDetailId === form.orderDetailId
+                      ? { ...f, identityNumbersLoading: false }
+                      : f
+                  )
+                );
+              }
+            });
           } else {
             setOrderInfo(null);
             setOrderError(response.errors?.[0] || "Không thể tải thông tin đơn hàng.");
@@ -998,7 +1037,6 @@ const RefundProcessingPanel = ({
     [selectedDetails]
   );
   const parsedRefundAmount = Number(refundAmount || 0);
-  const canUseAutomaticPayOS = orderInfo?.orderPaymentMethod === "Banking";
 
   useEffect(() => {
     if (!isCustomRefundAmount) {
@@ -1015,9 +1053,6 @@ const RefundProcessingPanel = ({
     }
     if (parsedRefundAmount > orderInfo.totalAmount) {
       return "Số tiền hoàn không được vượt quá tổng giá trị đơn hàng.";
-    }
-    if (refundMode === "payos" && !canUseAutomaticPayOS) {
-      return "Đơn hàng này không được thanh toán qua PayOS. Vui lòng chọn hoàn tiền thủ công.";
     }
     if (!refundEligible) {
       return "Đơn hàng không đủ điều kiện hoàn tiền (phải đã giao và trong vòng 7 ngày).";
@@ -1273,18 +1308,12 @@ const RefundProcessingPanel = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="payos" disabled={!canUseAutomaticPayOS}>
+                    <SelectItem value="payos">
                       Thanh toán tự động qua PayOS
-                      {!canUseAutomaticPayOS ? " (không khả dụng cho đơn này)" : ""}
                     </SelectItem>
                     <SelectItem value="manual">Hoàn tiền thủ công (đã chuyển tay)</SelectItem>
                   </SelectContent>
                 </Select>
-                {!canUseAutomaticPayOS && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    Đơn hàng không được thanh toán qua PayOS nên chỉ có thể hoàn tiền thủ công.
-                  </p>
-                )}
               </div>
             </div>
 
@@ -1343,20 +1372,133 @@ const RefundProcessingPanel = ({
                   </div>
                   <div>
                     <Label>Số lô</Label>
-                    <Input
-                      value={detail.lotNumber}
-                      onChange={(e) => handleDetailFieldChange(detail.orderDetailId, "lotNumber", e.target.value)}
-                      placeholder="Nhập số lô nhận lại"
-                    />
+                    {detail.identityNumbersLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 h-11 border border-gray-200 rounded-md px-3">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Đang tải...
+                      </div>
+                    ) : (() => {
+                      // Get unique lot numbers (from items without serial numbers or from serial number items)
+                      const lotNumberMap = new Map<string, number>();
+                      detail.exportedIdentityNumbers.forEach((item) => {
+                        if (item.lotNumber) {
+                          if (item.serialNumber) {
+                            // For serial number items, count unique lot numbers
+                            const current = lotNumberMap.get(item.lotNumber) || 0;
+                            lotNumberMap.set(item.lotNumber, current + 1);
+                          } else {
+                            // For lot-only items, use remainingQuantity
+                            const quantity = item.remainingQuantity || 0;
+                            const current = lotNumberMap.get(item.lotNumber) || 0;
+                            lotNumberMap.set(item.lotNumber, Math.max(current, quantity));
+                          }
+                        }
+                      });
+                      const lotNumbers = Array.from(lotNumberMap.entries());
+
+                      if (lotNumbers.length > 0) {
+                        return (
+                          <Select
+                            value={detail.lotNumber}
+                            onValueChange={(value) => {
+                              setDetailForms((prev) =>
+                                prev.map((d) =>
+                                  d.orderDetailId === detail.orderDetailId
+                                    ? { ...d, lotNumber: value }
+                                    : d
+                                )
+                              );
+                            }}
+                          >
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Chọn số lô" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {lotNumbers.map(([lotNumber, quantity]) => (
+                                <SelectItem key={lotNumber} value={lotNumber}>
+                                  {lotNumber}
+                                  {quantity > 0 && ` (Số lượng: ${quantity})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }
+
+                      return (
+                        <Input
+                          value={detail.lotNumber}
+                          onChange={(e) =>
+                            handleDetailFieldChange(detail.orderDetailId, "lotNumber", e.target.value)
+                          }
+                          placeholder="Nhập số lô nhận lại"
+                        />
+                      );
+                    })()}
                   </div>
                   <div>
                     <Label>Số seri (nếu có)</Label>
-                    <Input
-                      value={detail.serialNumber}
-                      onChange={(e) => handleDetailFieldChange(detail.orderDetailId, "serialNumber", e.target.value)}
-                      placeholder={detail.requiresSerial ? "Bắt buộc với máy móc" : "Không bắt buộc"}
-                      disabled={!detail.requiresSerial}
-                    />
+                    {detail.identityNumbersLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 h-11 border border-gray-200 rounded-md px-3">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Đang tải...
+                      </div>
+                    ) : (() => {
+                      const serialNumbers = detail.exportedIdentityNumbers.filter(
+                        (item) => item.serialNumber
+                      );
+
+                      if (serialNumbers.length > 0) {
+                        return (
+                          <Select
+                            value={detail.serialNumber}
+                            onValueChange={(value) => {
+                              // When selecting serial number, also set the lot number if available
+                              const selectedItem = serialNumbers.find(
+                                (item) => item.serialNumber === value
+                              );
+                              setDetailForms((prev) =>
+                                prev.map((d) =>
+                                  d.orderDetailId === detail.orderDetailId
+                                    ? {
+                                        ...d,
+                                        serialNumber: value,
+                                        lotNumber: selectedItem?.lotNumber || d.lotNumber,
+                                      }
+                                    : d
+                                )
+                              );
+                            }}
+                          >
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Chọn số seri" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {serialNumbers.map((item, index) => (
+                                <SelectItem
+                                  key={`${item.serialNumber}-${index}`}
+                                  value={item.serialNumber!}
+                                >
+                                  {item.serialNumber}
+                               
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }
+
+                      return (
+                        <Input
+                          value={detail.serialNumber}
+                          onChange={(e) =>
+                            handleDetailFieldChange(detail.orderDetailId, "serialNumber", e.target.value)
+                          }
+                          placeholder={detail.requiresSerial ? "Bắt buộc với máy móc" : "Không bắt buộc"}
+                          disabled={!detail.requiresSerial}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1389,8 +1531,7 @@ const RefundProcessingPanel = ({
             !orderInfo ||
             !selectedBankId ||
             bankLoading ||
-            orderLoading ||
-            (refundMode === "payos" && !canUseAutomaticPayOS)
+            orderLoading
           }
           className="bg-emerald-600 hover:bg-emerald-700 text-white"
         >
