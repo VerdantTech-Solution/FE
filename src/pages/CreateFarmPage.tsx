@@ -57,10 +57,10 @@ const createEmptyCrop = (): CropFormValues => ({
   id: generateCropId(),
   cropName: "",
   plantingDate: "",
-  plantingMethod: "DirectSeeding",
-  cropType: "LeafyGreen",
-  farmingType: "Intensive",
-  status: "Planning",
+  plantingMethod: "GieoHatTrucTiep",
+  cropType: "RauAnLa",
+  farmingType: "ThamCanh",
+  status: "Growing",
 });
 
 export const CreateFarmPage = () => {
@@ -780,11 +780,11 @@ export const CreateFarmPage = () => {
                                   <SelectValue placeholder="Chọn phương thức" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="DirectSeeding">Gieo thẳng</SelectItem>
-                                  <SelectItem value="TrayNursery">Ươm khay</SelectItem>
-                                  <SelectItem value="Transplanting">Cấy cây con</SelectItem>
-                                  <SelectItem value="VegetativePropagation">Nhân giống vô tính</SelectItem>
-                                  <SelectItem value="Cutting">Giâm cành</SelectItem>
+                                  <SelectItem value="GieoHatTrucTiep">Gieo hạt trực tiếp</SelectItem>
+                                  <SelectItem value="UomTrongKhay">Ươm trong khay</SelectItem>
+                                  <SelectItem value="CayCayCon">Cấy cây con</SelectItem>
+                                  <SelectItem value="SinhSanSinhDuong">Sinh sản sinh dưỡng</SelectItem>
+                                  <SelectItem value="GiamCanh">Giâm cành</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -801,10 +801,10 @@ export const CreateFarmPage = () => {
                                   <SelectValue placeholder="Chọn nhóm" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="LeafyGreen">Rau lá</SelectItem>
-                                  <SelectItem value="Fruiting">Rau/cây cho quả</SelectItem>
-                                  <SelectItem value="RootVegetable">Rau củ (rễ)</SelectItem>
-                                  <SelectItem value="Herb">Rau gia vị / thảo mộc</SelectItem>
+                                  <SelectItem value="RauAnLa">Rau ăn lá</SelectItem>
+                                  <SelectItem value="RauAnQua">Rau ăn quả</SelectItem>
+                                  <SelectItem value="RauCu">Rau củ</SelectItem>
+                                  <SelectItem value="RauThom">Rau thơm</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -821,11 +821,11 @@ export const CreateFarmPage = () => {
                                   <SelectValue placeholder="Chọn hình thức" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Intensive">Thâm canh</SelectItem>
-                                  <SelectItem value="CropRotation">Luân canh</SelectItem>
-                                  <SelectItem value="Intercropping">Xen canh</SelectItem>
-                                  <SelectItem value="Greenhouse">Nhà kính</SelectItem>
-                                  <SelectItem value="Hydroponics">Thủy canh</SelectItem>
+                                  <SelectItem value="ThamCanh">Thâm canh</SelectItem>
+                                  <SelectItem value="LuanCanh">Luân canh</SelectItem>
+                                  <SelectItem value="XenCanh">Xen canh</SelectItem>
+                                  <SelectItem value="NhaLuoi">Nhà lưới</SelectItem>
+                                  <SelectItem value="ThuyCanh">Thủy canh</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -842,11 +842,8 @@ export const CreateFarmPage = () => {
                                   <SelectValue placeholder="Chọn trạng thái" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Planning">Đang lên kế hoạch</SelectItem>
-                                  <SelectItem value="Seedling">Cây con</SelectItem>
                                   <SelectItem value="Growing">Đang sinh trưởng</SelectItem>
-                                  <SelectItem value="Harvesting">Đang thu hoạch</SelectItem>
-                                  <SelectItem value="Completed">Hoàn thành vụ</SelectItem>
+                                  <SelectItem value="Harvested">Đã thu hoạch</SelectItem>
                                   <SelectItem value="Failed">Thất bại</SelectItem>
                                   <SelectItem value="Deleted">Đã xóa</SelectItem>
                                 </SelectContent>

@@ -127,7 +127,7 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
             <p className="text-sm text-gray-600 mt-1">
               Nhận khuyến nghị nông nghiệp từ AI dựa trên dữ liệu thời tiết và trang trại của bạn. Vui lòng cung cấp số liệu CO2 trước khi yêu cầu gợi ý.
             </p>
-          </div>e
+          </div>
           <Button
             onClick={fetchAISuggestions}
             disabled={loading}
