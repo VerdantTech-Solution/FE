@@ -58,8 +58,9 @@ const FarmDetailPage = () => {
       <Tabs defaultValue="weather" className="mt-6">
         <TabsList>
           <TabsTrigger value="weather">Dự báo thời tiết</TabsTrigger>
-          <TabsTrigger value="ai">AI Gợi ý</TabsTrigger>
           <TabsTrigger value="CO2">Thông Tin CO2</TabsTrigger>
+          <TabsTrigger value="ai">AI Gợi ý</TabsTrigger>
+
         </TabsList>
         <TabsContent value="weather">
           {id ? <FarmWeather farmId={Number(id)} /> : null}

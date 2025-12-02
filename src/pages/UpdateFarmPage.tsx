@@ -496,10 +496,19 @@ const UpdateFarmPage = () => {
                   </h3>
                   
                   <div className="space-y-4">
-                    {crops.map((crop, index) => {
+                    {crops
+                      .filter((crop) => crop.status !== 'Deleted') // Ẩn các cây trồng có trạng thái Deleted
+                      .map((crop, filteredIndex) => {
                       const isNewCrop = !crop.id || crop.id === 0;
+                      // Tìm index thực tế trong mảng crops gốc
+                      // Với crop có id, tìm theo id; với crop mới, tìm theo vị trí trong filtered array
+                      const originalIndex = crop.id 
+                        ? crops.findIndex(c => c.id === crop.id)
+                        : crops
+                            .map((c, idx) => ({ crop: c, idx }))
+                            .filter(({ crop: c }) => c.status !== 'Deleted')[filteredIndex]?.idx ?? -1;
                       return (
-                      <div key={index} className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg ${
+                      <div key={crop.id || `new-${filteredIndex}`} className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg ${
                         isNewCrop 
                           ? 'border-blue-300 bg-blue-50' 
                           : 'border-gray-200 bg-gray-50'
@@ -517,8 +526,10 @@ const UpdateFarmPage = () => {
                             value={crop.cropName}
                             onChange={(e) => {
                               const newCrops = [...crops];
-                              newCrops[index].cropName = e.target.value;
-                              setCrops(newCrops);
+                              if (originalIndex >= 0) {
+                                newCrops[originalIndex].cropName = e.target.value;
+                                setCrops(newCrops);
+                              }
                             }}
                             className="h-10 text-sm"
                             placeholder="Ví dụ: Cà rốt, Bắp cải..."
@@ -531,8 +542,10 @@ const UpdateFarmPage = () => {
                             value={crop.plantingDate}
                             onChange={(e) => {
                               const newCrops = [...crops];
-                              newCrops[index].plantingDate = e.target.value;
-                              setCrops(newCrops);
+                              if (originalIndex >= 0) {
+                                newCrops[originalIndex].plantingDate = e.target.value;
+                                setCrops(newCrops);
+                              }
                             }}
                             className="h-10 text-sm"
                           />
@@ -544,8 +557,10 @@ const UpdateFarmPage = () => {
                             value={crop.plantingMethod || 'DirectSeeding'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
-                              newCrops[index].plantingMethod = value as PlantingMethod;
-                              setCrops(newCrops);
+                              if (originalIndex >= 0) {
+                                newCrops[originalIndex].plantingMethod = value as PlantingMethod;
+                                setCrops(newCrops);
+                              }
                             }}
                             disabled={!isNewCrop}
                           >
@@ -567,8 +582,10 @@ const UpdateFarmPage = () => {
                             value={crop.cropType || 'LeafyGreen'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
-                              newCrops[index].cropType = value as CropType;
-                              setCrops(newCrops);
+                              if (originalIndex >= 0) {
+                                newCrops[originalIndex].cropType = value as CropType;
+                                setCrops(newCrops);
+                              }
                             }}
                             disabled={!isNewCrop}
                           >
@@ -589,8 +606,10 @@ const UpdateFarmPage = () => {
                             value={crop.farmingType || 'Intensive'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
-                              newCrops[index].farmingType = value as FarmingType;
-                              setCrops(newCrops);
+                              if (originalIndex >= 0) {
+                                newCrops[originalIndex].farmingType = value as FarmingType;
+                                setCrops(newCrops);
+                              }
                             }}
                             disabled={!isNewCrop}
                           >
@@ -612,8 +631,10 @@ const UpdateFarmPage = () => {
                             value={crop.status || 'Planning'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
-                              newCrops[index].status = value as CropStatus;
-                              setCrops(newCrops);
+                              if (originalIndex >= 0) {
+                                newCrops[originalIndex].status = value as CropStatus;
+                                setCrops(newCrops);
+                              }
                             }}
                           >
                             <SelectTrigger className="h-10 text-sm">
@@ -637,8 +658,12 @@ const UpdateFarmPage = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const newCrops = crops.filter((_, i) => i !== index);
-                              setCrops(newCrops);
+                              // Đặt trạng thái thành "Deleted" thay vì xóa khỏi mảng
+                              const newCrops = [...crops];
+                              if (originalIndex >= 0 && originalIndex < newCrops.length) {
+                                newCrops[originalIndex].status = 'Deleted';
+                                setCrops(newCrops);
+                              }
                             }}
                             className="w-full h-10 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
@@ -670,7 +695,7 @@ const UpdateFarmPage = () => {
                       Thêm cây trồng
                     </Button>
                     
-                    {crops.length === 0 && (
+                    {crops.filter((crop) => crop.status !== 'Deleted').length === 0 && (
                       <div className="text-center py-4 text-sm text-gray-500">
                         Chưa có cây trồng nào. Nhấn "Thêm cây trồng" để bắt đầu.
                       </div>

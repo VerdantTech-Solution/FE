@@ -87,7 +87,7 @@ export const MarketplacePage = () => {
       setLoading(true);
       setError(null);
       
-      const products = await getAllProducts({ page: 1, pageSize: 100 });
+      const products = await getAllProducts({ page: 1, pageSize: 200 }); // Tăng lên để lấy đủ 180 sản phẩm
       
       // Vì getAllProducts không trả về stockQuantity, fetch thêm từ getProductById
       const productsWithStock = await Promise.all(

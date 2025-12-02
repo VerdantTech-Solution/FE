@@ -442,7 +442,9 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Pending">Chờ xử lý</SelectItem>
-                        <SelectItem value="Paid">Đã thanh toán</SelectItem>
+                        {selectedOrder.orderPaymentMethod !== "COD" && (
+                          <SelectItem value="Paid">Đã thanh toán</SelectItem>
+                        )}
                         <SelectItem value="Processing">Đang đóng gói</SelectItem>
                         <SelectItem value="Shipped">Đã vận chuyển</SelectItem>
                         <SelectItem value="Delivered">Đã nhận</SelectItem>
