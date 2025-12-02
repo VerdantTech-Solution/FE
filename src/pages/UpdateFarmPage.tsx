@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, X, Loader2, Crop, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, X, Loader2, Crop, Plus, Trash2, Sparkles } from 'lucide-react';
 import { 
   updateFarmProfile, 
   getFarmProfileById, 
@@ -21,6 +21,7 @@ import {
   type FarmingType,
   type CropStatus,
 } from '@/api/farm';
+import { getCropVarietySuggestions, type CropVarietySuggestion } from '@/api';
 import { toast } from 'sonner';
 import MapAreaPage from './MapAreaPage';
 import AddressSelector from '@/components/AddressSelector';
@@ -66,6 +67,16 @@ const UpdateFarmPage = () => {
   const [originalCrops, setOriginalCrops] = useState<CropInfo[]>([]); // Lưu danh sách crops ban đầu từ API
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // State cho gợi ý AI cây trồng
+  type CropSuggestionState = {
+    options: CropVarietySuggestion[];
+    loading: boolean;
+    error?: string;
+    open: boolean;
+    lastQuery?: string;
+  };
+  const [cropSuggestionsState, setCropSuggestionsState] = useState<Record<number | string, CropSuggestionState>>({});
 
   // Load farm data
   useEffect(() => {
@@ -89,10 +100,10 @@ const UpdateFarmPage = () => {
             id: crop.id,
             cropName: crop.cropName,
             plantingDate: crop.plantingDate,
-            plantingMethod: (crop.plantingMethod as PlantingMethod) || 'DirectSeeding',
-            cropType: (crop.cropType as CropType) || 'LeafyGreen',
-            farmingType: (crop.farmingType as FarmingType) || 'Intensive',
-            status: (crop.status as CropStatus) || 'Planning',
+            plantingMethod: (crop.plantingMethod as PlantingMethod) || 'GieoHatTrucTiep',
+            cropType: (crop.cropType as CropType) || 'RauAnLa',
+            farmingType: (crop.farmingType as FarmingType) || 'ThamCanh',
+            status: (crop.status as CropStatus) || 'Growing',
             isActive: crop.isActive ?? true,
           }));
           setCrops(loadedCrops);
@@ -177,6 +188,141 @@ const UpdateFarmPage = () => {
     }));
   };
 
+  // Handle crop name change - close suggestions if open
+  const handleCropNameChange = (index: number, value: string, cropKey?: number | string) => {
+    const crop = crops[index];
+    if (!crop) return;
+    
+    const key = cropKey || crop.id || `new-${index}`;
+    setCrops(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], cropName: value };
+      return updated;
+    });
+
+    // Close suggestions when user types
+    setCropSuggestionsState(prev => {
+      if (!prev[key]) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          open: false,
+          error: undefined,
+        },
+      };
+    });
+  };
+
+  // Toggle crop suggestions
+  const toggleCropSuggestions = async (crop: CropInfo, index: number) => {
+    const cropKey = crop.id || `new-${index}`;
+    let shouldFetch = true;
+    const trimmedName = crop.cropName.trim();
+
+    setCropSuggestionsState(prev => {
+      const current = prev[cropKey];
+      if (current?.open && !current.loading) {
+        shouldFetch = false;
+        return {
+          ...prev,
+          [cropKey]: {
+            ...current,
+            open: false,
+          },
+        };
+      }
+
+      if (!trimmedName) {
+        shouldFetch = false;
+        return {
+          ...prev,
+          [cropKey]: {
+            options: [],
+            loading: false,
+            error: "Vui lòng nhập tên rau củ trước khi lấy gợi ý.",
+            open: true,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [cropKey]: {
+          options: current?.options || [],
+          loading: true,
+          error: undefined,
+          open: true,
+          lastQuery: trimmedName,
+        },
+      };
+    });
+
+    if (!shouldFetch || !trimmedName) {
+      return;
+    }
+
+    try {
+      const options = await getCropVarietySuggestions(trimmedName);
+      setCropSuggestionsState(prev => {
+        const current = prev[cropKey];
+        if (!current) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [cropKey]: {
+            ...current,
+            options,
+            loading: false,
+            error: options.length ? undefined : "Không tìm thấy giống phù hợp.",
+            open: true,
+            lastQuery: trimmedName,
+          },
+        };
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể lấy gợi ý. Vui lòng thử lại.";
+      setCropSuggestionsState(prev => {
+        const current = prev[cropKey];
+        if (!current) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [cropKey]: {
+            ...current,
+            loading: false,
+            error: message,
+          },
+        };
+      });
+    }
+  };
+
+  // Handle suggestion select
+  const handleSuggestionSelect = (index: number, suggestion: CropVarietySuggestion) => {
+    setCrops(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], cropName: suggestion.name };
+      return updated;
+    });
+    
+    // Close suggestions after selection
+    const crop = crops[index];
+    const cropKey = crop?.id || `new-${index}`;
+    setCropSuggestionsState(prev => {
+      if (!prev[cropKey]) return prev;
+      return {
+        ...prev,
+        [cropKey]: {
+          ...prev[cropKey],
+          open: false,
+        },
+      };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -256,10 +402,10 @@ const UpdateFarmPage = () => {
           id: crop.id!,
           cropName: crop.cropName.trim(),
           plantingDate: crop.plantingDate,
-          plantingMethod: (crop.plantingMethod as PlantingMethod) || 'DirectSeeding',
-          cropType: (crop.cropType as CropType) || 'LeafyGreen',
-          farmingType: (crop.farmingType as FarmingType) || 'Intensive',
-          status: (crop.status as CropStatus) || 'Planning',
+          plantingMethod: (crop.plantingMethod as PlantingMethod) || 'GieoHatTrucTiep',
+          cropType: (crop.cropType as CropType) || 'RauAnLa',
+          farmingType: (crop.farmingType as FarmingType) || 'ThamCanh',
+          status: (crop.status as CropStatus) || 'Growing',
         }));
 
       // Validate: tên, ngày trồng không rỗng và không lớn hơn hôm nay
@@ -287,10 +433,10 @@ const UpdateFarmPage = () => {
         .map(crop => ({
           cropName: crop.cropName.trim(),
           plantingDate: crop.plantingDate,
-          plantingMethod: (crop.plantingMethod as PlantingMethod) || 'DirectSeeding',
-          cropType: (crop.cropType as CropType) || 'LeafyGreen',
-          farmingType: (crop.farmingType as FarmingType) || 'Intensive',
-          status: (crop.status as CropStatus) || 'Planning',
+          plantingMethod: (crop.plantingMethod as PlantingMethod) || 'GieoHatTrucTiep',
+          cropType: (crop.cropType as CropType) || 'RauAnLa',
+          farmingType: (crop.farmingType as FarmingType) || 'ThamCanh',
+          status: (crop.status as CropStatus) || 'Growing',
         }))
         // bỏ trùng (tên + ngày trồng) với cây đã có
         .filter(crop => !existingCropKeys.has(`${crop.cropName.trim().toLowerCase()}|${crop.plantingDate}`));
@@ -298,7 +444,7 @@ const UpdateFarmPage = () => {
       // Validate cây trồng mới (FE phụ trợ cho rule backend)
       const invalidNewCrops = newCropsPayload.filter(crop => {
         if (!crop.cropName.trim() || !crop.plantingDate) return true;
-        if (['Completed', 'Deleted', 'Failed'].includes(crop.status)) return true;
+        if (['Harvested', 'Deleted', 'Failed'].includes(crop.status)) return true;
         const d = new Date(crop.plantingDate);
         if (Number.isNaN(d.getTime())) return true;
         d.setHours(0, 0, 0, 0);
@@ -522,18 +668,104 @@ const UpdateFarmPage = () => {
                         )}
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Tên rau củ</Label>
-                          <Input
-                            value={crop.cropName}
-                            onChange={(e) => {
-                              const newCrops = [...crops];
-                              if (originalIndex >= 0) {
-                                newCrops[originalIndex].cropName = e.target.value;
-                                setCrops(newCrops);
-                              }
-                            }}
-                            className="h-10 text-sm"
-                            placeholder="Ví dụ: Cà rốt, Bắp cải..."
-                          />
+                          <div className="relative">
+                            <Input
+                              value={crop.cropName}
+                              onChange={(e) => handleCropNameChange(originalIndex, e.target.value, crop.id || `new-${filteredIndex}`)}
+                              className={`h-10 text-sm ${isNewCrop ? 'pr-28' : ''}`}
+                              placeholder="Ví dụ: Cà rốt, Bắp cải..."
+                              disabled={!isNewCrop}
+                            />
+                            {isNewCrop && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => toggleCropSuggestions(crop, originalIndex)}
+                                className="absolute inset-y-1 right-1 flex items-center gap-1 rounded-lg border border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 h-8 px-2"
+                                disabled={cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.loading}
+                              >
+                                {cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.loading ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                )}
+                                <span className="text-xs">Gợi ý</span>
+                              </Button>
+                            )}
+                          </div>
+                          {isNewCrop && cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.open && (
+                            <div className="mt-2 rounded-xl border border-emerald-200 bg-white shadow-lg z-10">
+                              <div className="flex items-center justify-between px-3 py-2 text-xs text-gray-500">
+                                <span>
+                                  Gợi ý cho "{cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.lastQuery || crop.cropName || 'giống rau'}"
+                                </span>
+                                <button
+                                  type="button"
+                                  className="text-emerald-600 font-semibold"
+                                  onClick={() =>
+                                    setCropSuggestionsState((prev) => {
+                                      const cropKey = crop.id || `new-${filteredIndex}`;
+                                      const current = prev[cropKey];
+                                      if (!current) {
+                                        return prev;
+                                      }
+                                      return {
+                                        ...prev,
+                                        [cropKey]: { ...current, open: false },
+                                      };
+                                    })
+                                  }
+                                >
+                                  Đóng
+                                </button>
+                              </div>
+                              <div className="max-h-56 overflow-y-auto">
+                                {cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.loading && (
+                                  <div className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600">
+                                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                                    Đang lấy gợi ý...
+                                  </div>
+                                )}
+                                {!cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.loading && 
+                                 cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.error && (
+                                  <div className="px-4 py-3 text-sm text-red-600">
+                                    {cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.error}
+                                  </div>
+                                )}
+                                {!cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.loading &&
+                                  !cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.error &&
+                                  (!cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.options.length) && (
+                                    <div className="px-4 py-3 text-sm text-gray-500">
+                                      Chưa có gợi ý cho từ khoá này.
+                                    </div>
+                                  )}
+                                {!cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.loading &&
+                                  !cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.error &&
+                                  (cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.options.length || 0) > 0 && (
+                                    <div className="divide-y divide-gray-100">
+                                      {cropSuggestionsState[crop.id || `new-${filteredIndex}`]?.options.map((option, optionIndex) => (
+                                        <button
+                                          key={`${crop.id || `new-${filteredIndex}`}-${option.name}-${optionIndex}`}
+                                          type="button"
+                                          className="w-full px-4 py-3 text-left hover:bg-emerald-50"
+                                          onClick={() => handleSuggestionSelect(originalIndex, option)}
+                                        >
+                                          <div className="font-semibold text-gray-900">
+                                            {option.name}
+                                          </div>
+                                          {option.description && (
+                                            <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+                                              {option.description}
+                                            </p>
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Ngày trồng</Label>
@@ -554,7 +786,7 @@ const UpdateFarmPage = () => {
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Phương thức trồng</Label>
                           <Select
-                            value={crop.plantingMethod || 'DirectSeeding'}
+                            value={crop.plantingMethod || 'GieoHatTrucTiep'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
                               if (originalIndex >= 0) {
@@ -568,18 +800,18 @@ const UpdateFarmPage = () => {
                               <SelectValue placeholder="Chọn phương thức" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="DirectSeeding">Gieo thẳng</SelectItem>
-                              <SelectItem value="TrayNursery">Ươm khay</SelectItem>
-                              <SelectItem value="Transplanting">Cấy cây con</SelectItem>
-                              <SelectItem value="VegetativePropagation">Nhân giống vô tính</SelectItem>
-                              <SelectItem value="Cutting">Giâm cành</SelectItem>
+                              <SelectItem value="GieoHatTrucTiep">Gieo hạt trực tiếp</SelectItem>
+                              <SelectItem value="UomTrongKhay">Ươm trong khay</SelectItem>
+                              <SelectItem value="CayCayCon">Cấy cây con</SelectItem>
+                              <SelectItem value="SinhSanSinhDuong">Sinh sản sinh dưỡng</SelectItem>
+                              <SelectItem value="GiamCanh">Giâm cành</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Nhóm cây trồng</Label>
                           <Select
-                            value={crop.cropType || 'LeafyGreen'}
+                            value={crop.cropType || 'RauAnLa'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
                               if (originalIndex >= 0) {
@@ -593,17 +825,17 @@ const UpdateFarmPage = () => {
                               <SelectValue placeholder="Chọn nhóm" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="LeafyGreen">Rau lá</SelectItem>
-                              <SelectItem value="Fruiting">Rau/cây cho quả</SelectItem>
-                              <SelectItem value="RootVegetable">Rau củ (rễ)</SelectItem>
-                              <SelectItem value="Herb">Rau gia vị / thảo mộc</SelectItem>
+                              <SelectItem value="RauAnLa">Rau ăn lá</SelectItem>
+                              <SelectItem value="RauAnQua">Rau ăn quả</SelectItem>
+                              <SelectItem value="RauCu">Rau củ</SelectItem>
+                              <SelectItem value="RauThom">Rau thơm</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Hình thức canh tác</Label>
                           <Select
-                            value={crop.farmingType || 'Intensive'}
+                            value={crop.farmingType || 'ThamCanh'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
                               if (originalIndex >= 0) {
@@ -617,18 +849,18 @@ const UpdateFarmPage = () => {
                               <SelectValue placeholder="Chọn hình thức" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Intensive">Thâm canh</SelectItem>
-                              <SelectItem value="CropRotation">Luân canh</SelectItem>
-                              <SelectItem value="Intercropping">Xen canh</SelectItem>
-                              <SelectItem value="Greenhouse">Nhà kính</SelectItem>
-                              <SelectItem value="Hydroponics">Thủy canh</SelectItem>
+                              <SelectItem value="ThamCanh">Thâm canh</SelectItem>
+                              <SelectItem value="LuanCanh">Luân canh</SelectItem>
+                              <SelectItem value="XenCanh">Xen canh</SelectItem>
+                              <SelectItem value="NhaLuoi">Nhà lưới</SelectItem>
+                              <SelectItem value="ThuyCanh">Thủy canh</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs font-medium text-gray-600">Trạng thái</Label>
                           <Select
-                            value={crop.status || 'Planning'}
+                            value={crop.status || 'Growing'}
                             onValueChange={(value) => {
                               const newCrops = [...crops];
                               if (originalIndex >= 0) {
@@ -641,12 +873,8 @@ const UpdateFarmPage = () => {
                               <SelectValue placeholder="Chọn trạng thái" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Planning">Đang lên kế hoạch</SelectItem>
-                              <SelectItem value="Seedling">Cây con</SelectItem>
                               <SelectItem value="Growing">Đang sinh trưởng</SelectItem>
-                              <SelectItem value="Harvesting">Đang thu hoạch</SelectItem>
-                              {/* Các trạng thái còn lại dùng cho cập nhật */}
-                              <SelectItem value="Completed">Hoàn thành vụ</SelectItem>
+                              <SelectItem value="Harvested">Đã thu hoạch</SelectItem>
                               <SelectItem value="Failed">Thất bại</SelectItem>
                               <SelectItem value="Deleted">Đã xóa</SelectItem>
                             </SelectContent>
@@ -682,10 +910,10 @@ const UpdateFarmPage = () => {
                         setCrops([...crops, {
                           cropName: '',
                           plantingDate: new Date().toISOString().split('T')[0],
-                          plantingMethod: 'DirectSeeding',
-                          cropType: 'LeafyGreen',
-                          farmingType: 'Intensive',
-                          status: 'Planning',
+                          plantingMethod: 'GieoHatTrucTiep',
+                          cropType: 'RauAnLa',
+                          farmingType: 'ThamCanh',
+                          status: 'Growing',
                           isActive: true,
                         }]);
                       }}
