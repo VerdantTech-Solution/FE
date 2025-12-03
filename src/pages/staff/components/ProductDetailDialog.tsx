@@ -103,11 +103,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       // Load product
       const productData = await getProductById(productId);
       setProduct(productData);
-      // Convert decimal to percentage for display (0.05 -> 5)
-      const commissionRatePercent = productData.commissionRate 
-        ? productData.commissionRate * 100 
-        : 0;
-      setCommissionRate(commissionRatePercent);
+      // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
+      setCommissionRate(productData.commissionRate || 0);
 
       // Load certificates for this product
       try {
@@ -232,9 +229,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
     try {
       setUpdatingCommission(true);
-      // Convert percentage to decimal (5% = 0.05) for API
-      const commissionRateDecimal = commissionRate / 100;
-      await updateProductCommission(productId, { commissionRate: commissionRateDecimal });
+      // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
+      await updateProductCommission(productId, { commissionRate: commissionRate });
       toast.success("Cập nhật hoa hồng thành công!");
       await loadProductDetails();
       onProductUpdated?.();
@@ -262,9 +258,9 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Chi tiết sản phẩm</DialogTitle>
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle className="text-2xl">Chi tiết sản phẩm</DialogTitle>
           <DialogDescription>
             Thông tin chi tiết, chứng chỉ và đánh giá sản phẩm
           </DialogDescription>
@@ -280,15 +276,16 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
             <p className="text-red-600">{error}</p>
           </div>
         ) : product ? (
-          <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="info">Thông tin</TabsTrigger>
-              <TabsTrigger value="certificates">Chứng chỉ</TabsTrigger>
-              <TabsTrigger value="reviews">Đánh giá ({reviews.length})</TabsTrigger>
-            </TabsList>
+          <div className="overflow-y-auto px-6 py-4">
+            <Tabs defaultValue="info" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
+                <TabsTrigger value="info" className="text-base font-semibold">Thông tin</TabsTrigger>
+                <TabsTrigger value="certificates" className="text-base font-semibold">Chứng chỉ ({certificates.length})</TabsTrigger>
+                <TabsTrigger value="reviews" className="text-base font-semibold">Đánh giá ({reviews.length})</TabsTrigger>
+              </TabsList>
 
-            {/* Info Tab */}
-            <TabsContent value="info" className="space-y-6 mt-6">
+              {/* Info Tab */}
+              <TabsContent value="info" className="space-y-6 mt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <div className="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden mb-4">
@@ -328,7 +325,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Hoa hồng hiện tại:</span>
-                      <span className="font-medium">{(product.commissionRate * 100).toFixed(2)}%</span>
+                      <span className="font-medium">{product.commissionRate.toFixed(2)}%</span>
                     </div>
                     {product.stockQuantity !== undefined && (
                       <div className="flex justify-between">
@@ -429,86 +426,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
               </Card>
             </TabsContent>
 
-            {/* Certificates Tab */}
-            <TabsContent value="certificates" className="space-y-4 mt-6">
-              {certificates.length === 0 ? (
-                <div className="text-center py-12">
-                  <Award className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Không có chứng chỉ nào</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {certificates.map((cert) => (
-                    <Card key={cert.id}>
-                      <CardContent className="pt-6">
-                        <div className="space-y-3">
-                          {/* Certificate Header */}
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Award className="h-5 w-5 text-blue-600" />
-                                <p className="text-sm font-semibold text-gray-900">
-                                  {cert.certificationName || `Chứng chỉ ${cert.id}`}
-                                </p>
-                              </div>
-                              {cert.certificationCode && (
-                                <p className="text-xs text-gray-500 ml-7">Mã: {cert.certificationCode}</p>
-                              )}
-                              {cert.rejectionReason && (
-                                <p className="text-xs text-red-600 mt-1 ml-7">Lý do: {cert.rejectionReason}</p>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Certificate Files */}
-                          {cert.files && cert.files.length > 0 && (
-                            <div className="ml-7 space-y-2">
-                              <p className="text-xs font-medium text-gray-600">Files ({cert.files.length}):</p>
-                              <div className="space-y-2">
-                                {cert.files.map((file, fileIdx) => (
-                                  <div key={file.id || fileIdx} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                      <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                                      <span className="text-sm text-gray-700 truncate">{file.imagePublicId || `File ${fileIdx + 1}`}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => window.open(file.imageUrl, '_blank')}
-                                        className="h-8 px-2"
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          const link = document.createElement('a');
-                                          link.href = file.imageUrl;
-                                          link.download = file.imagePublicId || `certificate-${file.id}.pdf`;
-                                          link.click();
-                                        }}
-                                        className="h-8 px-2"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Reviews Tab */}
-            <TabsContent value="reviews" className="space-y-4 mt-6">
+                  {/* Reviews Tab */}
+                  <TabsContent value="reviews" className="space-y-4 mt-0">
               {loadingReviews ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-6 h-6 animate-spin text-green-600" />
@@ -592,8 +511,128 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                   ))}
                 </div>
               )}
-            </TabsContent>
-          </Tabs>
+                  </TabsContent>
+
+              {/* Certificates Tab */}
+              <TabsContent value="certificates" className="space-y-4 mt-0">
+                {certificates.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 font-medium">Không có chứng chỉ nào</p>
+                    <p className="text-sm text-gray-400 mt-2">Sản phẩm này chưa có chứng chỉ được đăng tải</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {certificates.map((cert) => (
+                      <Card key={cert.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                          <div className="space-y-4">
+                            {/* Certificate Header */}
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Award className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                                  <h4 className="text-base font-semibold text-gray-900 truncate">
+                                    {cert.certificationName || `Chứng chỉ ${cert.id}`}
+                                  </h4>
+                                </div>
+                                {cert.certificationCode && (
+                                  <p className="text-sm text-gray-600 ml-7">
+                                    <span className="font-medium">Mã:</span> {cert.certificationCode}
+                                  </p>
+                                )}
+                                <div className="ml-7 mt-2">
+                                  <Badge 
+                                    variant={
+                                      cert.status === 'Approved' ? 'default' : 
+                                      cert.status === 'Rejected' ? 'destructive' : 
+                                      'secondary'
+                                    }
+                                    className={
+                                      cert.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                      cert.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                      'bg-yellow-100 text-yellow-800'
+                                    }
+                                  >
+                                    {cert.status === 'Approved' ? 'Đã duyệt' :
+                                     cert.status === 'Rejected' ? 'Đã từ chối' :
+                                     'Chờ duyệt'}
+                                  </Badge>
+                                </div>
+                                {cert.rejectionReason && (
+                                  <div className="ml-7 mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                    <span className="font-medium">Lý do từ chối:</span> {cert.rejectionReason}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Certificate Files */}
+                            {cert.files && cert.files.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium text-gray-700 mb-2">
+                                  Tài liệu đính kèm ({cert.files.length})
+                                </p>
+                                <div className="space-y-2">
+                                  {cert.files.map((file, fileIdx) => (
+                                    <div 
+                                      key={file.id || fileIdx} 
+                                      className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
+                                    >
+                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                                          <FileText className="h-5 w-5 text-blue-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-gray-900 truncate">
+                                            {file.imagePublicId || `Chứng chỉ ${fileIdx + 1}.pdf`}
+                                          </p>
+                                          <p className="text-xs text-gray-500 truncate">
+                                            PDF Document
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => window.open(file.imageUrl, '_blank')}
+                                          className="h-9 px-3"
+                                          title="Xem chứng chỉ"
+                                        >
+                                          <Eye className="h-4 w-4 mr-1.5" />
+                                          Xem
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = file.imageUrl;
+                                            link.download = file.imagePublicId || `certificate-${file.id}.pdf`;
+                                            link.click();
+                                          }}
+                                          className="h-9 px-3"
+                                          title="Tải xuống"
+                                        >
+                                          <Download className="h-4 w-4 mr-1.5" />
+                                          Tải
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>

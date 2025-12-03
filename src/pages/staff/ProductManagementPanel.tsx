@@ -199,7 +199,7 @@ export const ProductManagementPanel: React.FC = () => {
                         variant={product.isActive ? "default" : "secondary"}
                         className={product.isActive ? "bg-green-100 text-green-800" : ""}
                       >
-                        {product.isActive ? "Hoạt động" : "Ngừng"}
+                        {product.isActive ? "Hoạt động" : "Ngừng hoạt động"}
                       </Badge>
                     </div>
                   </CardHeader>
