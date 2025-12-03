@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Plus, X, CheckCircle2 } from 'lucide-react';
-import { createProductCategory, getProductCategories } from '../api/product';
+import { createProductCategory, getAllProductCategories } from '../api/product';
 import type { ProductCategory } from '../api/product';
 
 interface CreateProductCategoryRequest {
@@ -49,7 +49,7 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onProductCreated 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const categories = await getProductCategories();
+        const categories = await getAllProductCategories();
         setAllCategories(categories);
       } catch (error) {
         console.error('Error fetching categories:', error);
