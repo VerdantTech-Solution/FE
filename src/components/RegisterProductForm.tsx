@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, X, Check, Trash2, FileText, Upload } from 'lucide-react';
-import { registerProduct, getProductCategories } from '../api/product';
+import { registerProduct, getAllProductCategories } from '../api/product';
 import type { RegisterProductRequest, ProductCategory } from '../api/product';
 
 interface SpecificationItem {
@@ -64,7 +64,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const fetchedCategories = await getProductCategories();
+        const fetchedCategories = await getAllProductCategories();
         // Filter: chỉ lấy categories có parentId != null (sub-categories)
         // Xử lý cả 2 trường hợp: parentId trực tiếp, parent?.id, hoặc parent_id (snake_case)
         const subCategories = fetchedCategories.filter(cat => {

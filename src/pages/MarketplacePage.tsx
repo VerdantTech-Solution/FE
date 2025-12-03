@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getAllProducts, getProductById, type Product, getProductCategories, type ProductCategory } from '@/api/product';
+import { getAllProducts, type Product, getAllProductCategories, type ProductCategory } from '@/api/product';
 import { addToCart } from '@/api/cart';
 
 // Animation variants
@@ -87,27 +87,11 @@ export const MarketplacePage = () => {
       setLoading(true);
       setError(null);
       
-      const products = await getAllProducts({ page: 1, pageSize: 200 }); // Tăng lên để lấy đủ 180 sản phẩm
+      // getAllProducts đã trả về stockQuantity trong ProductListItemDTO, không cần fetch từng product nữa
+      const products = await getAllProducts({ page: 1, pageSize: 1000 });
       
-      // Vì getAllProducts không trả về stockQuantity, fetch thêm từ getProductById
-      const productsWithStock = await Promise.all(
-        products.map(async (product) => {
-          try {
-            const productDetail = await getProductById(product.id);
-            return {
-              ...product,
-              stockQuantity: productDetail.stockQuantity,
-            };
-          } catch (err) {
-            console.error(`Error fetching stock for product ${product.id}:`, err);
-            // Nếu lỗi, giữ nguyên product
-            return product;
-          }
-        })
-      );
-      
-      console.log('Products with stock:', productsWithStock.map(p => ({ id: p.id, name: p.productName, stockQuantity: p.stockQuantity })));
-      setProducts(productsWithStock);
+      console.log('Products loaded:', products.length);
+      setProducts(products);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
@@ -121,7 +105,7 @@ export const MarketplacePage = () => {
 
   const fetchCategories = async () => {
     try {
-      const categoriesData = await getProductCategories();
+      const categoriesData = await getAllProductCategories();
       // Chỉ lấy categories đang active
       const activeCategories = categoriesData.filter(cat => cat.isActive);
       setCategories(activeCategories);

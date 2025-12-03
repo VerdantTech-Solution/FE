@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2 } from "lucide-react";
-import { getProductCategories, createProductCategory, updateProductCategory } from "@/api/product";
+import { getProductCategories, getAllProductCategories, createProductCategory, updateProductCategory } from "@/api/product";
 import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
 
 export const AdminCategoryManagementPanel: React.FC = () => {
@@ -59,8 +59,10 @@ export const AdminCategoryManagementPanel: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getProductCategories();
-      setMonitoringItems(data);
+      const response = await getProductCategories({ page: 1, pageSize: 1000 });
+      // Xử lý response có thể là PaginatedResponse hoặc array
+      const categories = Array.isArray(response) ? response : response.data;
+      setMonitoringItems(categories);
     } catch (err: any) {
       setError(err?.message || 'Có lỗi xảy ra khi tải danh sách thiết bị giám sát');
       console.error('Error fetching monitoring items:', err);
@@ -172,7 +174,7 @@ export const AdminCategoryManagementPanel: React.FC = () => {
     
     // Load categories for the dropdown
     try { 
-      const categories = await getProductCategories(); 
+      const categories = await getAllProductCategories(); 
       setAllCategories(categories); 
     } catch (error) {
       console.error('Error fetching categories for edit:', error);
@@ -256,7 +258,7 @@ export const AdminCategoryManagementPanel: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try { 
-        const categories = await getProductCategories(); 
+        const categories = await getAllProductCategories(); 
         setAllCategories(categories); 
       } catch (error) { 
         console.error('Error fetching categories:', error); 

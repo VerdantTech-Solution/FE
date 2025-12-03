@@ -107,6 +107,7 @@ export const createProductCategory = async (data: CreateProductCategoryRequest):
   }
 };
 
+
 // API lấy danh sách danh mục sản phẩm (có phân trang)
 export const getProductCategories = async (
   params: PaginationParams = { page: 1, pageSize: 20 }
@@ -118,14 +119,20 @@ export const getProductCategories = async (
     });
     console.log('Get product categories response:', response);
     
-    // apiClient interceptor đã unwrap response.data, nên response có thể là:
-    // 1. APIResponse { status, statusCode, data: PagedResponse }
-    // 2. PagedResponse trực tiếp
-    // 3. Array (backward compatibility)
+    // apiClient interceptor đã unwrap response.data từ AxiosResponse
+    // Vậy response ở đây là APIResponse { status, statusCode, data: PagedResponse, errors }
     
-    // Nếu response có cấu trúc APIResponse (status, data, errors)
-    if (response && typeof response === 'object' && 'status' in response && 'data' in response) {
-      const apiResponse = response as { status: boolean; data: any; errors?: string[] };
+    // Kiểm tra nếu response có cấu trúc APIResponse
+    if (response && typeof response === 'object' && 'status' in response) {
+      const apiResponse = response as unknown as { status: boolean; data?: any; errors?: string[] };
+      
+      // Nếu có lỗi, throw error
+      if (apiResponse.status === false || (apiResponse.errors && apiResponse.errors.length > 0)) {
+        const errorMessage = apiResponse.errors?.join(', ') || 'Failed to fetch product categories';
+        throw new Error(errorMessage);
+      }
+      
+      // Lấy data từ APIResponse
       if (apiResponse.data) {
         // data có thể là PagedResponse hoặc array
         if ('data' in apiResponse.data && 'currentPage' in apiResponse.data) {
@@ -137,9 +144,9 @@ export const getProductCategories = async (
       }
     }
     
-    // Nếu response là PagedResponse trực tiếp
+    // Nếu response là PagedResponse trực tiếp (fallback)
     if (response && typeof response === 'object' && 'data' in response && 'currentPage' in response) {
-      return response as PaginatedResponse<ProductCategory>;
+      return response as unknown as PaginatedResponse<ProductCategory>;
     }
     
     // Nếu response là array trực tiếp (backward compatibility)
@@ -147,9 +154,54 @@ export const getProductCategories = async (
       return response as ProductCategory[];
     }
     
+    console.warn('Unexpected response format:', response);
     return [];
   } catch (error) {
     console.error('Get product categories error:', error);
+    throw error;
+  }
+};
+
+// API lấy tất cả danh mục sản phẩm (không phân trang - lấy tất cả)
+export const getAllProductCategories = async (): Promise<ProductCategory[]> => {
+  try {
+    // Fetch page đầu tiên để lấy thông tin totalRecords
+    const firstResponse = await getProductCategories({ page: 1, pageSize: 30 });
+    
+    let categories: ProductCategory[] = [];
+    let totalRecords = 0;
+    
+    // Xử lý response có thể là PaginatedResponse hoặc array
+    if (Array.isArray(firstResponse)) {
+      // Nếu là array, đã có tất cả rồi
+      return firstResponse;
+    } else if (firstResponse && typeof firstResponse === 'object' && 'data' in firstResponse) {
+      const pagedResponse = firstResponse as PaginatedResponse<ProductCategory>;
+      categories = pagedResponse.data || [];
+      totalRecords = pagedResponse.totalRecords || categories.length;
+      
+      // Nếu totalRecords <= pageSize (100), đã có đủ rồi
+      if (totalRecords <= 100) {
+        return categories;
+      }
+      
+      // Nếu có nhiều hơn 100, fetch tất cả trong 1 lần với pageSize = totalRecords
+      const allResponse = await getProductCategories({ page: 1, pageSize: totalRecords });
+      
+      if (Array.isArray(allResponse)) {
+        return allResponse;
+      } else if (allResponse && typeof allResponse === 'object' && 'data' in allResponse) {
+        const allPagedResponse = allResponse as PaginatedResponse<ProductCategory>;
+        return allPagedResponse.data || [];
+      }
+      
+      // Fallback: return categories từ page đầu
+      return categories;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Get all product categories error:', error);
     throw error;
   }
 };
@@ -357,7 +409,7 @@ export const getProductsByCategory = async (
     
     // Nếu response có cấu trúc APIResponse (status, data, errors)
     if (response && typeof response === 'object' && 'status' in response && 'data' in response) {
-      const apiResponse = response as { status: boolean; data: any; errors?: string[] };
+      const apiResponse = response as unknown as { status: boolean; data: any; errors?: string[] };
       if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
         pagedResponse = apiResponse.data as PaginatedResponse<any>;
       }

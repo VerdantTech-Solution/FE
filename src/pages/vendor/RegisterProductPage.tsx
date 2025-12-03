@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, Trash2, Upload, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { registerProduct, getProductCategories } from "@/api/product";
+import { registerProduct, getAllProductCategories } from "@/api/product";
 import type { RegisterProductRequest, ProductCategory } from "@/api/product";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
@@ -77,7 +77,7 @@ export const RegisterProductPage = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const fetchedCategories = await getProductCategories();
+        const fetchedCategories = await getAllProductCategories();
         // Filter: chỉ lấy categories có parentId != null (sub-categories)
         // Xử lý cả 2 trường hợp: parentId trực tiếp, parent?.id, hoặc parent_id (snake_case)
         const subCategories = fetchedCategories.filter(cat => {
