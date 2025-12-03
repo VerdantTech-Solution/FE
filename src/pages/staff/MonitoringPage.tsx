@@ -16,17 +16,29 @@ import {
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2 } from "lucide-react";
-import { getProductCategories, createProductCategory, updateProductCategory } from "@/api/product";
+import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2, ArrowLeft, Package } from "lucide-react";
+import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product, type PaginatedResponse } from "@/api/product";
 import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
+import { ProductDetailDialog } from "./components/ProductDetailDialog";
 
 export const MonitoringPage: React.FC = () => {
   const [monitoringItems, setMonitoringItems] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 3;
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  
+  // Product view states
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string>('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [isProductDetailDialogOpen, setIsProductDetailDialogOpen] = useState(false);
 
   // Create form states
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
@@ -55,12 +67,28 @@ export const MonitoringPage: React.FC = () => {
     isActive: true,
   });
 
-  const fetchMonitoringItems = async () => {
+  const fetchMonitoringItems = async (page: number = currentPage) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getProductCategories();
-      setMonitoringItems(data);
+      const response = await getProductCategories({ page, pageSize });
+      
+      // Xử lý response có thể là PaginatedResponse hoặc array
+      if (Array.isArray(response)) {
+        // Backward compatibility: nếu là array, giữ nguyên logic cũ
+        setMonitoringItems(response);
+        setTotalPages(1);
+        setTotalRecords(response.length);
+      } else if (response && 'data' in response) {
+        // PaginatedResponse
+        setMonitoringItems(response.data);
+        setTotalPages(response.totalPages);
+        setTotalRecords(response.totalRecords);
+      } else {
+        setMonitoringItems([]);
+        setTotalPages(1);
+        setTotalRecords(0);
+      }
     } catch (err: any) {
       setError(err?.message || 'Có lỗi xảy ra khi tải danh sách thiết bị giám sát');
       console.error('Error fetching monitoring items:', err);
@@ -68,10 +96,61 @@ export const MonitoringPage: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  const fetchProductsByCategory = async (categoryId: number) => {
+    try {
+      setProductsLoading(true);
+      setProductsError(null);
+      const response = await getProductsByCategory(categoryId, { page: 1, pageSize: 1000 });
+      setProducts(response.data);
+    } catch (err: any) {
+      setProductsError(err?.message || 'Có lỗi xảy ra khi tải danh sách sản phẩm');
+      console.error('Error fetching products by category:', err);
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+  
+  const handleCategoryClick = (category: ProductCategory) => {
+    setSelectedCategoryId(category.id);
+    setSelectedCategoryName(category.name);
+    fetchProductsByCategory(category.id);
+  };
+  
+  const handleBackToCategories = () => {
+    setSelectedCategoryId(null);
+    setSelectedCategoryName('');
+    setProducts([]);
+    setProductsError(null);
+  };
+  
+  const handleViewProductDetails = (product: Product) => {
+    setSelectedProductId(product.id);
+    setIsProductDetailDialogOpen(true);
+  };
+  
+  const getProductImageUrl = (images: any): string | undefined => {
+    if (!images) return undefined;
+    if (Array.isArray(images)) {
+      const first = images[0];
+      if (!first) return undefined;
+      if (typeof first === 'object' && 'imageUrl' in first) return (first as any).imageUrl as string;
+      return String(first);
+    }
+    return String(images);
+  };
+  
+  const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
   const handleMonitoringCreated = () => {
-    fetchMonitoringItems();
+    fetchMonitoringItems(1);
     setCurrentPage(1);
+  };
+  
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchMonitoringItems(page);
   };
 
   const handleDeactivateAndRemove = async (id: number, name: string) => {
@@ -172,7 +251,8 @@ export const MonitoringPage: React.FC = () => {
     
     // Load categories for the dropdown
     try { 
-      const categories = await getProductCategories(); 
+      const response = await getProductCategories({ page: 1, pageSize: 1000 });
+      const categories = Array.isArray(response) ? response : response.data;
       setAllCategories(categories); 
     } catch (error) {
       console.error('Error fetching categories for edit:', error);
@@ -225,7 +305,7 @@ export const MonitoringPage: React.FC = () => {
       setIsEditFormOpen(false);
       setEditItemId(null);
       setEditData({ name: '', parentId: null, serialRequired: false, description: '', isActive: true });
-      await fetchMonitoringItems();
+      await fetchMonitoringItems(currentPage);
       
     } catch (err: any) {
       console.error('Update category error:', err);
@@ -245,18 +325,12 @@ export const MonitoringPage: React.FC = () => {
     }
   };
 
-  // pagination
-  const totalPages = Math.ceil(monitoringItems.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = monitoringItems.slice(startIndex, endIndex);
-  const handlePageChange = (page: number) => setCurrentPage(page);
-
-  useEffect(() => { fetchMonitoringItems(); }, []);
+  useEffect(() => { fetchMonitoringItems(1); }, []);
   useEffect(() => {
     const fetchCategories = async () => {
       try { 
-        const categories = await getProductCategories(); 
+        const response = await getProductCategories({ page: 1, pageSize: 1000 });
+        const categories = Array.isArray(response) ? response : response.data;
         setAllCategories(categories); 
       } catch (error) { 
         console.error('Error fetching categories:', error); 
@@ -361,13 +435,125 @@ export const MonitoringPage: React.FC = () => {
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600">{error}</p>
-          <Button onClick={fetchMonitoringItems} className="mt-2 bg-red-600 hover:bg-red-700" size="sm">Thử lại</Button>
+          <Button onClick={() => fetchMonitoringItems(currentPage)} className="mt-2 bg-red-600 hover:bg-red-700" size="sm">Thử lại</Button>
+        </div>
+      )}
+      
+      {/* Products View - Show when category is selected */}
+      {selectedCategoryId && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={handleBackToCategories}>
+                      <ArrowLeft size={20} />
+                    </Button>
+                    Sản phẩm trong danh mục: {selectedCategoryName}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {products.length} sản phẩm
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {productsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="ml-2 text-gray-600">Đang tải sản phẩm...</span>
+                </div>
+              ) : productsError ? (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600">{productsError}</p>
+                </div>
+              ) : products.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Không có sản phẩm nào trong danh mục này</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map((product) => {
+                    const imageUrl = getProductImageUrl(product.images);
+                    return (
+                      <Card key={product.id} className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden mb-3">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={product.productName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-12 h-12 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
+                              {product.productName}
+                            </CardTitle>
+                            <Badge
+                              variant={product.isActive ? "default" : "secondary"}
+                              className={product.isActive ? "bg-green-100 text-green-800" : ""}
+                            >
+                              {product.isActive ? "Hoạt động" : "Ngừng hoạt động"}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Mã SP:</span>
+                              <span className="font-medium">{product.productCode}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Giá:</span>
+                              <span className="font-semibold text-green-600">
+                                {currency(product.unitPrice)}
+                              </span>
+                            </div>
+                            {product.stockQuantity !== undefined && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Tồn kho:</span>
+                                <span className="font-medium">{product.stockQuantity}</span>
+                              </div>
+                            )}
+                            {product.soldCount !== undefined && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Đã bán:</span>
+                                <span className="font-medium">{product.soldCount}</span>
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => handleViewProductDetails(product)}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Xem chi tiết
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[{ label: "Tổng thiết bị", value: monitoringItems.length.toString(), icon: "📡", color: "bg-blue-50 text-blue-600" }, { label: "Đang hoạt động", value: monitoringItems.filter(item => item.isActive).length.toString(), icon: "✓", color: "bg-green-50 text-green-600" }, { label: "Không hoạt động", value: monitoringItems.filter(item => !item.isActive).length.toString(), icon: "✗", color: "bg-red-50 text-red-600" }, { label: "Có danh mục cha", value: monitoringItems.filter(item => item.parent).length.toString(), icon: "🔗", color: "bg-purple-50 text-purple-600" }].map((stat, index) => (
+      {/* Stats Cards - Hide when viewing products */}
+      {!selectedCategoryId && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[{ label: "Tổng thiết bị", value: totalRecords.toString(), icon: "📡", color: "bg-blue-50 text-blue-600" }, { label: "Đang hoạt động", value: monitoringItems.filter(item => item.isActive).length.toString(), icon: "✓", color: "bg-green-50 text-green-600" }, { label: "Không hoạt động", value: monitoringItems.filter(item => !item.isActive).length.toString(), icon: "✗", color: "bg-red-50 text-red-600" }, { label: "Có danh mục cha", value: monitoringItems.filter(item => item.parent).length.toString(), icon: "🔗", color: "bg-purple-50 text-purple-600" }].map((stat, index) => (
           <Card key={index} className="border border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -381,10 +567,12 @@ export const MonitoringPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Filters */}
+      {/* Filters - Hide when viewing products */}
+      {!selectedCategoryId && (
       <div className="flex flex-col sm:flex-row gap-4">
         <Select>
           <SelectTrigger className="w-full sm:w-48">
@@ -419,34 +607,36 @@ export const MonitoringPage: React.FC = () => {
           <Button className="px-6"><Search size={20} /></Button>
         </div>
       </div>
+      )}
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Danh sách danh mục sản phẩm</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="ml-2 text-gray-600">Đang tải...</span>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Tên thiết bị</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Slug</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Danh mục cha</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Trạng thái</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Ngày tạo</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentItems.map((item) => (
+      {/* Categories Table - Hide when viewing products */}
+      {!selectedCategoryId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Danh sách danh mục sản phẩm</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="ml-2 text-gray-600">Đang tải...</span>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Tên thiết bị</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Slug</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Danh mục cha</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Trạng thái</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Ngày tạo</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monitoringItems.map((item) => (
                       <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
@@ -468,7 +658,16 @@ export const MonitoringPage: React.FC = () => {
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-2">
                             <Button variant="ghost" size="sm" className="p-2" onClick={() => openEditDialog(item)}><Edit size={16} /></Button>
-                            <Button variant="ghost" size="sm" className="p-2" disabled={deletingId === item.id}><Eye size={16} /></Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="p-2" 
+                              disabled={deletingId === item.id}
+                              onClick={() => handleCategoryClick(item)}
+                              title="Xem sản phẩm trong danh mục"
+                            >
+                              <Eye size={16} />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -490,7 +689,9 @@ export const MonitoringPage: React.FC = () => {
                 </table>
               </div>
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">Hiển thị {monitoringItems.length > 0 ? `${startIndex + 1}-${Math.min(endIndex, monitoringItems.length)}` : '0'} trong tổng số {monitoringItems.length} thiết bị giám sát</p>
+                <p className="text-sm text-gray-600">
+                  Hiển thị {monitoringItems.length > 0 ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalRecords)}` : '0'} trong tổng số {totalRecords} danh mục
+                </p>
                 {totalPages > 1 && (
                   <div className="flex items-center space-x-2">
                     <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>Trước</Button>
@@ -505,6 +706,7 @@ export const MonitoringPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
@@ -648,6 +850,19 @@ export const MonitoringPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Product Detail Dialog */}
+      <ProductDetailDialog
+        productId={selectedProductId}
+        open={isProductDetailDialogOpen}
+        onOpenChange={setIsProductDetailDialogOpen}
+        onProductUpdated={() => {
+          // Refresh products when product is updated
+          if (selectedCategoryId) {
+            fetchProductsByCategory(selectedCategoryId);
+          }
+        }}
+      />
     </div>
   );
 };

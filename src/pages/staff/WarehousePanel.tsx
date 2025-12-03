@@ -14,9 +14,12 @@ import {
   updateProductRegistrationStatus,
   getMediaLinks,
   getProductRegistrationById,
+  getAllProducts,
   type ProductRegistration,
-  type MediaLink
+  type MediaLink,
+  type Product
 } from "@/api/product";
+import { ProductDetailDialog } from "./components/ProductDetailDialog";
 
 type ProductStatus = "Pending" | "Approved" | "Rejected" | "all";
 
@@ -54,6 +57,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
   const [detailError, setDetailError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  
+  // Product detail dialog states
+  const [productDetailDialogOpen, setProductDetailDialogOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [resultAlert, setResultAlert] = useState<{
     open: boolean;
     title: string;
@@ -864,7 +871,36 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Mã sản phẩm</Label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.proposedProductCode}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p className="text-sm text-gray-900">{selectedRegistrationDetail.proposedProductCode}</p>
+                    {selectedRegistrationDetail.status === "Approved" && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-blue-600 hover:text-blue-800 text-sm"
+                        onClick={async () => {
+                          try {
+                            // Tìm product từ productCode
+                            const products = await getAllProducts({ page: 1, pageSize: 1000 });
+                            const product = products.find(
+                              p => p.productCode === selectedRegistrationDetail.proposedProductCode
+                            );
+                            if (product) {
+                              setSelectedProductId(product.id);
+                              setProductDetailDialogOpen(true);
+                            } else {
+                              alert("Không tìm thấy sản phẩm đã được duyệt với mã này");
+                            }
+                          } catch (err) {
+                            console.error("Error finding product:", err);
+                            alert("Có lỗi xảy ra khi tìm sản phẩm");
+                          }
+                        }}
+                      >
+                        Xem chi tiết sản phẩm →
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Giá</Label>
@@ -1151,6 +1187,13 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Product Detail Dialog */}
+      <ProductDetailDialog
+        productId={selectedProductId}
+        open={productDetailDialogOpen}
+        onOpenChange={setProductDetailDialogOpen}
+      />
     </div>
   );
 };
