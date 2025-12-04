@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { getOrderById, type OrderWithCustomer } from "@/api/order";
-import { getVendorBankAccounts, type VendorBankAccount } from "@/api/vendorbankaccounts";
+import { getVendorBankAccounts, getSupportedBanks, type VendorBankAccount, type SupportedBank } from "@/api/vendorbankaccounts";
 import { processRefundRequest, type ProcessRefundRequestPayload } from "@/api/cashout";
 import { getExportedIdentityNumbersByOrderDetailId, type IdentityNumberItem } from "@/api/export";
 
@@ -847,8 +847,31 @@ const RefundProcessingPanel = ({
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isCustomRefundAmount, setIsCustomRefundAmount] = useState(false);
+  const [supportedBanks, setSupportedBanks] = useState<SupportedBank[]>([]);
+  const [isRefundSuccessDialogOpen, setIsRefundSuccessDialogOpen] = useState(false);
 
   const derivedOrderId = useMemo(() => extractOrderIdFromTicket(ticket), [ticket]);
+
+  // Helper function để tìm thông tin ngân hàng theo bankCode
+  const findBankInfo = useMemo(() => {
+    return (bankCode?: string | null): SupportedBank | null => {
+      if (!bankCode) return null;
+      return supportedBanks.find((bank) => bank.bin === bankCode || bank.code === bankCode) || null;
+    };
+  }, [supportedBanks]);
+
+  // Load danh sách ngân hàng được hỗ trợ
+  useEffect(() => {
+    const loadSupportedBanks = async () => {
+      try {
+        const banks = await getSupportedBanks();
+        setSupportedBanks(banks);
+      } catch (err) {
+        console.error('Error loading supported banks:', err);
+      }
+    };
+    loadSupportedBanks();
+  }, []);
 
   useEffect(() => {
     setOrderInfo(null);
@@ -1113,6 +1136,7 @@ const RefundProcessingPanel = ({
       if (response.status) {
         setSubmitSuccess(response.data || "Đã gửi yêu cầu hoàn tiền thành công.");
         setSubmitError("");
+        setIsRefundSuccessDialogOpen(true);
         setDetailForms((prev) =>
           prev.map((detail) => ({
             ...detail,
@@ -1226,6 +1250,7 @@ const RefundProcessingPanel = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {bankAccounts.map((account) => {
               const isSelected = selectedBankId === account.id;
+              const bankInfo = findBankInfo(account.bankCode);
               return (
                 <button
                   key={account.id}
@@ -1238,23 +1263,36 @@ const RefundProcessingPanel = ({
                   } ${!account.isActive ? "opacity-60" : ""}`}
                   disabled={!account.isActive}
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {account.accountHolder || "Chủ tài khoản"}
-                    </p>
-                    {isSelected && (
-                      <span className="text-[10px] uppercase font-semibold text-emerald-700">
-                        Đang chọn
-                      </span>
+                  <div className="flex items-start gap-3">
+                    {bankInfo?.logo && (
+                      <div className="w-10 h-10 bg-gray-50 rounded-lg p-2 flex items-center justify-center flex-shrink-0 border border-gray-100">
+                        <img 
+                          src={bankInfo.logo} 
+                          alt={bankInfo.shortName || bankInfo.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        {isSelected && (
+                          <span className="text-[10px] uppercase font-semibold text-emerald-700">
+                            Đang chọn
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 font-medium">{account.accountNumber}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {bankInfo ? bankInfo.name : account.bankCode || "Không xác định"}
+                      </p>
+                      {!account.isActive && (
+                        <p className="text-[10px] text-red-600 mt-2">Tài khoản đã vô hiệu hóa</p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500">{account.accountNumber}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ngân hàng: {account.bankCode}
-                  </p>
-                  {!account.isActive && (
-                    <p className="text-[10px] text-red-600 mt-2">Tài khoản đã vô hiệu hóa</p>
-                  )}
                 </button>
               );
             })}
@@ -1538,6 +1576,41 @@ const RefundProcessingPanel = ({
           {submitting ? "Đang xử lý hoàn tiền..." : "Thực hiện hoàn tiền"}
         </Button>
       </div>
+
+      <AlertDialog
+        open={isRefundSuccessDialogOpen}
+        onOpenChange={(open) => {
+          setIsRefundSuccessDialogOpen(open);
+          if (!open) {
+            setSubmitSuccess("");
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-7 h-7 text-green-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-center">
+              Hoàn tiền thành công
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              {submitSuccess || "Yêu cầu hoàn tiền đã được xử lý thành công."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                setIsRefundSuccessDialogOpen(false);
+                setSubmitSuccess("");
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

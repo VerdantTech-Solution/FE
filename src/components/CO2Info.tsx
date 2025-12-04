@@ -318,9 +318,10 @@ const CO2Info: React.FC = () => {
                   type="date"
                   value={measurementStartDate || yesterdayStr}
                   min="1900-01-01"
+                  max={todayStr}
                   onChange={(e) => setMeasurementStartDate(e.target.value)}
                 />
-                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác.</span>
+                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác. Không được chọn ngày trong tương lai.</span>
               </div>
               <div>
                 <Label className="mb-1 block">Ngày kết thúc</Label>
@@ -328,10 +329,10 @@ const CO2Info: React.FC = () => {
                   type="date"
                   value={measurementEndDate || todayStr}
                   min="1900-01-01"
-                  max={endMaxStr}
+                  max={todayStr}
                   onChange={(e) => setMeasurementEndDate(e.target.value)}
                 />
-                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác, kể cả ngày trong quá khứ. Không vượt quá 1 năm kể từ ngày bắt đầu.</span>
+                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác, kể cả ngày trong quá khứ. Không được chọn ngày trong tương lai và không vượt quá 1 năm kể từ ngày bắt đầu.</span>
               </div>
 
               
@@ -447,7 +448,7 @@ const CO2Info: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-extrabold text-red-600 tracking-tight animate-[pulse_2s_ease-in-out_infinite]">{totalEmission ?? '—'}</div>
-            <p className="text-xs text-gray-500">tấn CO2 (ước tính)</p>
+            <p className="text-xs text-gray-500">Kí CO2 (kg CO2e) (ước tính)</p>
             {latestRecord && (
               <p className="text-[11px] text-gray-500 mt-1">Khoảng đo: {latestRecord.measurementStartDate} → {latestRecord.measurementEndDate}</p>
             )}
