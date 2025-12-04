@@ -14,7 +14,7 @@ import {
   SidebarSectionTitle,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign, MessageSquare, ShoppingBag } from "lucide-react";
+import { Home, ListFilter, PackagePlus, Settings, Shield, Users, LogOut, User, DollarSign, MessageSquare, ShoppingBag, FolderTree } from "lucide-react";
 import logo2 from "@/assets/logo2.jpg";
 //import type { WarehouseStats } from "./staff/WarehousePanel";
 import { InventoryManagementPanel } from "./staff/InventoryManagementPanel";
@@ -80,6 +80,7 @@ export const StaffPage: React.FC = () => {
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Đơn Đăng Ký</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "inventory"} onClick={() => setSelectedMenu("inventory")} icon={<PackagePlus className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản Lý Sản Phẩm</SidebarNavItem>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<FolderTree className="w-5 h-5" />}>Danh Mục Sản Phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "users"} onClick={() => setSelectedMenu("users")} icon={<Users className="w-5 h-5" />}>Quản Lý Người Dùng</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "orders"} onClick={() => setSelectedMenu("orders")} icon={<ListFilter className="w-5 h-5" />}>Quản Lý Đơn Hàng</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "posts"} onClick={() => setSelectedMenu("posts")} icon={<MessageSquare className="w-5 h-5" />}>Quản Lý Bài Viết</SidebarNavItem>
@@ -87,7 +88,6 @@ export const StaffPage: React.FC = () => {
             </SidebarSection>
             <SidebarSection>
               <SidebarSectionTitle>Quản lý</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "monitoring"} onClick={() => setSelectedMenu("monitoring")} icon={<PackagePlus className="w-5 h-5" />}>Danh Mục Sản Phẩm</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "balance"} onClick={() => setSelectedMenu("balance")} icon={<Shield className="w-5 h-5" />}>Số Dư Tài Khoản</SidebarNavItem>
               
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "cashout"} onClick={() => setSelectedMenu("cashout")} icon={<DollarSign className="w-5 h-5" />}>Quản Lý Rút Tiền</SidebarNavItem>

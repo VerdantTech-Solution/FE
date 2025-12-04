@@ -14,9 +14,11 @@ import {
   updateProductRegistrationStatus,
   getMediaLinks,
   getProductRegistrationById,
+  getAllProducts,
   type ProductRegistration,
   type MediaLink
 } from "@/api/product";
+import { ProductDetailDialog } from "./components/ProductDetailDialog";
 
 type ProductStatus = "Pending" | "Approved" | "Rejected" | "all";
 
@@ -54,6 +56,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
   const [detailError, setDetailError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  
+  // Product detail dialog states
+  const [productDetailDialogOpen, setProductDetailDialogOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [resultAlert, setResultAlert] = useState<{
     open: boolean;
     title: string;
@@ -817,9 +823,9 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
 
       {/* Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Chi tiết đăng ký sản phẩm</DialogTitle>
+        <DialogContent className="!max-w-[70vw] w-[70vw] sm:!max-w-[70vw] sm:w-[95vw] max-h-[95vh] h-[95vh] p-6 overflow-y-auto">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-xl">Chi tiết đăng ký sản phẩm</DialogTitle>
             <DialogDescription>
               Xem tất cả thông tin chi tiết của sản phẩm đăng ký
             </DialogDescription>
@@ -835,7 +841,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
               <p className="text-red-600">{detailError}</p>
             </div>
           ) : selectedRegistrationDetail ? (
-            <div className="space-y-6 py-4">
+            <div className="space-y-4">
               {/* Status Badge */}
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-700">Trạng thái:</span>
@@ -857,14 +863,43 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
               </div>
 
               {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Tên sản phẩm</Label>
                   <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.proposedProductName}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Mã sản phẩm</Label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.proposedProductCode}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p className="text-sm text-gray-900">{selectedRegistrationDetail.proposedProductCode}</p>
+                    {selectedRegistrationDetail.status === "Approved" && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-blue-600 hover:text-blue-800 text-sm"
+                        onClick={async () => {
+                          try {
+                            // Tìm product từ productCode
+                            const products = await getAllProducts({ page: 1, pageSize: 1000 });
+                            const product = products.find(
+                              p => p.productCode === selectedRegistrationDetail.proposedProductCode
+                            );
+                            if (product) {
+                              setSelectedProductId(product.id);
+                              setProductDetailDialogOpen(true);
+                            } else {
+                              alert("Không tìm thấy sản phẩm đã được duyệt với mã này");
+                            }
+                          } catch (err) {
+                            console.error("Error finding product:", err);
+                            alert("Có lỗi xảy ra khi tìm sản phẩm");
+                          }
+                        }}
+                      >
+                        Xem chi tiết sản phẩm →
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Giá</Label>
@@ -900,28 +935,31 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                 )}
               </div>
 
-              {/* Description */}
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Mô tả</Label>
-                <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">
-                  {selectedRegistrationDetail.description || 'Không có mô tả'}
-                </p>
-              </div>
-
-              {/* Specifications */}
-              {selectedRegistrationDetail.specifications && Object.keys(selectedRegistrationDetail.specifications).length > 0 && (
+              {/* Description and Specifications - Side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Description */}
                 <div>
-                  <Label className="text-sm font-medium text-gray-700">Thông số kỹ thuật</Label>
-                  <div className="mt-2 space-y-2">
-                    {Object.entries(selectedRegistrationDetail.specifications).map(([key, value]) => (
-                      <div key={key} className="flex gap-4 text-sm">
-                        <span className="text-gray-600 font-medium w-32">{key}:</span>
-                        <span className="text-gray-900 flex-1">{value}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <Label className="text-sm font-medium text-gray-700">Mô tả</Label>
+                  <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {selectedRegistrationDetail.description || 'Không có mô tả'}
+                  </p>
                 </div>
-              )}
+
+                {/* Specifications */}
+                {selectedRegistrationDetail.specifications && Object.keys(selectedRegistrationDetail.specifications).length > 0 && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Thông số kỹ thuật</Label>
+                    <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                      {Object.entries(selectedRegistrationDetail.specifications).map(([key, value]) => (
+                        <div key={key} className="flex gap-2 text-sm">
+                          <span className="text-gray-600 font-medium text-xs w-24 truncate">{key}:</span>
+                          <span className="text-gray-900 flex-1 text-xs">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Product Images */}
               {(() => {
@@ -933,8 +971,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                 
                 return allImages.length > 0 ? (
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Hình ảnh sản phẩm</Label>
-                    <div className="grid grid-cols-3 gap-4">
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Hình ảnh sản phẩm ({allImages.length})</Label>
+                    <div className="grid grid-cols-4 gap-3">
                       {allImages.map((src, idx) => (
                         <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
                           <img
@@ -959,9 +997,9 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                     <FileText className="h-4 w-4" />
                     Giấy chứng nhận ({selectedRegistrationDetail.certificates.length})
                   </Label>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {selectedRegistrationDetail.certificates.map((cert, certIdx) => (
-                      <div key={cert.id || certIdx} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                      <div key={cert.id || certIdx} className="border border-gray-200 rounded-lg p-3 space-y-2">
                         {/* Certificate Header */}
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -974,18 +1012,20 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                             {cert.certificationCode && (
                               <p className="text-xs text-gray-500 ml-7">Mã: {cert.certificationCode}</p>
                             )}
-                            <div className="flex items-center gap-2 mt-2 ml-7">
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                cert.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                cert.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {cert.status === 'Approved' ? 'Đã duyệt' :
-                                 cert.status === 'Rejected' ? 'Từ chối' : 'Chờ duyệt'}
-                              </span>
-                            </div>
-                            {cert.rejectionReason && (
-                              <p className="text-xs text-red-600 mt-1 ml-7">Lý do: {cert.rejectionReason}</p>
+                            {cert.status === 'Rejected' && cert.rejectionReason && (
+                              <div className="flex items-center gap-2 mt-2 ml-7">
+                                <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">
+                                  Từ chối
+                                </span>
+                                <p className="text-xs text-red-600">Lý do: {cert.rejectionReason}</p>
+                              </div>
+                            )}
+                            {cert.status === 'Approved' && (
+                              <div className="flex items-center gap-2 mt-2 ml-7">
+                                <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                                  Đã duyệt
+                                </span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1058,19 +1098,38 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                 </div>
               )}
 
-              {/* Manual URL */}
+              {/* Manual URL - Hiển thị giống với giấy chứng nhận */}
               {selectedRegistrationDetail.manualUrl && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-700">Link hướng dẫn sử dụng</Label>
-                  <div className="mt-2">
-                    <a
-                      href={selectedRegistrationDetail.manualUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline block"
-                    >
-                      {selectedRegistrationDetail.manualUrl}
-                    </a>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    File hướng dẫn sử dụng
+                  </Label>
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <p className="text-sm font-semibold text-gray-900">
+                            Hướng dẫn sử dụng
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 ml-7">
+                          {selectedRegistrationDetail.manualUrl}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="ml-7">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(selectedRegistrationDetail.manualUrl, '_blank')}
+                        className="gap-1 h-7 text-xs"
+                      >
+                        <Download className="h-3 w-3" />
+                        Xem/Tải
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1084,7 +1143,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
               )}
 
               {/* Timestamps */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-3 gap-4 pt-3 border-t">
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Ngày tạo</Label>
                   <p className="mt-1 text-sm text-gray-600">{formatDate(selectedRegistrationDetail.createdAt)}</p>
@@ -1103,7 +1162,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
             </div>
           ) : null}
           
-          <DialogFooter>
+          <DialogFooter className="pt-4 border-t mt-4">
             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
               Đóng
             </Button>
@@ -1151,6 +1210,13 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Product Detail Dialog */}
+      <ProductDetailDialog
+        productId={selectedProductId}
+        open={productDetailDialogOpen}
+        onOpenChange={setProductDetailDialogOpen}
+      />
     </div>
   );
 };
