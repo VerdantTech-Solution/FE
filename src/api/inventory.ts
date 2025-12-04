@@ -61,8 +61,14 @@ export interface CreateBatchInventoryDTO {
   manufacturingDate?: string; // YYYY-MM-DD
   qualityCheckStatus?: 'NotRequired' | 'Pending' | 'Passed' | 'Failed';
   notes?: string;
-  // For products with serial numbers (machines), provide serial numbers
+  // serialNumbers: chỉ gửi khi category có serialRequired = true hoặc categoryId 1,2
   serialNumbers?: string[];
+}
+
+export interface CreateProductSerialDTO {
+  batchInventoryId: number;
+  productId: number;
+  serialNumber: string;
 }
 
 export interface UpdateBatchInventoryDTO {
@@ -445,12 +451,48 @@ export const getBatchInventoriesByVendor = async (
 
 /**
  * Tạo batch inventory mới (nhập hàng)
+ * Backend tự động tạo product serials nếu có serialNumbers trong request
  */
 export const createBatchInventory = async (
   data: CreateBatchInventoryDTO
 ): Promise<BatchInventory> => {
   try {
-    const response = await apiClient.post('/api/BatchInventory', data);
+    // Chuẩn bị request data - chỉ gửi serialNumbers nếu có và không rỗng
+    const requestData: any = {
+      productId: data.productId,
+      sku: data.sku,
+      batchNumber: data.batchNumber,
+      lotNumber: data.lotNumber,
+      quantity: data.quantity,
+      unitCostPrice: data.unitCostPrice,
+    };
+    
+    if (data.vendorId) {
+      requestData.vendorId = data.vendorId;
+    }
+    if (data.expiryDate) {
+      requestData.expiryDate = data.expiryDate;
+    }
+    if (data.manufacturingDate) {
+      requestData.manufacturingDate = data.manufacturingDate;
+    }
+    if (data.qualityCheckStatus) {
+      requestData.qualityCheckStatus = data.qualityCheckStatus;
+    }
+    if (data.notes) {
+      requestData.notes = data.notes;
+    }
+    // Chỉ gửi serialNumbers nếu có và không rỗng
+    if (data.serialNumbers && data.serialNumbers.length > 0) {
+      const validSerials = data.serialNumbers.filter(s => s.trim());
+      if (validSerials.length > 0) {
+        requestData.serialNumbers = validSerials;
+      }
+    }
+    
+    console.log('Creating batch inventory:', requestData);
+    const response = await apiClient.post('/api/BatchInventory', requestData);
+    
     // Handle different response structures
     if (Array.isArray(response)) {
       return response[0];
@@ -462,6 +504,76 @@ export const createBatchInventory = async (
   } catch (error) {
     console.error('Create batch inventory error:', error);
     throw error;
+  }
+};
+
+/**
+ * Tạo product serial mới
+ * Được gọi sau khi batch inventory đã được tạo
+ * Thử các endpoint khác nhau vì /api/ProductSerial có thể không tồn tại
+ */
+export const createProductSerial = async (
+  data: CreateProductSerialDTO
+): Promise<ProductSerial> => {
+  try {
+    console.log('Creating product serial:', data);
+    
+    // Thử endpoint 1: /api/BatchInventory/{id}/product-serial
+    try {
+      const response = await apiClient.post(
+        `/api/BatchInventory/${data.batchInventoryId}/product-serial`, 
+        {
+          productId: data.productId,
+          serialNumber: data.serialNumber
+        }
+      );
+      
+      if (Array.isArray(response)) {
+        return response[0];
+      }
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response.data;
+      }
+      return response as ProductSerial;
+    } catch (err1: any) {
+      console.log('Endpoint /api/BatchInventory/{id}/product-serial failed, trying alternatives...');
+      
+      // Thử endpoint 2: /api/BatchInventory/{id}/serials
+      try {
+        const response = await apiClient.post(
+          `/api/BatchInventory/${data.batchInventoryId}/serials`, 
+          {
+            productId: data.productId,
+            serialNumber: data.serialNumber
+          }
+        );
+        
+        if (Array.isArray(response)) {
+          return response[0];
+        }
+        if (response && typeof response === 'object' && 'data' in response) {
+          return response.data;
+        }
+        return response as ProductSerial;
+      } catch (err2: any) {
+        console.log('Endpoint /api/BatchInventory/{id}/serials failed, trying /api/ProductSerial...');
+        
+        // Thử endpoint 3: /api/ProductSerial (original)
+        const response = await apiClient.post('/api/ProductSerial', data);
+        
+        if (Array.isArray(response)) {
+          return response[0];
+        }
+        if (response && typeof response === 'object' && 'data' in response) {
+          return response.data;
+        }
+        return response as ProductSerial;
+      }
+    }
+  } catch (error: any) {
+    console.error('Create product serial error:', error);
+    console.error('All endpoints failed. Please check backend API documentation.');
+    throw new Error(`Không thể tạo product serial. Endpoint không tồn tại hoặc có lỗi: ${error?.message || 'Unknown error'}`);
   }
 };
 
@@ -513,13 +625,36 @@ export const qualityCheckBatchInventory = async (
 ): Promise<BatchInventory> => {
   try {
     const response = await apiClient.post(`/api/BatchInventory/${id}/quality-check`, data);
+    console.log('Quality check response:', response);
+    
     // Handle different response structures
-    if (Array.isArray(response)) {
-      return response[0];
+    // If response is a BatchInventory object (has id and qualityCheckStatus)
+    if (response && typeof response === 'object' && !Array.isArray(response) && 'id' in response && 'qualityCheckStatus' in response) {
+      return response as BatchInventory;
     }
+    
+    // If response has data property
     if (response && typeof response === 'object' && 'data' in response) {
-      return response.data;
+      const data = (response as { data: any }).data;
+      if (data && typeof data === 'object' && 'id' in data) {
+        return data as BatchInventory;
+      }
     }
+    
+    // If response is an array
+    if (Array.isArray(response) && response.length > 0) {
+      return response[0] as BatchInventory;
+    }
+    
+    // If response only has message (success but no data), fetch the updated item
+    if (response && typeof response === 'object' && 'message' in response && !('id' in response)) {
+      console.log('Response only has message, fetching updated item...');
+      // Fetch the updated item to get the latest data
+      const updatedItem = await getBatchInventoryById(id);
+      return updatedItem;
+    }
+    
+    // Fallback: try to return response as BatchInventory
     return response as BatchInventory;
   } catch (error) {
     console.error('Quality check batch inventory error:', error);

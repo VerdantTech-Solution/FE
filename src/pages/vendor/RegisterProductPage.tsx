@@ -513,7 +513,7 @@ export const RegisterProductPage = () => {
                 {/* Product Code */}
                 <div className="space-y-2">
                   <Label htmlFor="proposedProductCode" className="text-sm font-medium">
-                    Mã sản phẩm đề xuất <span className="text-red-500">*</span>
+                    Mã sản phẩm <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="proposedProductCode"
