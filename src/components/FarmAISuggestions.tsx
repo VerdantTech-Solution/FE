@@ -160,20 +160,16 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
       </Card>
 
       {loading && (
-        <Card className="overflow-hidden border-none shadow-lg">
-          <CardContent className="p-0">
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-lime-50 via-emerald-50 to-sky-50 p-8">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_60%)]" />
-              <div className="relative z-10 flex flex-col items-center gap-4 text-center">
-                <Spinner variant="circle-filled" className="text-emerald-600" size={48} />
-                <div>
-                  <p className="text-base font-semibold text-emerald-900">AI đang phân tích trang trại của bạn...</p>
-                  <p className="text-sm text-emerald-700">Chỉ mất vài giây để tạo ra gợi ý cá nhân hoá.</p>
-                </div>
-              </div>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-lime-50 via-emerald-50 to-sky-50 p-8 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_60%)]" />
+          <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+            <Spinner variant="circle-filled" className="text-emerald-600" size={48} />
+            <div>
+              <p className="text-base font-semibold text-emerald-900">AI đang phân tích trang trại của bạn...</p>
+              <p className="text-sm text-emerald-700">Chỉ mất vài giây để tạo ra gợi ý cá nhân hoá.</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {!loading && hasRequested && error && (

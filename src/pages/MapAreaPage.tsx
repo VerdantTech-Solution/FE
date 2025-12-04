@@ -34,6 +34,95 @@ L.Marker.prototype.options.icon = DefaultIcon;
 // Earth radius (meters)
 const EARTH_RADIUS_M = 6378137;
 
+// ===== Geographic constraints: Vietnam mainland & avoid sea =====
+const VIETNAM_BOUNDS = {
+  minLat: 8.179, // approximate southernmost point
+  maxLat: 23.393, // approximate northernmost point
+  minLng: 102.144, // approximate westernmost point
+  maxLng: 109.469, // approximate easternmost point
+};
+
+function isWithinVietnamBounds(p: LatLng): boolean {
+  return (
+    p.lat >= VIETNAM_BOUNDS.minLat &&
+    p.lat <= VIETNAM_BOUNDS.maxLat &&
+    p.lng >= VIETNAM_BOUNDS.minLng &&
+    p.lng <= VIETNAM_BOUNDS.maxLng
+  );
+}
+
+async function validateVietnamLandPoint(
+  p: LatLng
+): Promise<{ ok: boolean; message?: string }> {
+  // Bước 1: kiểm tra nhanh theo bounding box Việt Nam
+  if (!isWithinVietnamBounds(p)) {
+    return {
+      ok: false,
+      message:
+        "Chỉ được chọn điểm trong lãnh thổ Việt Nam. Vui lòng chọn lại trong khu vực Việt Nam.",
+    };
+  }
+
+  // Bước 2: reverse geocoding để hạn chế chọn ngoài biển / mặt nước
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+      p.lat
+    )}&lon=${encodeURIComponent(
+      p.lng
+    )}&zoom=10&addressdetails=1&extratags=1`;
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "VerdantTech-AreaCalculator/1.0",
+      },
+    });
+
+    if (!response.ok) {
+      // Nếu reverse geocode lỗi, vẫn chấp nhận điểm trong bounding box để tránh chặn người dùng
+      return { ok: true };
+    }
+
+    const data: any = await response.json();
+    const countryCode = data?.address?.country_code;
+
+    if (countryCode !== "vn") {
+      return {
+        ok: false,
+        message:
+          "Chỉ được chọn khu đất thuộc lãnh thổ Việt Nam. Vui lòng chọn lại.",
+      };
+    }
+
+    const category =
+      (data?.category as string | undefined)?.toLowerCase?.() || "";
+    const type = (data?.type as string | undefined)?.toLowerCase?.() || "";
+
+    const waterKeywords = [
+      "sea",
+      "ocean",
+      "bay",
+      "water",
+      "river",
+      "lake",
+      "reservoir",
+      "lagoon",
+    ];
+
+    if (waterKeywords.some((k) => category.includes(k) || type.includes(k))) {
+      return {
+        ok: false,
+        message:
+          "Không được chọn điểm ngoài biển hoặc trên mặt nước. Vui lòng chọn trên đất liền.",
+      };
+    }
+
+    return { ok: true };
+  } catch {
+    // Nếu có lỗi mạng, fallback: vẫn cho phép nếu nằm trong bounding box
+    return { ok: true };
+  }
+}
+
 // ===== Validation helpers for placing points =====
 function arePointsNearlyEqual(a: LatLng, b: LatLng, eps = 1e-6): boolean {
   return Math.abs(a.lat - b.lat) < eps && Math.abs(a.lng - b.lng) < eps;
@@ -192,22 +281,37 @@ export const MapAreaPage = ({
     setAlertOpen(true);
   }, []);
 
-  const addPoint = useCallback((p: LatLng) => {
-    setPoints((prev) => {
-      if (prev.length >= 4) {
-        showAlert("Giới hạn điểm", "Đã đạt tối đa 4 điểm. Vui lòng xóa bớt điểm để thêm mới.");
-        return prev;
+  const addPoint = useCallback(
+    async (p: LatLng) => {
+      // Kiểm tra ràng buộc: chỉ cho phép điểm trong lãnh thổ Việt Nam và trên đất liền
+      const geoCheck = await validateVietnamLandPoint(p);
+      if (!geoCheck.ok) {
+        if (geoCheck.message) {
+          showAlert("Vị trí không hợp lệ", geoCheck.message);
+        }
+        return;
       }
 
-      const check = isValidNextPoint(prev, p);
-      if (!check.ok) {
-        if (check.message) showAlert("Điểm không hợp lệ", check.message);
-        return prev;
-      }
+      setPoints((prev) => {
+        if (prev.length >= 4) {
+          showAlert(
+            "Giới hạn điểm",
+            "Đã đạt tối đa 4 điểm. Vui lòng xóa bớt điểm để thêm mới."
+          );
+          return prev;
+        }
 
-      return [...prev, p];
-    });
-  }, [showAlert]);
+        const check = isValidNextPoint(prev, p);
+        if (!check.ok) {
+          if (check.message) showAlert("Điểm không hợp lệ", check.message);
+          return prev;
+        }
+
+        return [...prev, p];
+      });
+    },
+    [showAlert]
+  );
 
   const clearPoints = () => {
     setPoints([]);

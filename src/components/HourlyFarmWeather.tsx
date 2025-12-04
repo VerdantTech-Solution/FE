@@ -210,34 +210,51 @@ export const HourlyFarmWeather = ({ farmId }: { farmId: number }) => {
   });
 
   return (
-    <div className="space-y-4 relative z-10" onClick={handleContainerClick}>
-      
-      {upcomingHourlyData.length > 0 && (
-        <div className="text-2xl font-bold text-black mb-3">
-          Dữ liệu từ {new Date(upcomingHourlyData[0].time).toLocaleDateString('vi-VN')} - {upcomingHourlyData.length} giờ sắp tới
+    <>
+      <div className="space-y-4 relative z-10" onClick={handleContainerClick}>
+        
+        {upcomingHourlyData.length > 0 && (
+          <div className="text-2xl font-bold text-black mb-3">
+            Dữ liệu từ {new Date(upcomingHourlyData[0].time).toLocaleDateString('vi-VN')} - {upcomingHourlyData.length} giờ sắp tới
+          </div>
+        )}
+        
+        <div className="flex gap-3 overflow-x-auto overflow-y-visible pb-2">
+          {upcomingHourlyData.map((item, index) => (
+            <HourlyCard
+              key={index}
+              time={item.time}
+              temperature={item.temperature}
+              humidity={item.humidity}
+              windSpeed={item.windSpeed}
+              precipitation={item.precipitation}
+              uvIndex={item.uvIndex}
+              soilTemperature={item.soilTemperature}
+              onHoverStart={handleCardHoverStart(index)}
+              onHoverEnd={handleCardHoverEnd}
+            />
+          ))}
         </div>
-      )}
-      
-      <div className="flex gap-3 overflow-x-auto overflow-y-visible pb-2">
-        {upcomingHourlyData.map((item, index) => (
-          <HourlyCard
-            key={index}
-            time={item.time}
-            temperature={item.temperature}
-            humidity={item.humidity}
-            windSpeed={item.windSpeed}
-            precipitation={item.precipitation}
-            uvIndex={item.uvIndex}
-            soilTemperature={item.soilTemperature}
-            onHoverStart={handleCardHoverStart(index)}
-            onHoverEnd={handleCardHoverEnd}
-          />
-        ))}
+        
+        {upcomingHourlyData.length === 0 && !loading && !error && (
+          <div className="text-center text-slate-400 py-8">
+            Không có dữ liệu thời tiết theo giờ
+          </div>
+        )}
       </div>
 
+      {/* Tooltip rendered outside main container to prevent layout shift */}
       {hoverIndex !== null && hoverPos && (
-        <div className="fixed z-50 pointer-events-none" style={{ left: hoverPos.x, top: hoverPos.y }}>
-          <div className="-translate-x-1/2 -translate-y-2 rounded-lg border border-slate-700 bg-[#0c0f14] text-slate-100 shadow-xl w-72 transition-opacity duration-150 ease-out opacity-100">
+        <div 
+          className="fixed z-[9999] pointer-events-none" 
+          style={{ 
+            left: `${hoverPos.x}px`, 
+            top: `${hoverPos.y}px`,
+            transform: 'translate(-50%, calc(-100% - 8px))',
+            willChange: 'transform'
+          }}
+        >
+          <div className="rounded-lg border border-slate-700 bg-[#0c0f14] text-slate-100 shadow-xl w-72 transition-opacity duration-150 ease-out opacity-100">
             <div className="p-3">
               <div className="text-sm font-semibold mb-2">{new Date(upcomingHourlyData[hoverIndex].time).toLocaleString('vi-VN')}</div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
@@ -252,13 +269,7 @@ export const HourlyFarmWeather = ({ farmId }: { farmId: number }) => {
           </div>
         </div>
       )}
-      
-      {upcomingHourlyData.length === 0 && !loading && !error && (
-        <div className="text-center text-slate-400 py-8">
-          Không có dữ liệu thời tiết theo giờ
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 

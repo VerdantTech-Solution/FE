@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router';
 import { sendChatbotMessage } from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
 import { ChatProductCarousel } from '@/components/ChatProductCarousel';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -25,14 +26,12 @@ interface Conversation {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Làm thế nào để đăng ký tài khoản?',
-  'Cách mua sản phẩm trên nền tảng?',
+  'Verdant Tech là gì ',
+  'Tôi muốn tư vấn canh tác bền vững',
+  'Tôi có thể liên hệ hỗ trợ như thế nào',
+  'Chính sách mua hàng là gì ? ',
   'Phương thức thanh toán nào được hỗ trợ?',
-  'Làm sao để trở thành nhà cung cấp?',
-  'Chính sách đổi trả như thế nào?',
-  'Cách theo dõi đơn hàng của tôi?',
-  'Phí vận chuyển được tính như thế nào?',
-  'Làm thế nào để liên hệ hỗ trợ?',
+ 
 ];
 
 const getWelcomeMessage = (): Message => ({
@@ -42,10 +41,20 @@ const getWelcomeMessage = (): Message => ({
   timestamp: new Date(),
 });
 
-// Load conversations from localStorage
-const loadConversations = (): Conversation[] => {
+// Helper tạo key localStorage theo từng user
+const getStorageKeys = (userId?: number | string) => {
+  const key = userId ?? 'guest';
+  return {
+    conversationsKey: `chatAI_conversations_${key}`,
+    currentConversationIdKey: `chatAI_currentConversationId_${key}`,
+  };
+};
+
+// Load conversations từ localStorage (theo từng user)
+const loadConversations = (userId?: number | string): Conversation[] => {
+  const { conversationsKey } = getStorageKeys(userId);
   try {
-    const saved = localStorage.getItem('chatAI_conversations');
+    const saved = localStorage.getItem(conversationsKey);
     if (saved) {
       const parsed = JSON.parse(saved);
       return parsed.map((conv: any) => ({
@@ -64,10 +73,11 @@ const loadConversations = (): Conversation[] => {
   return [];
 };
 
-// Save conversations to localStorage
-const saveConversations = (conversations: Conversation[]) => {
+// Save conversations to localStorage (theo từng user)
+const saveConversations = (conversations: Conversation[], userId?: number | string) => {
   try {
-    localStorage.setItem('chatAI_conversations', JSON.stringify(conversations));
+    const { conversationsKey } = getStorageKeys(userId);
+    localStorage.setItem(conversationsKey, JSON.stringify(conversations));
   } catch (error) {
     console.error('Error saving conversations:', error);
   }
@@ -89,7 +99,10 @@ const setCurrentConversationId = (id: string | null) => {
 
 export const ChatPage = () => {
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    loadConversations(user?.id),
+  );
   const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(getCurrentConversationId());
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -129,9 +142,9 @@ export const ChatPage = () => {
   // Save conversations when they change
   useEffect(() => {
     if (conversations.length > 0) {
-      saveConversations(conversations);
+      saveConversations(conversations, user?.id);
     }
-  }, [conversations]);
+  }, [conversations, user?.id]);
 
   // Update current conversation ID in localStorage
   useEffect(() => {

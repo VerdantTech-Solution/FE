@@ -18,14 +18,11 @@ interface Message {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Làm thế nào để đăng ký tài khoản?',
-  'Cách mua sản phẩm trên nền tảng?',
+  'Verdant Tech là gì? ',
+  'Tôi muốn tư vấn canh tác bền vững',
+  'Tôi có thể liên hệ hỗ trợ như thế nào?',
+  'Chính sách mua hàng là gì ? ',
   'Phương thức thanh toán nào được hỗ trợ?',
-  'Làm sao để trở thành nhà cung cấp?',
-  'Chính sách đổi trả như thế nào?',
-  'Cách theo dõi đơn hàng của tôi?',
-  'Phí vận chuyển được tính như thế nào?',
-  'Làm thế nào để liên hệ hỗ trợ?',
 ];
 
 export const ChatAIBubble = () => {
@@ -33,6 +30,16 @@ export const ChatAIBubble = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+
+  // Tạo key localStorage theo từng user để tránh user này thấy lịch sử chat của user khác
+  const getStorageKeys = () => {
+    const userId = user?.id ?? 'guest';
+    return {
+      conversationsKey: `chatAI_conversations_${userId}`,
+      currentConversationIdKey: `chatAI_currentConversationId_${userId}`,
+      legacyHistoryKey: `chatAI_history_${userId}`,
+    };
+  };
   
   // Ẩn chat button ở trang Login, SignUp, Vendor, Staff và Admin
   // Hoặc khi user có role Staff, Admin, Vendor (kể cả ở trang loading)
@@ -46,11 +53,12 @@ export const ChatAIBubble = () => {
     user?.role === 'Admin' ||
     user?.role === 'Vendor';
   
-  // Load current conversation from localStorage
+  // Load current conversation from localStorage (theo từng user)
   const loadCurrentConversation = (): Message[] => {
+    const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
     try {
-      const conversations = localStorage.getItem('chatAI_conversations');
-      const currentId = localStorage.getItem('chatAI_currentConversationId');
+      const conversations = localStorage.getItem(conversationsKey);
+      const currentId = localStorage.getItem(currentConversationIdKey);
       
       if (conversations && currentId) {
         const parsed = JSON.parse(conversations);
@@ -63,8 +71,8 @@ export const ChatAIBubble = () => {
         }
       }
       
-      // Fallback to old format for backward compatibility
-      const saved = localStorage.getItem('chatAI_history');
+      // Fallback to old format cho từng user để backward compatibility
+      const saved = localStorage.getItem(legacyHistoryKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed.map((msg: any) => ({
@@ -95,8 +103,9 @@ export const ChatAIBubble = () => {
   useEffect(() => {
     if (messages.length > 1) {
       try {
-        const conversations = localStorage.getItem('chatAI_conversations');
-        const currentId = localStorage.getItem('chatAI_currentConversationId');
+        const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
+        const conversations = localStorage.getItem(conversationsKey);
+        const currentId = localStorage.getItem(currentConversationIdKey);
         
         if (conversations && currentId) {
           const parsed = JSON.parse(conversations);
@@ -110,10 +119,10 @@ export const ChatAIBubble = () => {
             }
             return conv;
           });
-          localStorage.setItem('chatAI_conversations', JSON.stringify(updated));
+          localStorage.setItem(conversationsKey, JSON.stringify(updated));
         } else {
           // Fallback: save to old format for backward compatibility
-          localStorage.setItem('chatAI_history', JSON.stringify(messages));
+          localStorage.setItem(legacyHistoryKey, JSON.stringify(messages));
         }
       } catch (error) {
         console.error('Error saving chat history:', error);
@@ -162,12 +171,13 @@ export const ChatAIBubble = () => {
       timestamp: new Date(),
     };
 
-    // Get or create current conversation
+    // Get or create current conversation (lưu theo từng user)
+    const { conversationsKey, currentConversationIdKey } = getStorageKeys();
     let conversations = [];
-    let currentId = localStorage.getItem('chatAI_currentConversationId');
+    let currentId = localStorage.getItem(currentConversationIdKey);
     
     try {
-      const saved = localStorage.getItem('chatAI_conversations');
+      const saved = localStorage.getItem(conversationsKey);
       if (saved) {
         conversations = JSON.parse(saved);
       }
@@ -188,8 +198,8 @@ export const ChatAIBubble = () => {
       };
       conversations = [newConversation, ...conversations];
       currentId = newConversation.id;
-      localStorage.setItem('chatAI_conversations', JSON.stringify(conversations));
-      localStorage.setItem('chatAI_currentConversationId', currentId);
+      localStorage.setItem(conversationsKey, JSON.stringify(conversations));
+      localStorage.setItem(currentConversationIdKey, currentId);
     }
 
     // Update conversation with new messages
@@ -213,7 +223,7 @@ export const ChatAIBubble = () => {
       return conv;
     });
 
-    localStorage.setItem('chatAI_conversations', JSON.stringify(updatedConversations));
+    localStorage.setItem(conversationsKey, JSON.stringify(updatedConversations));
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
@@ -239,7 +249,7 @@ export const ChatAIBubble = () => {
         return conv;
       });
       
-      localStorage.setItem('chatAI_conversations', JSON.stringify(finalConversations));
+      localStorage.setItem(conversationsKey, JSON.stringify(finalConversations));
       setMessages((prev) => [...prev, aiResponse]);
     } catch (error: any) {
       console.error('Error sending chat message:', error);
@@ -261,7 +271,7 @@ export const ChatAIBubble = () => {
         return conv;
       });
 
-      localStorage.setItem('chatAI_conversations', JSON.stringify(finalConversations));
+      localStorage.setItem(conversationsKey, JSON.stringify(finalConversations));
       setMessages((prev) => [...prev, aiResponse]);
     } finally {
       setIsTyping(false);
@@ -291,10 +301,11 @@ export const ChatAIBubble = () => {
     };
     setMessages([welcomeMessage]);
     
-    // Clear from conversations
+    // Clear from conversations (theo từng user)
     try {
-      const conversations = localStorage.getItem('chatAI_conversations');
-      const currentId = localStorage.getItem('chatAI_currentConversationId');
+      const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
+      const conversations = localStorage.getItem(conversationsKey);
+      const currentId = localStorage.getItem(currentConversationIdKey);
       
       if (conversations && currentId) {
         const parsed = JSON.parse(conversations);
@@ -308,9 +319,9 @@ export const ChatAIBubble = () => {
           }
           return conv;
         });
-        localStorage.setItem('chatAI_conversations', JSON.stringify(updated));
+        localStorage.setItem(conversationsKey, JSON.stringify(updated));
       } else {
-        localStorage.removeItem('chatAI_history');
+        localStorage.removeItem(legacyHistoryKey);
       }
     } catch (error) {
       console.error('Error clearing history:', error);
