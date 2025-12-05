@@ -45,7 +45,7 @@ const VendorSidebar = () => {
     },
     { 
       id: "vendor-info", 
-      label: "Thông tin vendor", 
+      label: "Thông tin nhà cung cấp", 
       icon: User, 
       path: "/vendor/info" 
     }

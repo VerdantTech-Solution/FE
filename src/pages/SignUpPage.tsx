@@ -277,7 +277,7 @@ export const SignUpPage = () => {
               </TabsTrigger>
               <TabsTrigger value="vendor" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
-                Đăng ký làm Vendor
+                Đăng ký làm nhà cung cấp
               </TabsTrigger>
             </TabsList>
 

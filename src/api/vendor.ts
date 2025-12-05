@@ -173,7 +173,7 @@ export const signUpVendor = async (data: VendorSignUpRequest): Promise<VendorPro
     // Lỗi mặc định
     const errorMessage = error && typeof error === 'object' && 'message' in error 
       ? String(error.message) 
-      : "Đăng ký vendor thất bại. Vui lòng thử lại.";
+      : "Đăng ký làm nhà cung cấp thất bại. Vui lòng thử lại.";
     throw new Error(errorMessage);
   }
 };
@@ -258,7 +258,7 @@ export const getAllVendors = async (): Promise<VendorProfileResponse[]> => {
         } else if (response.status >= 500) {
           throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
         } else {
-          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể tải danh sách vendor';
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể tải danh sách nhà cung cấp';
           throw new Error(errorMsg);
         }
       }
@@ -268,7 +268,7 @@ export const getAllVendors = async (): Promise<VendorProfileResponse[]> => {
       }
     }
     
-    throw new Error('Không thể tải danh sách vendor. Vui lòng thử lại.');
+    throw new Error('Không thể tải danh sách nhà cung cấp. Vui lòng thử lại.');
   }
 };
 
@@ -312,13 +312,13 @@ export const getVendorById = async (id: number): Promise<VendorProfileResponse> 
       if ('response' in error && error.response) {
         const response = error.response as { status: number; data?: { errors?: string[]; message?: string } };
         if (response.status === 404) {
-          throw new Error('Không tìm thấy vendor với ID này.');
+          throw new Error('Không tìm thấy nhà cung cấp với ID này.');
         } else if (response.status === 401) {
           throw new Error('Không có quyền truy cập. Vui lòng đăng nhập lại.');
         } else if (response.status >= 500) {
           throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
         } else {
-          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể tải thông tin vendor';
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể tải thông tin nhà cung cấp';
           throw new Error(errorMsg);
         }
       }
@@ -328,7 +328,7 @@ export const getVendorById = async (id: number): Promise<VendorProfileResponse> 
       }
     }
     
-    throw new Error('Không thể tải thông tin vendor. Vui lòng thử lại.');
+    throw new Error('Không thể tải thông tin nhà cung cấp. Vui lòng thử lại.');
   }
 };
 
@@ -492,7 +492,7 @@ export const updateVendorProfile = async (id: number, data: UpdateVendorProfileR
       if ('response' in error && error.response) {
         const response = error.response as { status: number; data?: { errors?: string[]; message?: string } };
         if (response.status === 404) {
-          throw new Error('Không tìm thấy vendor với ID này.');
+          throw new Error('Không tìm thấy nhà cung cấp với ID này.');
         } else if (response.status === 401) {
           throw new Error('Không có quyền truy cập. Vui lòng đăng nhập lại.');
         } else if (response.status === 400) {
@@ -511,7 +511,7 @@ export const updateVendorProfile = async (id: number, data: UpdateVendorProfileR
       }
     }
     
-    throw new Error('Không thể cập nhật thông tin vendor. Vui lòng thử lại.');
+    throw new Error('Không thể cập nhật thông tin nhà cung cấp. Vui lòng thử lại.');
   }
 };
 
@@ -540,7 +540,7 @@ export const deleteVendorAccount = async (userId: number): Promise<{ message: st
         } else if (response.status >= 500) {
           throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
         } else {
-          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể xóa tài khoản vendor';
+          const errorMsg = response.data?.errors?.[0] || response.data?.message || 'Không thể xóa tài khoản nhà cung cấp';
           throw new Error(errorMsg);
         }
       }
@@ -550,7 +550,7 @@ export const deleteVendorAccount = async (userId: number): Promise<{ message: st
       }
     }
     
-    throw new Error('Không thể xóa tài khoản vendor. Vui lòng thử lại.');
+    throw new Error('Không thể xóa tài khoản nhà cung cấp. Vui lòng thử lại.');
   }
 };
 

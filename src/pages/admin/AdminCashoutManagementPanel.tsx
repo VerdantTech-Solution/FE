@@ -300,7 +300,7 @@ export const AdminCashoutManagementPanel: React.FC = () => {
     }
 
     if (!selectedVendorId) {
-      setProcessError('Không tìm thấy ID vendor');
+      setProcessError('Không tìm thấy ID nhà cung cấp');
       return;
     }
 
@@ -353,7 +353,7 @@ export const AdminCashoutManagementPanel: React.FC = () => {
             Quản lý yêu cầu rút tiền
           </h2>
           <p className="text-sm text-gray-500">
-            Xem và xử lý danh sách yêu cầu rút tiền đang chờ duyệt của vendor
+            Xem và xử lý danh sách yêu cầu rút tiền đang chờ duyệt của nhà cung cấp
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -466,7 +466,7 @@ export const AdminCashoutManagementPanel: React.FC = () => {
                       Mã yêu cầu
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Vendor
+                      Nhà cung cấp
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Số tiền
@@ -655,7 +655,7 @@ export const AdminCashoutManagementPanel: React.FC = () => {
               {selectedRequest && (
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Vendor:</span>
+                    <span className="text-sm text-gray-600">Nhà cung cấp:</span>
                     <span className="text-sm font-medium text-gray-900">
                       {selectedRequest.vendor?.fullName || selectedRequest.user?.fullName || '—'}
                     </span>
@@ -791,7 +791,7 @@ export const AdminCashoutManagementPanel: React.FC = () => {
                   <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
                   <p className="text-sm">
                     {processError ||
-                      'Không tìm thấy ID vendor hợp lệ cho yêu cầu này'}
+                      'Không tìm thấy ID nhà cung cấp hợp lệ cho yêu cầu này'}
                   </p>
                 </div>
               </div>

@@ -239,8 +239,8 @@ export const UserManagementPanel: React.FC = () => {
         className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
       >
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Quản lý người dùng & Vendor</h2>
-          <p className="text-sm text-gray-500">Quản lý tài khoản, quyền truy cập và thông tin vendor</p>
+          <h2 className="text-2xl font-semibold text-gray-900">Quản lý người dùng & Nhà cung cấp</h2>
+          <p className="text-sm text-gray-500">Quản lý tài khoản, quyền truy cập và thông tin nhà cung cấp</p>
         </div>
       </motion.div>
 
@@ -253,7 +253,7 @@ export const UserManagementPanel: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="vendors" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            Quản lý Vendor
+            Quản lý Nhà cung cấp
           </TabsTrigger>
         </TabsList>
 

@@ -821,10 +821,6 @@ export const MapAreaPage = ({
                     </motion.div>
                   )}
                 </AnimatePresence>
-
-                <div className="text-xs text-gray-500 bg-yellow-50 p-3 rounded border border-yellow-200">
-                  <strong>ℹ️ Lưu ý:</strong> Sử dụng công thức Shoelace với điều chỉnh độ cong Trái Đất cho độ chính xác cao hơn.
-                </div>
               </CardContent>
             </Card>
           </motion.div>
