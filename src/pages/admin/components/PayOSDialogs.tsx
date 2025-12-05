@@ -96,7 +96,7 @@ export const PayOSConfirmDialog: React.FC<PayOSConfirmDialogProps> = ({
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Vendor:</span>
+                    <span className="text-sm text-gray-600">Nhà cung cấp:</span>
                     <span className="text-sm font-medium text-gray-900">
                       {request.vendor?.fullName || request.user?.fullName || '—'}
                     </span>

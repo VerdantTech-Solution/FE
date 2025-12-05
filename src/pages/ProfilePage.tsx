@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Shield, LogOut, Edit, Key, Trash2 } from "lucide-react";
+import { User, Mail, Phone, LogOut, Edit, Key, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { getUserProfile, createUserAddress, updateUserAddress, deleteUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
@@ -630,19 +630,6 @@ export const ProfilePage = () => {
                           <Button size="sm" variant="outline" onClick={openAddAddressDialog}>Thêm địa chỉ</Button>
                         </>
                       )}
-                    </div>
-                  </motion.div>
-
-                  <Separator />
-
-                  {/* Role */}
-                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <Shield className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-500">Vai trò</p>
-                      <p className="text-lg font-semibold text-gray-900 capitalize">{user.role}</p>
                     </div>
                   </motion.div>
                 </CardContent>

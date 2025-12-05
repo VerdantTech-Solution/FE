@@ -63,7 +63,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
       setAllVendors(vendorsData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
-      setError(`Không thể tải danh sách vendor: ${errorMessage}.`);
+      setError(`Không thể tải danh sách nhà cung cấp: ${errorMessage}.`);
       setAllVendors([]);
     } finally {
       setLoading(false);
@@ -112,7 +112,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
       setDetailDialogOpen(true);
     } catch (err) {
       console.error('Error loading vendor detail:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Không thể tải thông tin vendor';
+      const errorMessage = err instanceof Error ? err.message : 'Không thể tải thông tin nhà cung cấp';
       showAlert("Lỗi", errorMessage, "error");
       setSelectedVendor(null);
     } finally {
@@ -151,11 +151,11 @@ export const AdminVendorManagementPanel: React.FC = () => {
       await approveVendor(pendingVendorId, Number(user.id));
       setApproveDialogOpen(false);
       await fetchVendors();
-      showAlert("Thành công", `Đã duyệt vendor "${pendingVendorName}" thành công!`, "success");
+      showAlert("Thành công", `Đã duyệt nhà cung cấp "${pendingVendorName}" thành công!`, "success");
       setPendingVendorId(null);
       setPendingVendorName("");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Không thể duyệt vendor';
+      const errorMessage = err instanceof Error ? err.message : 'Không thể duyệt nhà cung cấp';
       showAlert("Lỗi", errorMessage, "error");
     } finally {
       setApproveLoading(false);
@@ -178,12 +178,12 @@ export const AdminVendorManagementPanel: React.FC = () => {
       await rejectVendor(pendingVendorId, Number(user.id), rejectionReason.trim());
       setRejectDialogOpen(false);
       await fetchVendors();
-      showAlert("Thành công", `Đã từ chối vendor "${pendingVendorName}" thành công!`, "success");
+      showAlert("Thành công", `Đã từ chối nhà cung cấp "${pendingVendorName}" thành công!`, "success");
       setPendingVendorId(null);
       setPendingVendorName("");
       setRejectionReason("");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Không thể từ chối vendor';
+      const errorMessage = err instanceof Error ? err.message : 'Không thể từ chối nhà cung cấp';
       showAlert("Lỗi", errorMessage, "error");
     } finally {
       setRejectLoading(false);
@@ -201,12 +201,12 @@ export const AdminVendorManagementPanel: React.FC = () => {
       await deleteVendorAccount(pendingVendorUserId);
       setDeleteDialogOpen(false);
       await fetchVendors();
-      showAlert("Thành công", `Đã vô hiệu hóa tài khoản vendor "${pendingVendorName}" thành công!`, "success");
+      showAlert("Thành công", `Đã vô hiệu hóa tài khoản nhà cung cấp "${pendingVendorName}" thành công!`, "success");
       setPendingVendorId(null);
       setPendingVendorUserId(null);
       setPendingVendorName("");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Không thể xóa tài khoản vendor';
+      const errorMessage = err instanceof Error ? err.message : 'Không thể xóa tài khoản nhà cung cấp';
       showAlert("Lỗi", errorMessage, "error");
     } finally {
       setDeleteLoading(false);
@@ -243,7 +243,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
           <div className="flex justify-center mb-6">
             <Spinner variant="circle-filled" size={60} className="text-green-600" />
           </div>
-          <p className="text-gray-600">Đang tải danh sách vendor...</p>
+          <p className="text-gray-600">Đang tải danh sách nhà cung cấp...</p>
         </div>
       </div>
     );
@@ -278,8 +278,8 @@ export const AdminVendorManagementPanel: React.FC = () => {
         className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
       >
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Quản lý Vendor</h2>
-          <p className="text-sm text-gray-500">Quản lý thông tin và chứng chỉ của vendor</p>
+          <h2 className="text-2xl font-semibold text-gray-900">Quản lý Nhà cung cấp</h2>
+          <p className="text-sm text-gray-500">Quản lý thông tin và chứng chỉ của nhà cung cấp</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -308,7 +308,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">Tổng Vendor</p>
+                <p className="text-sm font-medium text-blue-600">Tổng Nhà cung cấp</p>
                 <p className="text-2xl font-bold text-blue-900">{allVendors.length}</p>
               </div>
               <div className="p-3 bg-blue-200 rounded-full">
@@ -377,7 +377,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
               <Search className="w-5 h-5 mr-2 text-gray-600" />
-              Tìm kiếm Vendor
+              Tìm kiếm Nhà cung cấp
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -407,7 +407,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Danh sách Vendor</CardTitle>
+                <CardTitle>Danh sách Nhà cung cấp</CardTitle>
                 <CardDescription>
                   Hiển thị {filteredVendors.length} vendor {query.trim() ? 'tìm được' : 'trong tổng số'} {query.trim() ? '' : `${allVendors.length} vendor`}
                 </CardDescription>
@@ -495,7 +495,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
                             size="sm"
                             variant="outline"
                             className="border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700"
-                            title="Duyệt vendor"
+                            title="Duyệt nhà cung cấp"
                             onClick={() => openApproveDialog(vendor)}
                             disabled={approveLoading || rejectLoading || deleteLoading}
                           >
@@ -505,7 +505,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
                             size="sm"
                             variant="outline"
                             className="border-red-600 text-red-600 hover:bg-red-50 hover:border-red-700"
-                            title="Từ chối vendor"
+                            title="Từ chối nhà cung cấp"
                             onClick={() => openRejectDialog(vendor)}
                             disabled={approveLoading || rejectLoading || deleteLoading}
                           >
@@ -604,14 +604,14 @@ export const AdminVendorManagementPanel: React.FC = () => {
               <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
                 <Building2 className="w-6 h-6 text-white" />
               </div>
-              Chi tiết Vendor
+              Chi tiết Nhà cung cấp
             </DialogTitle>
           </DialogHeader>
           {detailLoading ? (
             <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <Spinner variant="circle-filled" size={50} className="text-green-600 mx-auto mb-4" />
-                <p className="text-gray-600">Đang tải thông tin vendor...</p>
+                <p className="text-gray-600">Đang tải thông tin nhà cung cấp...</p>
               </div>
             </div>
           ) : selectedVendor ? (
@@ -854,11 +854,11 @@ export const AdminVendorManagementPanel: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-              Xác nhận duyệt vendor
+              Xác nhận duyệt nhà cung cấp
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn duyệt vendor <strong>{pendingVendorName}</strong>? 
-              Hành động này sẽ xác thực tài khoản và gửi email thông báo cho vendor.
+              Bạn có chắc chắn muốn duyệt nhà cung cấp <strong>{pendingVendorName}</strong>? 
+              Hành động này sẽ xác thực tài khoản và gửi email thông báo cho nhà cung cấp.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -890,7 +890,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <XCircle className="w-5 h-5 text-red-600" />
-              Từ chối vendor
+              Từ chối nhà cung cấp
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -898,7 +898,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
               <Label htmlFor="rejectionReason">Lý do từ chối <span className="text-red-500">*</span></Label>
               <Textarea
                 id="rejectionReason"
-                placeholder="Nhập lý do từ chối vendor..."
+                placeholder="Nhập lý do từ chối nhà cung cấp..."
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 className="mt-2 min-h-[100px]"
@@ -947,7 +947,7 @@ export const AdminVendorManagementPanel: React.FC = () => {
               Xác nhận vô hiệu hóa tài khoản
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn vô hiệu hóa tài khoản vendor <strong>{pendingVendorName}</strong>? 
+              Bạn có chắc chắn muốn vô hiệu hóa tài khoản nhà cung cấp <strong>{pendingVendorName}</strong>? 
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

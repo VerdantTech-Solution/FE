@@ -8,6 +8,7 @@ import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, 
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { getAllProducts, type Product, getAllProductCategories, type ProductCategory } from '@/api/product';
 import { addToCart } from '@/api/cart';
+import { toast } from 'sonner';
 
 // Animation variants
 const containerVariants = {
@@ -167,6 +168,9 @@ export const MarketplacePage = () => {
       
       // Show success message
       setSuccessMessage('Đã thêm sản phẩm vào giỏ hàng!');
+      toast.success('Sản phẩm đã được thêm vào giỏ hàng', {
+        duration: 3000,
+      });
       setTimeout(() => setSuccessMessage(null), 3000);
       
       console.log('Product added to cart successfully');
@@ -210,6 +214,9 @@ export const MarketplacePage = () => {
             
             // Show success message
             setSuccessMessage(`Đã tăng số lượng sản phẩm lên ${newQuantity}!`);
+            toast.success(`Đã tăng số lượng sản phẩm lên ${newQuantity}!`, {
+              duration: 3000,
+            });
             setTimeout(() => setSuccessMessage(null), 3000);
             
             console.log('Quantity increased successfully to:', newQuantity);
@@ -222,6 +229,9 @@ export const MarketplacePage = () => {
             
             window.dispatchEvent(new CustomEvent('cart:updated'));
             setSuccessMessage('Đã thêm sản phẩm vào giỏ hàng!');
+            toast.success('Sản phẩm đã được thêm vào giỏ hàng', {
+              duration: 3000,
+            });
             setTimeout(() => setSuccessMessage(null), 3000);
             return; // Thoát khỏi function để không hiển thị lỗi
           }

@@ -3,14 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   MessageSquare, 
   ChevronRight, 
@@ -22,23 +14,14 @@ import {
   ArrowRight,
   Loader2,
   FolderOpen,
-  Plus,
-  Image as ImageIcon,
-  Type
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { 
   getForumPosts, 
   getForumCategories,
-  createForumPost,
-  type ForumPost,
-  type ForumPostContent,
-  type ForumCategory
+  type ForumPost
 } from '@/api/forum';
 import { PATH_NAMES } from '@/constants';
-import { useAuth } from '@/contexts/AuthContext';
-import { PostContentEditor, type ContentBlock } from '@/components/PostContentEditor';
-import { toast } from 'sonner';
 
 // Animation variants
 const fadeInVariants = {
@@ -77,63 +60,6 @@ const cardVariants = {
   }
 };
 
-type ForumContentBlock = ForumPost['content'] extends Array<infer U> ? U : never;
-
-const safeParseContent = (raw: unknown): unknown => {
-  if (typeof raw !== 'string') {
-    return raw;
-  }
-
-  const trimmed = raw.trim();
-  if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) {
-    return raw;
-  }
-
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return raw;
-  }
-};
-
-const collectTextFromBlock = (block: unknown): string[] => {
-  if (!block) {
-    return [];
-  }
-
-  if (Array.isArray(block)) {
-    return block.flatMap(collectTextFromBlock);
-  }
-
-  if (typeof block === 'object') {
-    const typedBlock = block as ForumContentBlock;
-    if (typedBlock?.type && typedBlock.type !== 'text') {
-      return [];
-    }
-
-    return collectTextFromBlock(safeParseContent(typedBlock?.content));
-  }
-
-  if (typeof block === 'string') {
-    return [block];
-  }
-
-  return [];
-};
-
-const extractTextPreview = (content?: ForumPost['content']): string => {
-  if (!Array.isArray(content) || content.length === 0) {
-    return '';
-  }
-
-  const merged = collectTextFromBlock(content)
-    .map((text) => text.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .join(' ');
-
-  return merged.trim();
-};
-
 const getCoverImage = (images?: ForumPost['images']): string | null => {
   if (!Array.isArray(images) || images.length === 0) {
     return null;
@@ -146,90 +72,8 @@ const getCoverImage = (images?: ForumPost['images']): string | null => {
   return prioritizedImage?.imageUrl ?? null;
 };
 
-const normalizeForumContent = (content?: ForumPostContent[]): ForumPostContent[] => {
-  if (!Array.isArray(content)) {
-    return [];
-  }
-  return content.sort((a, b) => a.order - b.order);
-};
-
-const renderPostPreview = (content: ForumPostContent[], maxBlocks: number = 3) => {
-  const normalized = normalizeForumContent(content);
-  
-  // Sắp xếp lại content theo format: đoạn văn 1 → ảnh 1 → đoạn văn 2 → ảnh 2, ...
-  const textBlocks = normalized.filter(item => item.type === 'text').sort((a, b) => a.order - b.order);
-  const imageBlocks = normalized.filter(item => item.type === 'image').sort((a, b) => a.order - b.order);
-  
-  // Tạo mảng hiển thị xen kẽ: text[0], image[0], text[1], image[1], ...
-  const displayOrder: Array<{ type: 'text' | 'image'; block: ForumPostContent; number: number }> = [];
-  
-  const maxCount = Math.max(textBlocks.length, imageBlocks.length);
-  
-  for (let i = 0; i < maxCount && displayOrder.length < maxBlocks; i++) {
-    // Thêm đoạn văn nếu có và chưa đủ maxBlocks
-    if (i < textBlocks.length && displayOrder.length < maxBlocks) {
-      displayOrder.push({
-        type: 'text',
-        block: textBlocks[i],
-        number: i + 1
-      });
-    }
-    // Thêm ảnh nếu có và chưa đủ maxBlocks
-    if (i < imageBlocks.length && displayOrder.length < maxBlocks) {
-      displayOrder.push({
-        type: 'image',
-        block: imageBlocks[i],
-        number: i + 1
-      });
-    }
-  }
-  
-  return (
-    <div className="space-y-3">
-      {displayOrder.map((item, index) => {
-        if (item.type === 'text') {
-          const text = item.block.content || '';
-          const preview = text.length > 150 ? text.substring(0, 150) + '...' : text;
-          return (
-            <div key={`text-${item.block.order}-${index}`}>
-              <span className="text-xs text-gray-400 mb-1 block">Đoạn văn {item.number}</span>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                {preview}
-              </p>
-            </div>
-          );
-        } else if (item.type === 'image') {
-          return (
-            <div key={`image-${item.block.order}-${index}`}>
-              <span className="text-xs text-gray-400 mb-1 block">Ảnh {item.number}</span>
-              <div className="rounded-lg overflow-hidden">
-                <img
-                  src={item.block.content}
-                  alt={`Ảnh ${item.number}`}
-                  className="w-full h-32 object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
-              </div>
-            </div>
-          );
-        }
-        return null;
-      })}
-      {normalized.length > displayOrder.length && (
-        <p className="text-xs text-gray-400 italic">
-          + {normalized.length - displayOrder.length} phần nội dung khác...
-        </p>
-      )}
-    </div>
-  );
-};
-
 export const ForumPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [pageLoading, setPageLoading] = useState(true);
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -238,19 +82,6 @@ export const ForumPage = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Create post state
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [categories, setCategories] = useState<ForumCategory[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
-  const [createPostForm, setCreatePostForm] = useState({
-    title: '',
-    tags: '',
-    forumCategoryId: null as number | null,
-  });
-  const [createPostBlocks, setCreatePostBlocks] = useState<ContentBlock[]>([]);
-  const [createPostLoading, setCreatePostLoading] = useState(false);
-  const [createPostError, setCreatePostError] = useState<string | null>(null);
 
   // Fetch posts from API
   const fetchPosts = async (page: number) => {
@@ -281,25 +112,12 @@ export const ForumPage = () => {
 
   const fetchCategories = async () => {
     try {
-      setCategoriesLoading(true);
-      const res = await getForumCategories({
+      await getForumCategories({
         page: 1,
         pageSize: 50,
       });
-
-      if (res.status && res.data) {
-        setCategories(res.data.data || []);
-        if (res.data.data && res.data.data.length > 0) {
-          setCreatePostForm(prev => ({
-            ...prev,
-            forumCategoryId: prev.forumCategoryId || res.data!.data[0].id,
-          }));
-        }
-      }
     } catch (err: any) {
       console.error('Error fetching forum categories:', err);
-    } finally {
-      setCategoriesLoading(false);
     }
   };
 
@@ -307,139 +125,6 @@ export const ForumPage = () => {
     fetchPosts(1);
     fetchCategories();
   }, []);
-
-  // Helper function để sắp xếp blocks theo format xen kẽ và gán order
-  const arrangeBlocksInAlternatingFormat = (blocks: ContentBlock[]) => {
-    // Lọc và sắp xếp text và image blocks
-    const textBlocks = blocks
-      .filter((block) => block.type === 'text' && block.content.trim().length > 0)
-      .map((block) => ({
-        type: block.type as 'text',
-        content: block.content.trim(),
-        file: block.file,
-        previewUrl: block.previewUrl,
-        publicId: block.publicId,
-      }));
-
-    const imageBlocks = blocks
-      .filter((block) => block.type === 'image' && (block.content || block.previewUrl))
-      .map((block) => ({
-        type: block.type as 'image',
-        content: block.content || block.previewUrl || '',
-        file: block.file,
-        previewUrl: block.previewUrl,
-        publicId: block.publicId,
-      }));
-
-    // Sắp xếp theo format xen kẽ: text[0], image[0], text[1], image[1], ...
-    const arrangedBlocks: Array<{
-      order: number;
-      type: 'text' | 'image';
-      content: string;
-    }> = [];
-
-    const maxCount = Math.max(textBlocks.length, imageBlocks.length);
-
-    for (let i = 0; i < maxCount; i++) {
-      // Thêm đoạn văn nếu có
-      if (i < textBlocks.length) {
-        arrangedBlocks.push({
-          order: arrangedBlocks.length + 1,
-          type: 'text',
-          content: textBlocks[i].content,
-        });
-      }
-      // Thêm ảnh nếu có
-      if (i < imageBlocks.length) {
-        arrangedBlocks.push({
-          order: arrangedBlocks.length + 1,
-          type: 'image',
-          content: imageBlocks[i].content,
-        });
-      }
-    }
-
-    return arrangedBlocks;
-  };
-
-  const handleCreatePost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const userId = user?.id ? Number(user.id) : null;
-    
-    if (!userId) {
-      toast.error('Vui lòng đăng nhập để đăng bài viết');
-      return;
-    }
-
-    if (!createPostForm.title.trim()) {
-      setCreatePostError('Tiêu đề bài viết không được để trống.');
-      return;
-    }
-
-    if (!createPostForm.forumCategoryId) {
-      setCreatePostError('Vui lòng chọn danh mục cho bài viết.');
-      return;
-    }
-
-    if (createPostBlocks.length === 0) {
-      setCreatePostError('Vui lòng thêm ít nhất một đoạn văn hoặc ảnh.');
-      return;
-    }
-
-    const hasTextContent = createPostBlocks.some(
-      (block) => block.type === 'text' && block.content.trim().length > 0
-    );
-    if (!hasTextContent) {
-      setCreatePostError('Vui lòng thêm ít nhất một đoạn văn có nội dung.');
-      return;
-    }
-
-    // Sắp xếp blocks theo format xen kẽ và gán order
-    const contentBlocks = arrangeBlocksInAlternatingFormat(createPostBlocks);
-
-    const imageFiles = createPostBlocks
-      .filter((block) => block.type === 'image' && block.file)
-      .map((block) => block.file!);
-
-    try {
-      setCreatePostLoading(true);
-      setCreatePostError(null);
-
-      const response = await createForumPost({
-        forumCategoryId: createPostForm.forumCategoryId,
-        title: createPostForm.title.trim(),
-        tags: createPostForm.tags.trim() || undefined,
-        content: contentBlocks,
-        images: imageFiles,
-        userId,
-      });
-
-      if (response.status && response.data) {
-        toast.success('Đăng bài viết thành công!', {
-          description: 'Bài viết của bạn đã được đăng lên diễn đàn.',
-        });
-        setCreatePostForm({ title: '', tags: '', forumCategoryId: categories[0]?.id || null });
-        setCreatePostBlocks([]);
-        setShowCreateForm(false);
-        fetchPosts(1);
-      } else {
-        const errorMsg = response.errors?.join(', ') || 'Không thể tạo bài viết mới';
-        setCreatePostError(errorMsg);
-        toast.error('Tạo bài viết thất bại', {
-          description: errorMsg,
-        });
-      }
-    } catch (err: any) {
-      console.error('Error creating forum post:', err);
-      const message = err?.message || 'Có lỗi xảy ra khi tạo bài viết. Vui lòng thử lại.';
-      setCreatePostError(message);
-      toast.error('Lỗi khi tạo bài viết', {
-        description: message,
-      });
-    } finally {
-      setCreatePostLoading(false);
-    }
-  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages && !loading) {
@@ -537,39 +222,7 @@ export const ForumPage = () => {
             </div>
           </motion.div>
           
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="flex justify-center"
-          >
-            <Button
-              onClick={() => {
-                const createSection = document.getElementById('create-post-section');
-                if (createSection) {
-                  const offset = 100; // Offset để không bị che bởi header
-                  const elementPosition = createSection.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.pageYOffset - offset;
-                  
-                  window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                  });
-                  
-                  // Tự động mở form nếu chưa mở
-                  setTimeout(() => {
-                    if (!showCreateForm && user) {
-                      setShowCreateForm(true);
-                    }
-                  }, 500);
-                }
-              }}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50 text-white px-8 py-6 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Đăng Bài Viết Mới
-            </Button>
-          </motion.div>
+        
         </div>
       </motion.div>
 

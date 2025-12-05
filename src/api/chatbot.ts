@@ -183,9 +183,15 @@ export const sendChatbotMessage = async (
     throw new Error('Chưa cấu hình URL cho chatbot AI.');
   }
 
+  // Lấy token của người dùng đang đăng nhập từ localStorage
   const authToken =
-    import.meta.env.VITE_AI_CHATBOT_TOKEN ||
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5Iiwicm9sZSI6IkN1c3RvbWVyIiwibmJmIjoxNzY0MDY4NDQwLCJleHAiOjE3NjQxNTQ4NDAsImlhdCI6MTc2NDA2ODQ0MCwiaXNzIjoiVmVyZGFudFRlY2giLCJhdWQiOiJWZXJkYW50VGVjaFVzZXJzIn0.Beygwxd9riFp_UBMnkU-gaLGyfBZsuVW4lAqj68UQuk';
+    typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+
+  if (!authToken) {
+    throw new Error(
+      'Người dùng chưa đăng nhập. Vui lòng đăng nhập để sử dụng chatbot AI.',
+    );
+  }
 
   const payload = {
     token: authToken,

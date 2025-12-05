@@ -927,34 +927,37 @@ export const AdminWarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChan
                     File hướng dẫn sử dụng
                   </Label>
                   <div className="space-y-3">
-                    {selectedRegistrationDetail.manualUrl.split(',').map((url: string, idx: number) => (
-                      <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <FileText className="h-5 w-5 text-blue-600" />
-                              <p className="text-sm font-semibold text-gray-900">
-                                Hướng dẫn sử dụng {selectedRegistrationDetail.manualUrl.split(',').length > 1 ? `(${idx + 1})` : ''}
+                    {(() => {
+                      const manualUrls = selectedRegistrationDetail.manualUrl?.split(',') || [];
+                      return manualUrls.map((url: string, idx: number) => (
+                        <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <FileText className="h-5 w-5 text-blue-600" />
+                                <p className="text-sm font-semibold text-gray-900">
+                                  Hướng dẫn sử dụng {manualUrls.length > 1 ? `(${idx + 1})` : ''}
+                                </p>
+                              </div>
+                              <p className="text-xs text-gray-500 ml-7">
+                                {url.trim()}
                               </p>
                             </div>
-                            <p className="text-xs text-gray-500 ml-7">
-                              {url.trim()}
-                            </p>
+                          </div>
+                          <div className="ml-7">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(url.trim(), '_blank')}
+                              className="gap-1 h-7 text-xs"
+                            >
+                              <Download className="h-3 w-3" />
+                              Xem/Tải
+                            </Button>
                           </div>
                         </div>
-                        <div className="ml-7">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => window.open(url.trim(), '_blank')}
-                            className="gap-1 h-7 text-xs"
-                          >
-                            <Download className="h-3 w-3" />
-                            Xem/Tải
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </div>
               )}

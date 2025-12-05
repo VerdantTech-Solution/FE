@@ -763,6 +763,7 @@ export const CreateFarmPage = () => {
                               type="date"
                               value={crop.plantingDate}
                               onChange={(e) => handleCropChange(index, 'plantingDate', e.target.value)}
+                              max={new Date().toISOString().split('T')[0]}
                             />
                           </div>
 

@@ -11,9 +11,6 @@ import {
   Save,
   Edit,
   MapPin,
-  Phone,
-  Mail,
-  Building,
   Loader2,
   FileText,
   Award,
@@ -136,7 +133,7 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
       <Card>
         <CardContent className="p-6">
           <div className="text-center py-8">
-            <p className="text-gray-600">Không tìm thấy thông tin vendor</p>
+            <p className="text-gray-600">Không tìm thấy thông tin nhà cung cấp</p>
           </div>
         </CardContent>
       </Card>
@@ -431,7 +428,7 @@ const VendorInfoPage = () => {
         setVendorData(profile);
       } catch (err: any) {
         console.error('Error fetching vendor profile:', err);
-        setError(err?.message || 'Không thể tải thông tin vendor');
+        setError(err?.message || 'Không thể tải thông tin nhà cung cấp');
       } finally {
         setLoading(false);
       }
@@ -451,7 +448,7 @@ const VendorInfoPage = () => {
 
   const handleUpdateVendor = async (data: Partial<VendorProfileResponse>) => {
     if (!vendorData?.id) {
-      setUpdateError('Không tìm thấy ID vendor');
+      setUpdateError('Không tìm thấy ID nhà cung cấp');
       return;
     }
 
@@ -485,7 +482,7 @@ const VendorInfoPage = () => {
       
     } catch (err: any) {
       console.error('Error updating vendor profile:', err);
-      setUpdateError(err?.message || 'Không thể cập nhật thông tin vendor');
+      setUpdateError(err?.message || 'Không thể cập nhật thông tin nhà cung cấp');
       
       // Ẩn thông báo lỗi sau 5 giây
       setTimeout(() => {
@@ -507,7 +504,7 @@ const VendorInfoPage = () => {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Thông tin vendor</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Thông tin nhà cung cấp</h1>
               <p className="text-gray-600">Quản lý thông tin công ty và hồ sơ</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -579,7 +576,7 @@ const VendorInfoPage = () => {
                 Cập nhật thành công!
               </AlertDialogTitle>
               <AlertDialogDescription className="text-center">
-                Thông tin vendor đã được cập nhật thành công. Các thay đổi đã được lưu vào hệ thống.
+                Thông tin nhà cung cấp đã được cập nhật thành công. Các thay đổi đã được lưu vào hệ thống.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
