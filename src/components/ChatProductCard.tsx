@@ -72,14 +72,6 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
     fetchProductData();
   }, [productId]); // Always fetch when productId changes
 
-  // Use API data if available, otherwise use parsed data
-  const displayProduct = productData || {
-    name: product.name,
-    description: product.description,
-    unitPrice: product.price || 0,
-    images: product.imageUrl ? [{ imageUrl: product.imageUrl }] : [],
-  };
-
   // Prioritize API data, fallback to parsed data
   const productName = productData?.productName || product.name || 'Đang tải...';
   const productDescription = productData?.description || product.description || '';
@@ -89,7 +81,12 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
   let productImage = '';
   if (productData?.images) {
     if (Array.isArray(productData.images) && productData.images.length > 0) {
-      productImage = productData.images[0]?.imageUrl || productData.images[0] || '';
+      const firstImage = productData.images[0];
+      if (typeof firstImage === 'string') {
+        productImage = firstImage;
+      } else {
+        productImage = firstImage?.imageUrl || '';
+      }
     } else if (typeof productData.images === 'string') {
       productImage = productData.images;
     }

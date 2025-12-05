@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -31,6 +30,7 @@ import {
   type ForumPost,
   type GetForumPostsResponse,
   type ForumCategory,
+  type ForumPostContent,
 } from "@/api/forum";
 import {
   AlertDialog,

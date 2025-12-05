@@ -181,20 +181,22 @@ const normalizeForumContent = (content?: ForumPostContent[]): ForumPostContent[]
 const mapImagesToContent = (images?: any[]): ForumPostContent[] => {
   if (!Array.isArray(images)) return [];
 
-  return images
-    .map((img, index) => {
-      const url = extractImageUrl(img?.imageUrl || img?.url || img?.content);
-      if (!url) return null;
+  return images.reduce<ForumPostContent[]>((acc, img, index) => {
+    const url = extractImageUrl(img?.imageUrl || img?.url || img?.content);
+    if (!url) {
+      return acc;
+    }
 
-      const orderSource = Number.isFinite(img?.sortOrder) ? img.sortOrder : index;
+    const orderSource = Number.isFinite(img?.sortOrder) ? img.sortOrder : index;
 
-      return {
-        order: orderSource as number,
-        type: 'image' as const,
-        content: url,
-      };
-    })
-    .filter((item): item is ForumPostContent => !!item);
+    acc.push({
+      order: orderSource as number,
+      type: 'image',
+      content: url,
+    });
+
+    return acc;
+  }, []);
 };
 
 export const ForumDetailPage = () => {
