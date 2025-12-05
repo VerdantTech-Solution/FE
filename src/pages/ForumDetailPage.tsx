@@ -178,6 +178,25 @@ const normalizeForumContent = (content?: ForumPostContent[]): ForumPostContent[]
   return normalized.sort((a, b) => a.order - b.order);
 };
 
+const mapImagesToContent = (images?: any[]): ForumPostContent[] => {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .map((img, index) => {
+      const url = extractImageUrl(img?.imageUrl || img?.url || img?.content);
+      if (!url) return null;
+
+      const orderSource = Number.isFinite(img?.sortOrder) ? img.sortOrder : index;
+
+      return {
+        order: orderSource as number,
+        type: 'image' as const,
+        content: url,
+      };
+    })
+    .filter((item): item is ForumPostContent => !!item);
+};
+
 export const ForumDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -204,7 +223,42 @@ export const ForumDetailPage = () => {
   const [deletingComment, setDeletingComment] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const normalizedContent = useMemo(() => normalizeForumContent(post?.content), [post?.content]);
+  const normalizedContent = useMemo(
+    () => normalizeForumContent(post?.content),
+    [post?.content]
+  );
+
+  const normalizedImages = useMemo(
+    () => mapImagesToContent(post?.images),
+    [post?.images]
+  );
+
+  // Xen kẽ: Text0 -> Image0 -> Text1 -> Image1 ...
+  const mergedContent = useMemo(() => {
+    const allImages = [
+      ...normalizedImages,
+      ...normalizedContent.filter((c) => c.type === 'image'),
+    ];
+    // Ẩn ảnh cuối cùng theo yêu cầu
+    if (allImages.length > 0) {
+      allImages.pop();
+    }
+    const allTexts = normalizedContent.filter((c) => c.type === 'text');
+
+    const maxCount = Math.max(allTexts.length, allImages.length);
+    const interleaved: ForumPostContent[] = [];
+
+    for (let i = 0; i < maxCount; i++) {
+      if (i < allTexts.length) {
+        interleaved.push({ ...allTexts[i], order: interleaved.length });
+      }
+      if (i < allImages.length) {
+        interleaved.push({ ...allImages[i], order: interleaved.length });
+      }
+    }
+
+    return interleaved;
+  }, [normalizedContent, normalizedImages]);
 
   // Fetch post
   useEffect(() => {
@@ -853,8 +907,8 @@ export const ForumDetailPage = () => {
             <CardContent>
               {/* Content Blocks */}
               <div className="prose prose-lg max-w-none">
-                {normalizedContent.length > 0 ? (
-                  renderContent(normalizedContent)
+                {mergedContent.length > 0 ? (
+                  renderContent(mergedContent)
                 ) : (
                   <p className="text-gray-400 italic">Chưa có nội dung</p>
                 )}

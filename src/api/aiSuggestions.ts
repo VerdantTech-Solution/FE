@@ -40,6 +40,13 @@ export interface DetailedAdvice {
   advice: string;
 }
 
+// Interface cho sâu bệnh và dịch hại
+export interface PestDiseaseRisk {
+  risk: string;
+  why: string;
+  organic_solution: string;
+}
+
 // Interface cho gợi ý từ AI (format sau khi xử lý)
 export interface AISuggestion {
   title: string;
@@ -55,6 +62,7 @@ export interface AISuggestionsResponse {
   soil?: SoilInfo;
   co2?: CO2Info;
   detailedAdvice?: DetailedAdvice[];
+  pestDiseaseRisks?: PestDiseaseRisk[];
   tip?: string;
   message?: string;
   error?: string;
@@ -262,8 +270,14 @@ export const getAISuggestions = async (farmId: number, signal?: AbortSignal): Pr
       result.detailedAdvice = data.detailed_advice;
     }
     
+    // Xử lý pest_disease_risks
+    if (data.pest_disease_risks && Array.isArray(data.pest_disease_risks)) {
+      console.log('✅ [AI Suggestions] Tìm thấy pest_disease_risks với', data.pest_disease_risks.length, 'items');
+      result.pestDiseaseRisks = data.pest_disease_risks as PestDiseaseRisk[];
+    }
+    
     // Nếu có ít nhất một phần dữ liệu, trả về
-    if (result.suggestions || result.weatherRisks || result.soil || result.co2 || result.detailedAdvice) {
+    if (result.suggestions || result.weatherRisks || result.soil || result.co2 || result.detailedAdvice || result.pestDiseaseRisks) {
       result.tip = 'Thực hiện các gợi ý hành động để tối ưu hoá năng suất và giảm thiểu rủi ro cho trang trại của bạn.';
       return result;
     }

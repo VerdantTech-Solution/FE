@@ -34,7 +34,7 @@ export const usePayOSProcessing = ({ onSuccess, onError }: UsePayOSProcessingPro
     // Get vendorId from either vendorId field or user.id
     const vendorId = selectedPayOSRequest.vendorId || selectedPayOSRequest.user?.id;
     if (!vendorId) {
-      const errorMsg = 'Không tìm thấy ID vendor';
+      const errorMsg = 'Không tìm thấy ID nhà cung cấp';
       setPayOSError(errorMsg);
       setIsPayOSErrorDialogOpen(true);
       handleClosePayOSConfirmDialog();

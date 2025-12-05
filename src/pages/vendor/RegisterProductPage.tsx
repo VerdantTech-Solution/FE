@@ -307,7 +307,7 @@ export const RegisterProductPage = () => {
     }
 
     if (!user.id) {
-      alert('Không tìm thấy thông tin vendor. Vui lòng đăng nhập lại.');
+      alert('Không tìm thấy thông tin nhà cung cấp. Vui lòng đăng nhập lại.');
       return;
     }
 
