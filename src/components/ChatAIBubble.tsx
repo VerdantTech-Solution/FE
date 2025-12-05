@@ -18,11 +18,11 @@ interface Message {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Verdant Tech là gì? ',
+  'Giới thiệu về nền tảng VerdantTech',
   'Tôi muốn tư vấn canh tác bền vững',
-  'Tôi có thể liên hệ hỗ trợ như thế nào?',
-  'Chính sách mua hàng là gì ? ',
-  'Phương thức thanh toán nào được hỗ trợ?',
+  'Tôi có thể liên hệ hỗ trợ như thế nào',
+  'Tôi muốn biết thêm về các chính sách của cửa hàng ? ',
+  'Phương thức thanh toán nào hiện đang được hỗ trợ?',
 ];
 
 export const ChatAIBubble = () => {
