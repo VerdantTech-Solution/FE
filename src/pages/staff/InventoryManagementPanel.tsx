@@ -1484,7 +1484,7 @@ export const InventoryManagementPanel: React.FC = () => {
 
               {/* Unit Cost Price */}
               <div className="space-y-2">
-                <Label htmlFor="import-price">Giá sản phẩm(VND) *</Label>
+                <Label htmlFor="import-price">Giá mỗi sản phẩm(VND) *</Label>
                 <Input
                   id="import-price"
                   type="number"

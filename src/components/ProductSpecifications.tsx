@@ -199,18 +199,6 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
     }
   };
 
-  const getImportanceBadge = (importance: string) => {
-    switch (importance) {
-      case 'critical':
-        return <Badge variant="destructive" className="text-xs">Quan trọng</Badge>;
-      case 'important':
-        return <Badge variant="default" className="text-xs bg-orange-100 text-orange-800">Cần thiết</Badge>;
-      case 'standard':
-        return <Badge variant="secondary" className="text-xs">Thông tin</Badge>;
-      default:
-        return null;
-    }
-  };
 
   if (specificationsList.length === 0) {
     return (
@@ -268,29 +256,11 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
                       </div>
                     </div>
                   </div>
-                  <div className="ml-2">
-                    {getImportanceBadge(spec.importance)}
-                  </div>
                 </div>
               ))}
             </div>
           </div>
         ))}
-        
-        {/* Thông tin bổ sung */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <div className="flex items-start gap-2">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Lưu ý về thông số kỹ thuật:</p>
-              <ul className="space-y-1 text-xs">
-                <li>• <strong>Quan trọng:</strong> Thông số ảnh hưởng trực tiếp đến hiệu suất và khả năng hoạt động</li>
-                <li>• <strong>Cần thiết:</strong> Thông số quan trọng cho việc lựa chọn và sử dụng sản phẩm</li>
-                <li>• <strong>Thông tin:</strong> Thông số bổ sung giúp hiểu rõ hơn về sản phẩm</li>
-              </ul>
-            </div>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
