@@ -1,7 +1,6 @@
-import React, { useState, useRef } from "react";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { 
   Plus, 
   Trash2, 
@@ -11,7 +10,6 @@ import {
   ChevronDown,
   GripVertical
 } from "lucide-react";
-import type { ForumPostContent } from "@/api/forum";
 
 export interface ContentBlock {
   id: string;
@@ -132,38 +130,6 @@ export const PostContentEditor: React.FC<PostContentEditorProps> = ({
     };
     onChange([...blocks, newBlock]);
   };
-
-  const buildContentBlocks = (): ForumPostContent[] => {
-    return blocks
-      .map((block, index) => ({
-        order: index + 1,
-        type: block.type,
-        content: block.type === 'text' 
-          ? block.content.trim() 
-          : block.content || '',
-      }))
-      .filter((block) => {
-        if (block.type === 'text') {
-          return block.content.length > 0;
-        }
-        return block.content.length > 0;
-      });
-  };
-
-  const getImageFiles = (): File[] => {
-    return blocks
-      .filter((block) => block.type === 'image' && block.file)
-      .map((block) => block.file!);
-  };
-
-  // Expose methods via ref if needed
-  React.useImperativeHandle(
-    React.forwardRef(() => null),
-    () => ({
-      buildContentBlocks,
-      getImageFiles,
-    })
-  );
 
   return (
     <div className="space-y-4">

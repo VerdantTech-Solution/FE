@@ -604,9 +604,9 @@ export const updateBatchInventory = async (
       return response[0];
     }
     if (response && typeof response === 'object' && 'data' in response) {
-      return response.data;
+      return (response as { data: BatchInventory }).data;
     }
-    return response as BatchInventory;
+    return response as unknown as BatchInventory;
   } catch (error) {
     console.error('Update batch inventory error:', error);
     throw error;
@@ -630,20 +630,20 @@ export const qualityCheckBatchInventory = async (
     // Handle different response structures
     // If response is a BatchInventory object (has id and qualityCheckStatus)
     if (response && typeof response === 'object' && !Array.isArray(response) && 'id' in response && 'qualityCheckStatus' in response) {
-      return response as BatchInventory;
+      return response as unknown as BatchInventory;
     }
     
     // If response has data property
     if (response && typeof response === 'object' && 'data' in response) {
       const data = (response as { data: any }).data;
       if (data && typeof data === 'object' && 'id' in data) {
-        return data as BatchInventory;
+        return data as unknown as BatchInventory;
       }
     }
     
     // If response is an array
     if (Array.isArray(response) && response.length > 0) {
-      return response[0] as BatchInventory;
+      return response[0] as unknown as BatchInventory;
     }
     
     // If response only has message (success but no data), fetch the updated item
@@ -655,7 +655,7 @@ export const qualityCheckBatchInventory = async (
     }
     
     // Fallback: try to return response as BatchInventory
-    return response as BatchInventory;
+    return response as unknown as BatchInventory;
   } catch (error) {
     console.error('Quality check batch inventory error:', error);
     throw error;

@@ -83,11 +83,6 @@ const CO2Info: React.FC = () => {
     return `${yyyy}-${mm}-${dd}`;
   }, [measurementStartDate, yesterdayStr]);
 
-  const endMaxStr = useMemo(() => {
-    // Giới hạn ngày kết thúc: không vượt quá 1 năm kể từ ngày bắt đầu (cho phép ngày tương lai)
-    return oneYearAfterStartStr;
-  }, [oneYearAfterStartStr]);
-
   // Khởi tạo mặc định khi mở dialog lần đầu
   React.useEffect(() => {
     if (open) {

@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Shield, LogOut, Edit, Key, Trash2 } from "lucide-react";
+import { User, Mail, Phone, LogOut, Edit, Key, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { getUserProfile, createUserAddress, updateUserAddress, deleteUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
