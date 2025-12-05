@@ -180,12 +180,12 @@ export const getAllProductCategories = async (): Promise<ProductCategory[]> => {
       categories = pagedResponse.data || [];
       totalRecords = pagedResponse.totalRecords || categories.length;
       
-      // Nếu totalRecords <= pageSize (100), đã có đủ rồi
-      if (totalRecords <= 100) {
+      // Nếu totalRecords <= 30 (pageSize đã fetch), đã có đủ rồi
+      if (totalRecords <= 30) {
         return categories;
       }
       
-      // Nếu có nhiều hơn 100, fetch tất cả trong 1 lần với pageSize = totalRecords
+      // Nếu có nhiều hơn 30, fetch tất cả trong 1 lần với pageSize = totalRecords
       const allResponse = await getProductCategories({ page: 1, pageSize: totalRecords });
       
       if (Array.isArray(allResponse)) {

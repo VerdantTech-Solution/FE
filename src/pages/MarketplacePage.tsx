@@ -106,12 +106,10 @@ export const MarketplacePage = () => {
   const fetchCategories = async () => {
     try {
       const categoriesData = await getAllProductCategories();
-      // Chỉ lấy categories đang active
-      const activeCategories = categoriesData.filter(cat => cat.isActive);
-      setCategories(activeCategories);
+      // Bỏ filter isActive nếu muốn lấy tất cả
+      setCategories(categoriesData);
     } catch (err: any) {
       console.error('Error fetching categories:', err);
-      // Nếu lỗi, vẫn tiếp tục với empty array
       setCategories([]);
     }
   };
