@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, X, Check, Trash2, FileText, Upload } from 'lucide-react';
+import { Plus, X, Check, Trash2, FileText, Upload, AlertCircle } from 'lucide-react';
 import { registerProduct, getAllProductCategories } from '../api/product';
 import type { RegisterProductRequest, ProductCategory } from '../api/product';
 
@@ -182,15 +182,6 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
           [dimension]: parseFloat(value) || 0
         }
       }));
-    } else if (field === 'categoryId') {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
-      
-      // Auto-suggest specifications when category changes
-      const suggestedSpecs = getSuggestedSpecifications(value);
-      setSpecifications(suggestedSpecs);
     } else {
       setFormData(prev => ({
         ...prev,
@@ -313,17 +304,31 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         }
       });
 
-      // Convert image URLs to files if needed (for now, we'll use file uploads)
-      // If user provided URLs, we might need to fetch them, but for now prioritize file uploads
-      
-      // Validate certificates: đảm bảo mỗi certificate có tên và file
-      const validCertificates = certificates.filter(cert => cert.file && cert.name.trim());
-      const invalidCertificates = certificates.filter(cert => 
-        (cert.file && !cert.name.trim()) || (!cert.file && cert.name.trim())
-      );
-      
+      // VALIDATION CERTIFICATE: Bắt buộc phải có ít nhất 1 certificate hợp lệ
+      // Mỗi certificate phải có đầy đủ: name và file PDF (code là optional)
+      const validCertificates = certificates.filter(cert => {
+        const hasName = cert.name && cert.name.trim();
+        const hasFile = cert.file !== null;
+        return hasName && hasFile; // Chỉ cần name và file, code là optional
+      });
+
+      // Kiểm tra nếu không có certificate nào hợp lệ
+      if (validCertificates.length === 0) {
+        alert('Vui lòng nhập ít nhất 1 chứng chỉ với đầy đủ: Tên chứng chỉ và File PDF');
+        setIsLoading(false);
+        return;
+      }
+
+      // Kiểm tra các certificate không đầy đủ thông tin
+      const invalidCertificates = certificates.filter(cert => {
+        const hasName = cert.name && cert.name.trim();
+        const hasFile = cert.file !== null;
+        // Invalid nếu có name nhưng không có file, hoặc có file nhưng không có name
+        return (hasName && !hasFile) || (hasFile && !hasName);
+      });
+
       if (invalidCertificates.length > 0) {
-        alert('Vui lòng nhập đầy đủ tên chứng chỉ và tải lên file cho tất cả các chứng chỉ');
+        alert('Mỗi chứng chỉ phải có đầy đủ: Tên chứng chỉ và File PDF. Vui lòng kiểm tra lại các chứng chỉ chưa đầy đủ.');
         setIsLoading(false);
         return;
       }
@@ -344,7 +349,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
 
       // Chỉ gửi các certificates có đầy đủ thông tin
       const certificateFiles = validCertificates.map(cert => cert.file!);
-      const certificationCodes = validCertificates.map(cert => cert.code.trim()).filter(code => code);
+      const certificationCodes = validCertificates.map(cert => cert.code ? cert.code.trim() : '').filter(code => code); // Code là optional
       const certificationNames = validCertificates.map(cert => cert.name.trim());
 
       const payload: RegisterProductRequest = {
@@ -358,9 +363,9 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         weightKg: parseFloat((formData.weightKg || 0).toString()),
         specifications: specificationsDict,
         images: imageFiles.length > 0 ? imageFiles : undefined,
-        certificate: certificateFiles.length > 0 ? certificateFiles : undefined,
-        certificationCode: certificationCodes.length > 0 ? certificationCodes : undefined,
-        certificationName: certificationNames.length > 0 ? certificationNames : undefined,
+        certificate: certificateFiles, // Bắt buộc phải có
+        certificationCode: certificationCodes, // Bắt buộc phải có
+        certificationName: certificationNames, // Bắt buộc phải có
         manualFile: manualFile || undefined,
       };
       
@@ -437,6 +442,15 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     setErrorMessage('');
     setIsOpen(false);
   };
+
+  // Thêm useMemo để kiểm tra xem có certificate hợp lệ không
+  const hasValidCertificate = useMemo(() => {
+    return certificates.some(cert => {
+      const hasName = cert.name && cert.name.trim();
+      const hasFile = cert.file !== null;
+      return hasName && hasFile;
+    });
+  }, [certificates]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -744,20 +758,6 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const suggestedSpecs = getSuggestedSpecifications(formData.categoryId ?? 1);
-                        setSpecifications(suggestedSpecs);
-                      }}
-                      disabled={isLoading}
-                      className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    >
-                      <Check size={16} className="mr-1" />
-                      Gợi ý thông số
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
                       onClick={addSpecification}
                       disabled={isLoading}
                       className="h-8"
@@ -1058,23 +1058,30 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                   <X size={16} className="mr-2" />
                   Hủy
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-green-600 hover:bg-green-700"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Đang đăng ký...
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={16} className="mr-2" />
-                      Xác nhận đăng ký
-                    </>
-                  )}
-                </Button>
+                {hasValidCertificate ? (
+                  <Button
+                    type="submit"
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Đang đăng ký...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} className="mr-2" />
+                        Xác nhận đăng ký
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="flex items-center text-sm text-gray-500">
+                    <AlertCircle size={16} className="mr-2" />
+                    Vui lòng nhập ít nhất 1 chứng chỉ với đầy đủ: Tên chứng chỉ và File PDF
+                  </div>
+                )}
               </div>
             </form>
           </>
