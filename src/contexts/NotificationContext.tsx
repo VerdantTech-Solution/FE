@@ -61,7 +61,6 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log('[NotificationContext] 🚪 User not authenticated, cleaning up');
       if (serviceRef.current) {
         serviceRef.current.stop();
         serviceRef.current = null;
@@ -75,30 +74,20 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       return;
     }
 
-    console.log('[NotificationContext] 👤 User authenticated, initializing SignalR...');
-
     const token = localStorage.getItem('authToken');
     if (!token) {
       console.warn('[NotificationContext] No auth token found');
       return;
     }
 
-    console.log('[NotificationContext] 🏗️ Creating NotificationService instance');
     const service = new NotificationService(token);
     serviceRef.current = service;
 
-    console.log('[NotificationContext] 🎧 Subscribing to connection state changes');
     const unsubscribeState = service.onConnectionStateChange((state) => {
-      console.log('[NotificationContext] 📊 Connection state received:', state);
       dispatch(setConnectionStateAction(state));
     });
 
-    console.log('[NotificationContext] 🎧 Subscribing to notifications');
     const unsubscribeNotification = service.onNotification((notification) => {
-      console.log('[NotificationContext] 🔔 Notification received, dispatching to Redux & showing toast', {
-        id: notification.id,
-        title: notification.title
-      });
       dispatch(addNotification(notification));
       toast.info(notification.title, {
         description: notification.message,
@@ -111,25 +100,17 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       unsubscribeNotification();
     };
 
-    console.log('[NotificationContext] 🚀 Starting SignalR service...');
     service.start().catch((error) => {
-      console.error('[NotificationContext] ❌ Failed to start SignalR', {
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
-      });
+      console.error('[NotificationContext] Failed to start SignalR', error);
       toast.error('Không thể kết nối đến server thông báo');
     });
 
     return () => {
-      console.log('[NotificationContext] 🧹 Cleaning up NotificationContext');
       if (unsubscribeRef.current) {
-        console.log('[NotificationContext] 🗑️ Unsubscribing from listeners');
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
       if (serviceRef.current) {
-        console.log('[NotificationContext] 🛑 Stopping SignalR service');
         serviceRef.current.stop();
         serviceRef.current = null;
       }
@@ -142,13 +123,9 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     }
 
     const loadExistingNotifications = async () => {
-      console.log('[NotificationContext] 📥 Loading existing notifications from API...');
       try {
         const token = localStorage.getItem('authToken');
-        if (!token) {
-          console.warn('[NotificationContext] ⚠️ No auth token found for loading notifications');
-          return;
-        }
+        if (!token) return;
 
         let userId: number | null = null;
         try {
@@ -159,32 +136,20 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           return;
         }
 
-        if (!userId) {
-          console.warn('[NotificationContext] ⚠️ Unable to extract userId');
-          return;
-        }
+        if (!userId) return;
 
-        console.log('[NotificationContext] 📡 Fetching notifications for user:', userId);
         const response = await getNotificationsByUser(userId, {
           page: 1,
           pageSize: 50,
         });
 
         if (response.status && response.data && Array.isArray(response.data.data)) {
-          console.log('[NotificationContext] ✅ Loaded notifications:', {
-            count: response.data.data.length,
-            unread: response.data.data.filter((n: Notification) => !n.isRead).length
-          });
           dispatch(setNotificationList(response.data.data));
         } else {
-          console.warn('[NotificationContext] ⚠️ Failed to load notifications', response.errors);
+          console.warn('[NotificationContext] Failed to load notifications', response.errors);
         }
       } catch (error) {
-        console.error('[NotificationContext] ❌ Error loading notifications', {
-          error,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString()
-        });
+        console.error('[NotificationContext] Error loading notifications', error);
       }
     };
 
@@ -193,32 +158,25 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
   const markAsRead = useCallback(
     async (notificationId: number) => {
-      console.log('[NotificationContext] 📖 Marking notification as read:', notificationId);
       const notification = notifications.find((n) => n.id === notificationId);
       if (!notification) {
-        console.warn('[NotificationContext] ⚠️ Notification not found', notificationId);
+        console.warn('[NotificationContext] Notification not found', notificationId);
         return;
       }
 
       if (notification.isRead) {
-        console.log('[NotificationContext] ℹ️ Notification already read', notificationId);
         return;
       }
 
       try {
         const response = await revertNotificationReadStatus(notificationId);
         if (response.status) {
-          console.log('[NotificationContext] ✅ Notification marked as read:', notificationId);
           dispatch(markAsReadLocal(notificationId));
         } else {
           throw new Error(response.errors?.[0] || 'Failed to mark as read');
         }
       } catch (error) {
-        console.error('[NotificationContext] ❌ markAsRead failed', {
-          notificationId,
-          error,
-          timestamp: new Date().toISOString()
-        });
+        console.error('[NotificationContext] markAsRead failed', error);
         toast.error('Không thể đánh dấu đã đọc');
       }
     },
@@ -226,47 +184,32 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   );
 
   const markAllAsRead = useCallback(async () => {
-    console.log('[NotificationContext] 📖📖 Marking all notifications as read');
     if (!serviceRef.current) {
-      console.warn('[NotificationContext] ⚠️ No service instance available');
       return;
     }
 
     const unreadIds = notifications.filter((n) => !n.isRead).map((n) => n.id);
-    console.log('[NotificationContext] 📊 Unread notifications:', unreadIds.length);
-    
     try {
       await Promise.all(unreadIds.map((id) => serviceRef.current!.markAsRead(id)));
-      console.log('[NotificationContext] ✅ All notifications marked as read');
       dispatch(markAllAsReadLocal());
     } catch (error) {
-      console.error('[NotificationContext] ❌ markAllAsRead failed', {
-        error,
-        unreadCount: unreadIds.length,
-        timestamp: new Date().toISOString()
-      });
+      console.error('[NotificationContext] markAllAsRead failed', error);
       toast.error('Không thể đánh dấu tất cả đã đọc');
     }
   }, [dispatch, notifications]);
 
   const handleDeleteNotification = useCallback(
     async (notificationId: number) => {
-      console.log('[NotificationContext] 🗑️ Deleting notification:', notificationId);
       try {
         const response = await deleteNotificationApi(notificationId);
         if (response.status) {
-          console.log('[NotificationContext] ✅ Notification deleted:', notificationId);
           dispatch(deleteNotificationLocal(notificationId));
           toast.success('Đã xóa thông báo');
         } else {
           throw new Error(response.errors?.[0] || 'Failed to delete notification');
         }
       } catch (error) {
-        console.error('[NotificationContext] ❌ deleteNotification failed', {
-          notificationId,
-          error,
-          timestamp: new Date().toISOString()
-        });
+        console.error('[NotificationContext] deleteNotification failed', error);
         toast.error('Không thể xóa thông báo');
       }
     },
@@ -274,7 +217,6 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   );
 
   const clearAllNotifications = useCallback(() => {
-    console.log('[NotificationContext] 🧹 Clearing all notifications from state');
     dispatch(clearNotificationsAction());
   }, [dispatch]);
 

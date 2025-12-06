@@ -37,11 +37,6 @@ class NotificationService {
   constructor(token: string, hubUrl?: string) {
     this.token = token;
     this.hubUrl = normalizeHubUrl(hubUrl);
-    console.log('[SignalR Service] 🚀 Initialized', {
-      hubUrl: this.hubUrl,
-      tokenLength: token.length,
-      timestamp: new Date().toISOString()
-    });
   }
 
   /**
@@ -49,17 +44,10 @@ class NotificationService {
    */
   async start(): Promise<void> {
     if (this.connection) {
-      console.log("[SignalR] Already connected", {
-        state: this.connection.state,
-        connectionId: this.connection.connectionId
-      });
+      console.log("[SignalR] Already connected");
       return;
     }
 
-    console.log('[SignalR] 🔌 Starting connection...', {
-      hubUrl: this.hubUrl,
-      timestamp: new Date().toISOString()
-    });
     this.updateConnectionState(CONNECTION_STATES.Connecting);
 
     // Tạo connection với cấu hình
@@ -89,26 +77,15 @@ class NotificationService {
 
     // Kết nối
     try {
-      console.log('[SignalR] 📡 Attempting connection...');
       await this.connection.start();
       this.updateConnectionState(CONNECTION_STATES.Connected);
-      console.log("[SignalR] ✅ Connected successfully", {
-        connectionId: this.connection.connectionId,
-        state: this.connection.state,
-        baseUrl: this.connection.baseUrl,
-        timestamp: new Date().toISOString()
-      });
+      console.log("[SignalR] ✅ Connected successfully");
       
       // Note: Ping method removed - server doesn't implement it
       // If needed, can be called manually via ping() method
     } catch (err) {
       this.updateConnectionState(CONNECTION_STATES.Disconnected);
-      console.error("[SignalR] ❌ Connection failed:", {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : String(err),
-        hubUrl: this.hubUrl,
-        timestamp: new Date().toISOString()
-      });
+      console.error("[SignalR] ❌ Connection failed:", err);
       throw err;
     }
   }
@@ -117,22 +94,12 @@ class NotificationService {
    * Ngắt kết nối
    */
   async stop(): Promise<void> {
-    if (!this.connection) {
-      console.log('[SignalR] 🔌 Stop called but no active connection');
-      return;
-    }
-
-    console.log('[SignalR] 🛑 Stopping connection...', {
-      connectionId: this.connection.connectionId,
-      listenerCount: this.listeners.length
-    });
+    if (!this.connection) return;
 
     try {
       await this.connection.stop();
       this.updateConnectionState(CONNECTION_STATES.Disconnected);
-      console.log("[SignalR] ✅ Disconnected successfully", {
-        timestamp: new Date().toISOString()
-      });
+      console.log("[SignalR] Disconnected");
     } catch (err) {
       console.error("[SignalR] Disconnect error:", err);
     } finally {
@@ -145,31 +112,18 @@ class NotificationService {
    * Đăng ký các event handlers
    */
   private setupEventHandlers(): void {
-    if (!this.connection) {
-      console.warn('[SignalR] ⚠️ Cannot setup event handlers - no connection');
-      return;
-    }
-
-    console.log('[SignalR] 🎧 Setting up event handlers...');
+    if (!this.connection) return;
 
     // ✅ Lắng nghe thông báo mới từ server
     this.connection.on("ReceiveNotification", (notification: Notification) => {
-      console.log("[SignalR] 🔔 Received notification:", {
-        notification,
-        listenerCount: this.listeners.length,
-        timestamp: new Date().toISOString()
-      });
+      console.log("[SignalR] 🔔 Received notification:", notification);
       
       // Gọi tất cả listeners đã đăng ký
-      this.listeners.forEach((listener, index) => {
+      this.listeners.forEach(listener => {
         try {
-          console.log(`[SignalR] 📤 Dispatching to listener #${index + 1}`);
           listener(notification);
         } catch (err) {
-          console.error(`[SignalR] ❌ Error in listener #${index + 1}:`, {
-            error: err,
-            notification
-          });
+          console.error("[SignalR] Error in listener:", err);
         }
       });
     });
@@ -187,33 +141,20 @@ class NotificationService {
     // Khi reconnecting
     this.connection.onreconnecting((error) => {
       this.updateConnectionState(CONNECTION_STATES.Reconnecting);
-      console.warn("[SignalR] 🔄 Reconnecting...", {
-        error: error?.message,
-        stack: error?.stack,
-        timestamp: new Date().toISOString()
-      });
+      console.warn("[SignalR] 🔄 Reconnecting...", error?.message);
     });
 
     // Khi reconnected
     this.connection.onreconnected((connectionId) => {
       this.updateConnectionState(CONNECTION_STATES.Connected);
-      console.log("[SignalR] ✅ Reconnected:", {
-        connectionId,
-        timestamp: new Date().toISOString()
-      });
+      console.log("[SignalR] ✅ Reconnected:", connectionId);
     });
 
     // Khi connection bị đóng
     this.connection.onclose((error) => {
       this.updateConnectionState(CONNECTION_STATES.Disconnected);
-      console.error("[SignalR] ❌ Connection closed:", {
-        error: error?.message,
-        stack: error?.stack,
-        timestamp: new Date().toISOString()
-      });
+      console.error("[SignalR] ❌ Connection closed:", error?.message);
     });
-
-    console.log('[SignalR] ✅ Event handlers setup completed');
   }
 
   /**
@@ -222,18 +163,10 @@ class NotificationService {
    */
   onNotification(callback: NotificationCallback): () => void {
     this.listeners.push(callback);
-    console.log('[SignalR] 🎯 Listener registered', {
-      totalListeners: this.listeners.length
-    });
     
     // Return unsubscribe function
     return () => {
-      const beforeCount = this.listeners.length;
       this.listeners = this.listeners.filter(l => l !== callback);
-      console.log('[SignalR] 🗑️ Listener unregistered', {
-        before: beforeCount,
-        after: this.listeners.length
-      });
     };
   }
 
@@ -256,23 +189,12 @@ class NotificationService {
    * Update connection state và notify callbacks
    */
   private updateConnectionState(newState: ConnectionState): void {
-    const oldState = this.currentState;
     this.currentState = newState;
-    
-    if (oldState !== newState) {
-      console.log('[SignalR] 🔄 State changed:', {
-        from: oldState,
-        to: newState,
-        callbackCount: this.connectionStateCallbacks.length,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
     this.connectionStateCallbacks.forEach(callback => {
       try {
         callback(newState);
       } catch (err) {
-        console.error("[SignalR] ❌ Error in connection state callback:", err);
+        console.error("[SignalR] Error in connection state callback:", err);
       }
     });
   }
@@ -316,13 +238,8 @@ class NotificationService {
    * Update JWT token (dùng khi refresh token)
    */
   updateToken(newToken: string): void {
-    const oldTokenLength = this.token.length;
     this.token = newToken;
-    console.log("[SignalR] 🔑 Token updated", {
-      oldTokenLength,
-      newTokenLength: newToken.length,
-      timestamp: new Date().toISOString()
-    });
+    console.log("[SignalR] Token updated");
   }
 
   /**
