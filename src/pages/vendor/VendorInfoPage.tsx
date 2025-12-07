@@ -13,7 +13,6 @@ import {
   MapPin,
   Loader2,
   FileText,
-  Award,
   ExternalLink,
   CheckCircle
 } from 'lucide-react';
@@ -380,9 +379,9 @@ const VendorInfoPage = () => {
         const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id;
         const profile = await getVendorByUserId(userId);
         setVendorData(profile);
-      } catch (err: any) {
+      } catch (err: Error | unknown) {
         console.error('Error fetching vendor profile:', err);
-        setError(err?.message || 'Không thể tải thông tin nhà cung cấp');
+        setError(err instanceof Error ? err.message : 'Không thể tải thông tin nhà cung cấp');
       } finally {
         setLoading(false);
       }
@@ -434,9 +433,9 @@ const VendorInfoPage = () => {
       setShowSuccessDialog(true);
       console.log('showSuccessDialog should be true now');
       
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
       console.error('Error updating vendor profile:', err);
-      setUpdateError(err?.message || 'Không thể cập nhật thông tin nhà cung cấp');
+      setUpdateError(err instanceof Error ? err.message : 'Không thể cập nhật thông tin nhà cung cấp');
       
       // Ẩn thông báo lỗi sau 5 giây
       setTimeout(() => {
@@ -446,6 +445,7 @@ const VendorInfoPage = () => {
       setIsUpdating(false);
     }
   };
+  
 
   return (
     <div className="flex h-screen bg-gray-50">
