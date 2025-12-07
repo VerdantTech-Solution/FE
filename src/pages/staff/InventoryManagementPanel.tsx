@@ -21,7 +21,7 @@ import {
   X,
   Plus
 } from "lucide-react";
-//import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   getBatchInventories, 
   createBatchInventory,
@@ -43,7 +43,7 @@ import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/ex
 import { getAllProducts, getAllProductCategories, type Product, type ProductCategory } from "@/api/product";
 
 export const InventoryManagementPanel: React.FC = () => {
-  //const { user } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"import" | "export" | "history">("import");
   
   // Import states
@@ -558,11 +558,22 @@ export const InventoryManagementPanel: React.FC = () => {
   const handleQualityCheckSubmit = async () => {
     if (!selectedInventory) return;
 
+    // Kiểm tra user ID
+    if (!user?.id) {
+      setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const updatedItem = await qualityCheckBatchInventory(selectedInventory.id, qualityCheckForm);
+      // Gọi API với qualityCheckedByUserId theo đúng API spec
+      const updatedItem = await qualityCheckBatchInventory(selectedInventory.id, {
+        qualityCheckStatus: qualityCheckForm.qualityCheckStatus,
+        qualityCheckedByUserId: Number(user.id),
+        notes: qualityCheckForm.notes || undefined,
+      });
       console.log('Quality check updated item:', updatedItem);
       
       // Update the item in the state immediately

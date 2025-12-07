@@ -514,7 +514,7 @@ const VendorInfoPage = () => {
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
                 <span className="text-sm font-medium text-gray-700">
-                  {vendorData?.companyName || user?.fullName || 'Vendor'}
+                  {vendorData?.companyName || user?.fullName || 'Nhà cung cấp'}
                 </span>
               </div>
               <Button 
