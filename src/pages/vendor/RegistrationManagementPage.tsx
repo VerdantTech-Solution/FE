@@ -584,7 +584,7 @@ const RegistrationManagementPage = () => {
               </Button>
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Vendor Name'}</span>
+                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Nhà cung cấp'}</span>
               </div>
               <Button 
                 variant="outline" 

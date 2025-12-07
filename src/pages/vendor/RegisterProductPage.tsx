@@ -44,20 +44,20 @@ export const RegisterProductPage = () => {
     { key: '', value: '' }
   ]);
 
-  // Form state
+  // Form state - Tất cả các trường số không có giá trị mặc định
   const [form, setForm] = useState({
     categoryId: 1,
     proposedProductCode: "",
     proposedProductName: "",
     description: "",
-    unitPrice: 0,
+    unitPrice: "", // Thay đổi từ 0 sang ""
     energyEfficiencyRating: 0,
-    warrantyMonths: 0,
-    weightKg: 0,
+    warrantyMonths: "", // Thay đổi từ 0 sang ""
+    weightKg: "", // Thay đổi từ 0 sang ""
     dimensionsCm: {
-      width: 0,
-      height: 0,
-      length: 0
+      width: "", // Không có giá trị mặc định
+      height: "", // Không có giá trị mặc định
+      length: "" // Không có giá trị mặc định
     }
   });
 
@@ -129,14 +129,21 @@ export const RegisterProductPage = () => {
     return [{ key: '', value: '' }];
   };
 
+  // Thêm hàm handleChange
   const handleChange = (field: string, value: any) => {
     if (field.startsWith('dimensionsCm.')) {
       const dimension = field.split('.')[1];
+      // Xử lý như string, loại bỏ số 0 ở đầu
+      let processedValue = String(value).trim();
+      // Loại bỏ số 0 ở đầu (ví dụ: "0123" -> "123", nhưng giữ "0" nếu chỉ có 0)
+      if (processedValue.length > 1 && processedValue.startsWith('0') && processedValue[1] !== '.') {
+        processedValue = processedValue.replace(/^0+/, '') || '0';
+      }
       setForm(prev => ({
         ...prev,
         dimensionsCm: {
           ...prev.dimensionsCm,
-          [dimension]: parseFloat(value) || 0
+          [dimension]: processedValue
         }
       }));
     } else if (field === 'categoryId') {
@@ -149,11 +156,42 @@ export const RegisterProductPage = () => {
       // Auto-suggest specifications when category changes
       const suggestedSpecs = getSuggestedSpecifications(categoryId);
       setSpecifications(suggestedSpecs);
+    } else if (['unitPrice', 'warrantyMonths', 'weightKg'].includes(field)) {
+      // Xử lý các trường số: loại bỏ số 0 ở đầu, giữ empty string nếu rỗng
+      let processedValue = String(value).trim();
+      // Loại bỏ số 0 ở đầu (ví dụ: "0123" -> "123")
+      if (processedValue.length > 1 && processedValue.startsWith('0') && processedValue[1] !== '.') {
+        processedValue = processedValue.replace(/^0+/, '') || '0';
+      }
+      // Giữ empty string nếu rỗng, không convert thành 0
+      setForm(prev => ({
+        ...prev,
+        [field]: processedValue
+      }));
     } else {
+      // Text fields: giữ nguyên khi nhập, sẽ trim khi blur
       setForm(prev => ({
         ...prev,
         [field]: value
       }));
+    }
+  };
+
+  // Thêm hàm handleBlur để xử lý trim khoảng trắng cho text fields
+  const handleBlur = (field: string) => {
+    if (!['categoryId', 'unitPrice', 'warrantyMonths', 'weightKg'].includes(field) && !field.startsWith('dimensionsCm.')) {
+      setForm(prev => {
+        const currentValue = prev[field as keyof typeof prev];
+        if (typeof currentValue === 'string') {
+          // Loại bỏ khoảng trắng thừa: nhiều khoảng -> 1 khoảng, trim đầu cuối
+          const processedValue = currentValue.replace(/\s+/g, ' ').trim();
+          return {
+            ...prev,
+            [field]: processedValue
+          };
+        }
+        return prev;
+      });
     }
   };
 
@@ -221,6 +259,7 @@ export const RegisterProductPage = () => {
     }
   };
 
+  // Sửa hàm updateCertificate - thêm xử lý trim khi blur
   const updateCertificate = (index: number, field: 'code' | 'name' | 'file', value: string | File | null) => {
     const newCertificates = [...certificates];
     newCertificates[index] = {
@@ -228,6 +267,16 @@ export const RegisterProductPage = () => {
       [field]: value
     };
     setCertificates(newCertificates);
+  };
+
+  // Thêm hàm handleCertificateBlur để trim khi blur
+  const handleCertificateBlur = (index: number, field: 'code' | 'name') => {
+    const newCertificates = [...certificates];
+    if (typeof newCertificates[index][field] === 'string') {
+      // Loại bỏ khoảng trắng thừa: nhiều khoảng trắng -> 1 khoảng, trim đầu cuối
+      newCertificates[index][field] = (newCertificates[index][field] as string).replace(/\s+/g, ' ').trim();
+      setCertificates(newCertificates);
+    }
   };
 
   const handleCertificateFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -250,9 +299,18 @@ export const RegisterProductPage = () => {
     e.target.value = '';
   };
 
+  // Sửa hàm updateSpecification - thêm xử lý trim khi blur
   const updateSpecification = (index: number, field: 'key' | 'value', value: string) => {
     const newSpecs = [...specifications];
     newSpecs[index][field] = value;
+    setSpecifications(newSpecs);
+  };
+
+  // Thêm hàm handleSpecificationBlur để trim khi blur
+  const handleSpecificationBlur = (index: number, field: 'key' | 'value') => {
+    const newSpecs = [...specifications];
+    // Loại bỏ khoảng trắng thừa: nhiều khoảng trắng -> 1 khoảng, trim đầu cuối
+    newSpecs[index][field] = newSpecs[index][field].replace(/\s+/g, ' ').trim();
     setSpecifications(newSpecs);
   };
 
@@ -279,6 +337,7 @@ export const RegisterProductPage = () => {
     }
   };
 
+  // Sửa validation
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
@@ -286,12 +345,12 @@ export const RegisterProductPage = () => {
           form.proposedProductName.trim() &&
           form.proposedProductCode.trim() &&
           form.description.trim() &&
-          form.unitPrice > 0 &&
-          form.warrantyMonths >= 0 &&
-          form.weightKg > 0 &&
-          form.dimensionsCm.width > 0 &&
-          form.dimensionsCm.height > 0 &&
-          form.dimensionsCm.length > 0
+          form.unitPrice && parseFloat(String(form.unitPrice)) > 0 &&
+          form.warrantyMonths && parseInt(String(form.warrantyMonths)) >= 0 &&
+          form.weightKg && parseFloat(String(form.weightKg)) > 0 &&
+          form.dimensionsCm.width && parseFloat(String(form.dimensionsCm.width)) > 0 &&
+          form.dimensionsCm.height && parseFloat(String(form.dimensionsCm.height)) > 0 &&
+          form.dimensionsCm.length && parseFloat(String(form.dimensionsCm.length)) > 0
         );
       case 2:
         return true; // Certificate is optional
@@ -372,9 +431,9 @@ export const RegisterProductPage = () => {
         warrantyMonths: parseInt(form.warrantyMonths.toString()) || undefined,
         weightKg: parseFloat(form.weightKg.toString()) || undefined,
         dimensionsCm: {
-          width: form.dimensionsCm.width || 0,
-          height: form.dimensionsCm.height || 0,
-          length: form.dimensionsCm.length || 0
+          width: form.dimensionsCm.width ? parseFloat(String(form.dimensionsCm.width)) : 0,
+          height: form.dimensionsCm.height ? parseFloat(String(form.dimensionsCm.height)) : 0,
+          length: form.dimensionsCm.length ? parseFloat(String(form.dimensionsCm.length)) : 0
         },
         manualFile: manualFiles.length > 0 ? manualFiles[0] : undefined,
         images: imageFiles.length > 0 ? imageFiles : undefined,
@@ -519,6 +578,7 @@ export const RegisterProductPage = () => {
                     id="proposedProductCode"
                     value={form.proposedProductCode}
                     onChange={(e) => handleChange('proposedProductCode', e.target.value)}
+                    onBlur={() => handleBlur('proposedProductCode')}
                     placeholder="VD: PRO-001"
                     required
                   />
@@ -533,6 +593,7 @@ export const RegisterProductPage = () => {
                     id="proposedProductName"
                     value={form.proposedProductName}
                     onChange={(e) => handleChange('proposedProductName', e.target.value)}
+                    onBlur={() => handleBlur('proposedProductName')}
                     placeholder="Nhập tên sản phẩm"
                     required
                   />
@@ -548,7 +609,8 @@ export const RegisterProductPage = () => {
                     type="number"
                     value={form.unitPrice}
                     onChange={(e) => handleChange('unitPrice', e.target.value)}
-                    placeholder="0"
+                    onBlur={() => handleBlur('unitPrice')}
+                    placeholder="Nhập giá bán"
                     required
                     min="0"
                   />
@@ -564,7 +626,8 @@ export const RegisterProductPage = () => {
                     type="number"
                     value={form.warrantyMonths}
                     onChange={(e) => handleChange('warrantyMonths', e.target.value)}
-                    placeholder="0"
+                    onBlur={() => handleBlur('warrantyMonths')}
+                    placeholder="Nhập số tháng bảo hành"
                     required
                     min="0"
                   />
@@ -581,7 +644,8 @@ export const RegisterProductPage = () => {
                     step="0.01"
                     value={form.weightKg}
                     onChange={(e) => handleChange('weightKg', e.target.value)}
-                    placeholder="0"
+                    onBlur={() => handleBlur('weightKg')}
+                    placeholder="Nhập trọng lượng"
                     required
                     min="0"
                   />
@@ -623,6 +687,7 @@ export const RegisterProductPage = () => {
                   id="description"
                   value={form.description}
                   onChange={(e) => handleChange('description', e.target.value)}
+                  onBlur={() => handleBlur('description')}
                   placeholder="Nhập mô tả chi tiết về sản phẩm"
                   rows={4}
                   required
@@ -642,6 +707,7 @@ export const RegisterProductPage = () => {
                       step="0.01"
                       value={form.dimensionsCm.length}
                       onChange={(e) => handleChange('dimensionsCm.length', e.target.value)}
+                      onBlur={() => handleBlur('dimensionsCm.length')}
                       placeholder="Dài (cm)"
                       min="0"
                       required
@@ -654,6 +720,7 @@ export const RegisterProductPage = () => {
                       step="0.01"
                       value={form.dimensionsCm.width}
                       onChange={(e) => handleChange('dimensionsCm.width', e.target.value)}
+                      onBlur={() => handleBlur('dimensionsCm.width')}
                       placeholder="Rộng (cm)"
                       min="0"
                       required
@@ -666,6 +733,7 @@ export const RegisterProductPage = () => {
                       step="0.01"
                       value={form.dimensionsCm.height}
                       onChange={(e) => handleChange('dimensionsCm.height', e.target.value)}
+                      onBlur={() => handleBlur('dimensionsCm.height')}
                       placeholder="Cao (cm)"
                       min="0"
                       required
@@ -711,6 +779,7 @@ export const RegisterProductPage = () => {
                         <Input
                           value={spec.key}
                           onChange={(e) => updateSpecification(index, 'key', e.target.value)}
+                          onBlur={() => handleSpecificationBlur(index, 'key')}
                           placeholder="Tên thông số"
                         />
                       </div>
@@ -718,6 +787,7 @@ export const RegisterProductPage = () => {
                         <Input
                           value={spec.value}
                           onChange={(e) => updateSpecification(index, 'value', e.target.value)}
+                          onBlur={() => handleSpecificationBlur(index, 'value')}
                           placeholder="Giá trị"
                         />
                       </div>
@@ -890,6 +960,7 @@ export const RegisterProductPage = () => {
                             type="text"
                             value={cert.code}
                             onChange={(e) => updateCertificate(index, 'code', e.target.value)}
+                            onBlur={() => handleCertificateBlur(index, 'code')}
                             placeholder="VD: CERT-2024-001"
                             disabled={submitting}
                             className="text-sm"
@@ -905,6 +976,7 @@ export const RegisterProductPage = () => {
                             type="text"
                             value={cert.name}
                             onChange={(e) => updateCertificate(index, 'name', e.target.value)}
+                            onBlur={() => handleCertificateBlur(index, 'name')}
                             placeholder="VD: Chứng nhận ISO 9001"
                             disabled={submitting}
                             className="text-sm"
@@ -988,16 +1060,16 @@ export const RegisterProductPage = () => {
                 <div>
                   <p className="text-sm text-gray-600">Giá bán</p>
                   <p className="font-semibold text-gray-900">
-                    {form.unitPrice > 0 ? `${form.unitPrice.toLocaleString('vi-VN')} VNĐ` : "Chưa nhập"}
+                    {form.unitPrice && parseFloat(String(form.unitPrice)) > 0 ? `${parseFloat(String(form.unitPrice)).toLocaleString('vi-VN')} VNĐ` : "Chưa nhập"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Bảo hành</p>
-                  <p className="font-semibold text-gray-900">{form.warrantyMonths} tháng</p>
+                  <p className="font-semibold text-gray-900">{form.warrantyMonths && parseInt(String(form.warrantyMonths)) >= 0 ? `${parseInt(String(form.warrantyMonths))} tháng` : "Chưa nhập"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Trọng lượng</p>
-                  <p className="font-semibold text-gray-900">{form.weightKg} kg</p>
+                  <p className="font-semibold text-gray-900">{form.weightKg && parseFloat(String(form.weightKg)) > 0 ? `${parseFloat(String(form.weightKg))} kg` : "Chưa nhập"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Mã chứng nhận</p>
