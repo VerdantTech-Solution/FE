@@ -222,6 +222,46 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
                 className="h-11"
               />
             </div>
+            {/* Chứng chỉ */}
+            {vendorData?.files && vendorData.files.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Chứng chỉ công ty
+                </Label>
+                <div className="space-y-2">
+                  {vendorData.files.map((file, index) => {
+                    const isPdf = file.imageUrl?.toLowerCase().includes('.pdf') || false;
+                    return (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">
+                            {isPdf ? 'PDF' : 'Hình ảnh'} - Chứng chỉ {index + 1}
+                          </span>
+                          {file.purpose && (
+                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                              {file.purpose}
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-8"
+                          onClick={() => window.open(file.imageUrl, '_blank')}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          {isPdf ? 'Mở PDF' : 'Xem'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <div className="space-y-5">
             <div className="space-y-2">
@@ -312,92 +352,6 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
               />
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-
-const CertificatesSection = ({ vendorData }: { vendorData: VendorProfileResponse | null }) => {
-  if (!vendorData || !vendorData.files || vendorData.files.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-500" />
-            Chứng chỉ
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium">Chưa có chứng chỉ nào</p>
-            <p className="text-sm text-gray-400 mt-1">Vui lòng tải lên chứng chỉ của công ty</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Award className="w-5 h-5 text-amber-500" />
-          Chứng chỉ ({vendorData.files.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {vendorData.files.map((file, index) => (
-            <div
-              key={file.id}
-              className="group relative border-2 border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-lg transition-all duration-200 bg-white"
-            >
-              {/* Image Preview */}
-              <div className="aspect-video w-full bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                <img
-                  src={file.imageUrl}
-                  alt={`Chứng chỉ ${index + 1}`}
-                  className="w-full h-full object-contain p-2"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Certificate';
-                  }}
-                />
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    onClick={() => window.open(file.imageUrl, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Xem chi tiết
-                  </Button>
-                </div>
-              </div>
-              
-              {/* File Info */}
-              <div className="p-4 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm font-semibold text-gray-900">
-                      Chứng chỉ {index + 1}
-                    </span>
-                  </div>
-                  {file.purpose && (
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                      {file.purpose}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">ID: {file.id}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </CardContent>
     </Card>
@@ -556,7 +510,6 @@ const VendorInfoPage = () => {
                 console.log('Vendor data updated successfully');
               }}
             />
-            {vendorData && <CertificatesSection vendorData={vendorData} />}
           </div>
         </main>
       </div>
