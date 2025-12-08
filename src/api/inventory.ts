@@ -620,11 +620,21 @@ export const qualityCheckBatchInventory = async (
   id: number,
   data: {
     qualityCheckStatus: 'Pending' | 'Passed' | 'Failed';
+    qualityCheckedByUserId: number;
     notes?: string;
   }
 ): Promise<BatchInventory> => {
   try {
-    const response = await apiClient.post(`/api/BatchInventory/${id}/quality-check`, data);
+    // Chuẩn bị request body theo API spec: { id, status, qualityCheckedByUserId, notes }
+    const requestBody = {
+      id: id,
+      status: data.qualityCheckStatus, // API dùng 'status' thay vì 'qualityCheckStatus'
+      qualityCheckedByUserId: data.qualityCheckedByUserId,
+      notes: data.notes || undefined,
+    };
+
+    console.log('Quality check request body:', requestBody);
+    const response = await apiClient.post(`/api/BatchInventory/${id}/quality-check`, requestBody);
     console.log('Quality check response:', response);
     
     // Handle different response structures

@@ -5,13 +5,12 @@ import VendorInfoPage from './VendorInfoPage';
 import RegisterProductPage from './RegisterProductPage';
 import CashoutRequestManagementPage from './CashoutRequestManagementPage';
 import CashoutHistoryPage from './CashoutHistoryPage';
-import { Route, Routes as RRDRoutes, Navigate } from 'react-router';
+import { Route, Routes as RRDRoutes } from 'react-router';
 
 const VendorPage = () => {
   return (
     <RRDRoutes>
-      <Route path="" element={<Navigate to="dashboard" replace />} />
-      <Route path="dashboard" element={<VendorDashboard />} />
+      <Route path="" element={<VendorDashboard />} />
       <Route path="registrations" element={<RegistrationManagementPage />} />
       <Route path="registrations/new" element={<RegisterProductPage />} />
       <Route path="wallet" element={<WalletPage />} />

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, X, Check, Trash2, FileText, Upload } from 'lucide-react';
+import { Plus, X, Check, Trash2, FileText, Upload, AlertCircle } from 'lucide-react';
 import { registerProduct, getAllProductCategories } from '../api/product';
 import type { RegisterProductRequest, ProductCategory } from '../api/product';
 
@@ -67,9 +67,9 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         const fetchedCategories = await getAllProductCategories();
         // Filter: chỉ lấy categories có parentId != null (sub-categories)
         // Xử lý cả 2 trường hợp: parentId trực tiếp, parent?.id, hoặc parent_id (snake_case)
-        const subCategories = fetchedCategories.filter(cat => {
+        const subCategories = fetchedCategories.filter((cat: ProductCategory & { parent_id?: number | null }) => {
           const hasParentId = cat.parentId !== null && cat.parentId !== undefined;
-          const hasParentIdSnake = (cat as any).parent_id !== null && (cat as any).parent_id !== undefined;
+          const hasParentIdSnake = cat.parent_id !== null && cat.parent_id !== undefined;
           const hasParent = cat.parent !== null && cat.parent !== undefined;
           return hasParentId || hasParentIdSnake || hasParent;
         });
@@ -110,87 +110,16 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     }
   }, [isOpen]);
 
-  // Suggested specifications for different categories
-  const getSuggestedSpecifications = (categoryId: number): SpecificationItem[] => {
-    const selectedCategory = categories.find(cat => cat.id === categoryId);
-    const categoryName = selectedCategory?.name?.toLowerCase() || '';
-    
-    if (categoryName.includes('máy cày') || categoryName.includes('máy xới')) {
-      return [
-        { key: 'Công suất động cơ', value: '12 HP' },
-        { key: 'Loại động cơ', value: 'Diesel' },
-        { key: 'Hệ truyền động', value: '2 cầu - 2 hộp số' },
-        { key: 'Độ rộng xới', value: '70-100 cm' },
-        { key: 'Độ sâu xới', value: '25-35 cm' },
-        { key: 'Số cấp số cầu trước', value: '5 cấp' },
-        { key: 'Số cấp số cầu sau', value: '4 cấp' },
-        { key: 'Loại nhiên liệu', value: 'Dầu diesel' },
-        { key: 'Khả năng điều chỉnh', value: 'Có' },
-        { key: 'Khung sườn', value: 'Thiết kế chắc chắn' }
-      ];
-    } else if (categoryName.includes('máy gặt')) {
-      return [
-        { key: 'Công suất động cơ', value: '25-35 HP' },
-        { key: 'Loại động cơ', value: 'Diesel' },
-        { key: 'Độ rộng cắt', value: '1.5-2.5 m' },
-        { key: 'Tốc độ làm việc', value: '3-8 km/h' },
-        { key: 'Dung tích thùng chứa', value: '1-3 tấn' },
-        { key: 'Loại nhiên liệu', value: 'Dầu diesel' },
-        { key: 'Hệ thống điều khiển', value: 'Thủy lực' }
-      ];
-    } else if (categoryName.includes('drone') || categoryName.includes('uav')) {
-      return [
-        { key: 'Thời gian bay', value: '15-30 phút' },
-        { key: 'Tầm bay', value: '1-5 km' },
-        { key: 'Tải trọng', value: '5-20 kg' },
-        { key: 'Tốc độ bay', value: '10-20 m/s' },
-        { key: 'Độ cao bay tối đa', value: '120 m' },
-        { key: 'Pin', value: 'Lithium Polymer' },
-        { key: 'Camera', value: '4K/HD' },
-        { key: 'GPS', value: 'Có' }
-      ];
-    } else if (categoryName.includes('phân bón')) {
-      return [
-        { key: 'Thành phần chính', value: 'N-P-K' },
-        { key: 'Hàm lượng dinh dưỡng', value: '15-15-15' },
-        { key: 'Dạng sản phẩm', value: 'Hạt' },
-        { key: 'Độ tan', value: 'Tan nhanh' },
-        { key: 'pH', value: '6.0-7.0' },
-        { key: 'Độ ẩm', value: '< 2%' }
-      ];
-    } else if (categoryName.includes('hạt giống')) {
-      return [
-        { key: 'Tỷ lệ nảy mầm', value: '> 85%' },
-        { key: 'Độ tinh khiết', value: '> 98%' },
-        { key: 'Hàm lượng nước', value: '< 12%' },
-        { key: 'Thời gian bảo quản', value: '2-3 năm' },
-        { key: 'Nhiệt độ bảo quản', value: '10-15°C' },
-        { key: 'Độ ẩm bảo quản', value: '45-55%' }
-      ];
-    }
-    
-    return [{ key: '', value: '' }];
-  };
-
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number | undefined) => {
     if (field.startsWith('dimensionsCm.')) {
       const dimension = field.split('.')[1];
       setFormData(prev => ({
         ...prev,
         dimensionsCm: {
           ...prev.dimensionsCm,
-          [dimension]: parseFloat(value) || 0
+          [dimension]: parseFloat(value as string) || 0
         }
       }));
-    } else if (field === 'categoryId') {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
-      
-      // Auto-suggest specifications when category changes
-      const suggestedSpecs = getSuggestedSpecifications(value);
-      setSpecifications(suggestedSpecs);
     } else {
       setFormData(prev => ({
         ...prev,
@@ -313,17 +242,31 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         }
       });
 
-      // Convert image URLs to files if needed (for now, we'll use file uploads)
-      // If user provided URLs, we might need to fetch them, but for now prioritize file uploads
-      
-      // Validate certificates: đảm bảo mỗi certificate có tên và file
-      const validCertificates = certificates.filter(cert => cert.file && cert.name.trim());
-      const invalidCertificates = certificates.filter(cert => 
-        (cert.file && !cert.name.trim()) || (!cert.file && cert.name.trim())
-      );
-      
+      // VALIDATION CERTIFICATE: Bắt buộc phải có ít nhất 1 certificate hợp lệ
+      // Mỗi certificate phải có đầy đủ: name và file PDF (code là optional)
+      const validCertificates = certificates.filter(cert => {
+        const hasName = cert.name && cert.name.trim();
+        const hasFile = cert.file !== null;
+        return hasName && hasFile; // Chỉ cần name và file, code là optional
+      });
+
+      // Kiểm tra nếu không có certificate nào hợp lệ
+      if (validCertificates.length === 0) {
+        alert('Vui lòng nhập ít nhất 1 chứng chỉ với đầy đủ: Tên chứng chỉ và File PDF');
+        setIsLoading(false);
+        return;
+      }
+
+      // Kiểm tra các certificate không đầy đủ thông tin
+      const invalidCertificates = certificates.filter(cert => {
+        const hasName = cert.name && cert.name.trim();
+        const hasFile = cert.file !== null;
+        // Invalid nếu có name nhưng không có file, hoặc có file nhưng không có name
+        return (hasName && !hasFile) || (hasFile && !hasName);
+      });
+
       if (invalidCertificates.length > 0) {
-        alert('Vui lòng nhập đầy đủ tên chứng chỉ và tải lên file cho tất cả các chứng chỉ');
+        alert('Mỗi chứng chỉ phải có đầy đủ: Tên chứng chỉ và File PDF. Vui lòng kiểm tra lại các chứng chỉ chưa đầy đủ.');
         setIsLoading(false);
         return;
       }
@@ -344,7 +287,7 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
 
       // Chỉ gửi các certificates có đầy đủ thông tin
       const certificateFiles = validCertificates.map(cert => cert.file!);
-      const certificationCodes = validCertificates.map(cert => cert.code.trim()).filter(code => code);
+      const certificationCodes = validCertificates.map(cert => cert.code ? cert.code.trim() : '').filter(code => code); // Code là optional
       const certificationNames = validCertificates.map(cert => cert.name.trim());
 
       const payload: RegisterProductRequest = {
@@ -358,9 +301,9 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         weightKg: parseFloat((formData.weightKg || 0).toString()),
         specifications: specificationsDict,
         images: imageFiles.length > 0 ? imageFiles : undefined,
-        certificate: certificateFiles.length > 0 ? certificateFiles : undefined,
-        certificationCode: certificationCodes.length > 0 ? certificationCodes : undefined,
-        certificationName: certificationNames.length > 0 ? certificationNames : undefined,
+        certificate: certificateFiles, // Bắt buộc phải có
+        certificationCode: certificationCodes, // Bắt buộc phải có
+        certificationName: certificationNames, // Bắt buộc phải có
         manualFile: manualFile || undefined,
       };
       
@@ -397,19 +340,21 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
         onProductRegistered?.();
       }, 3000);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Lỗi khi đăng ký sản phẩm:', error);
       
       let message = 'Có lỗi xảy ra khi đăng ký sản phẩm';
       
-      if (error?.response?.status === 405) {
+      const errorResponse = error as { response?: { status?: number; data?: { message?: string } }; message?: string };
+      
+      if (errorResponse?.response?.status === 405) {
         message = 'Endpoint không hỗ trợ hoặc bạn không có quyền truy cập';
-      } else if (error?.response?.status === 401) {
+      } else if (errorResponse?.response?.status === 401) {
         message = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại';
-      } else if (error?.response?.status === 403) {
+      } else if (errorResponse?.response?.status === 403) {
         message = 'Bạn không có quyền đăng ký sản phẩm';
       } else {
-        message = error?.response?.data?.message || error?.message || message;
+        message = errorResponse?.response?.data?.message || errorResponse?.message || message;
       }
       
       setErrorMessage(message);
@@ -437,6 +382,15 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
     setErrorMessage('');
     setIsOpen(false);
   };
+
+  // Thêm useMemo để kiểm tra xem có certificate hợp lệ không
+  const hasValidCertificate = useMemo(() => {
+    return certificates.some(cert => {
+      const hasName = cert.name && cert.name.trim();
+      const hasFile = cert.file !== null;
+      return hasName && hasFile;
+    });
+  }, [certificates]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -744,20 +698,6 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const suggestedSpecs = getSuggestedSpecifications(formData.categoryId ?? 1);
-                        setSpecifications(suggestedSpecs);
-                      }}
-                      disabled={isLoading}
-                      className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    >
-                      <Check size={16} className="mr-1" />
-                      Gợi ý thông số
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
                       onClick={addSpecification}
                       disabled={isLoading}
                       className="h-8"
@@ -1058,23 +998,30 @@ const RegisterProductForm: React.FC<RegisterProductFormProps> = ({ onProductRegi
                   <X size={16} className="mr-2" />
                   Hủy
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-green-600 hover:bg-green-700"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Đang đăng ký...
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={16} className="mr-2" />
-                      Xác nhận đăng ký
-                    </>
-                  )}
-                </Button>
+                {hasValidCertificate ? (
+                  <Button
+                    type="submit"
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Đang đăng ký...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} className="mr-2" />
+                        Xác nhận đăng ký
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="flex items-center text-sm text-gray-500">
+                    <AlertCircle size={16} className="mr-2" />
+                    Vui lòng nhập ít nhất 1 chứng chỉ với đầy đủ: Tên chứng chỉ và File PDF
+                  </div>
+                )}
               </div>
             </form>
           </>
