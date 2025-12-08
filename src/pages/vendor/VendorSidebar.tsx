@@ -17,7 +17,7 @@ const VendorSidebar = () => {
       id: "statistics", 
       label: "Thống kê", 
       icon: BarChart3, 
-      path: "/vendor/dashboard" 
+      path: "/vendor" 
     },
     { 
       id: "registrations", 
@@ -56,6 +56,10 @@ const VendorSidebar = () => {
   };
 
   const isActive = (path: string) => {
+    // Handle dashboard route - match both /vendor and /vendor/dashboard
+    if (path === "/vendor") {
+      return location.pathname === "/vendor" || location.pathname === "/vendor/";
+    }
     return location.pathname === path;
   };
 
