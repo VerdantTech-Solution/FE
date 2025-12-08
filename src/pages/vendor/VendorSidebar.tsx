@@ -69,7 +69,7 @@ const VendorSidebar = () => {
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-900">VerdantTech</h1>
-            <p className="text-xs text-gray-500">Nông nghiệp xanh</p>
+            <p className="text-xs text-gray-500 font-medium">SOLUTION</p>
           </div>
         </div>
       </div>
