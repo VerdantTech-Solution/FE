@@ -110,7 +110,7 @@ export const ChatAIBubble = () => {
     return [
       {
         id: '1',
-        text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+        text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
         sender: 'ai',
         timestamp: new Date(),
       },
@@ -121,7 +121,7 @@ export const ChatAIBubble = () => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
-  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [_isLoadingConversation, setIsLoadingConversation] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -285,7 +285,7 @@ export const ChatAIBubble = () => {
 
   const getWelcomeMessage = (): Message => ({
     id: '1',
-    text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+    text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
     sender: 'ai',
     timestamp: new Date(),
   });
@@ -381,7 +381,7 @@ export const ChatAIBubble = () => {
   const handleClearHistory = () => {
     const welcomeMessage: Message = {
       id: '1',
-      text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+      text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
       sender: 'ai',
       timestamp: new Date(),
     };
@@ -502,8 +502,8 @@ export const ChatAIBubble = () => {
                     <Bot className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Trợ lý AI VerdantTech</h3>
-                    <p className="text-xs text-green-100">Thường phản hồi trong vài giây</p>
+                    <h3 className="font-semibold">Trợ lý Verdant AI</h3>
+                    <p className="text-xs text-green-100">Tư vấn nông nghiệp bền vững</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
