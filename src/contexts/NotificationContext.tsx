@@ -102,7 +102,6 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
     service.start().catch((error) => {
       console.error('[NotificationContext] Failed to start SignalR', error);
-      toast.error('Không thể kết nối đến server thông báo');
     });
 
     return () => {

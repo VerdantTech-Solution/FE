@@ -56,7 +56,7 @@ const AgricultureInnovation = () => {
     },
     {
       icon: Leaf,
-      title: "Giống Cây Trồng Đổi Mới",
+      title: "Giống Rau Củ Đổi Mới",
       description: "Trong các điều kiện khác nhau"
     },
     {

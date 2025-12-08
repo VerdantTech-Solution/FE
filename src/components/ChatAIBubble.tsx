@@ -6,7 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendChatbotMessage } from '@/api/chatbot';
+import { 
+  sendChatbotMessage, 
+  getChatbotConversations, 
+  getChatbotMessages, 
+  createChatbotConversation, 
+  type ChatbotConversation as BackendConversation,
+  type ChatbotMessage as BackendMessage,
+} from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
 import { ChatProductCarousel } from '@/components/ChatProductCarousel';
 
@@ -53,6 +60,11 @@ export const ChatAIBubble = () => {
     user?.role === 'Admin' ||
     user?.role === 'Vendor';
   
+  // Helper function to validate Date objects
+  const isValidDate = (date: any): date is Date => {
+    return date instanceof Date && !isNaN(date.getTime());
+  };
+
   // Load current conversation from localStorage (theo từng user)
   const loadCurrentConversation = (): Message[] => {
     const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
@@ -63,11 +75,16 @@ export const ChatAIBubble = () => {
       if (conversations && currentId) {
         const parsed = JSON.parse(conversations);
         const currentConv = parsed.find((c: any) => c.id === currentId);
-        if (currentConv && currentConv.messages) {
-          return currentConv.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-          }));
+        if (currentConv && currentConv.messages && Array.isArray(currentConv.messages)) {
+          return currentConv.messages.map((msg: any) => {
+            const timestamp = new Date(msg.timestamp);
+            return {
+              id: msg.id || Date.now().toString(),
+              text: msg.text || '',
+              sender: msg.sender || 'ai',
+              timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+            };
+          });
         }
       }
       
@@ -75,10 +92,17 @@ export const ChatAIBubble = () => {
       const saved = localStorage.getItem(legacyHistoryKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
+        if (Array.isArray(parsed)) {
+          return parsed.map((msg: any) => {
+            const timestamp = new Date(msg.timestamp);
+            return {
+              id: msg.id || Date.now().toString(),
+              text: msg.text || '',
+              sender: msg.sender || 'ai',
+              timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+            };
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -96,8 +120,113 @@ export const ChatAIBubble = () => {
   const [messages, setMessages] = useState<Message[]>(loadCurrentConversation);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load conversation from backend when user changes or component mounts
+  useEffect(() => {
+    const loadConversationFromBackend = async () => {
+      if (!user?.id) {
+        // Fallback to localStorage for guest users
+        const loadedMessages = loadCurrentConversation();
+        setMessages(loadedMessages);
+        return;
+      }
+
+      // First, load from localStorage for immediate display
+      const cachedMessages = loadCurrentConversation();
+      if (cachedMessages.length > 0) {
+        setMessages(cachedMessages);
+      }
+
+      try {
+        setIsLoadingConversation(true);
+        // Get the most recent conversation
+        const conversationsResponse = await getChatbotConversations(1, 1);
+        
+        if (conversationsResponse.items.length > 0) {
+          const latestConv = conversationsResponse.items[0];
+          setCurrentConversationId(latestConv.id);
+          
+          // Update localStorage cache with conversation ID
+          const { currentConversationIdKey } = getStorageKeys();
+          localStorage.setItem(currentConversationIdKey, latestConv.id.toString());
+          
+          // Try to load messages from backend (but don't overwrite if we have cached messages)
+          try {
+            const messagesResponse = await getChatbotMessages(latestConv.id, 1, 100);
+            const backendMessages = messagesResponse.items;
+            
+            // Convert backend messages to local format
+            const localMessages: Message[] = backendMessages.map((msg: BackendMessage) => {
+              const timestamp = new Date(msg.createdAt);
+              return {
+                id: msg.id.toString(),
+                text: msg.content || '',
+                sender: msg.sender || 'ai',
+                timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+              };
+            });
+            
+            // Only update if we have messages from backend
+            if (localMessages.length > 0) {
+              setMessages(localMessages);
+              // Save to localStorage
+              const { conversationsKey } = getStorageKeys();
+              try {
+                const saved = localStorage.getItem(conversationsKey);
+                const conversations = saved ? JSON.parse(saved) : [];
+                const existingConv = conversations.find((c: any) => c.id === latestConv.id.toString());
+                
+                if (existingConv) {
+                  existingConv.messages = localMessages;
+                  existingConv.updatedAt = new Date();
+                } else {
+                  conversations.push({
+                    id: latestConv.id.toString(),
+                    title: latestConv.title || 'Cuộc trò chuyện mới',
+                    messages: localMessages,
+                    createdAt: new Date(latestConv.createdAt),
+                    updatedAt: new Date(latestConv.updatedAt),
+                  });
+                }
+                localStorage.setItem(conversationsKey, JSON.stringify(conversations));
+              } catch (error) {
+                console.error('Error saving to localStorage:', error);
+              }
+            } else if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+              // No messages from backend and no cached messages (or only welcome), show welcome
+              setMessages([getWelcomeMessage()]);
+            }
+          } catch (messagesError) {
+            console.error('Error loading messages from backend:', messagesError);
+            // Keep cached messages if available
+            if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+              setMessages([getWelcomeMessage()]);
+            }
+          }
+        } else {
+          // No conversations, show welcome message only if no cached messages
+          if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+            setMessages([getWelcomeMessage()]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading conversation from backend:', error);
+        // Keep cached messages if available
+        if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+          const loadedMessages = loadCurrentConversation();
+          setMessages(loadedMessages);
+        }
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    };
+
+    loadConversationFromBackend();
+  }, [user?.id]);
 
   // Save chat history to current conversation
   useEffect(() => {
@@ -171,86 +300,55 @@ export const ChatAIBubble = () => {
       timestamp: new Date(),
     };
 
-    // Get or create current conversation (lưu theo từng user)
-    const { conversationsKey, currentConversationIdKey } = getStorageKeys();
-    let conversations = [];
-    let currentId = localStorage.getItem(currentConversationIdKey);
-    
-    try {
-      const saved = localStorage.getItem(conversationsKey);
-      if (saved) {
-        conversations = JSON.parse(saved);
-      }
-    } catch (error) {
-      console.error('Error loading conversations:', error);
-    }
-    
-    // Create new conversation if none exists
-    if (!currentId || !conversations.find((c: any) => c.id === currentId)) {
-      const newConversation = {
-        id: Date.now().toString(),
-        title: userMessage.text.length > 30 
-          ? userMessage.text.substring(0, 30) + '...' 
-          : userMessage.text,
-        messages: [getWelcomeMessage()],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      conversations = [newConversation, ...conversations];
-      currentId = newConversation.id;
-      localStorage.setItem(conversationsKey, JSON.stringify(conversations));
-      localStorage.setItem(currentConversationIdKey, currentId);
-    }
-
-    // Update conversation with new messages
-    const updatedConversations = conversations.map((conv: any) => {
-      if (conv.id === currentId) {
-        const newMessages = [...conv.messages, userMessage];
-        // Update title from first user message if it's still default
-        let title = conv.title;
-        if (conv.title === 'Cuộc trò chuyện mới' && conv.messages.length === 1) {
-          title = userMessage.text.length > 30 
-            ? userMessage.text.substring(0, 30) + '...' 
-            : userMessage.text;
-        }
-        return {
-          ...conv,
-          messages: newMessages,
-          title: title,
-          updatedAt: new Date(),
-        };
-      }
-      return conv;
-    });
-
-    localStorage.setItem(conversationsKey, JSON.stringify(updatedConversations));
-
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
+    let conversationId = currentConversationId;
+    const { currentConversationIdKey } = getStorageKeys();
+
     try {
-      const aiText = await sendChatbotMessage(userMessage.text, currentId || undefined);
+      // Create conversation if it doesn't exist
+      if (!conversationId && user?.id) {
+        const title = userMessage.text.length > 30 
+          ? userMessage.text.substring(0, 30) + '...' 
+          : userMessage.text;
+        const newConversation = await createChatbotConversation(title);
+        conversationId = newConversation.id;
+        setCurrentConversationId(conversationId);
+        localStorage.setItem(currentConversationIdKey, conversationId.toString());
+      }
+
+      // Get AI response
+      const sessionId = conversationId?.toString() || undefined;
+      const aiText = await sendChatbotMessage(userMessage.text, sessionId);
+      
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: aiText,
         sender: 'ai',
         timestamp: new Date(),
       };
-      
-      const finalConversations = updatedConversations.map((conv: any) => {
-        if (conv.id === currentId) {
-          return {
-            ...conv,
-            messages: [...conv.messages, aiResponse],
-            updatedAt: new Date(),
-          };
-        }
-        return conv;
-      });
-      
-      localStorage.setItem(conversationsKey, JSON.stringify(finalConversations));
+
       setMessages((prev) => [...prev, aiResponse]);
+
+      // Update localStorage cache
+      if (conversationId) {
+        const { conversationsKey } = getStorageKeys();
+        try {
+          const saved = localStorage.getItem(conversationsKey);
+          const conversations = saved ? JSON.parse(saved) : [];
+          const existingConv = conversations.find((c: any) => c.id === conversationId?.toString());
+          
+          if (existingConv) {
+            existingConv.messages = [...messages, userMessage, aiResponse];
+            existingConv.updatedAt = new Date();
+            localStorage.setItem(conversationsKey, JSON.stringify(conversations));
+          }
+        } catch (error) {
+          console.error('Error updating localStorage cache:', error);
+        }
+      }
     } catch (error: any) {
       console.error('Error sending chat message:', error);
       const aiResponse: Message = {
@@ -260,18 +358,6 @@ export const ChatAIBubble = () => {
         timestamp: new Date(),
       };
 
-      const finalConversations = updatedConversations.map((conv: any) => {
-        if (conv.id === currentId) {
-          return {
-            ...conv,
-            messages: [...conv.messages, aiResponse],
-            updatedAt: new Date(),
-          };
-        }
-        return conv;
-      });
-
-      localStorage.setItem(conversationsKey, JSON.stringify(finalConversations));
       setMessages((prev) => [...prev, aiResponse]);
     } finally {
       setIsTyping(false);
@@ -329,10 +415,18 @@ export const ChatAIBubble = () => {
   };
 
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
+    if (!isValidDate(date)) {
+      return '';
+    }
+    try {
+      return new Intl.DateTimeFormat('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date);
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return '';
+    }
   };
 
   // Ẩn chat button ở trang Login và SignUp
@@ -515,7 +609,7 @@ export const ChatAIBubble = () => {
                                 : 'bg-white text-gray-800 shadow-sm border border-gray-200'
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-line">{message.text}</p>
+                            <p className="text-sm whitespace-pre-line">{message.text || ''}</p>
                             <p
                               className={`text-xs mt-1 ${
                                 message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
