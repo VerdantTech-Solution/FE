@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import logo from "@/assets/logo.png";
-import { MapPin, Phone, Mail, Clock } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Globe } from 'lucide-react';
 
 export const Footer = () => {
   const containerVariants = {
@@ -30,7 +30,7 @@ export const Footer = () => {
     <footer className="bg-white text-gray-900">
       {/* Main Footer Content */}
       <motion.div 
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
@@ -75,6 +75,12 @@ export const Footer = () => {
                 <div className="text-gray-600 text-sm">
                   T2 – T7: 9h → 20h
                 </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Globe size={16} className="text-green-600 flex-shrink-0" />
+                <a href="https://verdanttechsolution.verdev.id.vn/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-green-600 transition-colors text-sm">
+                  verdanttechsolution.verdev.id.vn
+                </a>
               </div>
             </div>
           </motion.div>
@@ -155,36 +161,17 @@ export const Footer = () => {
             </ul>
           </motion.div>
         </div>
+
+        {/* Copyright */}
+        <div className="mt-8 pt-4 border-t border-gray-200">
+          <p className="text-gray-500 text-xs text-center">
+            Bản quyền © 2024. VerdantTech. Tất cả quyền được bảo lưu.
+          </p>
+        </div>
       </motion.div>
 
       {/* Divider */}
       <div className="border-t border-gray-100"></div>
-
-      {/* Bottom Footer */}
-      <motion.div 
-        className="bg-gray-50"
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-gray-500 text-sm">
-              Bản quyền © 2024. VerdantTech. Tất cả quyền được bảo lưu.
-            </div>
-            <div className="flex items-center gap-6 text-sm">
-              <a href="/terms" className="text-gray-500 hover:text-green-600 transition-colors">
-                Điều khoản & Điều kiện
-              </a>
-              <span className="text-gray-300">•</span>
-              <a href="/privacy" className="text-gray-500 hover:text-green-600 transition-colors">
-                Chính sách bảo mật
-              </a>
-            </div>
-          </div>
-        </div>
-      </motion.div>
     </footer>
   );
 };
