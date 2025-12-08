@@ -165,7 +165,7 @@ const ServicesPage = () => {
                   className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4 leading-tight"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
-                  Tăng Năng Suất Cây Trồng Với Chất Lượng Tốt Nhất
+                  Tăng Năng Suất Rau Củ Với Chất Lượng Tốt Nhất
                 </h3>
                 
                 <p className="text-gray-700 leading-relaxed mb-6">

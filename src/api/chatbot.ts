@@ -236,4 +236,131 @@ export const sendChatbotMessage = async (
   }
 };
 
+// Import apiClient for backend API calls
+import { apiClient } from './apiClient';
+
+// Interfaces for conversation API
+export interface ChatbotConversation {
+  id: number;
+  userId: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatbotMessage {
+  id: number;
+  conversationId: number;
+  content: string;
+  sender: 'user' | 'ai';
+  createdAt: string;
+}
+
+export interface ConversationApiResponse<T> {
+  status: boolean;
+  statusCode: string | number;
+  data: T | string;
+  errors: string[];
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+const parseApiData = <T>(data: T | string): T => {
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as T;
+    } catch {
+      return data as unknown as T;
+    }
+  }
+  return data;
+};
+
+export const getChatbotConversations = async (
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<PaginatedResponse<ChatbotConversation>> => {
+  try {
+    const response = await apiClient.get<ConversationApiResponse<PaginatedResponse<ChatbotConversation>>>(
+      '/api/ChatbotConversation',
+      { params: { page, pageSize } },
+    ) as unknown as ConversationApiResponse<PaginatedResponse<ChatbotConversation>>;
+    if (!response.status) {
+      throw new Error(response.errors?.[0] || 'Không thể lấy danh sách cuộc hội thoại');
+    }
+    const data = parseApiData(response.data);
+    if (Array.isArray(data)) {
+      return { items: data, totalCount: data.length, page: 1, pageSize: data.length, totalPages: 1 };
+    }
+    if (typeof data === 'object' && 'items' in data) {
+      return data as PaginatedResponse<ChatbotConversation>;
+    }
+    if (typeof data === 'object' && 'data' in data) {
+      const innerData = (data as any).data;
+      if (Array.isArray(innerData)) {
+        return { items: innerData, totalCount: innerData.length, page: 1, pageSize: innerData.length, totalPages: 1 };
+      }
+    }
+    return { items: [], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 };
+  } catch (error: any) {
+    console.error('[Chatbot] Error fetching conversations:', error);
+    throw new Error(error?.message || 'Không thể lấy danh sách cuộc hội thoại. Vui lòng thử lại sau.');
+  }
+};
+
+export const getChatbotMessages = async (
+  conversationId: number,
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<PaginatedResponse<ChatbotMessage>> => {
+  try {
+    const response = await apiClient.get<ConversationApiResponse<PaginatedResponse<ChatbotMessage>>>(
+      `/api/ChatbotConversation/${conversationId}/messages`,
+      { params: { page, pageSize } },
+    ) as unknown as ConversationApiResponse<PaginatedResponse<ChatbotMessage>>;
+    if (!response.status) {
+      throw new Error(response.errors?.[0] || 'Không thể lấy danh sách tin nhắn');
+    }
+    const data = parseApiData(response.data);
+    if (Array.isArray(data)) {
+      return { items: data, totalCount: data.length, page: 1, pageSize: data.length, totalPages: 1 };
+    }
+    if (typeof data === 'object' && 'items' in data) {
+      return data as PaginatedResponse<ChatbotMessage>;
+    }
+    if (typeof data === 'object' && 'data' in data) {
+      const innerData = (data as any).data;
+      if (Array.isArray(innerData)) {
+        return { items: innerData, totalCount: innerData.length, page: 1, pageSize: innerData.length, totalPages: 1 };
+      }
+    }
+    return { items: [], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 };
+  } catch (error: any) {
+    console.error('[Chatbot] Error fetching messages:', error);
+    throw new Error(error?.message || 'Không thể lấy danh sách tin nhắn. Vui lòng thử lại sau.');
+  }
+};
+
+export const createChatbotConversation = async (title: string): Promise<ChatbotConversation> => {
+  try {
+    const response = await apiClient.post<ConversationApiResponse<ChatbotConversation>>(
+      '/api/ChatbotConversation',
+      { title },
+    ) as unknown as ConversationApiResponse<ChatbotConversation>;
+    if (!response.status) {
+      throw new Error(response.errors?.[0] || 'Không thể tạo cuộc hội thoại');
+    }
+    const data = parseApiData(response.data);
+    return data as ChatbotConversation;
+  } catch (error: any) {
+    console.error('[Chatbot] Error creating conversation:', error);
+    throw new Error(error?.message || 'Không thể tạo cuộc hội thoại. Vui lòng thử lại sau.');
+  }
+};
 

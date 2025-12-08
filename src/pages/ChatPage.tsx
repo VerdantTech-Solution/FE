@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router';
-import { sendChatbotMessage } from '@/api/chatbot';
+import { 
+  sendChatbotMessage, 
+  getChatbotConversations, 
+  getChatbotMessages, 
+  createChatbotConversation, 
+  type ChatbotConversation as BackendConversation,
+  type ChatbotMessage as BackendMessage,
+} from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
 import { ChatProductCarousel } from '@/components/ChatProductCarousel';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +48,11 @@ const getWelcomeMessage = (): Message => ({
   timestamp: new Date(),
 });
 
+// Helper function to validate Date objects
+const isValidDate = (date: any): date is Date => {
+  return date instanceof Date && !isNaN(date.getTime());
+};
+
 // Helper tạo key localStorage theo từng user
 const getStorageKeys = (userId?: number | string) => {
   const key = userId ?? 'guest';
@@ -57,15 +69,22 @@ const loadConversations = (userId?: number | string): Conversation[] => {
     const saved = localStorage.getItem(conversationsKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return parsed.map((conv: any) => ({
-        ...conv,
-        messages: conv.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-        createdAt: new Date(conv.createdAt),
-        updatedAt: new Date(conv.updatedAt),
-      }));
+      return parsed.map((conv: any) => {
+        const createdAt = new Date(conv.createdAt);
+        const updatedAt = new Date(conv.updatedAt);
+        return {
+          ...conv,
+          messages: conv.messages.map((msg: any) => {
+            const timestamp = new Date(msg.timestamp);
+            return {
+              ...msg,
+              timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+            };
+          }),
+          createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+          updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+        };
+      });
     }
   } catch (error) {
     console.error('Error loading conversations:', error);
@@ -83,17 +102,19 @@ const saveConversations = (conversations: Conversation[], userId?: number | stri
   }
 };
 
-// Get current conversation ID
-const getCurrentConversationId = (): string | null => {
-  return localStorage.getItem('chatAI_currentConversationId');
+// Get current conversation ID (theo từng user)
+const getCurrentConversationId = (userId?: number | string): string | null => {
+  const { currentConversationIdKey } = getStorageKeys(userId);
+  return localStorage.getItem(currentConversationIdKey);
 };
 
-// Set current conversation ID
-const setCurrentConversationId = (id: string | null) => {
+// Set current conversation ID (theo từng user)
+const setCurrentConversationId = (id: string | null, userId?: number | string) => {
+  const { currentConversationIdKey } = getStorageKeys(userId);
   if (id) {
-    localStorage.setItem('chatAI_currentConversationId', id);
+    localStorage.setItem(currentConversationIdKey, id);
   } else {
-    localStorage.removeItem('chatAI_currentConversationId');
+    localStorage.removeItem(currentConversationIdKey);
   }
 };
 
@@ -103,11 +124,15 @@ export const ChatPage = () => {
   const [conversations, setConversations] = useState<Conversation[]>(() =>
     loadConversations(user?.id),
   );
-  const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(getCurrentConversationId());
+  const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(() =>
+    getCurrentConversationId(user?.id),
+  );
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState('');
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -116,40 +141,210 @@ export const ChatPage = () => {
   const currentConversation = conversations.find(c => c.id === currentConversationId);
   const messages = currentConversation?.messages || [getWelcomeMessage()];
 
-  // Initialize with first conversation or create new one
+  // Load conversations from backend when user changes or on mount
   useEffect(() => {
-    if (conversations.length === 0) {
-      const newConversation: Conversation = {
-        id: Date.now().toString(),
-        title: 'Cuộc trò chuyện mới',
-        messages: [getWelcomeMessage()],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setConversations([newConversation]);
-      setCurrentConversationIdState(newConversation.id);
-      setCurrentConversationId(newConversation.id);
-    } else if (!currentConversationId) {
-      // If no current conversation, use the most recent one
-      const mostRecent = [...conversations].sort((a, b) => 
-        b.updatedAt.getTime() - a.updatedAt.getTime()
-      )[0];
-      setCurrentConversationIdState(mostRecent.id);
-      setCurrentConversationId(mostRecent.id);
-    }
-  }, []);
+    const loadConversationsFromBackend = async () => {
+      if (!user?.id) {
+        // Fallback to localStorage for guest users
+        const loadedConversations = loadConversations(user?.id);
+        setConversations(loadedConversations);
+        const loadedCurrentId = getCurrentConversationId(user?.id);
+        if (loadedCurrentId && loadedConversations.find(c => c.id === loadedCurrentId)) {
+          setCurrentConversationIdState(loadedCurrentId);
+        }
+        return;
+      }
 
-  // Save conversations when they change
+      try {
+        setIsLoadingConversations(true);
+        // Load from localStorage first to preserve messages
+        const cachedConversations = loadConversations(user?.id);
+        
+        const response = await getChatbotConversations(1, 100);
+        const backendConversations = response.items;
+
+        // Convert backend conversations to local format and merge with cached data
+        const localConversations: Conversation[] = backendConversations.map((backendConv: BackendConversation) => {
+          const createdAt = new Date(backendConv.createdAt);
+          const updatedAt = new Date(backendConv.updatedAt);
+          
+          // Try to find cached conversation with messages
+          const cachedConv = cachedConversations.find(c => c.id === backendConv.id.toString());
+          
+          return {
+            id: backendConv.id.toString(),
+            title: backendConv.title,
+            // Preserve messages from cache if available, otherwise empty array
+            messages: cachedConv?.messages || [],
+            createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+            updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+          };
+        });
+
+        // Also include any local-only conversations (not in backend)
+        const localOnlyConversations = cachedConversations.filter(
+          cached => !localConversations.find(conv => conv.id === cached.id)
+        );
+
+        const allConversations = [...localConversations, ...localOnlyConversations];
+        setConversations(allConversations);
+
+        // Set current conversation
+        const loadedCurrentId = getCurrentConversationId(user?.id);
+        if (loadedCurrentId && allConversations.find(c => c.id === loadedCurrentId)) {
+          setCurrentConversationIdState(loadedCurrentId);
+        } else if (allConversations.length > 0) {
+          const mostRecent = allConversations[0];
+          setCurrentConversationIdState(mostRecent.id);
+          setCurrentConversationId(mostRecent.id, user?.id);
+        } else {
+          // No conversations, create welcome state
+          setConversations([]);
+        }
+
+        // Update localStorage cache - preserve messages
+        saveConversations(allConversations, user?.id);
+      } catch (error) {
+        console.error('Error loading conversations from backend:', error);
+        // Fallback to localStorage
+        const loadedConversations = loadConversations(user?.id);
+        setConversations(loadedConversations);
+        const loadedCurrentId = getCurrentConversationId(user?.id);
+        if (loadedCurrentId && loadedConversations.find(c => c.id === loadedCurrentId)) {
+          setCurrentConversationIdState(loadedCurrentId);
+        }
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    };
+
+    loadConversationsFromBackend();
+  }, [user?.id]);
+
+  // Load messages when conversation is selected
   useEffect(() => {
-    if (conversations.length > 0) {
+    const loadMessagesForConversation = async () => {
+      if (!currentConversationId || !user?.id) {
+        return;
+      }
+
+      // Check if messages are already loaded
+      const conv = conversations.find(c => c.id === currentConversationId);
+      if (conv && conv.messages.length > 0) {
+        return; // Already loaded
+      }
+
+      // First, try to load from localStorage for immediate display
+      const loadedConversations = loadConversations(user?.id);
+      const localConv = loadedConversations.find(c => c.id === currentConversationId);
+      if (localConv && localConv.messages.length > 0) {
+        setConversations(prev => {
+          const updated = prev.map(c => 
+            c.id === currentConversationId 
+              ? { ...c, messages: localConv.messages }
+              : c
+          );
+          saveConversations(updated, user?.id);
+          return updated;
+        });
+      }
+
+      try {
+        setIsLoadingMessages(true);
+        const conversationIdNum = parseInt(currentConversationId);
+        if (isNaN(conversationIdNum)) {
+          // Local conversation, already loaded from localStorage above
+          return;
+        }
+
+        // Try to load from backend to get latest messages
+        const response = await getChatbotMessages(conversationIdNum, 1, 1000);
+        const backendMessages = response.items;
+
+        // Convert backend messages to local format
+        const localMessages: Message[] = backendMessages.map((msg: BackendMessage) => {
+          const timestamp = new Date(msg.createdAt);
+          return {
+            id: msg.id.toString(),
+            text: msg.content,
+            sender: msg.sender,
+            timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+          };
+        });
+
+        // Update conversation with messages from backend (if available)
+        if (localMessages.length > 0) {
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: localMessages }
+                : c
+            );
+            // Save to localStorage immediately
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        } else if (!localConv || localConv.messages.length === 0) {
+          // No messages from backend and no local cache, show welcome
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: [getWelcomeMessage()] }
+                : c
+            );
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error('Error loading messages from backend:', error);
+        // Fallback to localStorage - try to load from cache first
+        const loadedConversations = loadConversations(user?.id);
+        const localConv = loadedConversations.find(c => c.id === currentConversationId);
+        if (localConv && localConv.messages.length > 0) {
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: localConv.messages }
+                : c
+            );
+            // Save to localStorage
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        } else {
+          // If no local cache, at least show welcome message
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: [getWelcomeMessage()] }
+                : c
+            );
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        }
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    loadMessagesForConversation();
+  }, [currentConversationId, user?.id]);
+
+  // Save conversations to localStorage whenever they change
+  useEffect(() => {
+    if (conversations.length >= 0) {
       saveConversations(conversations, user?.id);
     }
   }, [conversations, user?.id]);
 
   // Update current conversation ID in localStorage
   useEffect(() => {
-    setCurrentConversationId(currentConversationId);
-  }, [currentConversationId]);
+    if (currentConversationId) {
+      setCurrentConversationId(currentConversationId, user?.id);
+    }
+  }, [currentConversationId, user?.id]);
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
@@ -183,16 +378,42 @@ export const ChatPage = () => {
     updatedAt: new Date(),
   });
 
-  const handleCreateNewConversation = () => {
-    const newConversation = createConversation();
-    setConversations([newConversation, ...conversations]);
-    setCurrentConversationIdState(newConversation.id);
-    setCurrentConversationId(newConversation.id);
+  const handleCreateNewConversation = async () => {
+    if (user?.id) {
+      try {
+        const backendConv = await createChatbotConversation('Cuộc trò chuyện mới');
+        const createdAt = new Date(backendConv.createdAt);
+        const updatedAt = new Date(backendConv.updatedAt);
+        const newConversation: Conversation = {
+          id: backendConv.id.toString(),
+          title: backendConv.title,
+          messages: [getWelcomeMessage()],
+          createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+          updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+        };
+        setConversations([newConversation, ...conversations]);
+        setCurrentConversationIdState(newConversation.id);
+        setCurrentConversationId(newConversation.id, user?.id);
+      } catch (error) {
+        console.error('Error creating conversation on backend:', error);
+        // Fallback to local
+        const newConversation = createConversation();
+        setConversations([newConversation, ...conversations]);
+        setCurrentConversationIdState(newConversation.id);
+        setCurrentConversationId(newConversation.id, user?.id);
+      }
+    } else {
+      // Guest user, use local
+      const newConversation = createConversation();
+      setConversations([newConversation, ...conversations]);
+      setCurrentConversationIdState(newConversation.id);
+      setCurrentConversationId(newConversation.id, user?.id);
+    }
   };
 
   const handleSelectConversation = (id: string) => {
     setCurrentConversationIdState(id);
-    setCurrentConversationId(id);
+    setCurrentConversationId(id, user?.id);
   };
 
   const handleDeleteConversation = (id: string, e: React.MouseEvent) => {
@@ -206,12 +427,12 @@ export const ChatPage = () => {
           b.updatedAt.getTime() - a.updatedAt.getTime()
         )[0];
         setCurrentConversationIdState(mostRecent.id);
-        setCurrentConversationId(mostRecent.id);
+        setCurrentConversationId(mostRecent.id, user?.id);
       } else {
         const newConversation = createConversation();
         setConversations([newConversation]);
         setCurrentConversationIdState(newConversation.id);
-        setCurrentConversationId(newConversation.id);
+        setCurrentConversationId(newConversation.id, user?.id);
         return;
       }
     }
@@ -237,9 +458,33 @@ export const ChatPage = () => {
         : userMessage.text;
     }
 
-    setConversations(prev =>
-      prev.map(conv => {
-        if (conv.id === conversationId) {
+    // Create conversation on backend if it's a new local conversation
+    let backendConversationId: number | null = null;
+    const conversationIdNum = parseInt(conversationId);
+    if (isNaN(conversationIdNum) && user?.id) {
+      // Local conversation, create on backend
+      try {
+        const backendConv = await createChatbotConversation(newTitle);
+        backendConversationId = backendConv.id;
+        // Update conversation ID
+        setCurrentConversationIdState(backendConv.id.toString());
+        setCurrentConversationId(backendConv.id.toString(), user?.id);
+        // Update conversations list
+        setConversations(prev => prev.map(conv => 
+          conv.id === conversationId 
+            ? { ...conv, id: backendConv.id.toString(), title: newTitle }
+            : conv
+        ));
+      } catch (error) {
+        console.error('Error creating conversation on backend:', error);
+      }
+    } else {
+      backendConversationId = conversationIdNum;
+    }
+
+    setConversations(prev => {
+      const updated = prev.map(conv => {
+        if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
           return {
             ...conv,
             messages: [...conv.messages, userMessage],
@@ -248,14 +493,18 @@ export const ChatPage = () => {
           };
         }
         return conv;
-      }),
-    );
+      });
+      // Save to localStorage immediately
+      saveConversations(updated, user?.id);
+      return updated;
+    });
 
     setInputValue('');
     setIsTyping(true);
 
     try {
-      const aiText = await sendChatbotMessage(userMessage.text, conversationId);
+      const sessionId = backendConversationId?.toString() || conversationId;
+      const aiText = await sendChatbotMessage(userMessage.text, sessionId);
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: aiText,
@@ -263,9 +512,9 @@ export const ChatPage = () => {
         timestamp: new Date(),
       };
 
-      setConversations(prev =>
-        prev.map(conv => {
-          if (conv.id === conversationId) {
+      setConversations(prev => {
+        const updated = prev.map(conv => {
+          if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
             return {
               ...conv,
               messages: [...conv.messages, aiResponse],
@@ -273,8 +522,11 @@ export const ChatPage = () => {
             };
           }
           return conv;
-        }),
-      );
+        });
+        // Save to localStorage immediately
+        saveConversations(updated, user?.id);
+        return updated;
+      });
     } catch (error: any) {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -285,9 +537,9 @@ export const ChatPage = () => {
         timestamp: new Date(),
       };
 
-      setConversations(prev =>
-        prev.map(conv => {
-          if (conv.id === conversationId) {
+      setConversations(prev => {
+        const updated = prev.map(conv => {
+          if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
             return {
               ...conv,
               messages: [...conv.messages, aiResponse],
@@ -295,8 +547,11 @@ export const ChatPage = () => {
             };
           }
           return conv;
-        }),
-      );
+        });
+        // Save to localStorage immediately
+        saveConversations(updated, user?.id);
+        return updated;
+      });
     } finally {
       setIsTyping(false);
     }
@@ -345,6 +600,9 @@ export const ChatPage = () => {
   };
 
   const formatTime = (date: Date) => {
+    if (!isValidDate(date)) {
+      return '';
+    }
     return new Intl.DateTimeFormat('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -352,6 +610,9 @@ export const ChatPage = () => {
   };
 
   const formatDate = (date: Date) => {
+    if (!isValidDate(date)) {
+      return '';
+    }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -370,6 +631,9 @@ export const ChatPage = () => {
   };
 
   const formatConversationDate = (date: Date) => {
+    if (!isValidDate(date)) {
+      return '';
+    }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
