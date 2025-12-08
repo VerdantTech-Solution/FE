@@ -11,10 +11,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  css: {
-    postcss: {
-      // Chỉ tìm PostCSS config trong project directory, không tìm ở thư mục cha
-      searchPath: __dirname,
-    },
-  },
 })
