@@ -502,8 +502,8 @@ export const ChatAIBubble = () => {
                     <Bot className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Trợ lý Verdant AI</h3>
-                    <p className="text-xs text-green-100">Tư vấn nông nghiệp bền vững</p>
+                    <h3 className="font-semibold">Verdant AI</h3>
+                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

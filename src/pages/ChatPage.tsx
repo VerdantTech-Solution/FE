@@ -766,9 +766,9 @@ export const ChatPage = () => {
                       onClick={handleStartEditTitle}
                       title="Click để đổi tên"
                     >
-                      {currentConversation?.title || 'Trợ lý AI VerdantTech'}
+                      {currentConversation?.title || 'Verdant AI'}
                     </h3>
-                    <p className="text-xs text-green-100">Thường phản hồi trong vài giây</p>
+                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
                   </div>
                 )}
               </div>
