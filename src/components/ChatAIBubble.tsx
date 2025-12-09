@@ -11,7 +11,7 @@ import {
   getChatbotConversations, 
   getChatbotMessages, 
   createChatbotConversation, 
-  type ChatbotConversation as BackendConversation,
+  //type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
 } from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
