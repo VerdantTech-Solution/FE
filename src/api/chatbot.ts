@@ -319,6 +319,7 @@ export const getChatbotMessages = async (
   page: number = 1,
   pageSize: number = 10,
 ): Promise<PaginatedResponse<ChatbotMessage>> => {
+  pageSize = Math.min(Math.max(pageSize, 1), 100);
   try {
     const response = await apiClient.get<ConversationApiResponse<PaginatedResponse<ChatbotMessage>>>(
       `/api/ChatbotConversation/${conversationId}/messages`,
