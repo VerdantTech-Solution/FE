@@ -41,7 +41,7 @@ export const getOrderStatistics = async (
   }
   
   const queryString = queryParams.toString();
-  const url = `/api/Dashboard/orders${queryString ? `?${queryString}` : ''}`;
+  const url = `/api/Dashboard/orders/statistics${queryString ? `?${queryString}` : ''}`;
   
   const response = await apiClient.get(url);
   return response as unknown as OrderStatisticsResponse;
@@ -87,5 +87,59 @@ export const getRevenue = async (
   
   const response = await apiClient.get(url);
   return response as unknown as RevenueResponse;
+};
+
+/**
+ * Get revenue for last 7 days
+ * Lấy doanh thu 7 ngày gần nhất. Admin sẽ thấy tổng doanh thu toàn hệ thống theo ngày, Vendor chỉ thấy doanh thu của mình.
+ */
+export const getRevenueLast7Days = async (): Promise<RevenueResponse> => {
+  const url = `/api/Dashboard/revenue/last-7-days`;
+  const response = await apiClient.get(url);
+  return response as unknown as RevenueResponse;
+};
+
+export interface BestSellingProduct {
+  productId?: string;
+  productName?: string;
+  totalSales?: number;
+  totalRevenue?: number;
+  quantity?: number;
+}
+
+export interface BestSellingProductsResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: BestSellingProduct[];
+  errors: string[];
+}
+
+export interface GetBestSellingProductsParams {
+  from?: string; // date string
+  to?: string; // date string
+}
+
+/**
+ * Get top 5 best selling products by time range
+ * Lấy top 5 sản phẩm bán chạy nhất trong khoảng thời gian. Admin sẽ thấy top 5 toàn hệ thống, Vendor chỉ thấy sản phẩm của mình.
+ */
+export const getBestSellingProducts = async (
+  params?: GetBestSellingProductsParams
+): Promise<BestSellingProductsResponse> => {
+  const queryParams = new URLSearchParams();
+  
+  if (params?.from) {
+    queryParams.append('from', params.from);
+  }
+  
+  if (params?.to) {
+    queryParams.append('to', params.to);
+  }
+  
+  const queryString = queryParams.toString();
+  const url = `/api/Dashboard/best-selling-products${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await apiClient.get(url);
+  return response as unknown as BestSellingProductsResponse;
 };
 

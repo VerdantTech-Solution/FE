@@ -24,4 +24,3 @@ const VendorPage = () => {
 
 export default VendorPage;
 
-
