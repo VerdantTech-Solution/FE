@@ -34,4 +34,8 @@ export const PATH_NAMES = {
   // Forum routes
   FORUM: '/articles',
   FORUM_DETAIL: '/article',
+  // Policy routes
+  TERMS: '/terms',
+  PRIVACY: '/privacy',
+  REFUND_POLICY: '/refund-policy',
 };

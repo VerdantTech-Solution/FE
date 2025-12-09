@@ -13,6 +13,7 @@ import {
   createChatbotConversation, 
   type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
+  normalizeChatbotMessage,
 } from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
 import { ChatProductCarousel } from '@/components/ChatProductCarousel';
@@ -80,7 +81,9 @@ export const ChatAIBubble = () => {
             const timestamp = new Date(msg.timestamp);
             return {
               id: msg.id || Date.now().toString(),
-              text: msg.text || '',
+              text: normalizeChatbotMessage(
+                msg.text || msg.messageText || msg.content || '',
+              ),
               sender: msg.sender || 'ai',
               timestamp: isValidDate(timestamp) ? timestamp : new Date(),
             };
@@ -164,8 +167,8 @@ export const ChatAIBubble = () => {
               const timestamp = new Date(msg.createdAt);
               return {
                 id: msg.id.toString(),
-                text: msg.content || '',
-                sender: msg.sender || 'ai',
+                text: normalizeChatbotMessage(msg.messageText || msg.content || ''),
+                sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
                 timestamp: isValidDate(timestamp) ? timestamp : new Date(),
               };
             });

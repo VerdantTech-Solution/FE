@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, Trash2, RefreshCw, Edit2, Users, User, Shield, Activity, Mail, Phone, MoreHorizontal, Building2} from "lucide-react";
-import { getAllUsers, updateUser, deleteUser, type UserResponse } from "@/api/user";
+import { getAllUsers, updateUser, type UserResponse } from "@/api/user";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VendorManagementPanel } from "./VendorManagementPanel";
 import {
@@ -48,6 +48,12 @@ export const UserManagementPanel: React.FC = () => {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [deleteUserName, setDeleteUserName] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; title: string; message: string }>({
+    type: 'success',
+    title: '',
+    message: '',
+  });
 
   // Fetch users from API
   const fetchUsers = useCallback(async () => {
@@ -91,10 +97,21 @@ export const UserManagementPanel: React.FC = () => {
       });
       setIsEditOpen(false);
       await fetchUsers();
-      window.alert('Cập nhật người dùng thành công');
+      setFeedback({
+        type: 'success',
+        title: 'Thành công',
+        message: 'Cập nhật người dùng thành công.',
+      });
+      setFeedbackDialogOpen(true);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Cập nhật người dùng thất bại';
       setEditError(message);
+      setFeedback({
+        type: 'error',
+        title: 'Có lỗi xảy ra',
+        message,
+      });
+      setFeedbackDialogOpen(true);
     } finally {
       setEditLoading(false);
     }
@@ -110,13 +127,23 @@ export const UserManagementPanel: React.FC = () => {
     if (!deleteUserId) return;
     try {
       setDeleteLoading(true);
-      await deleteUser(deleteUserId);
+      await updateUser(deleteUserId, { status: 'deleted' });
       setDeleteDialogOpen(false);
       await fetchUsers();
-      window.alert('Xóa người dùng thành công');
+      setFeedback({
+        type: 'success',
+        title: 'Đã xóa',
+        message: 'Đã xóa người dùng',
+      });
+      setFeedbackDialogOpen(true);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Xóa người dùng thất bại';
-      window.alert(message);
+      setFeedback({
+        type: 'error',
+        title: 'Có lỗi xảy ra',
+        message,
+      });
+      setFeedbackDialogOpen(true);
     } finally {
       setDeleteLoading(false);
       setDeleteUserId(null);
@@ -651,6 +678,31 @@ export const UserManagementPanel: React.FC = () => {
               className="bg-red-600 hover:bg-red-700"
             >
               {deleteLoading ? 'Đang xóa...' : 'Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Feedback dialog for update/delete */}
+      <AlertDialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader className="text-center space-y-3">
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${feedback.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
+              {feedback.type === 'success' ? (
+                <Shield className="h-8 w-8 text-green-600" />
+              ) : (
+                <Trash2 className="h-8 w-8 text-red-600" />
+              )}
+            </div>
+            <AlertDialogTitle className="text-xl font-semibold">
+              {feedback.title || (feedback.type === 'success' ? 'Thành công' : 'Có lỗi xảy ra')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-gray-600">
+              {feedback.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction onClick={() => setFeedbackDialogOpen(false)} className="w-full sm:w-auto">
+              Đóng
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

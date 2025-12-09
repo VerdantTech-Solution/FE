@@ -105,17 +105,6 @@ export const updateUser = async (userId: string, userData: UpdateUserRequest): P
   }
 };
 
-// API xóa user (nếu cần)
-export const deleteUser = async (userId: string): Promise<void> => {
-  try {
-    await apiClient.delete(`/api/User/${userId}`);
-    console.log('User deleted successfully');
-  } catch (error) {
-    console.error('Delete user error:', error);
-    throw error;
-  }
-};
-
 // API lấy danh sách tất cả users (cho admin) - fetch 1 lần, lọc client
 export const getAllUsers = async (): Promise<UserResponse[]> => {
   const response = await apiClient.get('/api/User', { params: { page: 1, pageSize: 100 } });

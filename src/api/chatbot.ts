@@ -5,38 +5,59 @@ const FALLBACK_ERROR_MESSAGE =
 
 const DEFAULT_SESSION_ID = 'verdant-session';
 
-const normalizeChatbotMessage = (value: string): string => {
-  if (typeof value !== 'string') {
-    return '';
-  }
+// const normalizeChatbotMessage = (value: string): string => {
+//   if (typeof value !== 'string') {
+//     return '';
+//   }
 
-  // Check if it's a JSON string with products - don't normalize it
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === 'object' && parsed.products && Array.isArray(parsed.products)) {
-      // It's a JSON with products, return as-is (but normalize the message field inside)
-      if (parsed.message && typeof parsed.message === 'string') {
-        parsed.message = parsed.message
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/&nbsp;/gi, ' ')
-          .replace(/\r\n/g, '\n')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-        return JSON.stringify(parsed);
-      }
-      return value; // Return original JSON string
-    }
-  } catch (_e) {
-    // Not JSON, continue with normalization
-  }
+//   // Check if it's a JSON string with products - don't normalize it
+//   try {
+//     const parsed = JSON.parse(value);
+//     if (parsed && typeof parsed === 'object' && parsed.products && Array.isArray(parsed.products)) {
+//       // It's a JSON with products, return as-is (but normalize the message field inside)
+//       if (parsed.message && typeof parsed.message === 'string') {
+//         parsed.message = parsed.message
+//           .replace(/<br\s*\/?>/gi, '\n')
+//           .replace(/&nbsp;/gi, ' ')
+//           .replace(/\r\n/g, '\n')
+//           .replace(/\n{3,}/g, '\n\n')
+//           .trim();
+//         return JSON.stringify(parsed);
+//       }
+//       return value; // Return original JSON string
+//     }
+//   } catch (_e) {
+//     // Not JSON, continue with normalization
+//   }
 
-  return value
+//   return value
+//     .replace(/<br\s*\/?>/gi, '\n')
+//     .replace(/&nbsp;/gi, ' ')
+//     .replace(/\r\n/g, '\n')
+//     .replace(/\n{3,}/g, '\n\n')
+//     .trim();
+// };
+export const normalizeChatbotMessage = (value: string): string => {
+  if (typeof value !== 'string') return '';
+
+  // Convert HTML breaks
+  const text = value
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/&nbsp;/gi, ' ')
     .replace(/\r\n/g, '\n')
+    // Chuẩn hóa nhiều dòng trống -> tối đa 1
+    .replace(/\n{3,}/g, '\n\n')
+    // Loại bỏ khoảng trắng thừa quanh mỗi dòng
+    .split('\n')
+    .map(l => l.trim())
+    .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  return text;
 };
+
+
 
 /**
  * Chuẩn hóa nội dung phản hồi trả về từ API chatbot.

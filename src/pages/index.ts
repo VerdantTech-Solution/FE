@@ -36,6 +36,9 @@ export { default as TicketPage } from './TicketPage';
 export * from './ChatPage';
 export * from './ForumPage';
 export * from './ForumDetailPage';
+export * from './TermsPage';
+export * from './PrivacyPolicyPage';
+export * from './RefundPolicyPage';
 
 // Role-based components
 export { SimpleRoleRedirect } from '../components/SimpleRoleRedirect';
