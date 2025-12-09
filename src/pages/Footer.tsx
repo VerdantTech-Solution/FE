@@ -165,7 +165,7 @@ export const Footer = () => {
         {/* Copyright */}
         <div className="mt-8 pt-4 border-t border-gray-200">
           <p className="text-gray-500 text-xs text-center">
-            Bản quyền © 2024. VerdantTech. Tất cả quyền được bảo lưu.
+            Bản quyền © 2025. VerdantTech.
           </p>
         </div>
       </motion.div>
