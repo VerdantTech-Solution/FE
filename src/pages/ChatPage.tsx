@@ -266,8 +266,8 @@ export const ChatPage = () => {
           const timestamp = new Date(msg.createdAt);
           return {
             id: msg.id.toString(),
-            text: msg.content,
-            sender: msg.sender,
+            text: msg.messageText || msg.content || '',
+            sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
             timestamp: isValidDate(timestamp) ? timestamp : new Date(),
           };
         });

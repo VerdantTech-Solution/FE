@@ -164,8 +164,8 @@ export const ChatAIBubble = () => {
               const timestamp = new Date(msg.createdAt);
               return {
                 id: msg.id.toString(),
-                text: msg.content || '',
-                sender: msg.sender || 'ai',
+                text: msg.messageText || msg.content || '',
+                sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
                 timestamp: isValidDate(timestamp) ? timestamp : new Date(),
               };
             });
@@ -602,14 +602,33 @@ export const ChatAIBubble = () => {
                             </p>
                           </div>
                         ) : (
+                          // <div
+                          //   className={`rounded-2xl px-4 py-2 ${
+                          //     message.sender === 'user'
+                          //       ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                          //       : 'bg-white text-gray-800 shadow-sm border border-gray-200'
+                          //   }`}
+                          // >
+                          //   <p className="text-sm whitespace-pre-line">{message.text || ''}</p>
+                          //   <p
+                          //     className={`text-xs mt-1 ${
+                          //       message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                          //     }`}
+                          //   >
+                          //     {formatTime(message.timestamp)}
+                          //   </p>
+                          // </div>
                           <div
-                            className={`rounded-2xl px-4 py-2 ${
+                            className={
                               message.sender === 'user'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                                : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-                            }`}
+                                ? 'max-w-[75%] inline-block rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                                : 'max-w-[75%] inline-block rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200'
+                            }
                           >
-                            <p className="text-sm whitespace-pre-line">{message.text || ''}</p>
+                            <p className="text-sm whitespace-pre-line leading-relaxed">
+                              {textWithoutProducts}
+                            </p>
+
                             <p
                               className={`text-xs mt-1 ${
                                 message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
@@ -618,6 +637,7 @@ export const ChatAIBubble = () => {
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
+
                         )}
                       </div>
                       {message.sender === 'user' && (

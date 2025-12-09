@@ -5,38 +5,69 @@ const FALLBACK_ERROR_MESSAGE =
 
 const DEFAULT_SESSION_ID = 'verdant-session';
 
+// const normalizeChatbotMessage = (value: string): string => {
+//   if (typeof value !== 'string') {
+//     return '';
+//   }
+
+//   // Check if it's a JSON string with products - don't normalize it
+//   try {
+//     const parsed = JSON.parse(value);
+//     if (parsed && typeof parsed === 'object' && parsed.products && Array.isArray(parsed.products)) {
+//       // It's a JSON with products, return as-is (but normalize the message field inside)
+//       if (parsed.message && typeof parsed.message === 'string') {
+//         parsed.message = parsed.message
+//           .replace(/<br\s*\/?>/gi, '\n')
+//           .replace(/&nbsp;/gi, ' ')
+//           .replace(/\r\n/g, '\n')
+//           .replace(/\n{3,}/g, '\n\n')
+//           .trim();
+//         return JSON.stringify(parsed);
+//       }
+//       return value; // Return original JSON string
+//     }
+//   } catch (_e) {
+//     // Not JSON, continue with normalization
+//   }
+
+//   return value
+//     .replace(/<br\s*\/?>/gi, '\n')
+//     .replace(/&nbsp;/gi, ' ')
+//     .replace(/\r\n/g, '\n')
+//     .replace(/\n{3,}/g, '\n\n')
+//     .trim();
+// };
 const normalizeChatbotMessage = (value: string): string => {
-  if (typeof value !== 'string') {
-    return '';
-  }
+  if (typeof value !== 'string') return '';
 
-  // Check if it's a JSON string with products - don't normalize it
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === 'object' && parsed.products && Array.isArray(parsed.products)) {
-      // It's a JSON with products, return as-is (but normalize the message field inside)
-      if (parsed.message && typeof parsed.message === 'string') {
-        parsed.message = parsed.message
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/&nbsp;/gi, ' ')
-          .replace(/\r\n/g, '\n')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-        return JSON.stringify(parsed);
-      }
-      return value; // Return original JSON string
-    }
-  } catch (_e) {
-    // Not JSON, continue with normalization
-  }
-
-  return value
+  // Convert HTML breaks
+  let text = value
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/&nbsp;/gi, ' ')
     .replace(/\r\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  // Tách dòng sạch sẽ
+  const lines = text
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  if (lines.length === 0) return '';
+
+  // ➤ Dòng đầu giữ nguyên
+  // ➤ Các dòng sau → dấu chấm đầu dòng
+  let formatted = lines[0] + "\n";
+
+  const bullets = lines.slice(1).map(l => `• ${l}`);
+  if (bullets.length > 0) {
+    formatted += bullets.join("\n");
+  }
+
+  return formatted.trim();
 };
+
+
 
 /**
  * Chuẩn hóa nội dung phản hồi trả về từ API chatbot.
@@ -248,13 +279,24 @@ export interface ChatbotConversation {
   updatedAt: string;
 }
 
+// export interface ChatbotMessage {
+//   id: number;
+//   conversationId: number;
+//   content: string;
+//   sender: 'user' | 'ai';
+//   createdAt: string;
+// }
+
 export interface ChatbotMessage {
   id: number;
   conversationId: number;
-  content: string;
-  sender: 'user' | 'ai';
+  messageText: string;   
+  messageType: 'User' | 'Bot';  
+  content?: string;       
+  sender?: 'user' | 'ai';
   createdAt: string;
 }
+
 
 export interface ConversationApiResponse<T> {
   status: boolean;
