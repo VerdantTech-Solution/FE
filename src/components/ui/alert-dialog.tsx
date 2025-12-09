@@ -3,6 +3,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { useState } from "react"
 
 function AlertDialog({
   ...props
@@ -128,6 +129,52 @@ function AlertDialogAction({
   )
 }
 
+type AlertDialogActionAsyncProps = React.ComponentProps<typeof AlertDialogPrimitive.Action> & {
+  onAsync: () => Promise<unknown>;
+  successMessage?: string;
+  errorMessage?: string;
+};
+
+function AlertDialogActionAsync({
+  className,
+  onAsync,
+  successMessage,
+  errorMessage,
+  disabled,
+  children,
+  ...props
+}: AlertDialogActionAsyncProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await onAsync();
+      if (successMessage) {
+        window.alert(successMessage);
+      }
+    } catch (err: any) {
+      console.error("AlertDialogActionAsync error:", err);
+      const message = err?.message || errorMessage || "Đã xảy ra lỗi. Vui lòng thử lại.";
+      window.alert(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AlertDialogPrimitive.Action
+      className={cn(buttonVariants(), className)}
+      {...props}
+      onClick={handleClick}
+      disabled={disabled || loading}
+    >
+      {loading ? "Đang xử lý..." : children}
+    </AlertDialogPrimitive.Action>
+  );
+}
+
 function AlertDialogCancel({
   className,
   ...props
@@ -151,5 +198,6 @@ export {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogAction,
+  AlertDialogActionAsync,
   AlertDialogCancel,
 }

@@ -37,34 +37,24 @@ const DEFAULT_SESSION_ID = 'verdant-session';
 //     .replace(/\n{3,}/g, '\n\n')
 //     .trim();
 // };
-const normalizeChatbotMessage = (value: string): string => {
+export const normalizeChatbotMessage = (value: string): string => {
   if (typeof value !== 'string') return '';
 
   // Convert HTML breaks
-  let text = value
+  const text = value
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/&nbsp;/gi, ' ')
     .replace(/\r\n/g, '\n')
-    .trim();
-
-  // Tách dòng sạch sẽ
-  const lines = text
+    // Chuẩn hóa nhiều dòng trống -> tối đa 1
+    .replace(/\n{3,}/g, '\n\n')
+    // Loại bỏ khoảng trắng thừa quanh mỗi dòng
     .split('\n')
     .map(l => l.trim())
-    .filter(l => l.length > 0);
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
-  if (lines.length === 0) return '';
-
-  // ➤ Dòng đầu giữ nguyên
-  // ➤ Các dòng sau → dấu chấm đầu dòng
-  let formatted = lines[0] + "\n";
-
-  const bullets = lines.slice(1).map(l => `• ${l}`);
-  if (bullets.length > 0) {
-    formatted += bullets.join("\n");
-  }
-
-  return formatted.trim();
+  return text;
 };
 
 

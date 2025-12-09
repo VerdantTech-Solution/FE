@@ -12,6 +12,7 @@ import {
   createChatbotConversation, 
   type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
+  normalizeChatbotMessage,
 } from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
 import { ChatProductCarousel } from '@/components/ChatProductCarousel';
@@ -78,6 +79,9 @@ const loadConversations = (userId?: number | string): Conversation[] => {
             const timestamp = new Date(msg.timestamp);
             return {
               ...msg,
+              text: normalizeChatbotMessage(
+                msg.text || msg.messageText || msg.content || '',
+              ),
               timestamp: isValidDate(timestamp) ? timestamp : new Date(),
             };
           }),
@@ -266,7 +270,7 @@ export const ChatPage = () => {
           const timestamp = new Date(msg.createdAt);
           return {
             id: msg.id.toString(),
-            text: msg.messageText || msg.content || '',
+            text: normalizeChatbotMessage(msg.messageText || msg.content || ''),
             sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
             timestamp: isValidDate(timestamp) ? timestamp : new Date(),
           };
