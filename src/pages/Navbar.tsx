@@ -23,7 +23,7 @@ const Navbar = () => {
   
   const navigation = [
     { name: "Trang chủ", href: "/" },
-    { name: "Về chúng tôi", href: "/about" },
+    { name: "Giới thiệu", href: "/about" },
      { name: "Chợ", href: "/marketplace" },
     { name: "Bài viết", href: "/articles" },
     { name: "Trung tâm hỗ trợ", href: "/ticket" },
@@ -133,29 +133,21 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <motion.div
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer"
             onClick={() => navigate("/")}
             variants={logoVariants}
             initial="hidden"
             animate="visible"
             whileHover="hover"
-            
           >
             <img
               src={logo}
               alt="VerdantTech logo"
-              className="w-10 h-10 border rounded-[3px] object-cover  transition-transform duration-200 hover:scale-105"
+              className="w-10 h-10 border rounded-[3px] object-cover transition-transform duration-200 hover:scale-105"
             />
-            <div className="hidden sm:block">
-              <h1 
-                className="text-2xl font-bold text-green-600 hover:text-green-700 transition-colors"
-                style={{ fontFamily: 'Playfair Display, serif' }}
-              >
-                VerdantTech
-              </h1>
-              <p className="text-sm text-gray-600">
-                Nông nghiệp xanh
-              </p>
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="text-lg font-bold text-green-600">VerdantTech</span>
+              <span className="text-xs text-gray-500 font-medium">SOLUTION</span>
             </div>
           </motion.div>
 

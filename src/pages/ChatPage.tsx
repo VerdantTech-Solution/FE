@@ -44,7 +44,7 @@ const SUGGESTED_QUESTIONS = [
 
 const getWelcomeMessage = (): Message => ({
   id: '1',
-  text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+  text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
   sender: 'ai',
   timestamp: new Date(),
 });
@@ -135,8 +135,8 @@ export const ChatPage = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState('');
-  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [_isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [_isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -770,9 +770,9 @@ export const ChatPage = () => {
                       onClick={handleStartEditTitle}
                       title="Click để đổi tên"
                     >
-                      {currentConversation?.title || 'Trợ lý AI VerdantTech'}
+                      {currentConversation?.title || 'Verdant AI'}
                     </h3>
-                    <p className="text-xs text-green-100">Thường phản hồi trong vài giây</p>
+                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
                   </div>
                 )}
               </div>

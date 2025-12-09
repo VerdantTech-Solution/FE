@@ -11,7 +11,7 @@ import {
   getChatbotConversations, 
   getChatbotMessages, 
   createChatbotConversation, 
-  type ChatbotConversation as BackendConversation,
+  //type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
   normalizeChatbotMessage,
 } from '@/api/chatbot';
@@ -113,7 +113,7 @@ export const ChatAIBubble = () => {
     return [
       {
         id: '1',
-        text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+        text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
         sender: 'ai',
         timestamp: new Date(),
       },
@@ -124,7 +124,7 @@ export const ChatAIBubble = () => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
-  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [_isLoadingConversation, setIsLoadingConversation] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -288,7 +288,7 @@ export const ChatAIBubble = () => {
 
   const getWelcomeMessage = (): Message => ({
     id: '1',
-    text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+    text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
     sender: 'ai',
     timestamp: new Date(),
   });
@@ -384,7 +384,7 @@ export const ChatAIBubble = () => {
   const handleClearHistory = () => {
     const welcomeMessage: Message = {
       id: '1',
-      text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+      text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
       sender: 'ai',
       timestamp: new Date(),
     };
@@ -505,8 +505,8 @@ export const ChatAIBubble = () => {
                     <Bot className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Trợ lý AI VerdantTech</h3>
-                    <p className="text-xs text-green-100">Thường phản hồi trong vài giây</p>
+                    <h3 className="font-semibold">Verdant AI</h3>
+                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -605,14 +605,33 @@ export const ChatAIBubble = () => {
                             </p>
                           </div>
                         ) : (
+                          // <div
+                          //   className={`rounded-2xl px-4 py-2 ${
+                          //     message.sender === 'user'
+                          //       ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                          //       : 'bg-white text-gray-800 shadow-sm border border-gray-200'
+                          //   }`}
+                          // >
+                          //   <p className="text-sm whitespace-pre-line">{message.text || ''}</p>
+                          //   <p
+                          //     className={`text-xs mt-1 ${
+                          //       message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                          //     }`}
+                          //   >
+                          //     {formatTime(message.timestamp)}
+                          //   </p>
+                          // </div>
                           <div
-                            className={`rounded-2xl px-4 py-2 ${
+                            className={
                               message.sender === 'user'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                                : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-                            }`}
+                                ? 'max-w-[75%] inline-block rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                                : 'max-w-[75%] inline-block rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200'
+                            }
                           >
-                            <p className="text-sm whitespace-pre-line">{message.text || ''}</p>
+                            <p className="text-sm whitespace-pre-line leading-relaxed">
+                              {textWithoutProducts}
+                            </p>
+
                             <p
                               className={`text-xs mt-1 ${
                                 message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
@@ -621,6 +640,7 @@ export const ChatAIBubble = () => {
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
+
                         )}
                       </div>
                       {message.sender === 'user' && (

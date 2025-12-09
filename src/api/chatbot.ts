@@ -269,13 +269,24 @@ export interface ChatbotConversation {
   updatedAt: string;
 }
 
+// export interface ChatbotMessage {
+//   id: number;
+//   conversationId: number;
+//   content: string;
+//   sender: 'user' | 'ai';
+//   createdAt: string;
+// }
+
 export interface ChatbotMessage {
   id: number;
   conversationId: number;
-  content: string;
-  sender: 'user' | 'ai';
+  messageText: string;   
+  messageType: 'User' | 'Bot';  
+  content?: string;       
+  sender?: 'user' | 'ai';
   createdAt: string;
 }
+
 
 export interface ConversationApiResponse<T> {
   status: boolean;
@@ -340,6 +351,7 @@ export const getChatbotMessages = async (
   page: number = 1,
   pageSize: number = 10,
 ): Promise<PaginatedResponse<ChatbotMessage>> => {
+  pageSize = Math.min(Math.max(pageSize, 1), 100);
   try {
     const response = await apiClient.get<ConversationApiResponse<PaginatedResponse<ChatbotMessage>>>(
       `/api/ChatbotConversation/${conversationId}/messages`,
