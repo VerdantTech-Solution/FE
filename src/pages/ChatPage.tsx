@@ -2,14 +2,15 @@ import { motion } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 import { Bot, User, Trash2, History, Send, Plus, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router';
 import { 
   sendChatbotMessage, 
   getChatbotConversations, 
   getChatbotMessages, 
   createChatbotConversation, 
+  deleteChatbotConversation, // <-- added
   type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
   normalizeChatbotMessage,
@@ -138,8 +139,21 @@ export const ChatPage = () => {
   const [_isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [_isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-resize textarea to fit content
+  const adjustTextareaHeight = (el?: HTMLTextAreaElement | null) => {
+    const ta = el ?? inputRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    const max = 300; // px
+    ta.style.height = Math.min(ta.scrollHeight, max) + 'px';
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputValue]);
 
   // Get current conversation
   const currentConversation = conversations.find(c => c.id === currentConversationId);
@@ -148,8 +162,8 @@ export const ChatPage = () => {
   // Load conversations from backend when user changes or on mount
   useEffect(() => {
     const loadConversationsFromBackend = async () => {
+      // Guest -> load local only
       if (!user?.id) {
-        // Fallback to localStorage for guest users
         const loadedConversations = loadConversations(user?.id);
         setConversations(loadedConversations);
         const loadedCurrentId = getCurrentConversationId(user?.id);
@@ -159,58 +173,54 @@ export const ChatPage = () => {
         return;
       }
 
+      setIsLoadingConversations(true);
       try {
-        setIsLoadingConversations(true);
-        // Load from localStorage first to preserve messages
-        const cachedConversations = loadConversations(user?.id);
-        
-        const response = await getChatbotConversations(1, 100);
-        const backendConversations = response.items;
+        // fetch backend conversations (page 1, large pageSize)
+        const resp = await getChatbotConversations(1, 100);
+        const backendItems = resp.items || [];
 
-        // Convert backend conversations to local format and merge with cached data
-        const localConversations: Conversation[] = backendConversations.map((backendConv: BackendConversation) => {
+        // load cached local conversations to preserve messages
+        const cachedConversations = loadConversations(user?.id);
+
+        const backendMapped: Conversation[] = backendItems.map((backendConv: BackendConversation) => {
           const createdAt = new Date(backendConv.createdAt);
           const updatedAt = new Date(backendConv.updatedAt);
-          
-          // Try to find cached conversation with messages
           const cachedConv = cachedConversations.find(c => c.id === backendConv.id.toString());
-          
           return {
             id: backendConv.id.toString(),
-            title: backendConv.title,
-            // Preserve messages from cache if available, otherwise empty array
+            title: backendConv.title || 'Cuộc trò chuyện',
             messages: cachedConv?.messages || [],
             createdAt: isValidDate(createdAt) ? createdAt : new Date(),
             updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
           };
         });
 
-        // Also include any local-only conversations (not in backend)
-        const localOnlyConversations = cachedConversations.filter(
-          cached => !localConversations.find(conv => conv.id === cached.id)
-        );
+        // include any local-only conversations not present in backend
+        const localOnly = cachedConversations.filter(cached => !backendMapped.find(b => b.id === cached.id));
+        const allConversations = [...backendMapped, ...localOnly];
 
-        const allConversations = [...localConversations, ...localOnlyConversations];
+        // sort by updatedAt desc
+        allConversations.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
         setConversations(allConversations);
 
-        // Set current conversation
+        // set current conversation id
         const loadedCurrentId = getCurrentConversationId(user?.id);
         if (loadedCurrentId && allConversations.find(c => c.id === loadedCurrentId)) {
           setCurrentConversationIdState(loadedCurrentId);
         } else if (allConversations.length > 0) {
-          const mostRecent = allConversations[0];
-          setCurrentConversationIdState(mostRecent.id);
-          setCurrentConversationId(mostRecent.id, user?.id);
+          setCurrentConversationIdState(allConversations[0].id);
+          setCurrentConversationId(allConversations[0].id, user?.id);
         } else {
-          // No conversations, create welcome state
+          // none -> empty state (welcome handled elsewhere)
           setConversations([]);
         }
 
-        // Update localStorage cache - preserve messages
+        // persist merged result
         saveConversations(allConversations, user?.id);
       } catch (error) {
         console.error('Error loading conversations from backend:', error);
-        // Fallback to localStorage
+        // fallback to local cache
         const loadedConversations = loadConversations(user?.id);
         setConversations(loadedConversations);
         const loadedCurrentId = getCurrentConversationId(user?.id);
@@ -420,8 +430,20 @@ export const ChatPage = () => {
     setCurrentConversationId(id, user?.id);
   };
 
-  const handleDeleteConversation = (id: string, e: React.MouseEvent) => {
+  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // If this conversation exists on backend (numeric id) and user logged in, try delete there
+    const idNum = parseInt(id);
+    if (!isNaN(idNum) && user?.id) {
+      try {
+        await deleteChatbotConversation(idNum);
+      } catch (err) {
+        console.error('Error deleting conversation on backend, fallback to local remove:', err);
+        // continue to local removal so UI updates
+      }
+    }
+
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
     
@@ -568,7 +590,7 @@ export const ChatPage = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -793,7 +815,7 @@ export const ChatPage = () => {
           {/* Messages Area */}
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4 min-h-0"
+            className="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-6 min-h-0"
           >
             {Object.entries(groupedMessages).map(([date, dateMessages]) => (
               <div key={date}>
@@ -818,7 +840,7 @@ export const ChatPage = () => {
                       key={message.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {message.sender === 'ai' && (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
@@ -828,8 +850,8 @@ export const ChatPage = () => {
                       <div
                         className={`${
                           message.sender === 'user'
-                            ? 'max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                            : 'w-full max-w-full'
+                            ? 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line'
+                            : 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line'
                         }`}
                       >
                         {message.sender === 'ai' && products.length > 0 ? (
@@ -849,19 +871,9 @@ export const ChatPage = () => {
                             </p>
                           </div>
                         ) : (
-                          <div
-                            className={`rounded-2xl px-4 py-2 ${
-                              message.sender === 'user'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                                : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-line">{message.text}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                              }`}
-                            >
+                          <div>
+                            <p className="text-sm whitespace-pre-line break-words">{message.text}</p>
+                            <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-green-100' : 'text-gray-500'}`}>
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
@@ -882,7 +894,7 @@ export const ChatPage = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex gap-2 justify-start"
+                className="flex gap-4 justify-start"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
                   <Bot className="w-5 h-5 text-white" />
@@ -940,22 +952,24 @@ export const ChatPage = () => {
 
           {/* Input Area */}
           <div className="p-4 bg-white border-t border-gray-200 rounded-b-lg">
-            <div className="flex gap-2">
-              <Input
+            <div className="flex gap-2 items-end">
+              <textarea
                 ref={inputRef}
+                rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onInput={() => adjustTextareaHeight()}
+                onKeyDown={handleKeyPress}
                 placeholder="Nhập câu hỏi của bạn..."
-                className="flex-1"
+                className="flex-1 resize-none bg-white p-3 rounded-md border border-gray-200 outline-none max-h-[300px] leading-5"
                 disabled={isTyping || !currentConversationId}
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isTyping || !currentConversationId}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                className="h-10 w-10 p-0 rounded-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 text-white" />
               </Button>
             </div>
             {messages.length > 1 && (

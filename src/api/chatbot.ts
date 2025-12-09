@@ -397,3 +397,20 @@ export const createChatbotConversation = async (title: string): Promise<ChatbotC
   }
 };
 
+// NEW: delete conversation (soft delete) trên backend
+export const deleteChatbotConversation = async (conversationId: number): Promise<void> => {
+  try {
+    const response = await apiClient.delete<ConversationApiResponse<null>>(
+      `/api/ChatbotConversation/${conversationId}`,
+    ) as unknown as ConversationApiResponse<null>;
+
+    if (!response.status) {
+      throw new Error(response.errors?.[0] || 'Không thể xóa cuộc hội thoại');
+    }
+    return;
+  } catch (error: any) {
+    console.error('[Chatbot] Error deleting conversation:', error);
+    throw new Error(error?.message || 'Không thể xóa cuộc hội thoại. Vui lòng thử lại.');
+  }
+};
+
