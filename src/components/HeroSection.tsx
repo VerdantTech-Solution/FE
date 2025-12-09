@@ -53,10 +53,7 @@ const HeroSection = () => {
           }}
         >
         <p className="text-lg sm:text-xl lg:text-2xl text-white leading-tight text-center">
-            Nền tảng cung cấp thiết bị nông nghiệp xanh và tích hợp AI hỗ trợ canh tác rau củ bền vững. 
-            Chúng tôi kết hợp công nghệ thông minh với thực hành nông nghiệp hiệu quả, giúp nông dân 
-            tối ưu hóa năng suất đồng thời bảo vệ môi trường. Sứ mệnh của chúng tôi là định hướng nông dân phát triển nông nghiệp xanh bền vững,
-            giảm phát thải và tối ưu hóa hiệu quả sử dụng tài nguyên.
+            Nền tảng cung cấp thiết bị nông nghiệp xanh kết hợp hệ thống AI hỗ trợ canh tác rau củ theo hướng bền vững. Chúng tôi mang đến giải pháp giúp nông dân tiếp cận công nghệ thân thiện môi trường và nâng cao hiệu quả sử dụng tài nguyên trong quá trình sản xuất.
           </p>
         </motion.div>
 
