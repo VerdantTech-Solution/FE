@@ -421,7 +421,7 @@ export const FarmList = () => {
                              className="gap-1 text-xs px-2 py-1 h-7"
                              onClick={() => navigate(`/farm-detail/${farm.id}`)}
                            >
-                           <p>Thời tiết & AI</p>
+                           <p>Tổng quan</p>
                            </Button>
                          </motion.div>
                         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>

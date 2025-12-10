@@ -48,3 +48,6 @@ export * from './export';
 
 // Export crop variety suggestions API
 export * from './cropVarieties';
+
+// Export survey API
+export * from './survey';
