@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, 
-  Package, 
-  Users, 
-  TrendingUp,
-  Loader2
+  Package
 } from "lucide-react";
 import { getRevenue, getOrderStatistics, type RevenueData, type OrderStatistics } from "@/api/dashboard";
 import { BestSellingProductsCard } from "@/components/BestSellingProductsCard";
@@ -18,8 +14,6 @@ export const StaffOverviewPage: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStatistics | null>(null);
-  const [isLoadingRevenue, setIsLoadingRevenue] = useState(false);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   // Calculate date range based on selected period
   const getDateRange = (period: string): { from: string; to: string } => {
@@ -65,7 +59,6 @@ export const StaffOverviewPage: React.FC = () => {
   };
 
   const fetchRevenue = async () => {
-    setIsLoadingRevenue(true);
     try {
       const dateRange = getDateRange(selectedPeriod);
       const response = await getRevenue({ from: dateRange.from, to: dateRange.to });
@@ -77,13 +70,10 @@ export const StaffOverviewPage: React.FC = () => {
     } catch (err) {
       console.error("Error fetching revenue:", err);
       setRevenueData(null);
-    } finally {
-      setIsLoadingRevenue(false);
     }
   };
 
   const fetchOrderStatistics = async () => {
-    setIsLoadingStats(true);
     try {
       const dateRange = getDateRange(selectedPeriod);
       const response = await getOrderStatistics({ from: dateRange.from, to: dateRange.to });
@@ -95,8 +85,6 @@ export const StaffOverviewPage: React.FC = () => {
     } catch (err) {
       console.error("Error fetching order statistics:", err);
       setOrderStats(null);
-    } finally {
-      setIsLoadingStats(false);
     }
   };
 
