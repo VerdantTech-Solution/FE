@@ -103,7 +103,7 @@ export const InventoryManagementPanel: React.FC = () => {
     sku: "",
     batchNumber: "",
     lotNumber: "",
-    quantity: 1,
+    quantity: 0,
     unitCostPrice: 0,
     qualityCheckStatus: "NotRequired",
     serialNumbers: [],
@@ -326,20 +326,34 @@ export const InventoryManagementPanel: React.FC = () => {
       const product = products.find(p => p.id === importForm.productId);
       setSelectedProduct(product || null);
       
-      // Tự động lấy vendorId từ ProductRegistration
-      if (product && product.productCode) {
-        const registration = productRegistrations.find(
-          reg => reg.proposedProductCode === product.productCode && 
-                 reg.status === 'Approved'
-        );
-        
-        if (registration && registration.vendorId) {
+      // Tự động lấy vendorId từ Product (ưu tiên) hoặc ProductRegistration (fallback)
+      if (product) {
+        if (product.vendorId) {
+          // Lấy trực tiếp từ Product
           setImportForm(prev => ({ 
             ...prev, 
-            vendorId: registration.vendorId 
+            vendorId: product.vendorId 
           }));
+        } else if (product.productCode) {
+          // Fallback: lấy từ ProductRegistration nếu Product không có vendorId
+          const registration = productRegistrations.find(
+            reg => reg.proposedProductCode === product.productCode && 
+                   reg.status === 'Approved'
+          );
+          
+          if (registration && registration.vendorId) {
+            setImportForm(prev => ({ 
+              ...prev, 
+              vendorId: registration.vendorId 
+            }));
+          } else {
+            // Nếu không tìm thấy, set về undefined
+            setImportForm(prev => ({ 
+              ...prev, 
+              vendorId: undefined 
+            }));
+          }
         } else {
-          // Nếu không tìm thấy registration, set về undefined
           setImportForm(prev => ({ 
             ...prev, 
             vendorId: undefined 
@@ -358,14 +372,49 @@ export const InventoryManagementPanel: React.FC = () => {
       return;
     }
 
-    if (importForm.quantity <= 0) {
+    if (!importForm.quantity || importForm.quantity <= 0) {
       setError("Số lượng phải lớn hơn 0");
       return;
     }
 
-    if (importForm.unitCostPrice <= 0) {
+    if (!importForm.unitCostPrice || importForm.unitCostPrice <= 0) {
       setError("Giá vốn phải lớn hơn 0");
       return;
+    }
+
+    // Validate dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+
+    if (importForm.manufacturingDate) {
+      const manufacturingDate = new Date(importForm.manufacturingDate);
+      manufacturingDate.setHours(0, 0, 0, 0);
+      
+      if (manufacturingDate > today) {
+        setError("Ngày sản xuất không được sau ngày hôm nay");
+        return;
+      }
+    }
+
+    if (importForm.expiryDate) {
+      const expiryDate = new Date(importForm.expiryDate);
+      expiryDate.setHours(0, 0, 0, 0);
+      
+      if (expiryDate < today) {
+        setError("Hạn sử dụng không được trước ngày hôm nay");
+        return;
+      }
+      
+      // Nếu có cả ngày sản xuất và hạn sử dụng, kiểm tra hạn sử dụng phải sau ngày sản xuất
+      if (importForm.manufacturingDate) {
+        const manufacturingDate = new Date(importForm.manufacturingDate);
+        manufacturingDate.setHours(0, 0, 0, 0);
+        
+        if (expiryDate <= manufacturingDate) {
+          setError("Hạn sử dụng phải sau ngày sản xuất");
+          return;
+        }
+      }
     }
 
     // Validate serial numbers chỉ khi category yêu cầu serial
@@ -775,24 +824,10 @@ export const InventoryManagementPanel: React.FC = () => {
 
   return (
     <div className="w-full space-y-6">
-      {/* Success/Error Messages */}
+      {/* Success Messages */}
       {successMessage && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-green-700">{successMessage}</p>
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-red-600" />
-          <p className="text-red-700">{error}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setError(null)}
-            className="ml-auto"
-          >
-            Đóng
-          </Button>
         </div>
       )}
 
@@ -1363,6 +1398,22 @@ export const InventoryManagementPanel: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           
+          {/* Error Message - Hiển thị trong Dialog */}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <p className="text-red-700 flex-1">{error}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setError(null)}
+                className="ml-auto"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          
           <div className="space-y-4 py-4">
             {/* Product Selection with Search */}
             <div className="space-y-2">
@@ -1476,19 +1527,28 @@ export const InventoryManagementPanel: React.FC = () => {
                   id="import-quantity"
                   type="number"
                   min="1"
-                  value={importForm.quantity}
+                  step="1"
+                  value={importForm.quantity || ""}
+                  placeholder="Nhập số lượng"
                   onChange={(e) => {
-                    const newQuantity = parseInt(e.target.value) || 1;
-                    const currentSerials = importForm.serialNumbers || [];
-                    let newSerials: string[];
+                    const value = parseInt(e.target.value) || 0;
+                    const newQuantity = value > 0 ? value : 0;
                     
-                    if (newQuantity > currentSerials.length) {
-                      // Tăng số lượng: thêm các phần tử rỗng
-                      newSerials = [...currentSerials, ...Array(newQuantity - currentSerials.length).fill('')];
-                    } else {
-                      // Giảm số lượng: giữ lại các phần tử đầu tiên
-                      newSerials = currentSerials.slice(0, newQuantity);
+                    // Update serial numbers array khi quantity thay đổi
+                    const currentSerials = importForm.serialNumbers || [];
+                    let newSerials: string[] = currentSerials; // Mặc định giữ nguyên
+                    
+                    if (newQuantity > 0) {
+                      if (newQuantity > currentSerials.length) {
+                        // Tăng số lượng: giữ nguyên serials cũ, thêm empty strings
+                        newSerials = [...currentSerials, ...Array(newQuantity - currentSerials.length).fill('')];
+                      } else if (newQuantity < currentSerials.length) {
+                        // Giảm số lượng: cắt bớt serials (nhưng giữ lại các serial đã nhập)
+                        newSerials = currentSerials.slice(0, newQuantity);
+                      }
+                      // Nếu newQuantity === currentSerials.length, giữ nguyên
                     }
+                    // Nếu newQuantity = 0, giữ nguyên serialNumbers (không reset)
                     
                     setImportForm(prev => ({ 
                       ...prev, 
@@ -1505,10 +1565,17 @@ export const InventoryManagementPanel: React.FC = () => {
                 <Input
                   id="import-price"
                   type="number"
-                  min="0"
+                  min="0.01"
                   step="0.01"
-                  value={importForm.unitCostPrice}
-                  onChange={(e) => setImportForm(prev => ({ ...prev, unitCostPrice: parseFloat(e.target.value) || 0 }))}
+                  value={importForm.unitCostPrice || ""}
+                  placeholder="Nhập giá vốn"
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setImportForm(prev => ({ 
+                      ...prev, 
+                      unitCostPrice: value > 0 ? value : 0 
+                    }));
+                  }}
                 />
               </div>
             </div>
@@ -1520,8 +1587,23 @@ export const InventoryManagementPanel: React.FC = () => {
                 <Input
                   id="import-manufacturing"
                   type="date"
+                  max={new Date().toISOString().split('T')[0]} // Không được sau hôm nay
                   value={importForm.manufacturingDate || ""}
-                  onChange={(e) => setImportForm(prev => ({ ...prev, manufacturingDate: e.target.value || undefined }))}
+                  onChange={(e) => {
+                    const value = e.target.value || undefined;
+                    setImportForm(prev => {
+                      const updated = { ...prev, manufacturingDate: value };
+                      // Nếu hạn sử dụng đã được set và nhỏ hơn hoặc bằng ngày sản xuất mới, reset hạn sử dụng
+                      if (value && updated.expiryDate) {
+                        const manufacturingDate = new Date(value);
+                        const expiryDate = new Date(updated.expiryDate);
+                        if (expiryDate <= manufacturingDate) {
+                          updated.expiryDate = undefined;
+                        }
+                      }
+                      return updated;
+                    });
+                  }}
                 />
               </div>
 
@@ -1531,6 +1613,11 @@ export const InventoryManagementPanel: React.FC = () => {
                 <Input
                   id="import-expiry"
                   type="date"
+                  min={
+                    importForm.manufacturingDate 
+                      ? new Date(new Date(importForm.manufacturingDate).getTime() + 86400000).toISOString().split('T')[0] // Ngày sản xuất + 1 ngày
+                      : new Date().toISOString().split('T')[0] // Hoặc hôm nay (cho phép bằng hôm nay)
+                  }
                   value={importForm.expiryDate || ""}
                   onChange={(e) => setImportForm(prev => ({ ...prev, expiryDate: e.target.value || undefined }))}
                 />

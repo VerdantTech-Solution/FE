@@ -416,7 +416,9 @@ const transformProductData = (apiProduct: any): Product => {
     specifications: normalizedSpecifications,
     weightKg: apiProduct.weightKg,
     warrantyMonths: apiProduct.warrantyMonths,
-    energyEfficiencyRating: apiProduct.energyEfficiencyRating
+    energyEfficiencyRating: apiProduct.energyEfficiencyRating,
+    // Map manualUrls từ API (có thể là manualUrls, manualUrl, hoặc manualPublicUrl)
+    manualUrls: apiProduct.manualUrls || apiProduct.manualUrl || apiProduct.manualPublicUrl || undefined
   };
 };
 

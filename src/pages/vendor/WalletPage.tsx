@@ -9,7 +9,6 @@ import {
   Bell,
   ArrowUpRight,
   ArrowDownLeft,
-  Wallet,
   TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,22 +36,17 @@ const WalletBalance = ({ balance, loading }: WalletBalanceProps) => {
   return (
     <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
       <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-green-100 text-sm">Số dư ví</p>
-            {loading ? (
-              <div className="flex items-center mt-2">
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                <p className="text-3xl font-bold">Đang tải...</p>
-              </div>
-            ) : (
-              <p className="text-3xl font-bold mt-2">₫{formatCurrency(balance)}</p>
-            )}
-            <p className="text-green-100 text-sm mt-1">Số dư khả dụng</p>
-          </div>
-          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <Wallet size={32} />
-          </div>
+        <div>
+          <p className="text-green-100 text-sm">Số dư ví</p>
+          {loading ? (
+            <div className="flex items-center mt-2">
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              <p className="text-3xl font-bold">Đang tải...</p>
+            </div>
+          ) : (
+            <p className="text-3xl font-bold mt-2">₫{formatCurrency(balance)}</p>
+          )}
+          <p className="text-green-100 text-sm mt-1">Số dư khả dụng</p>
         </div>
       </CardContent>
     </Card>

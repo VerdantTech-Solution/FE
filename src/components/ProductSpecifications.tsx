@@ -226,40 +226,29 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
           Thông số kỹ thuật
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {Object.entries(groupedSpecs).map(([category, specs]) => (
-          <div key={category} className="space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-              {getCategoryIcon(category)}
-              <h4 className="font-semibold text-gray-900">
-                {getCategoryTitle(category)}
-              </h4>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {specs.map((spec, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="text-gray-600">
-                      {spec.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {spec.key}
-                      </div>
-                      <div className="text-gray-600 text-sm">
-                        {spec.value}
-                      </div>
-                    </div>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {specificationsList.map((spec, index) => (
+            <div 
+              key={index} 
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <div className="text-gray-600">
+                  {spec.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 text-sm">
+                    {spec.key}
+                  </div>
+                  <div className="text-gray-600 text-sm">
+                    {spec.value}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

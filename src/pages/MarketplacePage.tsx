@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getAllProducts, type Product, getAllProductCategories, type ProductCategory } from '@/api/product';
+import { getAllProducts, type Product, getAllProductCategories, type ProductCategory, getProductRegistrations } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { toast } from 'sonner';
+import { getProductReviewsByProductId } from '@/api/productReview';
 
 // Animation variants
 const containerVariants = {
@@ -82,6 +83,8 @@ export const MarketplacePage = () => {
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 9;
+  const [productRatings, setProductRatings] = useState<Record<number, { rating: number; reviewCount: number }>>({});
+  const [productManualUrls, setProductManualUrls] = useState<Record<number, string>>({});
 
   const fetchProducts = async () => {
     try {
@@ -93,6 +96,12 @@ export const MarketplacePage = () => {
       
       console.log('Products loaded:', products.length);
       setProducts(products);
+      
+      // Fetch reviews for all products to calculate ratings
+      fetchProductRatings(products);
+      
+      // Fetch ProductRegistrations to get manualUrls
+      fetchProductManualUrls(products);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
@@ -101,6 +110,73 @@ export const MarketplacePage = () => {
     } finally {
       setLoading(false);
       setPageLoading(false);
+    }
+  };
+
+  const fetchProductManualUrls = async (productsList: Product[]) => {
+    try {
+      const registrations = await getProductRegistrations();
+      const manualUrlsMap: Record<number, string> = {};
+      
+      productsList.forEach((product) => {
+        const relatedRegistration = registrations.find(
+          reg => reg.proposedProductCode === product.productCode && 
+                 reg.status === 'Approved'
+        );
+        
+        if (relatedRegistration?.manualUrl || relatedRegistration?.manualPublicUrl) {
+          manualUrlsMap[product.id] = relatedRegistration.manualUrl || relatedRegistration.manualPublicUrl || '';
+        }
+      });
+      
+      setProductManualUrls(manualUrlsMap);
+    } catch (err) {
+      console.error('Error fetching product manual URLs:', err);
+    }
+  };
+
+  const fetchProductRatings = async (productsList: Product[]) => {
+    try {
+      console.log('Fetching ratings for', productsList.length, 'products');
+      // Fetch reviews for all products in parallel
+      const ratingPromises = productsList.map(async (product) => {
+        try {
+          const response = await getProductReviewsByProductId(product.id, 1, 20);
+          console.log(`Product ${product.id} response:`, response);
+          
+          if (response.status && response.data) {
+            // Get reviews array from pagination structure
+            const reviews = response.data.data || (Array.isArray(response.data) ? response.data : []);
+            // Use totalRecords from pagination response, not reviews.length
+            const reviewCount = response.data.totalRecords || reviews.length;
+            const averageRating = reviewCount > 0 && reviews.length > 0
+              ? reviews.reduce((total, current) => total + (current.rating || 0), 0) / reviews.length
+              : 0;
+            
+            console.log(`Product ${product.id}: rating=${averageRating}, reviewCount=${reviewCount}, reviews.length=${reviews.length}`);
+            
+            return { productId: product.id, rating: averageRating, reviewCount };
+          }
+          console.log(`Product ${product.id}: No data in response`);
+          return { productId: product.id, rating: 0, reviewCount: 0 };
+        } catch (err) {
+          console.error(`Error fetching reviews for product ${product.id}:`, err);
+          return { productId: product.id, rating: 0, reviewCount: 0 };
+        }
+      });
+
+      const ratings = await Promise.all(ratingPromises);
+      console.log('All ratings:', ratings);
+      
+      const ratingsMap: Record<number, { rating: number; reviewCount: number }> = {};
+      ratings.forEach(({ productId, rating, reviewCount }) => {
+        ratingsMap[productId] = { rating, reviewCount };
+      });
+      
+      console.log('Ratings map:', ratingsMap);
+      setProductRatings(ratingsMap);
+    } catch (err) {
+      console.error('Error fetching product ratings:', err);
     }
   };
 
@@ -306,6 +382,7 @@ export const MarketplacePage = () => {
   });
   
 
+  // Filter products
   const filteredProducts = products.filter(product => {
     // Filter by categoryId
     const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory;
@@ -340,8 +417,17 @@ export const MarketplacePage = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-  const pagedProducts = filteredProducts.slice(
+  // Sort products: stock > 0 first, stock = 0 last
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    const stockA = a.stockQuantity || 0;
+    const stockB = b.stockQuantity || 0;
+    if (stockA === 0 && stockB > 0) return 1; // a (stock=0) goes to end
+    if (stockA > 0 && stockB === 0) return -1; // a (stock>0) goes to front
+    return 0; // Keep original order for same stock status
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / pageSize));
+  const pagedProducts = sortedProducts.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
@@ -608,7 +694,7 @@ export const MarketplacePage = () => {
             </h2>
             <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
               <Filter className="w-4 h-4" />
-              <span>{filteredProducts.length} sản phẩm</span>
+              <span>{sortedProducts.length} sản phẩm</span>
             </div>
           </div>
 
@@ -695,17 +781,6 @@ export const MarketplacePage = () => {
                           -{product.discount}%
                         </motion.div>
                       )}
-                      {/* Energy Efficiency Badge */}
-                      {product.energyEfficiencyRating && (
-                        <motion.div 
-                          className="absolute top-2 right-12 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.6 + index * 0.1 }}
-                        >
-                          {product.energyEfficiencyRating}
-                        </motion.div>
-                      )}
                       <motion.div
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
@@ -756,11 +831,44 @@ export const MarketplacePage = () => {
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1">
                               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <span className="font-semibold">{product.rating}</span>
+                              <span className="font-semibold">
+                                {productRatings[product.id]?.rating 
+                                  ? productRatings[product.id].rating.toFixed(1)
+                                  : (product.ratingAverage || product.rating || 0).toFixed(1)}
+                              </span>
                             </div>
-                            <span className="text-sm text-gray-500">({product.reviews})</span>
+                            <span className="text-sm text-gray-500">
+                              ({productRatings[product.id]?.reviewCount ?? product.reviews ?? 0} đánh giá)
+                            </span>
                           </div>
                         </div>
+                        {product.energyEfficiencyRating && (
+                          <div className="mt-2 text-sm text-gray-600">
+                            <span className="font-medium">Nhãn năng lượng:</span> {product.energyEfficiencyRating}
+                          </div>
+                        )}
+                        {(product.manualUrls || productManualUrls[product.id]) && (
+                          <div className="mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Ngăn chặn click vào card
+                                const url = product.manualUrls || productManualUrls[product.id];
+                                if (url) {
+                                  const urls = typeof url === 'string' ? url.split(',') : [url];
+                                  if (urls.length > 0) {
+                                    window.open(urls[0].trim(), '_blank');
+                                  }
+                                }
+                              }}
+                              className="flex items-center gap-2 text-xs"
+                            >
+                              <FileText className="w-3 h-3" />
+                              Hướng dẫn sử dụng
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
 
                       {/* Footer - Fixed at bottom */}
@@ -787,32 +895,43 @@ export const MarketplacePage = () => {
                           </div>
                           
                           <div className="flex gap-2">
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              className="flex-1"
-                            >
+                            {product.stockQuantity === 0 ? (
                               <Button 
-                                className="w-full bg-green-600 hover:bg-green-700"
-                                onClick={(e) => handleAddToCart(product.id, e)}
-                                disabled={addingToCart === product.id}
+                                className="w-full bg-gray-400 text-white cursor-not-allowed"
+                                disabled
                               >
-                                {addingToCart === product.id ? (
-                                  <Spinner variant="circle-filled" size={16} className="mr-2" />
-                                ) : (
-                                  <ShoppingCart className="w-4 h-4 mr-2" />
-                                )}
-                                {addingToCart === product.id ? 'Đang thêm...' : 'Thêm vào giỏ'}
+                                Hết hàng
                               </Button>
-                            </motion.div>
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <Button variant="outline" className="px-4">
-                                Mua ngay
-                              </Button>
-                            </motion.div>
+                            ) : (
+                              <>
+                                <motion.div
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  className="flex-1"
+                                >
+                                  <Button 
+                                    className="w-full bg-green-600 hover:bg-green-700"
+                                    onClick={(e) => handleAddToCart(product.id, e)}
+                                    disabled={addingToCart === product.id}
+                                  >
+                                    {addingToCart === product.id ? (
+                                      <Spinner variant="circle-filled" size={16} className="mr-2" />
+                                    ) : (
+                                      <ShoppingCart className="w-4 h-4 mr-2" />
+                                    )}
+                                    {addingToCart === product.id ? 'Đang thêm...' : 'Thêm vào giỏ'}
+                                  </Button>
+                                </motion.div>
+                                <motion.div
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                >
+                                  <Button variant="outline" className="px-4">
+                                    Mua ngay
+                                  </Button>
+                                </motion.div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </CardFooter>
@@ -826,7 +945,7 @@ export const MarketplacePage = () => {
 
           {/* Empty State */}
           <AnimatePresence>
-            {!loading && !error && filteredProducts.length === 0 && (
+            {!loading && !error && sortedProducts.length === 0 && (
             <motion.div 
               className="text-center py-16"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -848,13 +967,13 @@ export const MarketplacePage = () => {
         </AnimatePresence>
         </motion.div>
       </div>
-      {!loading && !error && filteredProducts.length > 0 && (
+      {!loading && !error && sortedProducts.length > 0 && (
         <div className="pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mt-6 flex flex-col items-center gap-4">
               <p className="text-sm text-gray-600">
                 Hiển thị {(currentPage - 1) * pageSize + 1} -
-                {Math.min(currentPage * pageSize, filteredProducts.length)} trong tổng số {filteredProducts.length} sản phẩm
+                {Math.min(currentPage * pageSize, sortedProducts.length)} trong tổng số {sortedProducts.length} sản phẩm
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -904,4 +1023,5 @@ export const MarketplacePage = () => {
     </motion.div>
   );
 };
+
 

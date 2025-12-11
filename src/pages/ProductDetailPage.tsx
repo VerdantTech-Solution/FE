@@ -21,12 +21,14 @@ import {
   MessageCircle
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getProductById, type Product, type ProductImage } from '@/api/product';
+import { getProductById, type Product, type ProductImage, getProductRegistrations, type ProductRegistration } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { useCart } from '@/contexts/CartContext';
 import ProductSpecifications from '@/components/ProductSpecifications';
 import { getProductReviewsByProductId, type ProductReview } from '@/api/productReview';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getVendorById, type VendorProfileResponse } from '@/api/vendor';
+import { FileText } from 'lucide-react';
 
 // Helper function to get image URLs from product
 const getProductImages = (product: Product): string[] => {
@@ -154,6 +156,9 @@ export const ProductDetailPage = () => {
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [vendorName, setVendorName] = useState<string>('');
+  const [vendorLoading, setVendorLoading] = useState(false);
+  const [manualUrl, setManualUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -166,7 +171,43 @@ export const ProductDetailPage = () => {
       try {
         setLoading(true);
         const productData = await getProductById(parseInt(id));
+        console.log('Product data from API:', productData);
+        console.log('Product manualUrls:', productData.manualUrls);
+        console.log('Product manualUrl:', (productData as any).manualUrl);
+        console.log('Product manualPublicUrl:', (productData as any).manualPublicUrl);
         setProduct(productData);
+        
+        // Fetch vendor name
+        if (productData.vendorId) {
+          setVendorLoading(true);
+          try {
+            const vendorData = await getVendorById(productData.vendorId);
+            setVendorName(vendorData.companyName || 'Nhà cung cấp');
+          } catch (vendorErr) {
+            console.error('Error fetching vendor:', vendorErr);
+            setVendorName('Nhà cung cấp');
+          } finally {
+            setVendorLoading(false);
+          }
+        }
+        
+        // Fetch ProductRegistration để lấy manualUrl (giống như staff panel)
+        try {
+          const registrations = await getProductRegistrations();
+          const relatedRegistration = registrations.find(
+            reg => reg.proposedProductCode === productData.productCode && 
+                   reg.status === 'Approved'
+          );
+          
+          if (relatedRegistration?.manualUrl || relatedRegistration?.manualPublicUrl) {
+            setManualUrl(relatedRegistration.manualUrl || relatedRegistration.manualPublicUrl || null);
+          } else {
+            setManualUrl(null);
+          }
+        } catch (regErr) {
+          console.error('Error fetching product registration:', regErr);
+          setManualUrl(null);
+        }
       } catch (err) {
         setError('Failed to load product details');
         console.error('Error fetching product:', err);
@@ -187,9 +228,14 @@ export const ProductDetailPage = () => {
       try {
         setReviewsLoading(true);
         setReviewsError(null);
-        const response = await getProductReviewsByProductId(numericId);
-        const list = response?.data && Array.isArray(response.data) ? response.data : [];
-        setReviews(list);
+        const response = await getProductReviewsByProductId(numericId, 1, 20);
+        if (response.status && response.data) {
+          // Support both pagination structure (data.data) and simple array (data)
+          const list = response.data.data || (Array.isArray(response.data) ? response.data : []);
+          setReviews(list);
+        } else {
+          setReviews([]);
+        }
       } catch (err: any) {
         console.error('Error fetching product reviews:', err);
         setReviews([]);
@@ -268,6 +314,7 @@ export const ProductDetailPage = () => {
     console.log('Contact vendor');
   };
 
+  // Calculate review count and average rating from reviews array (same as original code)
   const reviewCount = reviews.length;
   const averageRatingValue =
     reviewCount > 0
@@ -477,7 +524,7 @@ export const ProductDetailPage = () => {
                 </Badge>
                 {product.energyEfficiencyRating && (
                   <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    {product.energyEfficiencyRating}
+                    Nhãn năng lượng: {product.energyEfficiencyRating}
                   </Badge>
                 )}
               </div>
@@ -514,6 +561,29 @@ export const ProductDetailPage = () => {
               <p className="text-gray-600 leading-relaxed">
                 {product.description}
               </p>
+              
+              {/* User Manual Button */}
+              {(product.manualUrls || manualUrl) && (
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const url = product.manualUrls || manualUrl;
+                      if (url) {
+                        const urls = typeof url === 'string' ? url.split(',') : [url];
+                        if (urls.length > 0) {
+                          window.open(urls[0].trim(), '_blank');
+                        }
+                      }
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Hướng dẫn sử dụng
+                  </Button>
+                </div>
+              )}
               
               {/* Product Specifications Component */}
               <div className="mt-6">
@@ -556,25 +626,32 @@ export const ProductDetailPage = () => {
               </div>
 
               <div className="flex space-x-4">
-                <Button 
-                  onClick={handleAddToCart}
-                  disabled={addingToCart || product.stockQuantity === 0}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {addingToCart ? (
-                    <>
-                      <Spinner variant="circle-filled" size={16} className="mr-2" />
-                      Đang thêm...
-                    </>
-                  ) : product.stockQuantity === 0 ? (
-                    'Hết hàng'
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Thêm vào giỏ hàng
-                    </>
-                  )}
-                </Button>
+                {product.stockQuantity === 0 ? (
+                  <Button 
+                    disabled
+                    className="flex-1 bg-gray-400 text-white cursor-not-allowed"
+                  >
+                    Hết hàng
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleAddToCart}
+                    disabled={addingToCart}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {addingToCart ? (
+                      <>
+                        <Spinner variant="circle-filled" size={16} className="mr-2" />
+                        Đang thêm...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Thêm vào giỏ hàng
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button 
                   variant="outline"
                   onClick={handleToggleFavorite}
@@ -623,7 +700,7 @@ export const ProductDetailPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">
-                    Nhà cung cấp ID: {product.vendorId}
+                    {vendorLoading ? 'Đang tải...' : vendorName || 'Nhà cung cấp'}
                   </h4>
                   <p className="text-sm text-gray-600">
                     Sản phẩm được cung cấp bởi đối tác uy tín của VerdantTech

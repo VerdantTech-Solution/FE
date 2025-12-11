@@ -210,9 +210,11 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
     try {
       setLoadingReviews(true);
-      const response = await getProductReviewsByProductId(productId);
-      if (response.data) {
-        setReviews(response.data as ProductReviewWithReply[]);
+      const response = await getProductReviewsByProductId(productId, 1, 20);
+      if (response.status && response.data) {
+        // Support both pagination structure (data.data) and simple array (data)
+        const reviewsList = response.data.data || (Array.isArray(response.data) ? response.data : []);
+        setReviews(reviewsList as ProductReviewWithReply[]);
       }
     } catch (err: any) {
       console.error('Error loading reviews:', err);
