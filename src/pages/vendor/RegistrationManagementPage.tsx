@@ -377,8 +377,14 @@ const RegistrationManagementPage = () => {
       setProductInfo(product);
 
       if (product) {
-        const reviewRes = await getProductReviewsByProductId(product.id);
-        setProductReviews(reviewRes.data ?? []);
+        const reviewRes = await getProductReviewsByProductId(product.id, 1, 20);
+        if (reviewRes.status && reviewRes.data) {
+          // Support both pagination structure (data.data) and simple array (data)
+          const reviewsList = reviewRes.data.data || (Array.isArray(reviewRes.data) ? reviewRes.data : []);
+          setProductReviews(reviewsList as ProductReviewWithReply[]);
+        } else {
+          setProductReviews([]);
+        }
       }
     } catch (err: any) {
       setProductError(err?.message || 'Không thể tải thông tin sản phẩm thực tế');

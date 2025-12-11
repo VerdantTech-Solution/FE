@@ -21,13 +21,13 @@ import {
   MessageCircle
 } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getProductById, type Product, type ProductImage, getProductRegistrations, type ProductRegistration } from '@/api/product';
+import { getProductById, type Product, type ProductImage, getProductRegistrations } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { useCart } from '@/contexts/CartContext';
 import ProductSpecifications from '@/components/ProductSpecifications';
 import { getProductReviewsByProductId, type ProductReview } from '@/api/productReview';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getVendorById, type VendorProfileResponse } from '@/api/vendor';
+import { getVendorById } from '@/api/vendor';
 import { FileText } from 'lucide-react';
 
 // Helper function to get image URLs from product

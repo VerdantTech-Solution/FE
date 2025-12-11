@@ -169,36 +169,6 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
 
   const specificationsList = categorizeSpecifications();
 
-  // Nhóm thông số theo category
-  const groupedSpecs = specificationsList.reduce((acc, spec) => {
-    if (!acc[spec.category]) {
-      acc[spec.category] = [];
-    }
-    acc[spec.category].push(spec);
-    return acc;
-  }, {} as Record<string, SpecificationItem[]>);
-
-  const getCategoryTitle = (category: string) => {
-    switch (category) {
-      case 'performance': return 'Hiệu suất & Công suất';
-      case 'physical': return 'Thông số vật lý';
-      case 'operational': return 'Vận hành & Điều khiển';
-      case 'safety': return 'An toàn & Bảo hành';
-      default: return 'Thông số khác';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'performance': return <Zap className="w-5 h-5 text-yellow-500" />;
-      case 'physical': return <Ruler className="w-5 h-5 text-blue-500" />;
-      case 'operational': return <Settings className="w-5 h-5 text-green-500" />;
-      case 'safety': return <Shield className="w-5 h-5 text-red-500" />;
-      default: return <Info className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-
   if (specificationsList.length === 0) {
     return (
       <Card className="w-full">

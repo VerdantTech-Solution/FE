@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, 
-  Package, 
-  Users, 
-  TrendingUp,
-  Loader2
+  Package
 } from "lucide-react";
 import { getRevenue, getOrderStatistics, type RevenueData, type OrderStatistics } from "@/api/dashboard";
 import { BestSellingProductsCard } from "@/components/BestSellingProductsCard";
