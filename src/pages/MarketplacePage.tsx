@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getAllProducts, type Product, getAllProductCategories, type ProductCategory, getProductRegistrations } from '@/api/product';
+import { getAllProducts, type Product, getAllProductCategories, type ProductCategory } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { toast } from 'sonner';
 import { getProductReviewsByProductId } from '@/api/productReview';
@@ -84,7 +84,6 @@ export const MarketplacePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 9;
   const [productRatings, setProductRatings] = useState<Record<number, { rating: number; reviewCount: number }>>({});
-  const [productManualUrls, setProductManualUrls] = useState<Record<number, string>>({});
 
   const fetchProducts = async () => {
     try {
@@ -99,9 +98,6 @@ export const MarketplacePage = () => {
       
       // Fetch reviews for all products to calculate ratings
       fetchProductRatings(products);
-      
-      // Fetch ProductRegistrations to get manualUrls
-      fetchProductManualUrls(products);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
@@ -110,28 +106,6 @@ export const MarketplacePage = () => {
     } finally {
       setLoading(false);
       setPageLoading(false);
-    }
-  };
-
-  const fetchProductManualUrls = async (productsList: Product[]) => {
-    try {
-      const registrations = await getProductRegistrations();
-      const manualUrlsMap: Record<number, string> = {};
-      
-      productsList.forEach((product) => {
-        const relatedRegistration = registrations.find(
-          reg => reg.proposedProductCode === product.productCode && 
-                 reg.status === 'Approved'
-        );
-        
-        if (relatedRegistration?.manualUrl || relatedRegistration?.manualPublicUrl) {
-          manualUrlsMap[product.id] = relatedRegistration.manualUrl || relatedRegistration.manualPublicUrl || '';
-        }
-      });
-      
-      setProductManualUrls(manualUrlsMap);
-    } catch (err) {
-      console.error('Error fetching product manual URLs:', err);
     }
   };
 
@@ -842,31 +816,11 @@ export const MarketplacePage = () => {
                             </span>
                           </div>
                         </div>
-                        {product.energyEfficiencyRating && (
+                        {product.energyEfficiencyRating && 
+                         String(product.energyEfficiencyRating).trim() !== "" && 
+                         String(product.energyEfficiencyRating) !== "0" && (
                           <div className="mt-2 text-sm text-gray-600">
                             <span className="font-medium">Nhãn năng lượng:</span> {product.energyEfficiencyRating}
-                          </div>
-                        )}
-                        {(product.manualUrls || productManualUrls[product.id]) && (
-                          <div className="mt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation(); // Ngăn chặn click vào card
-                                const url = product.manualUrls || productManualUrls[product.id];
-                                if (url) {
-                                  const urls = typeof url === 'string' ? url.split(',') : [url];
-                                  if (urls.length > 0) {
-                                    window.open(urls[0].trim(), '_blank');
-                                  }
-                                }
-                              }}
-                              className="flex items-center gap-2 text-xs"
-                            >
-                              <FileText className="w-3 h-3" />
-                              Hướng dẫn sử dụng
-                            </Button>
                           </div>
                         )}
                       </CardContent>
