@@ -664,7 +664,7 @@ export const RegisterProductPage = () => {
                       <SelectValue placeholder="Chọn mức xếp hạng" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">0 - Không xếp hạng</SelectItem>
+                      <SelectItem value="0">Không xếp hạng</SelectItem>
                       <SelectItem value="1">1 ⭐ - Thấp</SelectItem>
                       <SelectItem value="2">2 ⭐⭐ - Trung bình thấp</SelectItem>
                       <SelectItem value="3">3 ⭐⭐⭐ - Trung bình</SelectItem>

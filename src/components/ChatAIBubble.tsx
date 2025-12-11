@@ -11,6 +11,7 @@ import {
   getChatbotConversations, 
   getChatbotMessages, 
   createChatbotConversation, 
+  deleteChatbotConversation, // <-- added
   //type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
   normalizeChatbotMessage,
@@ -381,7 +382,7 @@ export const ChatAIBubble = () => {
     }
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     const welcomeMessage: Message = {
       id: '1',
       text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
@@ -395,6 +396,27 @@ export const ChatAIBubble = () => {
       const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
       const conversations = localStorage.getItem(conversationsKey);
       const currentId = localStorage.getItem(currentConversationIdKey);
+      
+      // Try to delete on backend if possible
+      if (currentId && user?.id) {
+        const convIdNum = parseInt(currentId);
+        if (!isNaN(convIdNum)) {
+          try {
+            await deleteChatbotConversation(convIdNum);
+            // remove from local cache as well
+            if (conversations) {
+              const parsed = JSON.parse(conversations);
+              const updated = parsed.filter((c: any) => c.id !== currentId);
+              localStorage.setItem(conversationsKey, JSON.stringify(updated));
+            }
+            localStorage.removeItem(currentConversationIdKey);
+            return;
+          } catch (err) {
+            console.error('Error deleting conversation on backend, will fallback to local clear:', err);
+            // continue to local-only fallback
+          }
+        }
+      }
       
       if (conversations && currentId) {
         const parsed = JSON.parse(conversations);
@@ -547,7 +569,7 @@ export const ChatAIBubble = () => {
               {/* Messages Area */}
               <div
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
+                className="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-6 min-h-0"
               >
                 {messages.map((message) => {
                   // Parse products from AI messages
@@ -561,7 +583,7 @@ export const ChatAIBubble = () => {
                       key={message.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {message.sender === 'ai' && (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
@@ -570,13 +592,14 @@ export const ChatAIBubble = () => {
                       )}
                       <div
                         className={`${
+                          // Make both user and ai bubbles shrink to content but limit width
                           message.sender === 'user'
-                            ? 'max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                            : 'w-full max-w-full'
+                            ? 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line'
+                            : 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line'
                         }`}
                       >
                         {message.sender === 'ai' && products.length > 0 ? (
-                          <div className="bg-white rounded-2xl px-4 py-4 shadow-md border border-green-100 w-full overflow-hidden">
+                          <div className="bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-200 w-full max-w-full overflow-hidden">
                             {/* Text content if any */}
                             {textWithoutProducts && (
                               <div className="mb-4 pb-4 border-b border-gray-100">
@@ -596,7 +619,7 @@ export const ChatAIBubble = () => {
                             </div>
                             
                             {/* Products Carousel */}
-                            <div className="w-full overflow-visible">
+                            <div className="w-full max-w-full overflow-hidden">
                               <ChatProductCarousel products={products} />
                             </div>
                             
@@ -605,42 +628,12 @@ export const ChatAIBubble = () => {
                             </p>
                           </div>
                         ) : (
-                          // <div
-                          //   className={`rounded-2xl px-4 py-2 ${
-                          //     message.sender === 'user'
-                          //       ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                          //       : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-                          //   }`}
-                          // >
-                          //   <p className="text-sm whitespace-pre-line">{message.text || ''}</p>
-                          //   <p
-                          //     className={`text-xs mt-1 ${
-                          //       message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                          //     }`}
-                          //   >
-                          //     {formatTime(message.timestamp)}
-                          //   </p>
-                          // </div>
-                          <div
-                            className={
-                              message.sender === 'user'
-                                ? 'max-w-[75%] inline-block rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                                : 'max-w-[75%] inline-block rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200'
-                            }
-                          >
-                            <p className="text-sm whitespace-pre-line leading-relaxed">
-                              {textWithoutProducts}
-                            </p>
-
-                            <p
-                              className={`text-xs mt-1 ${
-                                message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                              }`}
-                            >
+                          <div>
+                            <p className="text-sm whitespace-pre-line leading-relaxed">{message.sender === 'ai' ? textWithoutProducts : message.text}</p>
+                            <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-green-100' : 'text-gray-500'}`}>
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
-
                         )}
                       </div>
                       {message.sender === 'user' && (
@@ -656,7 +649,7 @@ export const ChatAIBubble = () => {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex gap-2 justify-start"
+                    className="flex gap-4 justify-start"
                   >
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
                       <Bot className="w-5 h-5 text-white" />
