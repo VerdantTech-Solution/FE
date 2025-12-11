@@ -23,6 +23,7 @@ import {
 import { 
   getProductById, 
   updateProductCommission,
+  updateProduct,
   type Product,
   getMediaLinks,
   type Certificate,
@@ -79,6 +80,10 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   const [commissionRate, setCommissionRate] = useState<number>(0);
   const [updatingCommission, setUpdatingCommission] = useState(false);
 
+  // Unit price form
+  const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [updatingPrice, setUpdatingPrice] = useState(false);
+
   useEffect(() => {
     if (open && productId) {
       loadProductDetails();
@@ -89,6 +94,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setCertificates([]);
       setReviews([]);
       setCommissionRate(0);
+      setUnitPrice(0);
       setError(null);
     }
   }, [open, productId]);
@@ -105,6 +111,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setProduct(productData);
       // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
       setCommissionRate(productData.commissionRate || 0);
+      setUnitPrice(productData.unitPrice || 0);
 
       // Load certificates for this product
       try {
@@ -241,6 +248,26 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       toast.error(errorMessage);
     } finally {
       setUpdatingCommission(false);
+    }
+  };
+
+  const handleUpdatePrice = async () => {
+    if (!productId || unitPrice <= 0) {
+      toast.error("Giá sản phẩm phải lớn hơn 0");
+      return;
+    }
+
+    try {
+      setUpdatingPrice(true);
+      await updateProduct(productId, { unitPrice: unitPrice });
+      toast.success("Cập nhật giá thành công!");
+      await loadProductDetails();
+      onProductUpdated?.();
+    } catch (err: any) {
+      const errorMessage = err?.message || "Không thể cập nhật giá";
+      toast.error(errorMessage);
+    } finally {
+      setUpdatingPrice(false);
     }
   };
 
@@ -426,6 +453,54 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                   </div>
                 </CardContent>
               </Card>
+
+              <Separator />
+
+              {/* Unit Price Update */}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                    <h4 className="font-semibold text-gray-900">Cập nhật giá sản phẩm</h4>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <Label htmlFor="unitPrice">Giá sản phẩm (VNĐ)</Label>
+                      <Input
+                        id="unitPrice"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={unitPrice}
+                        onChange={(e) => setUnitPrice(Number(e.target.value))}
+                        placeholder="Nhập giá sản phẩm"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        onClick={handleUpdatePrice}
+                        disabled={updatingPrice}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {updatingPrice ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Đang cập nhật...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Cập nhật
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Giá hiện tại: {currency(product.unitPrice)}
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
 
                   {/* Reviews Tab */}
@@ -543,24 +618,22 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                                     <span className="font-medium">Mã:</span> {cert.certificationCode}
                                   </p>
                                 )}
-                                <div className="ml-7 mt-2">
-                                  <Badge 
-                                    variant={
-                                      cert.status === 'Approved' ? 'default' : 
-                                      cert.status === 'Rejected' ? 'destructive' : 
-                                      'secondary'
-                                    }
-                                    className={
-                                      cert.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                      cert.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                                      'bg-yellow-100 text-yellow-800'
-                                    }
-                                  >
-                                    {cert.status === 'Approved' ? 'Đã duyệt' :
-                                     cert.status === 'Rejected' ? 'Đã từ chối' :
-                                     'Chờ duyệt'}
-                                  </Badge>
-                                </div>
+                                {(cert.status === 'Approved' || cert.status === 'Rejected') && (
+                                  <div className="ml-7 mt-2">
+                                    <Badge 
+                                      variant={
+                                        cert.status === 'Approved' ? 'default' : 
+                                        'destructive'
+                                      }
+                                      className={
+                                        cert.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                        'bg-red-100 text-red-800'
+                                      }
+                                    >
+                                      {cert.status === 'Approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                                    </Badge>
+                                  </div>
+                                )}
                                 {cert.rejectionReason && (
                                   <div className="ml-7 mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                                     <span className="font-medium">Lý do từ chối:</span> {cert.rejectionReason}
