@@ -30,8 +30,10 @@ import { BalanceManagement } from "./staff/BalanceManagement";
 import { ProductManagementPanel } from "./staff/ProductManagementPanel";
 import { PostManagementPanel } from "./staff/PostManagementPanel";
 import WarehousePanel from "./staff/WarehousePanel";
+import { StaffOverviewPage } from "./staff/StaffOverviewPage";
 
 type ViewKey =
+  | "overview"
   | "warehouse"
   | "inventory"
   | "users"
@@ -46,7 +48,7 @@ type ViewKey =
   | "posts";
 
 export const StaffPage: React.FC = () => {
-  const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
+  const [selectedMenu, setSelectedMenu] = useState<ViewKey>("overview");
   const [collapsed, setCollapsed] = useState(false);
   //const [, setStats] = useState<WarehouseStats>({ total: 0, pending: 0, approved: 0, rejected: 0 });
   
@@ -77,6 +79,7 @@ export const StaffPage: React.FC = () => {
           <SidebarNav>
             <SidebarSection>
               <SidebarSectionTitle>Chính</SidebarSectionTitle>
+              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "overview"} onClick={() => setSelectedMenu("overview")} icon={<Home className="w-5 h-5" />}>Tổng quan</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Đơn Đăng Ký</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "inventory"} onClick={() => setSelectedMenu("inventory")} icon={<PackagePlus className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản Lý Sản Phẩm</SidebarNavItem>
@@ -136,6 +139,9 @@ export const StaffPage: React.FC = () => {
 
         {/* Content */}
         <div className="p-8 flex-1 overflow-y-auto">
+          {selectedMenu === "overview" && (
+            <StaffOverviewPage />
+          )}
           {selectedMenu === "warehouse" && (
 <WarehousePanel />          )}
           {selectedMenu === "inventory" && (

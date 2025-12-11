@@ -4,17 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  Users, 
-  TrendingUp, 
   DollarSign, 
   Package, 
   ArrowUp,
   ArrowDown,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Star
 } from "lucide-react";
-import { getRevenue, getOrderStatistics, getBestSellingProducts, type RevenueData, type OrderStatistics, type BestSellingProduct } from "@/api/dashboard";
+import { getRevenue, getOrderStatistics, getProductRatings, type RevenueData, type OrderStatistics } from "@/api/dashboard";
 import { getProductRegistrations } from "@/api/product";
+import { BestSellingProductsCard } from "@/components/BestSellingProductsCard";
+import { RevenueLast7DaysCard } from "@/components/RevenueLast7DaysCard";
+import { QueueStatisticsCard } from "@/components/QueueStatisticsCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Recharts imports
 import {
@@ -25,10 +28,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell
+  ResponsiveContainer
 } from 'recharts';
 
 interface OverviewPageProps {
@@ -37,6 +37,8 @@ interface OverviewPageProps {
 }
 
 export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: OverviewPageProps) => {
+  const { user } = useAuth();
+  const isVendor = user?.role === 'Vendor';
   const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
   const [monthlyRevenueData, setMonthlyRevenueData] = useState<Array<{ month: string; revenue: number }>>([]);
   const [dailyRevenueData, setDailyRevenueData] = useState<Array<{ day: string; revenue: number }>>([]);
@@ -45,9 +47,9 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(false);
   const [revenueError, setRevenueError] = useState<string | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStatistics | null>(null);
-  const [bestSellingProducts, setBestSellingProducts] = useState<BestSellingProduct[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [approvedRegistrationsCount, setApprovedRegistrationsCount] = useState<number>(0);
+  const [averageRatingOfVendor, setAverageRatingOfVendor] = useState<number | null>(null);
+  const [isLoadingRatings, setIsLoadingRatings] = useState(false);
   
   // Custom date range for date picker
   const today = new Date();
@@ -649,24 +651,6 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
     }
   };
 
-  // Fetch best selling products
-  const fetchBestSellingProducts = async () => {
-    setIsLoadingProducts(true);
-    try {
-      const dateRange = getDateRange(selectedPeriod);
-      const response = await getBestSellingProducts({ from: dateRange.from, to: dateRange.to });
-      if (response.status && response.data && Array.isArray(response.data)) {
-        setBestSellingProducts(response.data);
-      } else {
-        setBestSellingProducts([]);
-      }
-    } catch (err) {
-      console.error("Error fetching best selling products:", err);
-      setBestSellingProducts([]);
-    } finally {
-      setIsLoadingProducts(false);
-    }
-  };
 
   // Fetch approved registrations count
   const fetchApprovedRegistrationsCount = async () => {
@@ -680,12 +664,34 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
     }
   };
 
+  // Fetch product ratings (Vendor only)
+  const fetchProductRatings = async () => {
+    if (!isVendor) return;
+    
+    setIsLoadingRatings(true);
+    try {
+      const response = await getProductRatings();
+      if (response.status && response.data) {
+        setAverageRatingOfVendor(response.data.averageRatingOfVendor);
+      } else {
+        setAverageRatingOfVendor(null);
+      }
+    } catch (err) {
+      console.error("Error fetching product ratings:", err);
+      setAverageRatingOfVendor(null);
+    } finally {
+      setIsLoadingRatings(false);
+    }
+  };
+
   useEffect(() => {
     fetchRevenue();
     fetchOrderStatistics();
-    fetchBestSellingProducts();
     fetchApprovedRegistrationsCount();
-  }, [selectedPeriod, customDateFrom, customDateTo]);
+    if (isVendor) {
+      fetchProductRatings();
+    }
+  }, [selectedPeriod, customDateFrom, customDateTo, isVendor]);
 
   // Format revenue for display
   const formatRevenue = (amount: number) => {
@@ -763,24 +769,6 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
     ];
   }, [dailyRevenueData, weeklyRevenueData, monthlyRevenueData, yearlyRevenueData, revenueData, selectedPeriod]);
 
-  // Prepare product categories from best selling products API
-  const productCategories = useMemo(() => {
-    // Ensure bestSellingProducts is always an array
-    if (!Array.isArray(bestSellingProducts) || bestSellingProducts.length === 0) {
-      return [];
-    }
-    
-    const totalRevenue = bestSellingProducts.reduce((sum, product) => sum + (product.totalRevenue || 0), 0);
-    
-    return bestSellingProducts.map((product, index) => ({
-      name: product.productName || `Sản phẩm ${index + 1}`,
-      value: totalRevenue > 0 ? Math.round(((product.totalRevenue || 0) / totalRevenue) * 100) : 0,
-      color: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'][index % 5],
-      sales: product.totalRevenue || 0,
-    }));
-  }, [bestSellingProducts]);
-
-
   const stats = [
     {
       title: 'Tổng doanh thu',
@@ -801,26 +789,6 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
       bgColor: 'bg-blue-50'
     },
     {
-      title: 'Đơn đã giao',
-      value: orderStats?.delivered ? orderStats.delivered.toLocaleString() : '0',
-      change: null,
-      trend: null,
-      icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
-    },
-    {
-      title: 'Tỷ lệ hoàn thành',
-      value: orderStats?.total && orderStats.total > 0 
-        ? `${((orderStats.delivered || 0) / orderStats.total * 100).toFixed(1)}%`
-        : '0%',
-      change: null,
-      trend: null,
-      icon: TrendingUp,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50'
-    },
-    {
       title: 'Tổng đơn đăng ký thành công',
       value: approvedRegistrationsCount.toLocaleString(),
       change: null,
@@ -828,11 +796,18 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
       icon: CheckCircle,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50'
-    }
+    },
+    // Only show rating for Vendor
+    ...(isVendor ? [{
+      title: 'Điểm đánh giá trung bình',
+      value: averageRatingOfVendor !== null ? averageRatingOfVendor.toFixed(1) : (isLoadingRatings ? '...' : '0'),
+      change: null,
+      trend: null,
+      icon: Star,
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-50'
+    }] : [])
   ];
-
-
-  const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
 
   return (
     <>
@@ -1026,89 +1001,27 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
           </CardContent>
         </Card>
 
-        {/* Best Selling Products Pie Chart */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Sản phẩm bán chạy</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingProducts ? (
-              <div className="flex items-center justify-center h-[200px]">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-              </div>
-            ) : productCategories.length > 0 ? (
-              <>
-                <div className="flex items-center justify-center">
-                  <ResponsiveContainer width="60%" height={200}>
-                    <RechartsPieChart>
-                      <Pie
-                        data={productCategories}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                        outerRadius={70}
-                        innerRadius={30}
-                        fill="#8884d8"
-                        dataKey="value"
-                        paddingAngle={2}
-                      >
-                        {productCategories.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value) => [`${value}%`, 'Tỷ lệ']}
-                        labelStyle={{ fontWeight: 'bold' }}
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                      />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                  
-                  {/* Custom Legend */}
-                  <div className="w-40 ml-6 space-y-3">
-                    {productCategories.map((category, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <div 
-                          className="w-4 h-4 rounded-full shadow-sm"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            {category.name}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {category.value}% • {category.sales.toLocaleString()}đ
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Summary */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Tổng cộng:</span>
-                    <span className="font-semibold text-gray-900">
-                      {productCategories.reduce((sum, cat) => sum + cat.sales, 0).toLocaleString()}đ
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-500 text-sm">
-                Chưa có dữ liệu sản phẩm bán chạy
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Best Selling Products List */}
+        <BestSellingProductsCard 
+          selectedPeriod={selectedPeriod === 'custom' ? undefined : selectedPeriod}
+          from={selectedPeriod === 'custom' ? customDateFrom : undefined}
+          to={selectedPeriod === 'custom' ? customDateTo : undefined}
+          title="Top 5 sản phẩm bán chạy"
+          showDatePicker={true}
+        />
       </div>
+
+      {/* Revenue Last 7 Days */}
+      <div className="mb-8">
+        <RevenueLast7DaysCard />
+      </div>
+
+      {/* Queue Statistics - Only for Admin and Staff */}
+      {!isVendor && (
+        <div className="mb-8">
+          <QueueStatisticsCard />
+        </div>
+      )}
 
     </>
   );

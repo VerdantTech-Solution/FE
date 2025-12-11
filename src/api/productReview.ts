@@ -32,10 +32,28 @@ export interface ProductReviewResponse<T> {
   errors?: string[];
 }
 
+export interface ProductReviewPaginationData {
+  data: ProductReview[];
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface ProductReviewPaginationResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: ProductReviewPaginationData;
+  errors: string[];
+}
+
 const normalizeReviewList = (response: any): ProductReview[] => {
   if (!response) return [];
   if (Array.isArray(response)) return response;
   if (Array.isArray(response?.data)) return response.data;
+  // Support pagination structure: response.data.data
   if (Array.isArray(response?.data?.data)) return response.data.data;
   if (response?.data?.items && Array.isArray(response.data.items)) return response.data.items;
   return [];
@@ -114,15 +132,61 @@ export const getProductReviewsByOrderId = async (
 };
 
 export const getProductReviewsByProductId = async (
-  productId: number
-): Promise<ProductReviewResponse<ProductReview[]>> => {
-  const response = await apiClient.get(`/api/ProductReview/product/${productId}`);
+  productId: number,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ProductReviewPaginationResponse> => {
+  const response = await apiClient.get(`/api/ProductReview/product/${productId}`, {
+    params: { page, pageSize }
+  });
   const raw = response as any;
+  
+  // Parse pagination response
+  let reviewsData: ProductReview[] = [];
+  let paginationData = {
+    currentPage: 1,
+    pageSize: pageSize,
+    totalPages: 1,
+    totalRecords: 0,
+    hasNextPage: false,
+    hasPreviousPage: false
+  };
+
+  if (raw?.data) {
+    // Check if response has pagination structure: data.data is array
+    if (raw.data.data && Array.isArray(raw.data.data)) {
+      reviewsData = normalizeReviewList(raw.data.data);
+      paginationData = {
+        currentPage: raw.data.currentPage ?? 1,
+        pageSize: raw.data.pageSize ?? pageSize,
+        totalPages: raw.data.totalPages ?? 1,
+        totalRecords: raw.data.totalRecords ?? reviewsData.length,
+        hasNextPage: raw.data.hasNextPage ?? false,
+        hasPreviousPage: raw.data.hasPreviousPage ?? false
+      };
+    } else if (Array.isArray(raw.data)) {
+      // Fallback: if data is array directly (old format)
+      reviewsData = normalizeReviewList(raw.data);
+      paginationData.totalRecords = reviewsData.length;
+    } else if (raw.data && typeof raw.data === 'object') {
+      // Try to extract from nested structure
+      reviewsData = normalizeReviewList(raw.data);
+      paginationData.totalRecords = reviewsData.length;
+    }
+  } else if (Array.isArray(raw)) {
+    // Direct array response
+    reviewsData = normalizeReviewList(raw);
+    paginationData.totalRecords = reviewsData.length;
+  }
+
   return {
-    status: typeof raw?.status === 'boolean' ? raw.status : undefined,
-    statusCode: raw?.statusCode,
-    errors: raw?.errors,
-    data: normalizeReviewList(raw),
+    status: typeof raw?.status === 'boolean' ? raw.status : true,
+    statusCode: raw?.statusCode ?? 'OK',
+    errors: raw?.errors ?? [],
+    data: {
+      data: reviewsData,
+      ...paginationData
+    }
   };
 };
 
