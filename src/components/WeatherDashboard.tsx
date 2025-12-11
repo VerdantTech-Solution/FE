@@ -15,7 +15,9 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { getDailyWeather, getCurrentWeather, type DailyForecastItem, type CurrentWeatherData } from "@/api/weather";
+import { type DailyForecastItem, type CurrentWeatherData } from "@/api/weather";
+import { formatToVietnamTime } from "@/lib/utils";
+import { getCachedDailyWeather, getCachedCurrentWeather } from "@/services/weatherCache";
 
 interface WeatherDashboardProps {
   farmId: number;
@@ -35,8 +37,8 @@ export const WeatherDashboard = ({ farmId }: WeatherDashboardProps) => {
         setError(null);
         
         const [dailyData, currentData] = await Promise.all([
-          getDailyWeather(farmId),
-          getCurrentWeather(farmId),
+          getCachedDailyWeather(farmId, setDailyWeather),
+          getCachedCurrentWeather(farmId, setCurrentWeather),
         ]);
         
         setDailyWeather(dailyData);
@@ -58,8 +60,8 @@ export const WeatherDashboard = ({ farmId }: WeatherDashboardProps) => {
     .map((item) => {
       const date = item.date ? new Date(item.date) : null;
       return {
-        date: date ? date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }) : "",
-        fullDate: date ? date.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "short" }) : "",
+        date: date ? formatToVietnamTime(date, { day: "2-digit", month: "2-digit" }) : "",
+        fullDate: date ? formatToVietnamTime(date, { weekday: "short", day: "2-digit", month: "short" }) : "",
         temperatureMax: item.temperatureMax ?? 0,
         temperatureMin: item.temperatureMin ?? 0,
         precipitation: item.precipitationSum ?? 0,

@@ -13,6 +13,7 @@ import {
 } from '@/api/ticket';
 import { useAuth } from '@/contexts/AuthContext';
 import { Textarea } from '@/components/ui/textarea';
+import { formatVietnamDateTime } from '@/lib/utils';
 import {
   getSupportedBanks,
   getVendorBankAccounts,
@@ -249,14 +250,7 @@ const TicketList = ({ refreshKey = 0 }: TicketListProps) => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatVietnamDateTime(dateString);
   };
 
   const resetMessageInputs = () => {

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getOrdersByUser, updateOrderStatus, type OrderWithCustomer } from '@/api/order';
 import { createTicket, getMyTickets, type TicketImage, type TicketItem } from '@/api/ticket';
+import { formatVietnamDateTime } from '@/lib/utils';
 import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
 import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2 } from 'lucide-react';
 
@@ -70,13 +71,7 @@ const getStatusText = (status: string, paymentMethod?: string) => {
 };
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  return formatVietnamDateTime(dateString);
 };
 
 const formatAddress = (address: any) => {

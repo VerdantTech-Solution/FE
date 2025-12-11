@@ -269,7 +269,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Side - Logo */}
       <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 items-center justify-center relative overflow-hidden">
         {/* Background Pattern */}
@@ -305,16 +305,16 @@ export const LoginPage = () => {
           </div>
           
           {/* Company Name with enhanced styling */}
-          <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-white via-emerald-50 to-teal-100 bg-clip-text text-transparent drop-shadow-lg">
+          <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 lg:mb-6 bg-gradient-to-r from-white via-emerald-50 to-teal-100 bg-clip-text text-transparent drop-shadow-lg">
             VerdantTech
           </h1>
           
           {/* Enhanced tagline */}
-          <div className="space-y-4">
-            <p className="text-2xl font-semibold text-white/90 leading-relaxed max-w-md mx-auto">
+          <div className="space-y-3 lg:space-y-4">
+            <p className="text-xl lg:text-2xl font-semibold text-white/90 leading-relaxed max-w-md mx-auto">
               Giải pháp công nghệ xanh
             </p>
-            <p className="text-lg text-emerald-100/80 leading-relaxed max-w-md mx-auto">
+            <p className="text-base lg:text-lg text-emerald-100/80 leading-relaxed max-w-md mx-auto">
               Cho tương lai nông nghiệp bền vững
             </p>
           </div>
@@ -329,7 +329,7 @@ export const LoginPage = () => {
       </div>
 
       {/* Right Side - Enhanced Login Form with shadcn/ui - Compact Size */}
-      <div className="w-full lg:w-3/5 flex items-center justify-center p-4 lg:p-12 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      <div className="w-full lg:w-3/5 flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
         <div className="w-full max-w-lg">
           {/* Logo and Header */}
           <div className="text-center mb-6">
@@ -420,7 +420,7 @@ export const LoginPage = () => {
               </form>
 
               {/* Divider */}
-               <div className="flex items-center gap-3 py-4">
+               <div className="flex items-center gap-3 py-4 flex justify-center">
                  <span className="text-xs text-muted-foreground font-medium px-2">
                    Hoặc tiếp tục với
                  </span>

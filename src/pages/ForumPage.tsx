@@ -192,7 +192,7 @@ export const ForumPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 px-4"
           >
             Diễn Đàn Nông Nghiệp
           </motion.h1>
@@ -201,7 +201,7 @@ export const ForumPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="text-lg md:text-xl text-green-100 max-w-3xl mx-auto leading-relaxed mb-8"
+            className="text-base sm:text-lg md:text-xl text-green-100 max-w-3xl mx-auto leading-relaxed mb-6 sm:mb-8 px-4"
           >
             Nơi chia sẻ kiến thức, kinh nghiệm và kết nối cộng đồng nông dân Việt Nam
           </motion.p>
@@ -268,10 +268,10 @@ export const ForumPage = () => {
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">
                     Bài Viết Diễn Đàn
                   </h2>
-                  <p className="text-gray-600 text-lg mt-1">
+                  <p className="text-gray-600 text-base sm:text-lg mt-1">
                     Khám phá các bài viết và thảo luận từ cộng đồng
                   </p>
                 </div>

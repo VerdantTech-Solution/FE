@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ThermometerSun, Droplets, Wind, Gauge, CloudRain, GaugeCircle } from "lucide-react";
-import { getHourlyWeather, type HourlyWeatherItem } from "@/api";
+import { type HourlyWeatherItem } from "@/api";
+import { formatVietnamTime, formatVietnamDate, formatVietnamDateTime } from "@/lib/utils";
+import { getCachedHourlyWeather } from "@/services/weatherCache";
 
 type HourlyCardProps = {
   time: string;
@@ -16,8 +18,7 @@ type HourlyCardProps = {
 
 const HourlyCard = ({ time, temperature, humidity, windSpeed, precipitation, uvIndex, soilTemperature, onHoverStart, onHoverEnd }: HourlyCardProps) => {
   const formatTime = (timeString: string) => {
-    const date = new Date(timeString);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return formatVietnamTime(timeString);
   };
 
   const getUVLevel = (uv: number) => {
@@ -112,9 +113,9 @@ export const HourlyFarmWeather = ({ farmId }: { farmId: number }) => {
         setLoading(true);
         setError(null);
         console.log(`HourlyFarmWeather: Fetching data for farm ID: ${farmId}`);
-        console.log('HourlyFarmWeather: About to call getHourlyWeather API...');
+        console.log('HourlyFarmWeather: About to call getCachedHourlyWeather API...');
         
-        const res = await getHourlyWeather(farmId);
+        const res = await getCachedHourlyWeather(farmId, setHourlyData);
         console.log('HourlyFarmWeather: API call completed');
         console.log('HourlyFarmWeather: Received data:', res);
         console.log('HourlyFarmWeather: Data type:', typeof res);
@@ -215,7 +216,7 @@ export const HourlyFarmWeather = ({ farmId }: { farmId: number }) => {
         
         {upcomingHourlyData.length > 0 && (
           <div className="text-2xl font-bold text-black mb-3">
-            Dữ liệu từ {new Date(upcomingHourlyData[0].time).toLocaleDateString('vi-VN')} - {upcomingHourlyData.length} giờ sắp tới
+            Dữ liệu từ {formatVietnamDate(upcomingHourlyData[0].time)} - {upcomingHourlyData.length} giờ sắp tới
           </div>
         )}
         
@@ -256,7 +257,7 @@ export const HourlyFarmWeather = ({ farmId }: { farmId: number }) => {
         >
           <div className="rounded-lg border border-slate-700 bg-[#0c0f14] text-slate-100 shadow-xl w-72 transition-opacity duration-150 ease-out opacity-100">
             <div className="p-3">
-              <div className="text-sm font-semibold mb-2">{new Date(upcomingHourlyData[hoverIndex].time).toLocaleString('vi-VN')}</div>
+              <div className="text-sm font-semibold mb-2">{formatVietnamDateTime(upcomingHourlyData[hoverIndex].time)}</div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                 <div className="flex items-center justify-between"><span>Nhiệt độ</span><span className="font-medium">{Math.round(upcomingHourlyData[hoverIndex].temperature)}°C</span></div>
                 <div className="flex items-center justify-between"><span>Độ ẩm</span><span className="font-medium">{Math.round(upcomingHourlyData[hoverIndex].humidity)}%</span></div>

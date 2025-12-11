@@ -67,7 +67,7 @@ const ServicesPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-white py-20 px-6">
+    <div className="min-h-screen bg-white py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8">
       <motion.div 
         className="max-w-7xl mx-auto"
         variants={containerVariants}
@@ -76,18 +76,18 @@ const ServicesPage = () => {
       >
         {/* Header */}
         <motion.div 
-          className="flex justify-between items-center mb-16"
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 sm:mb-12 lg:mb-16"
           variants={itemVariants}
         >
           <motion.h1 
-            className="text-2xl font-bold text-gray-900"
+            className="text-xl sm:text-2xl font-bold text-gray-900"
             style={{ fontFamily: 'Playfair Display, serif' }}
             whileHover={{ scale: 1.05 }}
           >
             Dịch Vụ
           </motion.h1>
           <motion.button
-            className="text-green-600 font-semibold hover:text-green-700 transition-colors duration-300"
+            className="text-green-600 font-semibold hover:text-green-700 transition-colors duration-300 text-sm sm:text-base"
             whileHover={{ x: 5 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -97,11 +97,11 @@ const ServicesPage = () => {
 
         {/* Main Title */}
         <motion.div 
-          className="mb-16"
+          className="mb-8 sm:mb-12 lg:mb-16"
           variants={itemVariants}
         >
           <h2 
-            className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight"
+            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 leading-tight"
             style={{ fontFamily: 'Playfair Display, serif' }}
           >
             Dịch Vụ Tiên Tiến Cho Nông Nghiệp Hiệu Quả
@@ -110,10 +110,10 @@ const ServicesPage = () => {
 
         {/* Description Paragraph */}
         <motion.div 
-          className="max-w-2xl ml-auto mb-20"
+          className="max-w-2xl ml-0 sm:ml-auto mb-12 sm:mb-16 lg:mb-20"
           variants={itemVariants}
         >
-          <p className="text-lg text-gray-700 leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
             Chúng tôi cung cấp một bộ dịch vụ nông nghiệp đầy đủ được thiết kế để trao quyền cho nông dân với những đổi mới mới nhất và thực hành bền vững. 
             Từ các kỹ thuật canh tác chính xác giúp tối đa hóa năng suất cây trồng đến các giải pháp thân thiện với môi trường bảo vệ hành tinh của chúng ta, 
             các dịch vụ toàn diện của chúng tôi được điều chỉnh để đáp ứng nhu cầu riêng biệt của mọi trang trại.
@@ -121,10 +121,10 @@ const ServicesPage = () => {
         </motion.div>
 
         {/* Services Grid - Layout như hình */}
-        <div className="space-y-20">
+        <div className="space-y-12 sm:space-y-16 lg:space-y-20">
           {/* Service 01 - Text trái, Image phải */}
           <motion.div
-            className="grid lg:grid-cols-2 gap-16 items-center"
+            className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center"
             variants={cardVariants}
           >
             {/* Left Content */}
@@ -136,19 +136,19 @@ const ServicesPage = () => {
             >
               {/* Service Number and Line */}
               <motion.div 
-                className="flex items-center mb-6"
+                className="flex items-center mb-4 sm:mb-6"
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
               >
-                <span className="text-6xl font-bold text-green-200 mr-4">
+                <span className="text-4xl sm:text-5xl lg:text-6xl font-bold text-green-200 mr-2 sm:mr-4">
                   01
                 </span>
                 <motion.div 
-                  className="w-32 h-[2px] bg-gray-300"
+                  className="hidden sm:block h-[2px] bg-gray-300"
                   initial={{ width: 0 }}
-                  whileInView={{ width: 500 }}
+                  whileInView={{ width: '100%', maxWidth: 500 }}
                   viewport={{ once: true }}
                   transition={{ duration: 1, delay: 0.3 }}
                 />
@@ -162,13 +162,13 @@ const ServicesPage = () => {
                 transition={{ duration: 0.8, delay: 0.4 }}
               >
                 <h3 
-                  className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4 leading-tight"
+                  className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
                   Tăng Năng Suất Rau Củ Với Chất Lượng Tốt Nhất
                 </h3>
                 
-                <p className="text-gray-700 leading-relaxed mb-6">
+                <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4 sm:mb-6">
                   Tại VerdantTech, chúng tôi cam kết giúp bạn đạt được năng suất cây trồng cao nhất thông qua các dịch vụ nông nghiệp toàn diện và đổi mới.
                 </p>
 
@@ -185,14 +185,14 @@ const ServicesPage = () => {
 
             {/* Right Image */}
             <motion.div
-              className="relative overflow-hidden rounded-2xl"
+              className="relative overflow-hidden rounded-xl sm:rounded-2xl"
               variants={imageVariants}
               whileHover="hover"
             >
               <motion.img
                 src={nongdan}
                 alt="Tăng năng suất cây trồng"
-                className="w-full h-96 object-cover"
+                className="w-full h-64 sm:h-80 lg:h-96 object-cover"
                 initial={{ opacity: 0, scale: 1.1 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -203,20 +203,20 @@ const ServicesPage = () => {
 
           {/* Service 02 - Image trái, Text phải */}
           <motion.div
-            className="grid lg:grid-cols-2 gap-16 items-center"
+            className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center"
             variants={cardVariants}
           >
             {/* Left Image */}
             
             <motion.div
-              className="relative overflow-hidden rounded-2xl"
+              className="relative overflow-hidden rounded-xl sm:rounded-2xl order-2 lg:order-1"
               variants={imageVariants}
               whileHover="hover"
             >
               <motion.img
                 src={drone}
                 alt="Tích hợp công nghệ"
-                className="w-full h-96 object-cover"
+                className="w-full h-64 sm:h-80 lg:h-96 object-cover"
                 initial={{ opacity: 0, scale: 1.1 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -226,6 +226,7 @@ const ServicesPage = () => {
 
             {/* Right Content */}
             <motion.div
+              className="order-1 lg:order-2"
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -233,19 +234,19 @@ const ServicesPage = () => {
             >
               {/* Service Number and Line */}
               <motion.div 
-                className="flex items-center mb-6"
+                className="flex items-center mb-4 sm:mb-6"
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
               >
-                <span className="text-6xl font-bold text-gray-200 mr-4">
+                <span className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-200 mr-2 sm:mr-4">
                   02
                 </span>
                 <motion.div 
-                 className="w-32 h-[2px] bg-gray-300"
+                 className="hidden sm:block h-[2px] bg-gray-300"
                   initial={{ width: 0 }}
-                  whileInView={{ width: 500 }}
+                  whileInView={{ width: '100%', maxWidth: 500 }}
                   viewport={{ once: true }}
                   transition={{ duration: 1, delay: 0.3 }}
                 />
@@ -259,13 +260,13 @@ const ServicesPage = () => {
                 transition={{ duration: 0.8, delay: 0.4 }}
               >
                 <h3 
-                  className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4 leading-tight"
+                  className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
                   Tích Hợp Công Nghệ
                 </h3>
                 
-                <p className="text-gray-900 leading-relaxed mb-6">
+                <p className="text-sm sm:text-base text-gray-900 leading-relaxed mb-4 sm:mb-6">
                   Tại VerdantTech, chúng tôi chuyên tích hợp liền mạch các công nghệ tiên tiến vào hoạt động nông nghiệp để tối ưu hóa hiệu quả và năng suất.
                 </p>
 
