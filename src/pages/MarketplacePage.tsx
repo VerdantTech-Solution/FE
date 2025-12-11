@@ -123,19 +123,40 @@ export const MarketplacePage = () => {
             const reviews = response.data.data || (Array.isArray(response.data) ? response.data : []);
             // Use totalRecords from pagination response, not reviews.length
             const reviewCount = response.data.totalRecords || reviews.length;
-            const averageRating = reviewCount > 0 && reviews.length > 0
-              ? reviews.reduce((total, current) => total + (current.rating || 0), 0) / reviews.length
-              : 0;
             
-            console.log(`Product ${product.id}: rating=${averageRating}, reviewCount=${reviewCount}, reviews.length=${reviews.length}`);
+            // Calculate average rating from reviews if we have reviews
+            let averageRating = 0;
+            if (reviews.length > 0) {
+              // Calculate from actual reviews
+              averageRating = reviews.reduce((total, current) => total + (current.rating || 0), 0) / reviews.length;
+            } else if (reviewCount > 0) {
+              // If we have reviewCount but no reviews in response, use product's ratingAverage
+              // This handles cases where API returns totalRecords but no reviews (pagination issue)
+              averageRating = product.ratingAverage || product.rating || 0;
+            } else {
+              // No reviews at all, use product's ratingAverage if available
+              averageRating = product.ratingAverage || product.rating || 0;
+            }
             
-            return { productId: product.id, rating: averageRating, reviewCount };
+            // Use reviewCount from API, or fallback to product's reviewCount
+            const finalReviewCount = reviewCount > 0 ? reviewCount : (product.reviews || 0);
+            
+            console.log(`Product ${product.id}: rating=${averageRating}, reviewCount=${finalReviewCount}, reviews.length=${reviews.length}, product.ratingAverage=${product.ratingAverage}`);
+            
+            return { productId: product.id, rating: averageRating, reviewCount: finalReviewCount };
           }
-          console.log(`Product ${product.id}: No data in response`);
-          return { productId: product.id, rating: 0, reviewCount: 0 };
+          
+          // If API call failed or no response, use product's own rating data
+          console.log(`Product ${product.id}: No data in response, using product rating`);
+          const fallbackRating = product.ratingAverage || product.rating || 0;
+          const fallbackReviewCount = product.reviews || 0;
+          return { productId: product.id, rating: fallbackRating, reviewCount: fallbackReviewCount };
         } catch (err) {
           console.error(`Error fetching reviews for product ${product.id}:`, err);
-          return { productId: product.id, rating: 0, reviewCount: 0 };
+          // On error, fallback to product's own rating data
+          const fallbackRating = product.ratingAverage || product.rating || 0;
+          const fallbackReviewCount = product.reviews || 0;
+          return { productId: product.id, rating: fallbackRating, reviewCount: fallbackReviewCount };
         }
       });
 
@@ -806,17 +827,23 @@ export const MarketplacePage = () => {
                             <div className="flex items-center gap-1">
                               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                               <span className="font-semibold">
-                                {productRatings[product.id]?.rating 
-                                  ? productRatings[product.id].rating.toFixed(1)
-                                  : (product.ratingAverage || product.rating || 0).toFixed(1)}
+                                {(() => {
+                                  // Use fetched rating if available, otherwise use product's ratingAverage
+                                  const rating = productRatings[product.id]?.rating ?? product.ratingAverage ?? product.rating ?? 0;
+                                  return rating.toFixed(1);
+                                })()}
                               </span>
                             </div>
                             <span className="text-sm text-gray-500">
-                              ({productRatings[product.id]?.reviewCount ?? product.reviews ?? 0} đánh giá)
+                              ({(() => {
+                                // Use fetched reviewCount if available, otherwise use product's reviews
+                                const reviewCount = productRatings[product.id]?.reviewCount ?? product.reviews ?? 0;
+                                return reviewCount;
+                              })()} đánh giá)
                             </span>
                           </div>
                         </div>
-                        {product.energyEfficiencyRating && 
+                        {!!product.energyEfficiencyRating && 
                          String(product.energyEfficiencyRating).trim() !== "" && 
                          String(product.energyEfficiencyRating) !== "0" && (
                           <div className="mt-2 text-sm text-gray-600">
