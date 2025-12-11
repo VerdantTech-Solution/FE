@@ -40,7 +40,7 @@ import {
   type ProductSerial
 } from "@/api/inventory";
 import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
-import { getAllProducts, getAllProductCategories, type Product, type ProductCategory } from "@/api/product";
+import { getAllProducts, getAllProductCategories, getProductRegistrations, type Product, type ProductCategory, type ProductRegistration } from "@/api/product";
 
 export const InventoryManagementPanel: React.FC = () => {
   const { user } = useAuth();
@@ -79,6 +79,7 @@ export const InventoryManagementPanel: React.FC = () => {
   // Form states
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [productRegistrations, setProductRegistrations] = useState<ProductRegistration[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [_availableSerials,setAvailableSerials] = useState<ProductSerial[]>([]);
   const [_availableLotNumbers,setAvailableLotNumbers] = useState<string[]>([]);
@@ -98,6 +99,7 @@ export const InventoryManagementPanel: React.FC = () => {
   
   const [importForm, setImportForm] = useState<ImportFormData>({
     productId: 0,
+    vendorId: undefined,
     sku: "",
     batchNumber: "",
     lotNumber: "",
@@ -201,16 +203,18 @@ export const InventoryManagementPanel: React.FC = () => {
     });
   }, [exportFormItems, identityNumbersCache, identityNumbersLoading]);
 
-  // Fetch products and categories
+  // Fetch products, categories, and product registrations
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsData, categoriesData] = await Promise.all([
+        const [productsData, categoriesData, registrationsData] = await Promise.all([
           getAllProducts({ page: 1, pageSize: 1000 }),
-          getAllProductCategories()
+          getAllProductCategories(),
+          getProductRegistrations()
         ]);
         setProducts(productsData);
         setCategories(categoriesData);
+        setProductRegistrations(registrationsData);
       } catch (err) {
         console.error("Error fetching data:", err);
       }
@@ -316,28 +320,40 @@ export const InventoryManagementPanel: React.FC = () => {
     }
   }, [activeTab, importPage, exportPage, exportMovementTypeFilter, exportFilterProductId, filterProductId, filterVendorId]);
 
-  // When product is selected for import, check if it needs serial numbers
+  // When product is selected for import, check if it needs serial numbers and auto-set vendorId
   useEffect(() => {
     if (importForm.productId > 0) {
       const product = products.find(p => p.id === importForm.productId);
       setSelectedProduct(product || null);
       
-      // Generate default SKU
-      if (product && !importForm.sku) {
-        const timestamp = Date.now();
-        setImportForm(prev => ({
-          ...prev,
-          sku: `SKU-${product.id}-${timestamp}`,
-        }));
+      // Tự động lấy vendorId từ ProductRegistration
+      if (product && product.productCode) {
+        const registration = productRegistrations.find(
+          reg => reg.proposedProductCode === product.productCode && 
+                 reg.status === 'Approved'
+        );
+        
+        if (registration && registration.vendorId) {
+          setImportForm(prev => ({ 
+            ...prev, 
+            vendorId: registration.vendorId 
+          }));
+        } else {
+          // Nếu không tìm thấy registration, set về undefined
+          setImportForm(prev => ({ 
+            ...prev, 
+            vendorId: undefined 
+          }));
+        }
       }
     }
-  }, [importForm.productId, products]);
+  }, [importForm.productId, products, productRegistrations]);
 
   // Note: Các useEffect cho serials và lotNumbers sẽ được xử lý trong form khi chọn product cho từng item
 
   // Handle import form submit
   const handleImportSubmit = async () => {
-    if (!importForm.productId || !importForm.sku || !importForm.batchNumber || !importForm.lotNumber) {
+    if (!importForm.productId || !importForm.batchNumber || !importForm.lotNumber) {
       setError("Vui lòng điền đầy đủ thông tin bắt buộc");
       return;
     }
@@ -494,6 +510,7 @@ export const InventoryManagementPanel: React.FC = () => {
   const resetImportForm = () => {
     setImportForm({
       productId: 0,
+      vendorId: undefined,
       sku: "",
       batchNumber: "",
       lotNumber: "",
@@ -1425,17 +1442,6 @@ export const InventoryManagementPanel: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* SKU */}
-            <div className="space-y-2">
-              <Label htmlFor="import-sku">SKU (Mã quản lý kho) *</Label>
-              <Input
-                id="import-sku"
-                value={importForm.sku}
-                onChange={(e) => setImportForm(prev => ({ ...prev, sku: e.target.value }))}
-                placeholder="SKU-001-2024"
-              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

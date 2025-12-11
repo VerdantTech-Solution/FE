@@ -51,7 +51,7 @@ export interface ProductSerial {
 
 export interface CreateBatchInventoryDTO {
   productId: number;
-  sku: string;
+  sku?: string; // Optional - backend tự động tạo nếu không có
   vendorId?: number;
   batchNumber: string;
   lotNumber: string;
@@ -460,12 +460,16 @@ export const createBatchInventory = async (
     // Chuẩn bị request data - chỉ gửi serialNumbers nếu có và không rỗng
     const requestData: any = {
       productId: data.productId,
-      sku: data.sku,
       batchNumber: data.batchNumber,
       lotNumber: data.lotNumber,
       quantity: data.quantity,
       unitCostPrice: data.unitCostPrice,
     };
+    
+    // Chỉ gửi SKU nếu có (backend tự động tạo nếu không có)
+    if (data.sku && data.sku.trim()) {
+      requestData.sku = data.sku;
+    }
     
     if (data.vendorId) {
       requestData.vendorId = data.vendorId;

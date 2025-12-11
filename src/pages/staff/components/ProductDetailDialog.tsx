@@ -258,8 +258,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="text-2xl">Chi tiết sản phẩm</DialogTitle>
           <DialogDescription>
             Thông tin chi tiết, chứng chỉ và đánh giá sản phẩm
@@ -267,16 +267,16 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-12 flex-1">
             <Loader2 className="w-8 h-8 animate-spin text-green-600" />
           </div>
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-12 text-center flex-1">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <p className="text-red-600">{error}</p>
           </div>
         ) : product ? (
-          <div className="overflow-y-auto px-6 py-4">
+          <div className="overflow-y-auto px-6 py-4 flex-1 min-h-0">
             <Tabs defaultValue="info" className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
                 <TabsTrigger value="info" className="text-base font-semibold">Thông tin</TabsTrigger>

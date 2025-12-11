@@ -58,6 +58,11 @@ export interface RevenueData {
   from?: string;
   to?: string;
   revenue?: number;
+  totalRevenue?: number;
+  dailyRevenues?: Array<{
+    date: string;
+    revenue: number;
+  }>;
 }
 
 export interface GetRevenueParams {
@@ -100,17 +105,30 @@ export const getRevenueLast7Days = async (): Promise<RevenueResponse> => {
 };
 
 export interface BestSellingProduct {
-  productId?: string;
-  productName?: string;
-  totalSales?: number;
-  totalRevenue?: number;
-  quantity?: number;
+  soldQuantity: number;
+  product: {
+    id: number;
+    productCode: string;
+    productName: string;
+    unitPrice: number;
+    images?: Array<{
+      imageUrl: string;
+      sortOrder: number;
+    }>;
+    [key: string]: any;
+  };
+}
+
+export interface BestSellingProductsData {
+  from: string;
+  to: string;
+  products: BestSellingProduct[];
 }
 
 export interface BestSellingProductsResponse {
   status: boolean;
   statusCode: string | number;
-  data: BestSellingProduct[];
+  data: BestSellingProductsData;
   errors: string[];
 }
 
@@ -141,5 +159,95 @@ export const getBestSellingProducts = async (
   
   const response = await apiClient.get(url);
   return response as unknown as BestSellingProductsResponse;
+};
+
+// =====================================================
+// PRODUCT RATINGS STATISTICS (Vendor only)
+// =====================================================
+
+export interface ProductRatingItem {
+  id: number;
+  productCode: string;
+  productName: string;
+  slug: string;
+  description: string;
+  images?: Array<{
+    imageUrl: string;
+    sortOrder: number;
+  }>;
+  unitPrice: number;
+  warrantyMonths: number;
+  ratingAverage: number;
+  specifications?: {
+    [key: string]: string;
+  };
+  dimensionsCm?: {
+    width?: number;
+    height?: number;
+    length?: number;
+  };
+}
+
+export interface ProductRatingsData {
+  averageRatingOfVendor: number;
+  top3Highest: {
+    top1: ProductRatingItem;
+    top2: ProductRatingItem;
+    top3: ProductRatingItem;
+  };
+  top3Lowest: {
+    top1: ProductRatingItem;
+    top2: ProductRatingItem;
+    top3: ProductRatingItem;
+  };
+}
+
+export interface ProductRatingsResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: ProductRatingsData;
+  errors: string[];
+}
+
+/**
+ * Get products rating statistics (Vendor only)
+ * Lấy thống kê đánh giá sản phẩm của vendor bao gồm rating trung bình tất cả sản phẩm, 
+ * top 3 sản phẩm có rating cao nhất và thấp nhất. Chỉ Vendor có quyền truy cập.
+ */
+export const getProductRatings = async (): Promise<ProductRatingsResponse> => {
+  const url = `/api/Dashboard/products/ratings`;
+  const response = await apiClient.get(url);
+  return response as unknown as ProductRatingsResponse;
+};
+
+// =====================================================
+// QUEUE STATISTICS (Admin and Staff only)
+// =====================================================
+
+export interface QueueStatistics {
+  vendorProfile: number;
+  productRegistration: number;
+  vendorCertificate: number;
+  productCertificate: number;
+  request: number;
+  total: number;
+}
+
+export interface QueueStatisticsResponse {
+  status: boolean;
+  statusCode: string | number;
+  data: QueueStatistics;
+  errors: string[];
+}
+
+/**
+ * Get queue statistics (Admin and Staff only)
+ * Lấy số lượng các yêu cầu đang chờ xử lý (VendorProfile, ProductRegistration, 
+ * VendorCertificate, ProductCertificate, Request). Admin và Staff có quyền truy cập.
+ */
+export const getQueueStatistics = async (): Promise<QueueStatisticsResponse> => {
+  const url = `/api/Dashboard/queues/statistics`;
+  const response = await apiClient.get(url);
+  return response as unknown as QueueStatisticsResponse;
 };
 
