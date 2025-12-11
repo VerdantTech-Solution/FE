@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CloudRain, ThermometerSun, Sun, Cloud, Wind, Gauge, GaugeCircle, Sunrise, CloudSun } from "lucide-react";
-import { getDailyWeather, type DailyForecastItem } from "@/api";
+import { type DailyForecastItem } from "@/api";
 import { HourlyFarmWeather } from "./HourlyFarmWeather";
+import { formatVietnamTime } from "@/lib/utils";
+import { getCachedDailyWeather } from "@/services/weatherCache";
 
 
 type DailyWeather = {
@@ -38,7 +40,7 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
       if (!farmId) return;
       try {
         setLoading(true);
-        const data = await getDailyWeather(farmId);
+        const data = await getCachedDailyWeather(farmId, setDailyFromApi);
         setDailyFromApi(data);
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -154,7 +156,7 @@ export const FarmWeather = ({ farmId }: { farmId: number }) => {
               <StatItem label="Gió cao nhất" value={`${dailyFromApi[selectedIndex]?.windSpeedMax ?? '-'} km/h`} icon={<Wind className="h-4 w-4"/>} />
               <StatItem label="Gió giật mạnh nhất" value={`${dailyFromApi[selectedIndex]?.windGustsMax ?? '-'} km/h`} icon={<Wind className="h-4 w-4"/>} />
               <StatItem label="FAO ET0 (khả năng thoát hơi nước)" value={`${dailyFromApi[selectedIndex]?.et0FaoEvapotranspiration ?? '-'} mm`} icon={<GaugeCircle className="h-4 w-4"/>} />
-              <StatItem label="Mọc / Lặn" value={`${dailyFromApi[selectedIndex]?.sunrise ? new Date(dailyFromApi[selectedIndex].sunrise).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) : '-'} / ${dailyFromApi[selectedIndex]?.sunset ? new Date(dailyFromApi[selectedIndex].sunset).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) : '-'}`} icon={<Sunrise className="h-4 w-4"/>} />
+              <StatItem label="Mọc / Lặn" value={`${dailyFromApi[selectedIndex]?.sunrise ? formatVietnamTime(dailyFromApi[selectedIndex].sunrise) : '-'} / ${dailyFromApi[selectedIndex]?.sunset ? formatVietnamTime(dailyFromApi[selectedIndex].sunset) : '-'}`} icon={<Sunrise className="h-4 w-4"/>} />
             </div>
           )}
         </div>

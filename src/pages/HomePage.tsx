@@ -137,7 +137,7 @@ export const HomePage = () => {
       </motion.div>
       
       <motion.hr 
-        className="mx-[100px] h-[2px] w-100% bg-gray-300"
+        className="mx-4 sm:mx-8 md:mx-16 lg:mx-24 xl:mx-[100px] h-[2px] bg-gray-300"
         initial={{ scaleX: 0 }}
         whileInView={{ scaleX: 1 }}
         viewport={{ once: true }}

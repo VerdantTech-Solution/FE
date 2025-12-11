@@ -559,15 +559,15 @@ export const ForumDetailPage = () => {
         key={comment.id}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-4 bg-gray-50 rounded-lg border border-gray-200 ${depth > 0 ? 'ml-8 mt-3' : ''}`}
+        className={`p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 ${depth > 0 ? 'ml-2 sm:ml-4 lg:ml-8 mt-2 sm:mt-3' : ''}`}
       >
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+        <div className="flex items-start gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm sm:text-base">
             {authorInitial}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-semibold text-gray-800">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">
                 {authorName}
               </span>
               {comment.createdAt && (
@@ -577,40 +577,45 @@ export const ForumDetailPage = () => {
               )}
             </div>
             {isEditing ? (
-              <div className="space-y-3 mb-3">
+              <div className="space-y-2 sm:space-y-3 mb-2 sm:mb-3">
                 <Textarea
                   value={editingContent}
                   onChange={(e) => setEditingContent(e.target.value)}
-                  className="min-h-[90px]"
+                  className="min-h-[70px] sm:min-h-[90px] text-sm sm:text-base"
                 />
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     onClick={handleUpdateComment}
                     disabled={!editingContent.trim() || submittingEdit}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 h-auto"
                   >
-                    {submittingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lưu'}
+                    {submittingEdit ? <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" /> : 'Lưu'}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={cancelEditComment}>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={cancelEditComment}
+                    className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 h-auto"
+                  >
                     Hủy
                   </Button>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-700 mb-3 whitespace-pre-wrap">{comment.content}</p>
+              <p className="text-sm sm:text-base text-gray-700 mb-2 sm:mb-3 whitespace-pre-wrap break-words">{comment.content}</p>
             )}
             
             {/* Reply button */}
-            <div className="flex flex-wrap items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1">
             {user && depth < 3 && !isEditing && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setReplyingTo(isReplying ? null : comment.id)}
-                className="text-green-600 hover:text-green-700 hover:bg-green-50 text-xs"
+                className="text-green-600 hover:text-green-700 hover:bg-green-50 text-xs px-2 sm:px-3 py-1 h-auto"
               >
-                <MessageCircle className="w-3 h-3 mr-1" />
+                <MessageCircle className="w-3 h-3 mr-0.5 sm:mr-1" />
                 {isReplying ? 'Hủy' : 'Phản hồi'}
               </Button>
             )}
@@ -620,7 +625,7 @@ export const ForumDetailPage = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => startEditComment(comment)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs"
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs px-2 sm:px-3 py-1 h-auto"
                 >
                   Chỉnh sửa
                 </Button>
@@ -628,7 +633,7 @@ export const ForumDetailPage = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setDeleteTarget(comment)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs px-2 sm:px-3 py-1 h-auto"
                 >
                   Xóa
                 </Button>
@@ -638,22 +643,22 @@ export const ForumDetailPage = () => {
 
             {/* Reply form */}
             {isReplying && user && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 sm:mt-3 space-y-2">
                 <Textarea
                   placeholder="Viết phản hồi..."
                   value={replyContent[comment.id] || ''}
                   onChange={(e) => setReplyContent({ ...replyContent, [comment.id]: e.target.value })}
-                  className="min-h-[80px]"
+                  className="min-h-[60px] sm:min-h-[80px] text-sm sm:text-base"
                 />
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     onClick={() => handleSubmitReply(comment.id)}
                     disabled={!replyContent[comment.id]?.trim() || submittingReply[comment.id]}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 h-auto"
                   >
                     {submittingReply[comment.id] ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
                     ) : (
                       'Gửi'
                     )}
@@ -665,6 +670,7 @@ export const ForumDetailPage = () => {
                       setReplyingTo(null);
                       setReplyContent({ ...replyContent, [comment.id]: '' });
                     }}
+                    className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 h-auto"
                   >
                     Hủy
                   </Button>
@@ -674,7 +680,7 @@ export const ForumDetailPage = () => {
 
             {/* Nested replies */}
             {comment.replies && comment.replies.length > 0 && (
-              <div className="mt-4 space-y-3">
+              <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
                 {comment.replies.map((reply) => renderComment(reply, depth + 1))}
               </div>
             )}
@@ -861,30 +867,31 @@ export const ForumDetailPage = () => {
               )}
 
               {/* Title */}
-              <CardTitle className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+              <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-3 sm:mb-4">
                 {post.title}
               </CardTitle>
 
               {/* Meta Information */}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-green-600" />
-                  <span>{formatDate(post.createdAt)}</span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+                  <span className="hidden sm:inline">{formatDate(post.createdAt)}</span>
+                  <span className="sm:hidden">{new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-green-600" />
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Eye className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                   <span>{post.viewCount} lượt xem</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ThumbsUp className="w-4 h-4 text-green-600" />
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                   <span>{post.likeCount}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ThumbsDown className="w-4 h-4 text-gray-400" />
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <ThumbsDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                   <span>{post.dislikeCount}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-green-600" />
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                   <span>{comments.length} bình luận</span>
                 </div>
               </div>
@@ -917,32 +924,36 @@ export const ForumDetailPage = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-4 mt-8 pt-6 border-t border-gray-200">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
                 <Button
                   variant="outline"
                   onClick={handleLike}
                   disabled={liking}
-                  className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 sm:gap-2 border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2"
                 >
                   {liking ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
                   ) : (
-                    <ThumbsUp className="w-4 h-4" />
+                    <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4" />
                   )}
-                  Thích ({post.likeCount})
+                  <span className="hidden sm:inline">Thích</span>
+                  <span className="sm:hidden">Thích</span>
+                  <span className="ml-0.5 sm:ml-0">({post.likeCount})</span>
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleDislike}
                   disabled={disliking}
-                  className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 sm:gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2"
                 >
                   {disliking ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
                   ) : (
-                    <ThumbsDown className="w-4 h-4" />
+                    <ThumbsDown className="w-3 h-3 sm:w-4 sm:h-4" />
                   )}
-                  Không thích ({post.dislikeCount})
+                  <span className="hidden sm:inline">Không thích</span>
+                  <span className="sm:hidden">Không</span>
+                  <span className="ml-0.5 sm:ml-0">({post.dislikeCount})</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -950,10 +961,12 @@ export const ForumDetailPage = () => {
                     const commentsSection = document.getElementById('comments-section');
                     commentsSection?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                  className="flex items-center gap-1 sm:gap-2 border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  Bình luận ({comments.length})
+                  <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Bình luận</span>
+                  <span className="sm:hidden">BL</span>
+                  <span className="ml-0.5 sm:ml-0">({comments.length})</span>
                 </Button>
               </div>
             </CardContent>
@@ -961,66 +974,70 @@ export const ForumDetailPage = () => {
 
           {/* Comments Section */}
           <Card id="comments-section" className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <MessageCircle className="w-6 h-6 text-green-600" />
+            <CardHeader className="px-4 sm:px-6">
+              <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 Bình luận ({comments.length})
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               {/* Comment Form */}
               {user ? (
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm sm:text-base">
                       {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <Textarea
                         placeholder="Viết bình luận của bạn..."
                         value={commentContent}
                         onChange={(e) => setCommentContent(e.target.value)}
-                        className="min-h-[100px] mb-3"
+                        className="min-h-[80px] sm:min-h-[100px] mb-2 sm:mb-3 text-sm sm:text-base"
                       />
                       <Button
                         onClick={handleSubmitComment}
                         disabled={!commentContent.trim() || submittingComment}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 h-auto"
                       >
                         {submittingComment ? (
                           <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Đang gửi...
+                            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                            <span className="hidden sm:inline">Đang gửi...</span>
+                            <span className="sm:hidden">Gửi...</span>
                           </>
                         ) : (
-                          'Gửi bình luận'
+                          <>
+                            <span className="hidden sm:inline">Gửi bình luận</span>
+                            <span className="sm:hidden">Gửi</span>
+                          </>
                         )}
                       </Button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
-                  <p className="text-yellow-800">
-                    Vui lòng <Button variant="link" onClick={() => navigate('/login')} className="p-0 h-auto text-yellow-800 underline">đăng nhập</Button> để bình luận
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                  <p className="text-xs sm:text-sm text-yellow-800">
+                    Vui lòng <Button variant="link" onClick={() => navigate('/login')} className="p-0 h-auto text-yellow-800 underline text-xs sm:text-sm">đăng nhập</Button> để bình luận
                   </p>
                 </div>
               )}
 
               {/* Comments List */}
               {commentsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+                <div className="flex items-center justify-center py-8 sm:py-12">
+                  <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 animate-spin" />
                 </div>
               ) : comments.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {comments.map((comment) => renderComment(comment))}
                 </div>
               ) : (
-                <div className="py-12 text-center">
-                  <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">Chưa có bình luận nào</p>
-                  <p className="text-gray-400 text-sm mt-2">Hãy là người đầu tiên bình luận!</p>
+                <div className="py-8 sm:py-12 text-center">
+                  <MessageCircle className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-500 text-base sm:text-lg">Chưa có bình luận nào</p>
+                  <p className="text-gray-400 text-xs sm:text-sm mt-2">Hãy là người đầu tiên bình luận!</p>
                 </div>
               )}
             </CardContent>

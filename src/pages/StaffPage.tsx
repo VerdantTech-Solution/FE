@@ -62,9 +62,9 @@ export const StaffPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <motion.div variants={sidebarVariants} initial="hidden" animate="visible">
         <Sidebar className="fixed left-0 top-0 z-30" collapsed={collapsed}>
-          <SidebarHeader>
-            <SidebarHeaderTitle>
-              <div className="w-[90px] h-[70px] flex items-center justify-center overflow-hidden p-2">
+          <SidebarHeader className="mr-[100px]">
+            <SidebarHeaderTitle className="pr-7">
+              <div className="w-[60px] h-[70px] flex items-center justify-center overflow-hidden p-2">
                 <img src={logo2} alt="VerdantTech Logo" className="w-full h-full object-contain" />
               </div>
               <SidebarHeaderTitleText>

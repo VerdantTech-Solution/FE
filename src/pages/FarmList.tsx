@@ -18,6 +18,7 @@ import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { getFarmProfilesByUserId, updateFarmProfile, type FarmProfile } from "@/api/farm";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatVietnamDate } from "@/lib/utils";
 
 type FarmStatus = "Active" | "Maintenance" | "Deleted";
 
@@ -307,38 +308,40 @@ export const FarmList = () => {
         animate={{ scale: [1, 1.1, 1], rotate: [0, -12, 0] }}
         transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       />
-      <motion.div className="flex items-center justify-between" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.45 }}>
+      <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.45 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Danh sách trang trại</h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý hệ thống trang trại của bạn</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Danh sách trang trại</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Quản lý hệ thống trang trại của bạn</p>
         </div>
         <Button 
-          className="bg-green-600 hover:bg-green-700" 
+          className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-sm sm:text-base" 
           onClick={() => navigate('/create-farm')}
         >
-          <Plus className="h-4 w-4 mr-2" /> Tạo trang trại mới
+          <Plus className="h-4 w-4 mr-2" /> 
+          <span className="hidden sm:inline">Tạo trang trại mới</span>
+          <span className="sm:hidden">Tạo mới</span>
         </Button>
       </motion.div>
 
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {[stats.total, stats.active, stats.area.toFixed(1) + ' ha'].map((value, idx) => (
           <motion.div key={idx} initial={{ y: 16, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.45, delay: idx * 0.08 }} whileHover={{ y: -6, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Card className="transition-shadow hover:shadow-lg">
-              <CardContent className="p-4">
-                <div className="text-sm text-gray-500">{idx === 0 ? 'Tổng số farm' : idx === 1 ? 'Đang hoạt động' : 'Tổng diện tích'}</div>
-                <div className={`mt-2 text-3xl font-bold ${idx === 1 ? 'text-emerald-600' : 'text-gray-900'}`}>{value}</div>
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-xs sm:text-sm text-gray-500">{idx === 0 ? 'Tổng số farm' : idx === 1 ? 'Đang hoạt động' : 'Tổng diện tích'}</div>
+                <div className={`mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold ${idx === 1 ? 'text-emerald-600' : 'text-gray-900'}`}>{value}</div>
               </CardContent>
             </Card>
           </motion.div>
         ))}
       </div>
 
-      <Card className="mt-6 ">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Danh sách</CardTitle>
+      <Card className="mt-4 sm:mt-6">
+        <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
+          <CardTitle className="text-sm sm:text-base">Danh sách</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <motion.div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
             <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -346,12 +349,12 @@ export const FarmList = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Tìm kiếm theo tên hoặc địa điểm..."
-                className="pl-9"
+                className="pl-9 text-sm sm:text-base"
               />
             </div>
             <div className="flex items-center gap-2">
               <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40 text-sm sm:text-base">
                   <SelectValue placeholder="Tất cả" />
                 </SelectTrigger>
                 <SelectContent>
@@ -364,66 +367,67 @@ export const FarmList = () => {
             </div>
           </motion.div>
 
-           <div className="mt-4 rounded-lg border">
-             <table className="w-full divide-y divide-gray-200">
-               <thead className="bg-gray-50">
-                 <tr>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-16">Hình</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/8">Tên trang trại</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Loại rau củ</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/3">Địa điểm</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-24">Diện tích</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-28">Trạng thái</th>
-                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Ngày tạo</th>
-                   <th className="px-3 py-3 w-32" />
-                 </tr>
-               </thead>
-               <tbody className="divide-y divide-gray-100 bg-white">
-                 {paginatedFarms.map((farm, idx) => (
-                   <motion.tr key={farm.id} initial={{ y: 12, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: idx * 0.03 }} whileHover={{ backgroundColor: "#f9fafb" }} className="">
-                     <td className="px-3 py-3">
-                       <motion.img
-                         src={farm.imageUrl}
-                         alt={farm.name}
-                         className="w-12 h-12 object-cover rounded-md border"
-                         whileHover={{ scale: 1.05 }}
-                         transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                       />
-                     </td>
-                     <td className="px-3 py-3">
-                       <div className="font-medium text-gray-900 text-sm" title={farm.name}>
-                         {farm.name}
-                       </div>
-                     </td>
-                     <td className="px-3 py-3">
-                       <span className="inline-block text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                         {farm.type}
-                       </span>
-                     </td>
-                     <td className="px-3 py-3 text-gray-700 text-sm" title={farm.location}>
-                       {farm.location}
-                     </td>
-                     <td className="px-3 py-3 text-gray-700 text-sm">
-                       {formatHectare(farm.areaHectare)}
-                     </td>
-                     <td className="px-3 py-3">
-                       <StatusPill status={farm.status} />
-                     </td>
-                     <td className="px-3 py-3 text-sm text-gray-700">
-                       {new Date(farm.createdAt).toLocaleDateString('vi-VN')}
-                     </td>
-                     <td className="px-3 py-3 text-right">
-                       <div className="inline-flex items-center gap-1">
-                         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-                           <Button 
-                             variant="outline" 
-                             size="sm" 
-                             className="gap-1 text-xs px-2 py-1 h-7"
-                             onClick={() => navigate(`/farm-detail/${farm.id}`)}
-                           >
-                           <p>Tổng quan</p>
-                           </Button>
-                         </motion.div>
+          {/* Desktop Table View */}
+          <div className="mt-4 rounded-lg border hidden lg:block overflow-x-auto">
+            <table className="w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-16">Hình</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/8">Tên trang trại</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Loại rau củ</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-1/3">Địa điểm</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-24">Diện tích</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-28">Trạng thái</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 w-32">Ngày tạo</th>
+                  <th className="px-3 py-3 w-32" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {paginatedFarms.map((farm, idx) => (
+                  <motion.tr key={farm.id} initial={{ y: 12, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: idx * 0.03 }} whileHover={{ backgroundColor: "#f9fafb" }} className="">
+                    <td className="px-3 py-3">
+                      <motion.img
+                        src={farm.imageUrl}
+                        alt={farm.name}
+                        className="w-12 h-12 object-cover rounded-md border"
+                        whileHover={{ scale: 1.05 }}
+                        transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="font-medium text-gray-900 text-sm" title={farm.name}>
+                        {farm.name}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="inline-block text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                        {farm.type}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-gray-700 text-sm" title={farm.location}>
+                      {farm.location}
+                    </td>
+                    <td className="px-3 py-3 text-gray-700 text-sm">
+                      {formatHectare(farm.areaHectare)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusPill status={farm.status} />
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      {formatVietnamDate(farm.createdAt)}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <div className="inline-flex items-center gap-1">
+                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="gap-1 text-xs px-2 py-1 h-7"
+                            onClick={() => navigate(`/farm-detail/${farm.id}`)}
+                          >
+                          <p>Tổng quan</p>
+                          </Button>
+                        </motion.div>
                         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
                           <Button 
                             variant="default" 
@@ -446,30 +450,118 @@ export const FarmList = () => {
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </motion.div>
-                       </div>
-                     </td>
-                   </motion.tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <span>
+          {/* Mobile Card View */}
+          <div className="mt-4 lg:hidden space-y-4">
+            {paginatedFarms.map((farm, idx) => (
+              <motion.div
+                key={farm.id}
+                initial={{ y: 12, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.35, delay: idx * 0.03 }}
+                className="border rounded-lg p-4 bg-white hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <motion.img
+                    src={farm.imageUrl}
+                    alt={farm.name}
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md border flex-shrink-0"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1 truncate" title={farm.name}>
+                      {farm.name}
+                    </h3>
+                    <StatusPill status={farm.status} />
+                  </div>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-gray-500 min-w-[80px]">Loại rau củ:</span>
+                    <span className="text-xs sm:text-sm px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 inline-block">
+                      {farm.type}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-gray-500 min-w-[80px]">Địa điểm:</span>
+                    <span className="text-xs sm:text-sm text-gray-700 flex-1 break-words">{farm.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 min-w-[80px]">Diện tích:</span>
+                    <span className="text-xs sm:text-sm text-gray-700">{formatHectare(farm.areaHectare)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 min-w-[80px]">Ngày tạo:</span>
+                    <span className="text-xs sm:text-sm text-gray-700">{formatVietnamDate(farm.createdAt)}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200">
+                  <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="flex-1 sm:flex-none">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full sm:w-auto text-xs px-3 py-1.5 h-8"
+                      onClick={() => navigate(`/farm-detail/${farm.id}`)}
+                    >
+                      Tổng quan
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="text-xs px-3 py-1.5 h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => navigate(`/update-farm/${farm.id}`)}
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Sửa
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Xóa trang trại"
+                      className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => openDeleteDialog(farm)}
+                      disabled={deleteDialog.loading && deleteDialog.farm?.id === farm.id}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mt-4 text-xs sm:text-sm text-gray-600">
+            <span className="w-full sm:w-auto text-center sm:text-left">
               Hiển thị {paginatedFarms.length} / {filtered.length} trang trại 
               {totalPages > 1 && ` (Trang ${currentPage}/${totalPages})`}
             </span>
             {totalPages > 1 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
+                  className="text-xs sm:text-sm px-3 sm:px-4"
                 >
                   Trước
                 </Button>
-                <span className="px-2 py-1 text-xs bg-gray-100 rounded">
+                <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 rounded">
                   {currentPage} / {totalPages}
                 </span>
                 <Button 
@@ -477,6 +569,7 @@ export const FarmList = () => {
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
+                  className="text-xs sm:text-sm px-3 sm:px-4"
                 >
                   Sau
                 </Button>

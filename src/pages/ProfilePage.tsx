@@ -497,7 +497,7 @@ export const ProfilePage = () => {
   return (
     <>
     <motion.div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 mt-[100px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-      <div className="max-w-[80%] mx-auto">
+      <div className="max-w-full sm:max-w-[95%] md:max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div className="text-center mb-8" initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ cá nhân</h1>

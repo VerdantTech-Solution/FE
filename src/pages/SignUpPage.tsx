@@ -252,21 +252,21 @@ export const SignUpPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-2xl">
         {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 text-2xl font-bold text-green-600 mb-2">
-            <UserPlus className="h-[50px] w-[50px]" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center gap-2 text-xl sm:text-2xl font-bold text-green-600 mb-2">
+            <UserPlus className="h-8 w-8 sm:h-[50px] sm:w-[50px]" />
             VerdantTech
           </div>
-          <p className="text-muted-foreground mt-2">Tham gia cùng chúng tôi xây dựng tương lai nông nghiệp bền vững</p>
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">Tham gia cùng chúng tôi xây dựng tương lai nông nghiệp bền vững</p>
         </div>
 
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Đăng ký</CardTitle>
-            <CardDescription className="text-center">Tạo tài khoản mới để bắt đầu hành trình</CardDescription>
+          <CardHeader className="space-y-1 px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl font-bold text-center">Đăng ký</CardTitle>
+            <CardDescription className="text-center text-sm sm:text-base">Tạo tài khoản mới để bắt đầu hành trình</CardDescription>
           </CardHeader>
 
           <Tabs defaultValue="customer" className="w-full">

@@ -10,7 +10,7 @@ export function Layout() {
     
     <Navbar/>
 
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden pt-20">
         <Outlet />
       </main>
 
