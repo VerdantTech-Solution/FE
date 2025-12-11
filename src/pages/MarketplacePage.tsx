@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Search, Filter, Star, ShoppingCart, Heart, MapPin, Truck, ChevronDown, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { getAllProducts, type Product, getAllProductCategories, type ProductCategory, getProductRegistrations } from '@/api/product';
+import { getAllProducts, type Product, getAllProductCategories, type ProductCategory } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { toast } from 'sonner';
 import { getProductReviewsByProductId } from '@/api/productReview';
@@ -84,7 +84,6 @@ export const MarketplacePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 9;
   const [productRatings, setProductRatings] = useState<Record<number, { rating: number; reviewCount: number }>>({});
-  const [productManualUrls, setProductManualUrls] = useState<Record<number, string>>({});
 
   const fetchProducts = async () => {
     try {
@@ -99,9 +98,6 @@ export const MarketplacePage = () => {
       
       // Fetch reviews for all products to calculate ratings
       fetchProductRatings(products);
-      
-      // Fetch ProductRegistrations to get manualUrls
-      fetchProductManualUrls(products);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại sau.';
@@ -110,28 +106,6 @@ export const MarketplacePage = () => {
     } finally {
       setLoading(false);
       setPageLoading(false);
-    }
-  };
-
-  const fetchProductManualUrls = async (productsList: Product[]) => {
-    try {
-      const registrations = await getProductRegistrations();
-      const manualUrlsMap: Record<number, string> = {};
-      
-      productsList.forEach((product) => {
-        const relatedRegistration = registrations.find(
-          reg => reg.proposedProductCode === product.productCode && 
-                 reg.status === 'Approved'
-        );
-        
-        if (relatedRegistration?.manualUrl || relatedRegistration?.manualPublicUrl) {
-          manualUrlsMap[product.id] = relatedRegistration.manualUrl || relatedRegistration.manualPublicUrl || '';
-        }
-      });
-      
-      setProductManualUrls(manualUrlsMap);
-    } catch (err) {
-      console.error('Error fetching product manual URLs:', err);
     }
   };
 
@@ -149,19 +123,40 @@ export const MarketplacePage = () => {
             const reviews = response.data.data || (Array.isArray(response.data) ? response.data : []);
             // Use totalRecords from pagination response, not reviews.length
             const reviewCount = response.data.totalRecords || reviews.length;
-            const averageRating = reviewCount > 0 && reviews.length > 0
-              ? reviews.reduce((total, current) => total + (current.rating || 0), 0) / reviews.length
-              : 0;
             
-            console.log(`Product ${product.id}: rating=${averageRating}, reviewCount=${reviewCount}, reviews.length=${reviews.length}`);
+            // Calculate average rating from reviews if we have reviews
+            let averageRating = 0;
+            if (reviews.length > 0) {
+              // Calculate from actual reviews
+              averageRating = reviews.reduce((total, current) => total + (current.rating || 0), 0) / reviews.length;
+            } else if (reviewCount > 0) {
+              // If we have reviewCount but no reviews in response, use product's ratingAverage
+              // This handles cases where API returns totalRecords but no reviews (pagination issue)
+              averageRating = product.ratingAverage || product.rating || 0;
+            } else {
+              // No reviews at all, use product's ratingAverage if available
+              averageRating = product.ratingAverage || product.rating || 0;
+            }
             
-            return { productId: product.id, rating: averageRating, reviewCount };
+            // Use reviewCount from API, or fallback to product's reviewCount
+            const finalReviewCount = reviewCount > 0 ? reviewCount : (product.reviews || 0);
+            
+            console.log(`Product ${product.id}: rating=${averageRating}, reviewCount=${finalReviewCount}, reviews.length=${reviews.length}, product.ratingAverage=${product.ratingAverage}`);
+            
+            return { productId: product.id, rating: averageRating, reviewCount: finalReviewCount };
           }
-          console.log(`Product ${product.id}: No data in response`);
-          return { productId: product.id, rating: 0, reviewCount: 0 };
+          
+          // If API call failed or no response, use product's own rating data
+          console.log(`Product ${product.id}: No data in response, using product rating`);
+          const fallbackRating = product.ratingAverage || product.rating || 0;
+          const fallbackReviewCount = product.reviews || 0;
+          return { productId: product.id, rating: fallbackRating, reviewCount: fallbackReviewCount };
         } catch (err) {
           console.error(`Error fetching reviews for product ${product.id}:`, err);
-          return { productId: product.id, rating: 0, reviewCount: 0 };
+          // On error, fallback to product's own rating data
+          const fallbackRating = product.ratingAverage || product.rating || 0;
+          const fallbackReviewCount = product.reviews || 0;
+          return { productId: product.id, rating: fallbackRating, reviewCount: fallbackReviewCount };
         }
       });
 
@@ -832,41 +827,27 @@ export const MarketplacePage = () => {
                             <div className="flex items-center gap-1">
                               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                               <span className="font-semibold">
-                                {productRatings[product.id]?.rating 
-                                  ? productRatings[product.id].rating.toFixed(1)
-                                  : (product.ratingAverage || product.rating || 0).toFixed(1)}
+                                {(() => {
+                                  // Use fetched rating if available, otherwise use product's ratingAverage
+                                  const rating = productRatings[product.id]?.rating ?? product.ratingAverage ?? product.rating ?? 0;
+                                  return rating.toFixed(1);
+                                })()}
                               </span>
                             </div>
                             <span className="text-sm text-gray-500">
-                              ({productRatings[product.id]?.reviewCount ?? product.reviews ?? 0} đánh giá)
+                              ({(() => {
+                                // Use fetched reviewCount if available, otherwise use product's reviews
+                                const reviewCount = productRatings[product.id]?.reviewCount ?? product.reviews ?? 0;
+                                return reviewCount;
+                              })()} đánh giá)
                             </span>
                           </div>
                         </div>
-                        {product.energyEfficiencyRating && (
+                        {!!product.energyEfficiencyRating && 
+                         String(product.energyEfficiencyRating).trim() !== "" && 
+                         String(product.energyEfficiencyRating) !== "0" && (
                           <div className="mt-2 text-sm text-gray-600">
                             <span className="font-medium">Nhãn năng lượng:</span> {product.energyEfficiencyRating}
-                          </div>
-                        )}
-                        {(product.manualUrls || productManualUrls[product.id]) && (
-                          <div className="mt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation(); // Ngăn chặn click vào card
-                                const url = product.manualUrls || productManualUrls[product.id];
-                                if (url) {
-                                  const urls = typeof url === 'string' ? url.split(',') : [url];
-                                  if (urls.length > 0) {
-                                    window.open(urls[0].trim(), '_blank');
-                                  }
-                                }
-                              }}
-                              className="flex items-center gap-2 text-xs"
-                            >
-                              <FileText className="w-3 h-3" />
-                              Hướng dẫn sử dụng
-                            </Button>
                           </div>
                         )}
                       </CardContent>
