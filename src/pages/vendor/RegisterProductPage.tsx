@@ -13,7 +13,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, Trash2, Upload, Check } from "lucide-react";
+import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, Trash2, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { registerProduct, getAllProductCategories } from "@/api/product";
 import type { RegisterProductRequest, ProductCategory } from "@/api/product";
@@ -97,38 +97,6 @@ export const RegisterProductPage = () => {
     fetchCategories();
   }, []);
 
-  // Suggested specifications for different categories
-  const getSuggestedSpecifications = (categoryId: number): SpecificationItem[] => {
-    const selectedCategory = categories.find(cat => cat.id === categoryId);
-    const categoryName = selectedCategory?.name?.toLowerCase() || '';
-    
-    if (categoryName.includes('máy cày') || categoryName.includes('máy xới')) {
-      return [
-        { key: 'Công suất động cơ', value: '12 HP' },
-        { key: 'Loại động cơ', value: 'Diesel' },
-        { key: 'Hệ truyền động', value: '2 cầu - 2 hộp số' },
-        { key: 'Độ rộng xới', value: '70-100 cm' },
-        { key: 'Độ sâu xới', value: '25-35 cm' }
-      ];
-    } else if (categoryName.includes('máy gặt')) {
-      return [
-        { key: 'Công suất động cơ', value: '25-35 HP' },
-        { key: 'Loại động cơ', value: 'Diesel' },
-        { key: 'Độ rộng cắt', value: '1.5-2.5 m' },
-        { key: 'Tốc độ làm việc', value: '3-8 km/h' }
-      ];
-    } else if (categoryName.includes('drone') || categoryName.includes('uav')) {
-      return [
-        { key: 'Thời gian bay', value: '15-30 phút' },
-        { key: 'Tầm bay', value: '1-5 km' },
-        { key: 'Tải trọng', value: '5-20 kg' },
-        { key: 'Pin', value: 'Lithium Polymer' }
-      ];
-    }
-    
-    return [{ key: '', value: '' }];
-  };
-
   // Thêm hàm handleChange
   const handleChange = (field: string, value: any) => {
     if (field.startsWith('dimensionsCm.')) {
@@ -152,10 +120,6 @@ export const RegisterProductPage = () => {
         ...prev,
         categoryId
       }));
-      
-      // Auto-suggest specifications when category changes
-      const suggestedSpecs = getSuggestedSpecifications(categoryId);
-      setSpecifications(suggestedSpecs);
     } else if (['unitPrice', 'warrantyMonths', 'weightKg'].includes(field)) {
       // Xử lý các trường số: loại bỏ số 0 ở đầu, giữ empty string nếu rỗng
       let processedValue = String(value).trim();
@@ -746,31 +710,16 @@ export const RegisterProductPage = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">Thông số kỹ thuật</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const suggestedSpecs = getSuggestedSpecifications(form.categoryId);
-                        setSpecifications(suggestedSpecs);
-                      }}
-                      className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    >
-                      <Check size={16} className="mr-1" />
-                      Gợi ý thông số
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addSpecification}
-                      className="h-8"
-                    >
-                      <Plus size={16} className="mr-1" />
-                      Thêm thông số
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addSpecification}
+                    className="h-8"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Thêm thông số
+                  </Button>
                 </div>
                 <div className="space-y-3">
                   {specifications.map((spec, index) => (

@@ -377,8 +377,14 @@ const RegistrationManagementPage = () => {
       setProductInfo(product);
 
       if (product) {
-        const reviewRes = await getProductReviewsByProductId(product.id);
-        setProductReviews(reviewRes.data ?? []);
+        const reviewRes = await getProductReviewsByProductId(product.id, 1, 20);
+        if (reviewRes.status && reviewRes.data) {
+          // Support both pagination structure (data.data) and simple array (data)
+          const reviewsList = reviewRes.data.data || (Array.isArray(reviewRes.data) ? reviewRes.data : []);
+          setProductReviews(reviewsList as ProductReviewWithReply[]);
+        } else {
+          setProductReviews([]);
+        }
       }
     } catch (err: any) {
       setProductError(err?.message || 'Không thể tải thông tin sản phẩm thực tế');
@@ -793,16 +799,16 @@ const RegistrationManagementPage = () => {
                                     {cert.certificationCode && (
                                       <p className="text-xs text-gray-500 ml-7">Mã: {cert.certificationCode}</p>
                                     )}
-                                    <div className="flex items-center gap-2 mt-2 ml-7">
-                                      <span className={`text-xs px-2 py-0.5 rounded ${
-                                        cert.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                        cert.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                        'bg-yellow-100 text-yellow-700'
-                                      }`}>
-                                        {cert.status === 'Approved' ? 'Đã duyệt' :
-                                         cert.status === 'Rejected' ? 'Từ chối' : 'Chờ duyệt'}
-                                      </span>
-                                    </div>
+                                    {(cert.status === 'Approved' || cert.status === 'Rejected') && (
+                                      <div className="flex items-center gap-2 mt-2 ml-7">
+                                        <span className={`text-xs px-2 py-0.5 rounded ${
+                                          cert.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                          'bg-red-100 text-red-700'
+                                        }`}>
+                                          {cert.status === 'Approved' ? 'Đã duyệt' : 'Từ chối'}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 

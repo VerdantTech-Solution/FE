@@ -169,36 +169,6 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
 
   const specificationsList = categorizeSpecifications();
 
-  // Nhóm thông số theo category
-  const groupedSpecs = specificationsList.reduce((acc, spec) => {
-    if (!acc[spec.category]) {
-      acc[spec.category] = [];
-    }
-    acc[spec.category].push(spec);
-    return acc;
-  }, {} as Record<string, SpecificationItem[]>);
-
-  const getCategoryTitle = (category: string) => {
-    switch (category) {
-      case 'performance': return 'Hiệu suất & Công suất';
-      case 'physical': return 'Thông số vật lý';
-      case 'operational': return 'Vận hành & Điều khiển';
-      case 'safety': return 'An toàn & Bảo hành';
-      default: return 'Thông số khác';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'performance': return <Zap className="w-5 h-5 text-yellow-500" />;
-      case 'physical': return <Ruler className="w-5 h-5 text-blue-500" />;
-      case 'operational': return <Settings className="w-5 h-5 text-green-500" />;
-      case 'safety': return <Shield className="w-5 h-5 text-red-500" />;
-      default: return <Info className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-
   if (specificationsList.length === 0) {
     return (
       <Card className="w-full">
@@ -226,40 +196,29 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
           Thông số kỹ thuật
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {Object.entries(groupedSpecs).map(([category, specs]) => (
-          <div key={category} className="space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-              {getCategoryIcon(category)}
-              <h4 className="font-semibold text-gray-900">
-                {getCategoryTitle(category)}
-              </h4>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {specs.map((spec, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="text-gray-600">
-                      {spec.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {spec.key}
-                      </div>
-                      <div className="text-gray-600 text-sm">
-                        {spec.value}
-                      </div>
-                    </div>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {specificationsList.map((spec, index) => (
+            <div 
+              key={index} 
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <div className="text-gray-600">
+                  {spec.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 text-sm">
+                    {spec.key}
+                  </div>
+                  <div className="text-gray-600 text-sm">
+                    {spec.value}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

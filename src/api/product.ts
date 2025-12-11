@@ -416,7 +416,9 @@ const transformProductData = (apiProduct: any): Product => {
     specifications: normalizedSpecifications,
     weightKg: apiProduct.weightKg,
     warrantyMonths: apiProduct.warrantyMonths,
-    energyEfficiencyRating: apiProduct.energyEfficiencyRating
+    energyEfficiencyRating: apiProduct.energyEfficiencyRating,
+    // Map manualUrls từ API (có thể là manualUrls, manualUrl, hoặc manualPublicUrl)
+    manualUrls: apiProduct.manualUrls || apiProduct.manualUrl || apiProduct.manualPublicUrl || undefined
   };
 };
 
@@ -580,12 +582,86 @@ export interface UpdateProductRequest {
   discountPercentage?: number;
 }
 
+export interface ProductUpdateDTO {
+  categoryId: number;
+  vendorId: number;
+  productCode: string;
+  productName: string;
+  description: string;
+  unitPrice: number;
+  commissionRate: number;
+  discountPercentage: number;
+  energyEfficiencyRating?: string;
+  specifications?: {
+    [key: string]: string;
+  };
+  manualUrls?: string;
+  publicUrl?: string;
+  warrantyMonths: number;
+  stockQuantity: number;
+  weightKg?: number;
+  dimensionsCm?: {
+    width?: number;
+    height?: number;
+    length?: number;
+  };
+  isActive: boolean;
+  viewCount?: number;
+  soldCount?: number;
+  ratingAverage?: number;
+}
+
+export interface UpdateProductPayload {
+  data: ProductUpdateDTO;
+  addImages?: Array<{
+    imageUrl?: string;
+    imagePublicId?: string;
+    purpose?: string;
+    sortOrder?: number;
+  }>;
+  removeImagePublicIds?: string[];
+}
+
 export const updateProduct = async (
   id: number,
   data: UpdateProductRequest
 ): Promise<Product> => {
   try {
-    const response = await apiClient.patch(`/api/Product/${id}`, data);
+    // Load product hiện tại để lấy đầy đủ thông tin
+    const currentProduct = await getProductById(id);
+    
+    // Merge với data cần update
+    const updateData: ProductUpdateDTO = {
+      categoryId: currentProduct.categoryId,
+      vendorId: currentProduct.vendorId,
+      productCode: currentProduct.productCode,
+      productName: currentProduct.productName,
+      description: currentProduct.description,
+      unitPrice: data.unitPrice !== undefined ? data.unitPrice : currentProduct.unitPrice,
+      commissionRate: data.commissionRate !== undefined ? data.commissionRate : currentProduct.commissionRate,
+      discountPercentage: data.discountPercentage !== undefined ? data.discountPercentage : currentProduct.discountPercentage,
+      energyEfficiencyRating: currentProduct.energyEfficiencyRating,
+      specifications: currentProduct.specifications,
+      manualUrls: currentProduct.manualUrls,
+      publicUrl: currentProduct.publicUrl,
+      warrantyMonths: currentProduct.warrantyMonths,
+      stockQuantity: data.stockQuantity !== undefined ? data.stockQuantity : currentProduct.stockQuantity,
+      weightKg: currentProduct.weightKg,
+      dimensionsCm: currentProduct.dimensionsCm,
+      isActive: data.isActive !== undefined ? data.isActive : currentProduct.isActive,
+      viewCount: currentProduct.viewCount,
+      soldCount: currentProduct.soldCount,
+      ratingAverage: currentProduct.ratingAverage
+    };
+    
+    // Format payload theo API spec: { data: {...}, addImages: [], removeImagePublicIds: [] }
+    const payload: UpdateProductPayload = {
+      data: updateData,
+      addImages: [],
+      removeImagePublicIds: []
+    };
+    
+    const response = await apiClient.put(`/api/Product/${id}`, payload);
     
     let productData = null;
     
