@@ -384,13 +384,13 @@ export const MarketplacePage = () => {
     >
       {/* Header Section */}
       <motion.div 
-        className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-16"
+        className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-8 sm:py-12 lg:py-16"
         variants={itemVariants}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <motion.h1 
-              className="text-4xl font-bold mb-4"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4"
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -398,7 +398,7 @@ export const MarketplacePage = () => {
               Chợ Trực Tuyến Nông Cụ & Thiết Bị
             </motion.h1>
             <motion.p 
-              className="text-xl text-green-100 mb-8"
+              className="text-base sm:text-lg lg:text-xl text-green-100 mb-6 sm:mb-8 px-2"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -408,25 +408,25 @@ export const MarketplacePage = () => {
             
             {/* Search Bar with Category Dropdown */}
             <motion.div 
-              className="max-w-5xl mx-auto relative px-4"
+              className="max-w-5xl mx-auto relative px-2 sm:px-4"
               variants={searchVariants}
             >
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 {/* Category Dropdown Button */}
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                   <Button
                     onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                    className="bg-white hover:bg-gray-50 text-gray-800 border-2 border-white px-5 sm:px-7 py-5 sm:py-5 rounded-2xl shadow-lg transition-all duration-300 flex items-center gap-3 w-full sm:w-auto sm:min-w-[220px] justify-between text-base font-semibold"
+                    className="bg-white hover:bg-gray-50 text-gray-800 border-2 border-white px-4 sm:px-5 lg:px-7 py-3 sm:py-4 lg:py-5 rounded-xl sm:rounded-2xl shadow-lg transition-all duration-300 flex items-center gap-2 sm:gap-3 w-full sm:w-auto sm:min-w-[200px] lg:min-w-[220px] justify-between text-sm sm:text-base font-semibold"
                   >
-                    <div className="flex items-center gap-3">
-                      <Menu className="w-6 h-6" />
-                      <span>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <span className="truncate">
                         {selectedCategory === 'all' 
                           ? 'Danh mục' 
                           : categories.find(c => c.id === selectedCategory)?.name || 'Danh mục'}
                       </span>
                     </div>
-                    <ChevronDown className={`w-6 h-6 transition-transform duration-300 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 flex-shrink-0 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                   </Button>
                   
                   {/* Category Dropdown Menu */}
@@ -443,7 +443,7 @@ export const MarketplacePage = () => {
                         />
                         {/* Dropdown Content */}
                         <motion.div
-                          className="absolute top-full left-0 mt-3 w-[320px] bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-50 overflow-hidden max-h-[80vh] overflow-y-auto"
+                          className="absolute top-full left-0 mt-2 sm:mt-3 w-[calc(100vw-2rem)] sm:w-[320px] bg-white rounded-xl sm:rounded-2xl shadow-2xl border-2 border-gray-100 z-50 overflow-hidden max-h-[80vh] overflow-y-auto"
                           initial={{ opacity: 0, y: -10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -556,19 +556,20 @@ export const MarketplacePage = () => {
                 
                 {/* Search Input */}
                 <div className="flex-1 relative">
-                  <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
+                  <Search className="absolute left-3 sm:left-5 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 sm:w-6 sm:h-6" />
                   <Input
                     type="text"
                     placeholder="Tìm kiếm dụng cụ, máy móc nông nghiệp..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-16 pr-36 py-5 text-lg border-2 border-white bg-white rounded-2xl shadow-lg text-gray-800 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white transition-all duration-300 w-full font-medium"
+                    className="pl-10 sm:pl-16 pr-24 sm:pr-36 py-3 sm:py-4 lg:py-5 text-sm sm:text-base lg:text-lg border-2 border-white bg-white rounded-xl sm:rounded-2xl shadow-lg text-gray-800 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white transition-all duration-300 w-full font-medium"
                   />
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2">
                     <Button 
-                      className="bg-green-600 hover:bg-green-700 text-white border-0 px-7 py-3 rounded-xl shadow-md transition-all duration-300 font-semibold"
+                      className="bg-green-600 hover:bg-green-700 text-white border-0 px-3 sm:px-5 lg:px-7 py-2 sm:py-2.5 lg:py-3 rounded-lg sm:rounded-xl shadow-md transition-all duration-300 font-semibold text-xs sm:text-sm lg:text-base"
                     >
-                      Tìm kiếm
+                      <span className="hidden sm:inline">Tìm kiếm</span>
+                      <span className="sm:hidden">Tìm</span>
                     </Button>
                   </div>
                 </div>
@@ -601,11 +602,11 @@ export const MarketplacePage = () => {
           className="mb-8"
           variants={itemVariants}
         >
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
               Sản phẩm {selectedCategory !== 'all' && categories.find(c => c.id === selectedCategory)?.name}
             </h2>
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
               <Filter className="w-4 h-4" />
               <span>{filteredProducts.length} sản phẩm</span>
             </div>

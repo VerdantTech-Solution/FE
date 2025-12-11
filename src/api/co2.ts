@@ -99,4 +99,24 @@ export const deleteCO2RecordById = async (
   }
 };
 
+// ====== GET Soil Data by Farm ID ======
+export interface SoilData {
+  sandLayers: number[]; // [0-5cm, 5-15cm, 15-30cm]
+  siltLayers: number[]; // [0-5cm, 5-15cm, 15-30cm]
+  clayLayers: number[]; // [0-5cm, 5-15cm, 15-30cm]
+  phLayers: number[];   // [0-5cm, 5-15cm, 15-30cm]
+}
+
+export const getSoilDataByFarmId = async (
+  farmId: number
+): Promise<ApiResponseWrapper<SoilData>> => {
+  try {
+    const response = await apiClient.get<ApiResponseWrapper<SoilData>>(`/api/CO2/farm/${farmId}/soil`);
+    return response as unknown as ApiResponseWrapper<SoilData>;
+  } catch (error) {
+    console.error('Get soil data error:', error);
+    throw error;
+  }
+};
+
 

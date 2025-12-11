@@ -363,34 +363,35 @@ export const ProductDetailPage = () => {
 
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
             <Button 
               variant="ghost" 
               onClick={() => navigate('/marketplace')}
-              className="flex items-center text-gray-600 hover:text-gray-900"
+              className="flex items-center text-sm sm:text-base text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Quay lại Marketplace
+              <span className="hidden sm:inline">Quay lại Marketplace</span>
+              <span className="sm:hidden">Quay lại</span>
             </Button>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={handleToggleFavorite}
-                className="text-gray-600 hover:text-red-500"
+                className="text-gray-600 hover:text-red-500 text-xs sm:text-sm"
               >
-                <Heart className="w-4 h-4 mr-1" />
-                Yêu thích
+                <Heart className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Yêu thích</span>
               </Button>
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={handleContactVendor}
-                className="text-gray-600 hover:text-green-600"
+                className="text-gray-600 hover:text-green-600 text-xs sm:text-sm"
               >
-                <Phone className="w-4 h-4 mr-1" />
-                Liên hệ
+                <Phone className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Liên hệ</span>
               </Button>
             </div>
           </div>
@@ -398,8 +399,8 @@ export const ProductDetailPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Product Images */}
           <motion.div 
             variants={imageVariants}
@@ -458,10 +459,10 @@ export const ProductDetailPage = () => {
           >
             {/* Title and Rating */}
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                 {product.productName}
               </h1>
-              <div className="flex items-center space-x-4 mb-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
                 <div className="flex items-center">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
                   <span className="ml-1 text-sm text-gray-600">

@@ -21,6 +21,7 @@ import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWit
 import { getProductById } from "@/api/product";
 import { getOrderStatistics, type OrderStatistics } from "@/api/dashboard";
 import { getIdentityNumbersWithMetadata, type IdentityNumberItem } from "@/api/export";
+import { formatVietnamDateTime } from "@/lib/utils";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
@@ -623,7 +624,7 @@ export const OrderManagementPanel: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("vi-VN");
+    return formatVietnamDateTime(dateString);
   };
 
   const getStatusDisplayName = (status: string) => {

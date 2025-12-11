@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   AlertDialog, 
@@ -13,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MapPin, CheckCircle2, ArrowLeft, ArrowRight, Map, FileText, Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createFarmProfile, getCropVarietySuggestions } from "@/api";
+import { createFarmProfile, getCropVarietySuggestions, submitSurveyResponse } from "@/api";
 import type { 
   CreateFarmProfileRequest, 
   CropInfo, 
@@ -27,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import MapAreaPage from "./MapAreaPage";
 import StepIndicator from "@/components/StepIndicator";
 import AddressSelector from "@/components/AddressSelector";
+import { formatVietnamDate } from "@/lib/utils";
 
 type CropFormValues = {
   id: string;
@@ -68,10 +71,25 @@ export const CreateFarmPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   // const [message, setMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successData, setSuccessData] = useState<{farmName: string, farmSize: string, crops: CropInfo[]} | null>(null);
   const [cropSuggestionsState, setCropSuggestionsState] = useState<Record<string, CropSuggestionState>>({});
+  
+  // Survey state - 10 questions with questionId 1-10
+  const [surveyAnswers, setSurveyAnswers] = useState<Record<number, string>>({
+    1: "", // Mục đích chính
+    2: "", // Công cụ/phương pháp canh tác
+    3: "", // Phân bón/chất dinh dưỡng
+    4: "", // Chất lượng đất
+    5: "", // Điều kiện ánh sáng
+    6: "", // Nguồn nước
+    7: "", // Sâu bệnh
+    8: "", // Khó khăn gần đây
+    9: "", // Biện pháp xử lý
+    10: "", // Mong muốn cải thiện
+  });
 
   // Ẩn loading sau khi component mount
   useEffect(() => {
@@ -218,6 +236,7 @@ export const CreateFarmPage = () => {
   const steps = [
     "Chọn vị trí & Diện tích",
     "Thông tin trang trại", 
+    "Khảo sát",
     "Xác nhận & Tạo"
   ];
 
@@ -315,6 +334,10 @@ export const CreateFarmPage = () => {
       setCurrentStep(3);
       return;
     }
+    if (step === 4 && validateStep(1) && validateStep(2) && validateStep(3)) {
+      setCurrentStep(4);
+      return;
+    }
     // otherwise ignore click
   };
 
@@ -347,10 +370,42 @@ export const CreateFarmPage = () => {
           !hasIncompleteCrop
         );
       case 3:
+        // Validate all survey questions are answered
+        const allAnswered = Object.keys(surveyAnswers).every(
+          (key) => surveyAnswers[Number(key)] && surveyAnswers[Number(key)].trim() !== ""
+        );
+        return allAnswered;
+      case 4:
+        // Step 4 is just confirmation, no validation needed
         return true;
       default:
         return false;
     }
+  };
+
+  const getErrorMessage = (err: unknown): string => {
+    const fallback = 'Không thể tạo trang trại. Vui lòng thử lại.';
+    if (!err) return fallback;
+
+    // Shape: { status: false, errors: [...] }
+    if (typeof err === 'object' && 'errors' in err) {
+      const errors = (err as any).errors;
+      if (Array.isArray(errors) && errors.length) {
+        return errors.join('\n');
+      }
+    }
+
+    // Axios error shape
+    const axiosData = (err as any)?.response?.data;
+    if (axiosData?.errors && Array.isArray(axiosData.errors) && axiosData.errors.length) {
+      return axiosData.errors.join('\n');
+    }
+
+    if (axiosData?.message) return axiosData.message;
+
+    if (err instanceof Error && err.message) return err.message;
+
+    return fallback;
   };
 
   const submitForm = async () => {
@@ -360,6 +415,7 @@ export const CreateFarmPage = () => {
     }
 
     setSubmitting(true);
+    setSubmitError(null);
     
     try {
       const preparedCrops: CropInfo[] = form.crops
@@ -391,7 +447,33 @@ export const CreateFarmPage = () => {
 
       const res = await createFarmProfile(payload);
       if (!res.status) {
-        throw new Error((res.errors || []).join(', '));
+        const message = (res.errors || []).join('\n') || 'Không thể tạo trang trại. Vui lòng kiểm tra lại thông tin.';
+        setSubmitError(message);
+        throw { errors: res.errors };
+      }
+      
+      // Get farmProfileId from response
+      const farmProfileId = res.data?.id;
+      if (!farmProfileId) {
+        throw new Error('Không thể lấy ID trang trại từ phản hồi');
+      }
+
+      // Submit survey responses
+      const surveyAnswersArray = Object.keys(surveyAnswers).map((key) => ({
+        questionId: Number(key),
+        textAnswer: surveyAnswers[Number(key)].trim(),
+      }));
+
+      const surveyRes = await submitSurveyResponse({
+        farmProfileId,
+        answers: surveyAnswersArray,
+      });
+
+      if (!surveyRes.status) {
+        console.warn('Survey submission failed:', surveyRes.errors);
+        const surveyMessage = (surveyRes.errors || []).join('\n') || 'Gửi khảo sát thất bại.';
+        setSubmitError(surveyMessage);
+        // Don't throw error, just log warning - farm profile was created successfully
       }
       
       // Set success data and show alert
@@ -419,11 +501,26 @@ export const CreateFarmPage = () => {
       });
       setCropSuggestionsState({});
       
+      // Reset survey answers
+      setSurveyAnswers({
+        1: "",
+        2: "",
+        3: "",
+        4: "",
+        5: "",
+        6: "",
+        7: "",
+        8: "",
+        9: "",
+        10: "",
+      });
+      
       // Reset to first step
       setCurrentStep(1);
     } catch (error) {
       console.error('Error creating farm profile:', error);
-      // You can add error handling here if needed
+      const message = getErrorMessage(error);
+      setSubmitError(message);
     } finally {
       setSubmitting(false);
     }
@@ -431,13 +528,14 @@ export const CreateFarmPage = () => {
 
   const formatPlantingDate = (dateString: string) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    return formatVietnamDate(dateString);
+  };
+
+  const handleSurveyAnswer = (questionId: number, answer: string) => {
+    setSurveyAnswers((prev) => ({
+      ...prev,
+      [questionId]: answer,
+    }));
   };
 
   const renderStepContent = () => {
@@ -792,7 +890,7 @@ export const CreateFarmPage = () => {
 
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Nhóm cây trồng
+                                Nhóm rau củ
                               </label>
                               <Select
                                 value={crop.cropType}
@@ -990,16 +1088,411 @@ export const CreateFarmPage = () => {
       }
 
       case 3: {
+        return (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl mb-4 shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Khảo sát trang trại</h3>
+              <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                Vui lòng trả lời các câu hỏi sau để chúng tôi có thể hỗ trợ bạn tốt hơn
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Question 1: Mục đích chính */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    1. Mục đích chính khi bạn canh tác nông trại này là gì? <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="space-y-3">
+                    {[
+                      { value: "A. Tự cung cấp", label: "A. Tự cung cấp" },
+                      { value: "B. Kinh doanh nhỏ", label: "B. Kinh doanh nhỏ" },
+                      { value: "C. Sản xuất thương mại", label: "C. Sản xuất thương mại" },
+                      { value: "D. Khác", label: "D. Khác" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="question1"
+                          value={option.value}
+                          checked={surveyAnswers[1] === option.value || (option.value === "D. Khác" && surveyAnswers[1].startsWith("D. Khác"))}
+                          onChange={(e) => handleSurveyAnswer(1, e.target.value)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                    {(surveyAnswers[1] === "D. Khác" || surveyAnswers[1].startsWith("D. Khác")) && (
+                      <Input
+                        placeholder="Nhập mục đích khác..."
+                        value={surveyAnswers[1].startsWith("D. Khác") ? surveyAnswers[1].replace("D. Khác", "").trim() : ""}
+                        onChange={(e) => handleSurveyAnswer(1, e.target.value ? `D. Khác ${e.target.value}` : "D. Khác")}
+                        className="mt-2 ml-6"
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question 2: Công cụ/phương pháp canh tác */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    2. Bạn đang sử dụng những công cụ hoặc phương pháp canh tác nào? <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    placeholder="Ví dụ: Máy cày, tưới nhỏ giọt, canh tác hữu cơ..."
+                    value={surveyAnswers[2]}
+                    onChange={(e) => handleSurveyAnswer(2, e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Question 3: Phân bón/chất dinh dưỡng */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    3. Bạn có đang sử dụng phân bón hoặc chất dinh dưỡng cho cây không? <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="space-y-3">
+                    {[
+                      { value: "A. Không sử dụng", label: "A. Không sử dụng" },
+                      { value: "B. Phân hữu cơ", label: "B. Phân hữu cơ" },
+                      { value: "C. Phân vi sinh", label: "C. Phân vi sinh" },
+                      { value: "D. NPK / phân hóa học", label: "D. NPK / phân hóa học" },
+                      { value: "E. Khác", label: "E. Khác" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="question3"
+                          value={option.value}
+                          checked={surveyAnswers[3] === option.value || (option.value === "E. Khác" && surveyAnswers[3].startsWith("E. Khác"))}
+                          onChange={(e) => handleSurveyAnswer(3, e.target.value)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                    {(surveyAnswers[3] === "E. Khác" || surveyAnswers[3].startsWith("E. Khác")) && (
+                      <Input
+                        placeholder="Ghi rõ loại phân đang dùng..."
+                        value={surveyAnswers[3].startsWith("E. Khác") ? surveyAnswers[3].replace("E. Khác", "").trim() : ""}
+                        onChange={(e) => handleSurveyAnswer(3, e.target.value ? `E. Khác ${e.target.value}` : "E. Khác")}
+                        className="mt-2 ml-6"
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question 4: Chất lượng đất */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    4. Chất lượng đất hoặc giá thể tại nông trại hiện như thế nào? <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="space-y-3">
+                    {[
+                      { value: "A. Đất khô / thiếu ẩm", label: "A. Đất khô / thiếu ẩm" },
+                      { value: "B. Đất bị úng – thoát nước kém", label: "B. Đất bị úng – thoát nước kém" },
+                      { value: "C. Đất chua / pH thấp", label: "C. Đất chua / pH thấp" },
+                      { value: "D. Đất thiếu dinh dưỡng", label: "D. Đất thiếu dinh dưỡng" },
+                      { value: "E. Đất nén chặt", label: "E. Đất nén chặt" },
+                      { value: "F. Không gặp vấn đề", label: "F. Không gặp vấn đề" },
+                      { value: "G. Khác", label: "G. Khác" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="question4"
+                          value={option.value}
+                          checked={surveyAnswers[4] === option.value || (option.value === "G. Khác" && surveyAnswers[4].startsWith("G. Khác"))}
+                          onChange={(e) => handleSurveyAnswer(4, e.target.value)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                    {(surveyAnswers[4] === "G. Khác" || surveyAnswers[4].startsWith("G. Khác")) && (
+                      <Input
+                        placeholder="Mô tả..."
+                        value={surveyAnswers[4].startsWith("G. Khác") ? surveyAnswers[4].replace("G. Khác", "").trim() : ""}
+                        onChange={(e) => handleSurveyAnswer(4, e.target.value ? `G. Khác ${e.target.value}` : "G. Khác")}
+                        className="mt-2 ml-6"
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question 5: Điều kiện ánh sáng */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    5. Điều kiện ánh sáng tại khu vực trồng như thế nào? <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="space-y-3">
+                    {[
+                      { value: "A. Nắng đầy đủ", label: "A. Nắng đầy đủ" },
+                      { value: "B. Bán râm", label: "B. Bán râm" },
+                      { value: "C. Râm nhiều", label: "C. Râm nhiều" },
+                      { value: "D. Có che chắn", label: "D. Có che chắn (nhà lưới, lưới lan, mái tôn, vật liệu khác…)" },
+                      { value: "E. Ánh sáng thay đổi không ổn định", label: "E. Ánh sáng thay đổi không ổn định" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="question5"
+                          value={option.value}
+                          checked={surveyAnswers[5] === option.value}
+                          onChange={(e) => handleSurveyAnswer(5, e.target.value)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question 6: Nguồn nước */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    6. Nguồn nước và tình trạng nước hiện tại ra sao? <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="space-y-3">
+                    {[
+                      { value: "A. Ổn định – đủ dùng", label: "A. Ổn định – đủ dùng" },
+                      { value: "B. Thiếu nước", label: "B. Thiếu nước" },
+                      { value: "C. Nguồn nước yếu / áp lực thấp", label: "C. Nguồn nước yếu / áp lực thấp" },
+                      { value: "D. Nước bị phèn", label: "D. Nước bị phèn" },
+                      { value: "E. Nước bị mặn", label: "E. Nước bị mặn" },
+                      { value: "F. Không rõ / chưa kiểm tra", label: "F. Không rõ / chưa kiểm tra" },
+                      { value: "G. Khác", label: "G. Khác" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="question6"
+                          value={option.value}
+                          checked={surveyAnswers[6] === option.value || (option.value === "G. Khác" && surveyAnswers[6].startsWith("G. Khác"))}
+                          onChange={(e) => handleSurveyAnswer(6, e.target.value)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                    {(surveyAnswers[6] === "G. Khác" || surveyAnswers[6].startsWith("G. Khác")) && (
+                      <Input
+                        placeholder="Mô tả..."
+                        value={surveyAnswers[6].startsWith("G. Khác") ? surveyAnswers[6].replace("G. Khác", "").trim() : ""}
+                        onChange={(e) => handleSurveyAnswer(6, e.target.value ? `G. Khác ${e.target.value}` : "G. Khác")}
+                        className="mt-2 ml-6"
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question 7: Sâu bệnh */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    7. Rau củ có đang gặp sâu bệnh hoặc dấu hiệu bất thường nào không? <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    placeholder="Mô tả triệu chứng nếu có..."
+                    value={surveyAnswers[7]}
+                    onChange={(e) => handleSurveyAnswer(7, e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Question 8: Khó khăn gần đây */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    8. Trong quá trình chăm sóc gần đây, bạn gặp khó khăn hay thay đổi gì không? <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    placeholder="Ví dụ: thời tiết, tưới nước, thiếu nhân lực, thay đổi vật tư…"
+                    value={surveyAnswers[8]}
+                    onChange={(e) => handleSurveyAnswer(8, e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Question 9: Biện pháp xử lý */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    9. Nếu có vấn đề xảy ra, bạn thường xử lý bằng biện pháp nào? <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="space-y-3">
+                    {[
+                      { value: "A. Chế phẩm sinh học", label: "A. Chế phẩm sinh học" },
+                      { value: "B. Thuốc hóa học", label: "B. Thuốc hóa học" },
+                      { value: "C. Biện pháp thủ công", label: "C. Biện pháp thủ công (bắt sâu – tỉa lá…)" },
+                      { value: "D. Thiết bị hỗ trợ", label: "D. Thiết bị hỗ trợ (bẫy côn trùng, cảm biến…)" },
+                      { value: "E. Chưa áp dụng biện pháp nào", label: "E. Chưa áp dụng biện pháp nào" },
+                      { value: "F. Khác", label: "F. Khác" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="question9"
+                          value={option.value}
+                          checked={surveyAnswers[9] === option.value || (option.value === "F. Khác" && surveyAnswers[9].startsWith("F. Khác"))}
+                          onChange={(e) => handleSurveyAnswer(9, e.target.value)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                    {(surveyAnswers[9] === "F. Khác" || surveyAnswers[9].startsWith("F. Khác")) && (
+                      <Input
+                        placeholder="Ghi rõ..."
+                        value={surveyAnswers[9].startsWith("F. Khác") ? surveyAnswers[9].replace("F. Khác", "").trim() : ""}
+                        onChange={(e) => handleSurveyAnswer(9, e.target.value ? `F. Khác ${e.target.value}` : "F. Khác")}
+                        className="mt-2 ml-6"
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question 10: Mong muốn cải thiện */}
+              <Card className="shadow-md">
+                <CardContent className="pt-6">
+                  <Label className="text-base font-semibold mb-4 block">
+                    10. Bạn muốn cải thiện điều gì và mong muốn hệ thống AI hỗ trợ những gì? <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    placeholder="Mô tả mong muốn của bạn..."
+                    value={surveyAnswers[10]}
+                    onChange={(e) => handleSurveyAnswer(10, e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+        );
+      }
+
+      case 4: {
         const completedCrops = form.crops
           .filter((crop) => crop.cropName.trim() && crop.plantingDate)
           .map((crop) => ({
             cropName: crop.cropName.trim(),
             plantingDate: crop.plantingDate,
+            plantingMethod: crop.plantingMethod,
+            cropType: crop.cropType,
+            farmingType: crop.farmingType,
+            status: crop.status,
           }));
+
+        // Tính quy mô trang trại dựa trên diện tích
+        const calculateFarmScale = () => {
+          if (!form.farmSizeHectares) return null;
+          
+          // Chuyển đổi hecta sang m² (1 hecta = 10,000 m²)
+          const areaInSquareMeters = Number(form.farmSizeHectares) * 10000;
+          
+          if (areaInSquareMeters < 100) {
+            return {
+              scale: "Nhỏ",
+              area: "< 100 m²",
+              description: "Hộ gia đình / thử nghiệm"
+            };
+          } else if (areaInSquareMeters >= 100 && areaInSquareMeters < 500) {
+            return {
+              scale: "Trung bình",
+              area: "100 - 500 m²",
+              description: "Sản xuất hộ, bán nhỏ"
+            };
+          } else if (areaInSquareMeters >= 500 && areaInSquareMeters < 2000) {
+            return {
+              scale: "Lớn",
+              area: "500 – 2.000 m²",
+              description: "Nông trại thương mại nhỏ"
+            };
+          } else {
+            return {
+              scale: "Thương mại",
+              area: "> 2.000 m²",
+              description: "Sản xuất lớn, công nghệ cao"
+            };
+          }
+        };
+
+        const farmScale = calculateFarmScale();
+
+        // Hàm chuyển đổi phương thức trồng sang tiếng Việt
+        const getPlantingMethodLabel = (method: PlantingMethod): string => {
+          const labels: Record<PlantingMethod, string> = {
+            GieoHatTrucTiep: "Gieo hạt trực tiếp",
+            UomTrongKhay: "Ươm trong khay",
+            CayCayCon: "Cấy cây con",
+            SinhSanSinhDuong: "Sinh sản sinh dưỡng",
+            GiamCanh: "Giâm cành",
+          };
+          return labels[method] || method;
+        };
+
+        // Hàm chuyển đổi nhóm rau củ sang tiếng Việt
+        const getCropTypeLabel = (type: CropType): string => {
+          const labels: Record<CropType, string> = {
+            RauAnLa: "Rau ăn lá",
+            RauAnQua: "Rau ăn quả",
+            RauCu: "Rau củ",
+            RauThom: "Rau thơm",
+          };
+          return labels[type] || type;
+        };
+
+        // Hàm chuyển đổi hình thức canh tác sang tiếng Việt
+        const getFarmingTypeLabel = (type: FarmingType): string => {
+          const labels: Record<FarmingType, string> = {
+            ThamCanh: "Thâm canh",
+            LuanCanh: "Luân canh",
+            XenCanh: "Xen canh",
+            NhaLuoi: "Nhà lưới",
+            ThuyCanh: "Thủy canh",
+          };
+          return labels[type] || type;
+        };
+
+        // Hàm chuyển đổi trạng thái sang tiếng Việt
+        const getCropStatusLabel = (status: CropStatus): string => {
+          const labels: Record<CropStatus, string> = {
+            Growing: "Đang sinh trưởng",
+            Harvested: "Đã thu hoạch",
+            Failed: "Thất bại",
+            Deleted: "Đã xóa",
+          };
+          return labels[status] || status;
+        };
 
         return (
           <motion.div
-            key="step3"
+            key="step4"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -1042,6 +1535,24 @@ export const CreateFarmPage = () => {
                       {form.farmSizeHectares ? `${form.farmSizeHectares} ha` : "Chưa đo"}
                     </p>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Quy mô trang trại</label>
+                    {farmScale ? (
+                      <div className="mt-2 p-3 bg-white rounded-md border border-gray-200">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">
+                          {farmScale.scale}
+                        </p>
+                        <p className="text-xs text-gray-600 mb-1">
+                          Diện tích: {farmScale.area}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {farmScale.description}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400">Chưa xác định</p>
+                    )}
+                  </div>
                   <div className="p-2 bg-green-50 border border-green-200 rounded">
                     <p className="text-xs text-green-700">
                       ✅ Đã xác định từ bản đồ
@@ -1067,23 +1578,89 @@ export const CreateFarmPage = () => {
                       {form.farmName || "Chưa nhập"}
                     </p>
                   </div>
+               
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Danh sách cây trồng</label>
+                    <label className="text-sm font-medium text-gray-600 mb-3 block">Danh sách rau củ của trang trại</label>
                     {completedCrops.length > 0 ? (
-                      <ul className="mt-2 space-y-1 text-sm text-gray-900">
+                      <div className="mt-2 space-y-3">
                         {completedCrops.map((crop, idx) => (
-                          <li key={`${crop.cropName}-${idx}`} className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 py-1 rounded-md bg-white border border-emerald-200 text-emerald-700 font-semibold">
-                              {crop.cropName}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Ngày trồng: {formatPlantingDate(crop.plantingDate)}
-                            </span>
-                          </li>
+                          <div
+                            key={`crop-detail-${idx}`}
+                            className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            {/* Tên rau củ */}
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-semibold text-gray-900">
+                                {crop.cropName}
+                              </h4>
+                              <span className="text-xs text-gray-500">
+                                {formatPlantingDate(crop.plantingDate)}
+                              </span>
+                            </div>
+
+                            {/* Thông tin chi tiết */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {/* Phương thức trồng */}
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500">Phương thức trồng</p>
+                                <div className="px-2.5 py-1.5 rounded-md bg-blue-50 border border-blue-200">
+                                  <p className="text-xs font-medium text-blue-700">
+                                    {getPlantingMethodLabel(crop.plantingMethod)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Nhóm rau củ */}
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500">Nhóm rau củ</p>
+                                <div className="px-2.5 py-1.5 rounded-md bg-purple-50 border border-purple-200">
+                                  <p className="text-xs font-medium text-purple-700">
+                                    {getCropTypeLabel(crop.cropType)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Hình thức canh tác */}
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500">Hình thức canh tác</p>
+                                <div className="px-2.5 py-1.5 rounded-md bg-green-50 border border-green-200">
+                                  <p className="text-xs font-medium text-green-700">
+                                    {getFarmingTypeLabel(crop.farmingType)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Trạng thái */}
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500">Trạng thái</p>
+                                <div className={`px-2.5 py-1.5 rounded-md border ${
+                                  crop.status === 'Growing' 
+                                    ? 'bg-emerald-50 border-emerald-200' 
+                                    : crop.status === 'Harvested'
+                                    ? 'bg-amber-50 border-amber-200'
+                                    : crop.status === 'Failed'
+                                    ? 'bg-red-50 border-red-200'
+                                    : 'bg-gray-50 border-gray-200'
+                                }`}>
+                                  <p className={`text-xs font-medium ${
+                                    crop.status === 'Growing' 
+                                      ? 'text-emerald-700' 
+                                      : crop.status === 'Harvested'
+                                      ? 'text-amber-700'
+                                      : crop.status === 'Failed'
+                                      ? 'text-red-700'
+                                      : 'text-gray-700'
+                                  }`}>
+                                    {getCropStatusLabel(crop.status)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
-                      <p className="text-sm text-gray-400">Chưa nhập</p>
+                      <p className="text-sm text-gray-400">Chưa có thông tin</p>
                     )}
                   </div>
                   <div>
@@ -1097,6 +1674,35 @@ export const CreateFarmPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Thông tin khảo sát từ bước 3 */}
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-purple-100">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-white" />
+                  </div>
+                  Khảo sát (Bước 3)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm text-gray-700">
+                  <p className="font-medium mb-2">Đã hoàn thành khảo sát với {Object.keys(surveyAnswers).length} câu hỏi</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <div>✅ Câu 1: {surveyAnswers[1] ? surveyAnswers[1].substring(0, 50) + (surveyAnswers[1].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 2: {surveyAnswers[2] ? surveyAnswers[2].substring(0, 50) + (surveyAnswers[2].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 3: {surveyAnswers[3] ? surveyAnswers[3].substring(0, 50) + (surveyAnswers[3].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 4: {surveyAnswers[4] ? surveyAnswers[4].substring(0, 50) + (surveyAnswers[4].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 5: {surveyAnswers[5] ? surveyAnswers[5].substring(0, 50) + (surveyAnswers[5].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 6: {surveyAnswers[6] ? surveyAnswers[6].substring(0, 50) + (surveyAnswers[6].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 7: {surveyAnswers[7] ? surveyAnswers[7].substring(0, 50) + (surveyAnswers[7].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 8: {surveyAnswers[8] ? surveyAnswers[8].substring(0, 50) + (surveyAnswers[8].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 9: {surveyAnswers[9] ? surveyAnswers[9].substring(0, 50) + (surveyAnswers[9].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                    <div>✅ Câu 10: {surveyAnswers[10] ? surveyAnswers[10].substring(0, 50) + (surveyAnswers[10].length > 50 ? '...' : '') : 'Chưa trả lời'}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Thông tin chủ trang trại */}
             {user && (
@@ -1113,49 +1719,21 @@ export const CreateFarmPage = () => {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                       <span className="text-green-600 font-semibold text-sm">
-                        {user.email?.charAt(0).toUpperCase() || 'U'}
+                        {user.fullName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{user.email}</p>
-                      <p className="text-xs text-gray-500">ID: {user.id}</p>
+                      <p className="text-sm font-medium text-gray-900">Tên chủ trang trại: {user.fullName || user.email || 'Chưa xác định'}</p>
+                      {user.email && (
+                        <p className="text-xs text-gray-500">Email: {user.email}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Tóm tắt cuối cùng */}
-            <div className="p-6 bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200 rounded-2xl shadow-lg">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-white" />
-                </div>
-                <h4 className="text-lg font-semibold text-gray-900">Tóm tắt</h4>
-              </div>
-              <div className="text-sm text-gray-700 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${form.latitude && form.longitude ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                  <span><strong>Vị trí:</strong> {form.latitude && form.longitude ? 'Đã xác định' : 'Chưa xác định'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${form.farmSizeHectares ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                  <span><strong>Diện tích:</strong> {form.farmSizeHectares ? `${form.farmSizeHectares} ha` : 'Chưa đo'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${form.farmName ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                  <span><strong>Tên trang trại:</strong> {form.farmName ? 'Đã nhập' : 'Chưa nhập'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${user ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                  <span><strong>Chủ sở hữu:</strong> {user ? 'Đã xác định' : 'Chưa đăng nhập'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${completedCrops.length ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                  <span><strong>Cây trồng:</strong> {completedCrops.length ? `${completedCrops.length} loại` : 'Chưa nhập'}</span>
-                </div>
-              </div>
-            </div>
+        
           </motion.div>
         );
       }
@@ -1185,7 +1763,7 @@ export const CreateFarmPage = () => {
             Tạo trang trại mới
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Thiết lập trang trại của bạn trong 3 bước đơn giản với công nghệ bản đồ hiện đại
+            Thiết lập trang trại của bạn trong 4 bước đơn giản với công nghệ bản đồ hiện đại
           </p>
         </motion.div>
 
@@ -1206,6 +1784,7 @@ export const CreateFarmPage = () => {
                 if (step === 1) return true;
                 if (step === 2) return validateStep(1);
                 if (step === 3) return validateStep(1) && validateStep(2);
+                if (step === 4) return validateStep(1) && validateStep(2) && validateStep(3);
                 return false;
               }}
             />
@@ -1229,6 +1808,31 @@ export const CreateFarmPage = () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Submit error alert dialog (modal style) */}
+        <AlertDialog open={!!submitError} onOpenChange={(open) => !open && setSubmitError(null)}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader className="text-center space-y-2">
+              <div className="mx-auto mb-1 w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07" />
+                </svg>
+              </div>
+              <AlertDialogTitle className="text-xl font-semibold text-red-700">Không thể tạo trang trại</AlertDialogTitle>
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {submitError || 'Đã có lỗi xảy ra. Vui lòng thử lại.'}
+              </p>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex justify-center">
+              <AlertDialogAction
+                onClick={() => setSubmitError(null)}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6"
+              >
+                Đóng
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Enhanced Navigation */}
         <motion.div 
@@ -1260,7 +1864,7 @@ export const CreateFarmPage = () => {
             ) : (
               <Button
                 onClick={submitForm}
-                disabled={submitting || !validateStep(1) || !validateStep(2)}
+                disabled={submitting || !validateStep(1) || !validateStep(2) || !validateStep(3)}
                 className="gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (

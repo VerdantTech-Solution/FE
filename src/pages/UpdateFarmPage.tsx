@@ -809,7 +809,7 @@ const UpdateFarmPage = () => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-xs font-medium text-gray-600">Nhóm cây trồng</Label>
+                          <Label className="text-xs font-medium text-gray-600">Nhóm rau củ</Label>
                           <Select
                             value={crop.cropType || 'RauAnLa'}
                             onValueChange={(value) => {

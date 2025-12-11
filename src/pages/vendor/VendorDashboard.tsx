@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router';
 
 const VendorDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
-  const { logout, user } = useAuth();
+  const { logout} = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {

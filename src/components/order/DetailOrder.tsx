@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, AlertCircle } from "lucide-react";
 import { getOrderById, updateOrderStatus, type OrderWithCustomer } from "@/api/order";
+import { formatVietnamDateTime } from "@/lib/utils";
 
 interface DetailOrderProps {
   open: boolean;
@@ -95,7 +96,7 @@ const DetailOrder: React.FC<DetailOrderProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("vi-VN");
+    return formatVietnamDateTime(dateString);
   };
 
   const getStatusBadge = (status: string) => {
