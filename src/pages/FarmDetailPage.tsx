@@ -186,6 +186,21 @@ const FarmDetailPage = () => {
     }
   };
 
+  // Helper function để parse và lấy overview từ advisoryText
+  const getAdvisoryOverview = (advisoryText: string): string => {
+    try {
+      // Thử parse JSON nếu là string JSON
+      const parsed = JSON.parse(advisoryText);
+      if (parsed && typeof parsed === 'object' && parsed.overview) {
+        return parsed.overview;
+      }
+    } catch (e) {
+      // Nếu không parse được, trả về text gốc
+    }
+    // Nếu không phải JSON hoặc không có overview, trả về text gốc
+    return advisoryText;
+  };
+
   const addressText = useMemo(() => {
     if (!farm?.address) return "Chưa có địa chỉ";
     const a = farm.address;
@@ -661,8 +676,12 @@ const FarmDetailPage = () => {
                               </TableCell>
                               <TableCell>
                                 <p className="text-sm text-gray-900 line-clamp-2">
-                                  {item.advisoryText.substring(0, 200)}
-                                  {item.advisoryText.length > 200 ? "..." : ""}
+                                  {(() => {
+                                    const overview = getAdvisoryOverview(item.advisoryText);
+                                    return overview.length > 200 
+                                      ? `${overview.substring(0, 200)}...` 
+                                      : overview;
+                                  })()}
                                 </p>
                               </TableCell>
                               <TableCell>
