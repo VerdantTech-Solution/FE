@@ -9,11 +9,9 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
-  CheckCircle,
   Star
 } from "lucide-react";
 import { getRevenue, getOrderStatistics, getProductRatings, type RevenueData, type OrderStatistics } from "@/api/dashboard";
-import { getProductRegistrations } from "@/api/product";
 import { BestSellingProductsCard } from "@/components/BestSellingProductsCard";
 import { RevenueLast7DaysCard } from "@/components/RevenueLast7DaysCard";
 import { QueueStatisticsCard } from "@/components/QueueStatisticsCard";
@@ -47,7 +45,6 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(false);
   const [revenueError, setRevenueError] = useState<string | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStatistics | null>(null);
-  const [approvedRegistrationsCount, setApprovedRegistrationsCount] = useState<number>(0);
   const [averageRatingOfVendor, setAverageRatingOfVendor] = useState<number | null>(null);
   const [isLoadingRatings, setIsLoadingRatings] = useState(false);
   
@@ -652,18 +649,6 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
   };
 
 
-  // Fetch approved registrations count
-  const fetchApprovedRegistrationsCount = async () => {
-    try {
-      const registrations = await getProductRegistrations();
-      const approvedCount = registrations.filter(reg => reg.status === 'Approved').length;
-      setApprovedRegistrationsCount(approvedCount);
-    } catch (err) {
-      console.error("Error fetching approved registrations count:", err);
-      setApprovedRegistrationsCount(0);
-    }
-  };
-
   // Fetch product ratings (Vendor only)
   const fetchProductRatings = async () => {
     if (!isVendor) return;
@@ -687,7 +672,6 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
   useEffect(() => {
     fetchRevenue();
     fetchOrderStatistics();
-    fetchApprovedRegistrationsCount();
     if (isVendor) {
       fetchProductRatings();
     }
@@ -769,7 +753,8 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
     ];
   }, [dailyRevenueData, weeklyRevenueData, monthlyRevenueData, yearlyRevenueData, revenueData, selectedPeriod]);
 
-  const stats = [
+  // Base stats that are shown to everyone
+  const baseStats = [
     {
       title: 'Tổng doanh thu',
       value: revenueData?.revenue ? `${formatRevenue(revenueData.revenue)}` : '0',
@@ -787,27 +772,21 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
       icon: Package,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
-    },
-    {
-      title: 'Tổng đơn đăng ký thành công',
-      value: approvedRegistrationsCount.toLocaleString(),
-      change: null,
-      trend: null,
-      icon: CheckCircle,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50'
-    },
-    // Only show rating for Vendor
-    ...(isVendor ? [{
-      title: 'Điểm đánh giá trung bình',
-      value: averageRatingOfVendor !== null ? averageRatingOfVendor.toFixed(1) : (isLoadingRatings ? '...' : '0'),
-      change: null,
-      trend: null,
-      icon: Star,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50'
-    }] : [])
+    }
   ];
+
+  // Vendor-only stats
+  const vendorStats = isVendor ? [{
+    title: 'Điểm đánh giá trung bình',
+    value: averageRatingOfVendor !== null ? averageRatingOfVendor.toFixed(1) : (isLoadingRatings ? '...' : '0'),
+    change: null,
+    trend: null,
+    icon: Star,
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50'
+  }] : [];
+
+  const stats = [...baseStats, ...vendorStats];
 
   return (
     <>
