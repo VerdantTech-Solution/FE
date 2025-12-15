@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getOrdersByUser, updateOrderStatus, type OrderWithCustomer } from '@/api/order';
 import { createTicket, getMyTickets, type TicketImage, type TicketItem } from '@/api/ticket';
+import { formatVietnamDateTime } from '@/lib/utils';
 import { createProductReview, getProductReviewsByOrderId, type ProductReview } from '@/api/productReview';
 import { ChevronLeft, ChevronRight, Package, MapPin, CreditCard, Star, ImagePlus, Trash2 } from 'lucide-react';
 
@@ -70,13 +71,7 @@ const getStatusText = (status: string, paymentMethod?: string) => {
 };
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  return formatVietnamDateTime(dateString);
 };
 
 const formatAddress = (address: any) => {
@@ -156,6 +151,7 @@ export default function OrderHistoryPage() {
   const [reviewSuccessMessage, setReviewSuccessMessage] = useState<string | null>(null);
   const [returnOrderDialogOpen, setReturnOrderDialogOpen] = useState(false);
   const [returningOrderId, setReturningOrderId] = useState<number | null>(null);
+  const [returningOrderDetail, setReturningOrderDetail] = useState<OrderWithCustomer['orderDetails'][number] | null>(null);
   const [returnReason, setReturnReason] = useState('');
   const [returning, setReturning] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
@@ -438,8 +434,12 @@ export default function OrderHistoryPage() {
     }
   };
 
-  const handleOpenReturnDialog = (orderId: number) => {
+  const handleOpenReturnDialog = (
+    orderId: number,
+    detail?: OrderWithCustomer['orderDetails'][number] | null
+  ) => {
     setReturningOrderId(orderId);
+    setReturningOrderDetail(detail ?? null);
     setReturnReason('');
     setReturnError(null);
     setReturnSuccess(null);
@@ -450,6 +450,7 @@ export default function OrderHistoryPage() {
   const handleCloseReturnDialog = () => {
     setReturnOrderDialogOpen(false);
     setReturningOrderId(null);
+    setReturningOrderDetail(null);
     setReturnReason('');
     setReturnError(null);
     setReturnSuccess(null);
@@ -540,7 +541,12 @@ export default function OrderHistoryPage() {
       const currentOrder = orders.find((order) => order.id === returningOrderId);
       const descriptionSegments = [
         `Đơn hàng #${returningOrderId}`,
-        currentOrder ? `Tổng tiền: ${currency(currentOrder.totalAmount)}` : '',
+        currentOrder ? `Tổng tiền đơn hàng: ${currency(currentOrder.totalAmount)}` : '',
+        returningOrderDetail
+          ? `Sản phẩm: ${returningOrderDetail.product.productName} - Số lượng: ${returningOrderDetail.quantity} - Thành tiền: ${currency(
+              returningOrderDetail.subtotal
+            )}`
+          : '',
         '',
         `Lý do hoàn hàng:`,
         returnReason.trim(),
@@ -548,7 +554,9 @@ export default function OrderHistoryPage() {
 
       const response = await createTicket({
         requestType: 'RefundRequest',
-        title: `Yêu cầu hoàn hàng - Đơn #${returningOrderId}`,
+        title: returningOrderDetail
+          ? `Yêu cầu hoàn hàng sản phẩm - Đơn #${returningOrderId}`
+          : `Yêu cầu hoàn hàng - Đơn #${returningOrderId}`,
         description: descriptionSegments.join('\n'),
         images: returnImages.length > 0 ? returnImages : undefined,
       });
@@ -997,13 +1005,23 @@ export default function OrderHistoryPage() {
                                       </Button>
                                     </div>
                                   ) : isDelivered ? (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => openReviewDialog(order, detail)}
-                                      className="bg-green-600 hover:bg-green-700 text-white"
-                                    >
-                                      Đánh giá sản phẩm
-                                    </Button>
+                                    <div className="flex flex-col items-end gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => openReviewDialog(order, detail)}
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                      >
+                                        Đánh giá sản phẩm
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleOpenReturnDialog(order.id, detail)}
+                                        className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                      >
+                                        Hoàn hàng sản phẩm
+                                      </Button>
+                                    </div>
                                   ) : (
                                     <div className="text-xs text-gray-500">
                                       Đánh giá sẽ khả dụng sau khi đơn hàng hoàn tất giao
@@ -1295,13 +1313,36 @@ export default function OrderHistoryPage() {
       <Dialog open={returnOrderDialogOpen} onOpenChange={(open) => (open ? null : handleCloseReturnDialog())}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Yêu cầu hoàn hàng</DialogTitle>
+            <DialogTitle>
+              {returningOrderDetail ? 'Yêu cầu hoàn hàng sản phẩm' : 'Yêu cầu hoàn hàng'}
+            </DialogTitle>
             <DialogDescription>
               Vui lòng cung cấp lý do hoàn hàng để chúng tôi có thể xử lý yêu cầu của bạn.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            {returningOrderDetail && (
+              <div className="flex items-start gap-4 rounded-lg border border-gray-200 p-4 bg-gray-50">
+                <img
+                  src={
+                    getProductImageUrl(returningOrderDetail.product.images) ||
+                    'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=120&h=120&fit=crop'
+                  }
+                  alt={returningOrderDetail.product.productName}
+                  className="h-16 w-16 rounded-md object-cover"
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {returningOrderDetail.product.productName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Số lượng: {returningOrderDetail.quantity} · Thành tiền:{' '}
+                    {currency(returningOrderDetail.subtotal)}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="returnReason" className="text-sm font-medium text-gray-700">
                 Lý do hoàn hàng <span className="text-red-500">*</span>

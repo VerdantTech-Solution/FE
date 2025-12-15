@@ -52,10 +52,8 @@ const HeroSection = () => {
             ease: "easeOut"
           }}
         >
-          <p className="text-lg sm:text-xl lg:text-2xl text-white leading-relaxed text-center">
-            Tiên phong trong tương lai nông nghiệp bằng cách tích hợp các công nghệ tiên tiến và 
-            thực hành đổi mới. Sứ mệnh của chúng tôi là tạo ra các giải pháp canh tác bền vững và 
-            hiệu quả, đảm bảo một vụ thu hoạch khỏe mạnh và dồi dào cho các thế hệ mai sau.
+        <p className="text-lg sm:text-xl lg:text-2xl text-white leading-tight text-center">
+            Nền tảng cung cấp thiết bị nông nghiệp xanh kết hợp hệ thống AI hỗ trợ canh tác rau củ theo hướng bền vững. Chúng tôi mang đến giải pháp giúp nông dân tiếp cận công nghệ thân thiện môi trường và nâng cao hiệu quả sử dụng tài nguyên trong quá trình sản xuất.
           </p>
         </motion.div>
 

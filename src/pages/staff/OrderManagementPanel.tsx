@@ -20,7 +20,8 @@ import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Lo
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
 import { getOrderStatistics, type OrderStatistics } from "@/api/dashboard";
-import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
+import { getIdentityNumbersWithMetadata, type IdentityNumberItem } from "@/api/export";
+import { formatVietnamDateTime } from "@/lib/utils";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
@@ -45,6 +46,7 @@ type ShipItemForm = {
   serialNumber: string;
   lotNumber: string;
   availableIdentityNumbers?: IdentityNumberItem[];
+  hasSerialNumbers?: boolean; // true if lotNumberInfo === null and serialNumberInfo exists
 };
 
 export const OrderManagementPanel: React.FC = () => {
@@ -370,16 +372,22 @@ export const OrderManagementPanel: React.FC = () => {
             }
           }
 
-          // Fetch identity numbers for this product
+          // Fetch identity numbers for this product with metadata
           let availableIdentityNumbers: IdentityNumberItem[] = [];
+          let hasSerialNumbers = false;
           try {
-            availableIdentityNumbers = await getIdentityNumbersByProductId(detail.product.id);
+            const { items, metadata } = await getIdentityNumbersWithMetadata(detail.product.id);
+            availableIdentityNumbers = items;
+            hasSerialNumbers = metadata.hasSerialNumbers;
             console.log(`Identity numbers for product ${detail.product.id}:`, availableIdentityNumbers);
+            console.log(`Has serial numbers:`, hasSerialNumbers);
           } catch (error) {
             console.error(`Failed to fetch identity numbers for product ${detail.product.id}:`, error);
           }
 
-          const requiresSerial = isMachineryCategory(categoryId);
+          // Use metadata to determine if serial numbers are required
+          // If hasSerialNumbers is true (lotNumberInfo === null), then serial numbers are required
+          const requiresSerial = hasSerialNumbers;
           
           if (requiresSerial) {
             return Array.from({ length: detail.quantity }).map((_, idx) => ({
@@ -394,6 +402,7 @@ export const OrderManagementPanel: React.FC = () => {
               serialNumber: "",
               lotNumber: "",
               availableIdentityNumbers,
+              hasSerialNumbers,
             }));
           }
           
@@ -410,6 +419,7 @@ export const OrderManagementPanel: React.FC = () => {
               serialNumber: "",
               lotNumber: "",
               availableIdentityNumbers,
+              hasSerialNumbers,
             },
           ];
         })
@@ -434,17 +444,12 @@ export const OrderManagementPanel: React.FC = () => {
     }
   };
 
-  // Helper function to check if category is machinery (needs serial number)
-  const isMachineryCategory = (categoryId?: number): boolean => {
-    if (!categoryId) return false;
-    return [24, 25, 28, 29].includes(categoryId);
-  };
 
   const handleShipOrder = async () => {
     if (!selectedOrder) return;
 
     for (const item of shipItems) {
-      const requiresSerial = isMachineryCategory(item.categoryId);
+      const requiresSerial = item.hasSerialNumbers ?? false;
       const lotNumber = item.lotNumber.trim();
       const serialNumber = item.serialNumber.trim();
       const quantity = Number(item.quantity);
@@ -499,7 +504,7 @@ export const OrderManagementPanel: React.FC = () => {
 
       // Build payload in new format and check for duplicates
       const payload: ShipOrderItem[] = Object.entries(groupedByOrderDetail).map(([orderDetailId, items]) => {
-        const requiresSerial = isMachineryCategory(items[0].categoryId);
+        const requiresSerial = items[0].hasSerialNumbers ?? false;
         
         // Check for duplicate serial numbers within the same orderDetailId
         if (requiresSerial) {
@@ -619,7 +624,7 @@ export const OrderManagementPanel: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("vi-VN");
+    return formatVietnamDateTime(dateString);
   };
 
   const getStatusDisplayName = (status: string) => {
@@ -1406,7 +1411,7 @@ export const OrderManagementPanel: React.FC = () => {
             )}
             <div className="space-y-4">
               {shipItems.map((item, index) => {
-                const isMachinery = isMachineryCategory(item.categoryId);
+                const hasSerialNumbers = item.hasSerialNumbers ?? false;
                 const identityNumbers = item.availableIdentityNumbers || [];
                 
                 // Get unique lot numbers (for non-machinery products or to filter serials)
@@ -1418,8 +1423,8 @@ export const OrderManagementPanel: React.FC = () => {
                   )
                 );
                 
-                // Get serial numbers filtered by selected lot number (for machinery)
-                const availableSerials = isMachinery && item.lotNumber
+                // Get serial numbers filtered by selected lot number (if has serial numbers)
+                const availableSerials = hasSerialNumbers && item.lotNumber
                   ? identityNumbers.filter(
                       (id) => id.serialNumber && id.lotNumber === item.lotNumber
                     )
@@ -1433,7 +1438,7 @@ export const OrderManagementPanel: React.FC = () => {
                         <div className="text-xs text-gray-500 space-y-1">
                           <p>Mã chi tiết đơn hàng: #{item.orderDetailId}</p>
                           {item.categoryId && <p>Category ID: {item.categoryId}</p>}
-                          {isMachinery ? (
+                          {hasSerialNumbers ? (
                             <p>Mục {item.entryNumber}/{item.totalQuantity} (yêu cầu số seri)</p>
                           ) : (
                             <p>Tổng số lượng trong đơn: {item.totalQuantity}</p>
@@ -1452,8 +1457,8 @@ export const OrderManagementPanel: React.FC = () => {
                               updated[index] = { 
                                 ...updated[index], 
                                 lotNumber: value,
-                                // Clear serial number when lot number changes (for machinery)
-                                serialNumber: isMachinery ? "" : updated[index].serialNumber
+                                // Clear serial number when lot number changes (if has serial numbers)
+                                serialNumber: hasSerialNumbers ? "" : updated[index].serialNumber
                               };
                               return updated;
                             });
@@ -1488,7 +1493,7 @@ export const OrderManagementPanel: React.FC = () => {
                           </p>
                         )}
                       </div>
-                      {isMachinery && (
+                      {hasSerialNumbers && (
                         <div className="grid gap-2">
                           <Label htmlFor={`serial-${item.id}`}>
                             Số seri <span className="text-red-500">*</span>
@@ -1555,7 +1560,7 @@ export const OrderManagementPanel: React.FC = () => {
                           </p>
                         </div>
                       )}
-                      {!isMachinery && (
+                      {!hasSerialNumbers && (
                         <div className="grid gap-2">
                           <Label htmlFor={`quantity-${item.id}`}>
                             Số lượng cần gửi <span className="text-red-500">*</span>

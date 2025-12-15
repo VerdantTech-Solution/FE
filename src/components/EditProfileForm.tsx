@@ -138,20 +138,7 @@ export const EditProfileForm = ({ user, onSave, onCancel, isOpen }: EditProfileF
 
           <Separator />
 
-          {/* Role (Read-only) */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              Vai trò
-            </Label>
-            <Input
-              type="text"
-              value={user.role}
-              className="h-11 bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed capitalize"
-              disabled
-            />
-            <p className="text-xs text-gray-500">Vai trò không thể thay đổi</p>
-          </div>
-
+         
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             <Button

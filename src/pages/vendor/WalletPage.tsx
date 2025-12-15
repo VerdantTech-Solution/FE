@@ -6,11 +6,7 @@ import CreateBankDialog from '@/components/bank/CreateBankDialog';
 import BankAccountsList from '@/components/bank/BankAccountsList';
 import WithdrawRequestDialog from '@/components/wallet/WithdrawRequestDialog';
 import { 
-  Bell,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Wallet,
-  TrendingUp
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
@@ -37,74 +33,22 @@ const WalletBalance = ({ balance, loading }: WalletBalanceProps) => {
   return (
     <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
       <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-green-100 text-sm">Số dư ví</p>
-            {loading ? (
-              <div className="flex items-center mt-2">
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                <p className="text-3xl font-bold">Đang tải...</p>
-              </div>
-            ) : (
-              <p className="text-3xl font-bold mt-2">₫{formatCurrency(balance)}</p>
-            )}
-            <p className="text-green-100 text-sm mt-1">Số dư khả dụng</p>
-          </div>
-          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <Wallet size={32} />
-          </div>
+        <div>
+          <p className="text-green-100 text-sm">Số dư ví</p>
+          {loading ? (
+            <div className="flex items-center mt-2">
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              <p className="text-3xl font-bold">Đang tải...</p>
+            </div>
+          ) : (
+            <p className="text-3xl font-bold mt-2">₫{formatCurrency(balance)}</p>
+          )}
+          <p className="text-green-100 text-sm mt-1">Số dư khả dụng</p>
         </div>
       </CardContent>
     </Card>
   );
 };
-
-const TransactionStats = () => {
-  const stats = [
-    { 
-      label: "Thu nhập tháng này", 
-      value: "₫45,000,000", 
-      icon: ArrowUpRight,
-      color: "bg-green-50 text-green-600"
-    },
-    { 
-      label: "Chi phí tháng này", 
-      value: "₫8,500,000", 
-      icon: ArrowDownLeft,
-      color: "bg-red-50 text-red-600"
-    },
-    { 
-      label: "Giao dịch thành công", 
-      value: "156", 
-      icon: TrendingUp,
-      color: "bg-blue-50 text-blue-600"
-    }
-  ];
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      {stats.map((stat, index) => {
-        const Icon = stat.icon;
-        return (
-          <Card key={index} className="border border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-lg ${stat.color} flex items-center justify-center`}>
-                  <Icon size={24} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-};
-
 
 const WithdrawForm = ({ 
   onWithdrawClick, 
@@ -237,7 +181,7 @@ const WalletPage = () => {
               </Button>
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Vendor Name'}</span>
+                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Nhà cung cấp'}</span>
               </div>
               <Button 
                 variant="outline" 
@@ -253,7 +197,6 @@ const WalletPage = () => {
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           <WalletBalance balance={balance} loading={walletLoading} />
-          <TransactionStats />
           
           {/* Ngân hàng của bạn */}
           <BankAccountsList

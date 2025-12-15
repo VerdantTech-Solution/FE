@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { User, LogOut, ChevronDown, Shield, Leaf, ShoppingCart, History } from "lucide-react";
+import { User, LogOut, ChevronDown, Shield, Leaf, ShoppingCart, History, Menu, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,10 +11,12 @@ import { NotificationBell } from "@/components/NotificationBell";
 
 const Navbar = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const { isAdmin } = useAdminAuth();
   const { cartCount } = useCart();
   const userDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   
   // Debug: Log khi user avatar thay đổi
   useEffect(() => {
@@ -23,7 +25,7 @@ const Navbar = () => {
   
   const navigation = [
     { name: "Trang chủ", href: "/" },
-    { name: "Về chúng tôi", href: "/about" },
+    { name: "Giới thiệu", href: "/about" },
      { name: "Chợ", href: "/marketplace" },
     { name: "Bài viết", href: "/articles" },
     { name: "Trung tâm hỗ trợ", href: "/ticket" },
@@ -54,23 +56,49 @@ const Navbar = () => {
     setIsUserDropdownOpen(false);
   };
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+    // Close user dropdown when opening mobile menu
+    if (!isMobileMenuOpen) {
+      setIsUserDropdownOpen(false);
+    }
+  };
 
-  // Handle click outside to close dropdown
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
         setIsUserDropdownOpen(false);
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
     };
 
-    if (isUserDropdownOpen) {
+    if (isUserDropdownOpen || isMobileMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isUserDropdownOpen]);
+  }, [isUserDropdownOpen, isMobileMenuOpen]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
 
 
   // Animation variants
@@ -133,29 +161,21 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <motion.div
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer"
             onClick={() => navigate("/")}
             variants={logoVariants}
             initial="hidden"
             animate="visible"
             whileHover="hover"
-            
           >
             <img
               src={logo}
               alt="VerdantTech logo"
-              className="w-10 h-10 border rounded-[3px] object-cover  transition-transform duration-200 hover:scale-105"
+              className="w-10 h-10 border rounded-[3px] object-cover transition-transform duration-200 hover:scale-105"
             />
-            <div className="hidden sm:block">
-              <h1 
-                className="text-2xl font-bold text-green-600 hover:text-green-700 transition-colors"
-                style={{ fontFamily: 'Playfair Display, serif' }}
-              >
-                VerdantTech
-              </h1>
-              <p className="text-sm text-gray-600">
-                Nông nghiệp xanh
-              </p>
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="text-lg font-bold text-green-600">VerdantTech</span>
+              <span className="text-xs text-gray-500 font-medium">SOLUTION</span>
             </div>
           </motion.div>
 
@@ -363,15 +383,10 @@ const Navbar = () => {
           </motion.div>
 
           {/* Mobile Navigation - Visible on mobile, hidden on md+ */}
-          <div className="md:hidden flex items-center gap-4">
+          <div className="md:hidden flex items-center gap-2">
             {/* Mobile CTA Buttons */}
-            {isAuthenticated ? (
-              <motion.div
-                ref={userDropdownRef}
-                className="relative"
-                whileHover="hover"
-                whileTap="tap"
-              >
+            {isAuthenticated && (
+              <>
                 {/* Notification Bell - mobile */}
                 <NotificationBell />
                 
@@ -391,148 +406,201 @@ const Navbar = () => {
                     )}
                   </div>
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  className="cursor-pointer flex items-center gap-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-300"
-                  onClick={toggleUserDropdown}
-                >
-                  {user?.avatarUrl ? (
-                    <img 
-                      src={user.avatarUrl} 
-                      alt="Avatar" 
-                      className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
-                      {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                  )}
-                  <span className="hidden sm:inline font-medium" style={{ fontFamily: 'Playfair Display, serif' }}>
-                    {user?.fullName}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
-                </Button>
-                
-                {/* Mobile User Dropdown */}
-                <AnimatePresence>
-                  {isUserDropdownOpen && (
-                    <motion.div
-                      className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                    {/* User Info Section */}
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <div className="flex items-center gap-3 mb-2">
-                        {user?.avatarUrl ? (
-                          <img 
-                            src={user.avatarUrl} 
-                            alt="Avatar" 
-                            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg">
-                            {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-semibold text-gray-900 text-lg">{user?.fullName}</div>
-                          <div className="text-sm text-gray-500">{user?.email}</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Navigation Links */}
-                    <div className="py-1">
-                      {/* <button
-                        className="w-full px-4 py-2 text-left text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-3"
-                        onClick={() => {
-                          navigate("/profile");
-                          closeUserDropdown();
-                        }}
-                      >
-                        <User className="h-4 w-4" />
-                        Profile
-                      </button>
-                      
-                      <button
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
-                        onClick={() => {
-                          navigate("/dashboard");
-                          closeUserDropdown();
-                        }}
-                      >
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                      </button> */}
-                      
-                      {isAdmin && (
-                        <button
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
-                          onClick={() => {
-                            navigate("/admin");
-                            closeUserDropdown();
-                          }}
-                        >
-                          <Shield className="h-4 w-4" />
-                          Admin Panel
-                        </button>
-                      )}
-                      
-                      <button
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
-                        onClick={handleLogout}
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Log out
-                      </button>
-                    </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ) : (
-              <>
-                <Button 
-                  onClick={handleLogin} 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-medium transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
-                  style={{ fontFamily: 'Playfair Display, serif' }}
-                >
-                  Đăng nhập
-                </Button>
-                <Button 
-                  onClick={handleSignUp} 
-                  size="sm"
-                  className="bg-green-400 hover:bg-green-500 text-white font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
-                  style={{ fontFamily: 'Playfair Display, serif' }}
-                >
-                  Đăng ký
-                </Button>
               </>
             )}
+            
+            {/* Hamburger Menu Button */}
+            <Button
+              variant="ghost"
+              className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg p-2 transition-all duration-200"
+              onClick={toggleMobileMenu}
+              aria-label="Menu"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </Button>
           </div>
         </div>
 
-        {/* Mobile Navigation Links - Always visible on mobile, hidden on md+ */}
-        <div className="md:hidden py-4 space-y-2 border-t border-gray-200">
-          {navigation.map((item, index) => (
-            <motion.a
-              key={item.name}
-              href={item.href}
-              className="block px-4 py-2 rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1, duration: 0.3 }}
-              style={{ fontFamily: 'Playfair Display, serif' }}
-            >
-              {item.name}
-            </motion.a>
-          ))}
-        </div>
+        {/* Mobile Menu Dropdown - Slide down animation */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={closeMobileMenu}
+              />
+              
+              {/* Mobile Menu */}
+              <motion.div
+                ref={mobileMenuRef}
+                className="fixed top-20 left-0 right-0 bg-white border-t border-gray-200 shadow-xl z-50 md:hidden max-h-[calc(100vh-5rem)] overflow-y-auto"
+                initial={{ y: -100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -100, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <div className="px-4 py-4 space-y-1">
+                  {/* Navigation Links */}
+                  {navigation.map((item, index) => (
+                    <motion.a
+                      key={item.name}
+                      href={item.href}
+                      onClick={closeMobileMenu}
+                      className="block px-4 py-3 rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors font-medium"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05, duration: 0.2 }}
+                      style={{ fontFamily: 'Playfair Display, serif' }}
+                    >
+                      {item.name}
+                    </motion.a>
+                  ))}
+                  
+                  {/* Divider */}
+                  {isAuthenticated && (
+                    <div className="border-t border-gray-200 my-2" />
+                  )}
+                  
+                  {/* User Section for Mobile */}
+                  {isAuthenticated ? (
+                    <div className="space-y-1">
+                      {/* User Info */}
+                      <div className="px-4 py-3 bg-gray-50 rounded-lg mb-2">
+                        <div className="flex items-center gap-3">
+                          {user?.avatarUrl ? (
+                            <img 
+                              src={user.avatarUrl} 
+                              alt="Avatar" 
+                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                              {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-900 truncate">{user?.fullName}</div>
+                            <div className="text-xs text-gray-500 truncate">{user?.email}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* User Menu Items */}
+                      <motion.button
+                        className="w-full px-4 py-3 text-left rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors flex items-center gap-3 font-medium"
+                        onClick={() => {
+                          navigate("/profile");
+                          closeMobileMenu();
+                        }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1, duration: 0.2 }}
+                      >
+                        <User className="h-5 w-5" />
+                        Thông Tin Cá Nhân
+                      </motion.button>
+                      
+                      <motion.button
+                        className="w-full px-4 py-3 text-left rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors flex items-center gap-3 font-medium"
+                        onClick={() => {
+                          navigate("/farmlist");
+                          closeMobileMenu();
+                        }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.15, duration: 0.2 }}
+                      >
+                        <Leaf className="h-5 w-5" />
+                        Thông Tin Trang Trại
+                      </motion.button>
+                      
+                      <motion.button
+                        className="w-full px-4 py-3 text-left rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors flex items-center gap-3 font-medium"
+                        onClick={() => {
+                          navigate("/order/history");
+                          closeMobileMenu();
+                        }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2, duration: 0.2 }}
+                      >
+                        <History className="h-5 w-5" />
+                        Lịch Sử Đơn Hàng
+                      </motion.button>
+                      
+                      {isAdmin && (
+                        <motion.button
+                          className="w-full px-4 py-3 text-left rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-100 transition-colors flex items-center gap-3 font-medium"
+                          onClick={() => {
+                            navigate("/admin");
+                            closeMobileMenu();
+                          }}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.25, duration: 0.2 }}
+                        >
+                          <Shield className="h-5 w-5" />
+                          Admin Panel
+                        </motion.button>
+                      )}
+                      
+                      <motion.button
+                        className="w-full px-4 py-3 text-left rounded-lg text-red-600 hover:text-white hover:bg-red-600 transition-colors flex items-center gap-3 font-medium mt-2"
+                        onClick={() => {
+                          handleLogout();
+                          closeMobileMenu();
+                        }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3, duration: 0.2 }}
+                      >
+                        <LogOut className="h-5 w-5" />
+                        Đăng xuất
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 pt-2">
+                      <motion.button
+                        className="w-full px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium border border-gray-200"
+                        onClick={() => {
+                          handleLogin();
+                          closeMobileMenu();
+                        }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1, duration: 0.2 }}
+                        style={{ fontFamily: 'Playfair Display, serif' }}
+                      >
+                        Đăng nhập
+                      </motion.button>
+                      <motion.button
+                        className="w-full px-4 py-3 rounded-lg bg-green-400 hover:bg-green-500 text-white transition-colors font-semibold"
+                        onClick={() => {
+                          handleSignUp();
+                          closeMobileMenu();
+                        }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.15, duration: 0.2 }}
+                        style={{ fontFamily: 'Playfair Display, serif' }}
+                      >
+                        Đăng ký
+                      </motion.button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </motion.nav>
   );

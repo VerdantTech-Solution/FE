@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router';
+import logo2 from "@/assets/logo2.jpg";
 import { 
   BarChart3, 
   Square, 
@@ -45,7 +46,7 @@ const VendorSidebar = () => {
     },
     { 
       id: "vendor-info", 
-      label: "Thông tin vendor", 
+      label: "Thông tin nhà cung cấp", 
       icon: User, 
       path: "/vendor/info" 
     }
@@ -64,12 +65,16 @@ const VendorSidebar = () => {
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">V</span>
+          <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
+            <img 
+              src={logo2}
+              alt="VerdantTech Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-900">VerdantTech</h1>
-            <p className="text-xs text-gray-500">Nông nghiệp xanh</p>
+            <p className="text-xs text-gray-500 font-medium">Nhà cung cấp</p>
           </div>
         </div>
       </div>

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2, ArrowLeft, Package } from "lucide-react";
-import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product, type PaginatedResponse } from "@/api/product";
+import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product } from "@/api/product";
 import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
 import { ProductDetailDialog } from "./components/ProductDetailDialog";
 
@@ -30,6 +30,7 @@ export const MonitoringPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Product view states
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -96,6 +97,18 @@ export const MonitoringPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Filter categories based on search query
+  const filteredItems = monitoringItems.filter(item => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(query) ||
+      item.slug?.toLowerCase().includes(query) ||
+      item.description?.toLowerCase().includes(query) ||
+      item.parent?.name.toLowerCase().includes(query)
+    );
+  });
   
   const fetchProductsByCategory = async (categoryId: number) => {
     try {
@@ -602,9 +615,23 @@ export const MonitoringPage: React.FC = () => {
         <div className="flex-1 flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <Input placeholder="Tìm kiếm thiết bị..." className="pl-10" />
+            <Input 
+              placeholder="Tìm kiếm danh mục..." 
+              className="pl-10" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <Button className="px-6"><Search size={20} /></Button>
+          {searchQuery && (
+            <Button 
+              variant="outline" 
+              onClick={() => setSearchQuery('')}
+              className="px-4"
+              title="Xóa tìm kiếm"
+            >
+              <X size={20} />
+            </Button>
+          )}
         </div>
       </div>
       )}
@@ -636,7 +663,14 @@ export const MonitoringPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {monitoringItems.map((item) => (
+                      {filteredItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-gray-500">
+                            {searchQuery ? `Không tìm thấy danh mục nào với từ khóa "${searchQuery}"` : 'Không có danh mục nào'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredItems.map((item) => (
                       <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
@@ -684,13 +718,18 @@ export const MonitoringPage: React.FC = () => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                      )}
                   </tbody>
                 </table>
               </div>
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  Hiển thị {monitoringItems.length > 0 ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalRecords)}` : '0'} trong tổng số {totalRecords} danh mục
+                  {searchQuery ? (
+                    <>Hiển thị {filteredItems.length} kết quả tìm kiếm cho "{searchQuery}"</>
+                  ) : (
+                    <>Hiển thị {monitoringItems.length > 0 ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalRecords)}` : '0'} trong tổng số {totalRecords} danh mục</>
+                  )}
                 </p>
                 {totalPages > 1 && (
                   <div className="flex items-center space-x-2">

@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Shield, LogOut, Edit, Key, Trash2 } from "lucide-react";
+import { User, Mail, Phone, LogOut, Edit, Key, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { getUserProfile, createUserAddress, updateUserAddress, deleteUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
@@ -497,7 +497,7 @@ export const ProfilePage = () => {
   return (
     <>
     <motion.div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 mt-[100px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-      <div className="max-w-[80%] mx-auto">
+      <div className="max-w-full sm:max-w-[95%] md:max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div className="text-center mb-8" initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ cá nhân</h1>
@@ -630,19 +630,6 @@ export const ProfilePage = () => {
                           <Button size="sm" variant="outline" onClick={openAddAddressDialog}>Thêm địa chỉ</Button>
                         </>
                       )}
-                    </div>
-                  </motion.div>
-
-                  <Separator />
-
-                  {/* Role */}
-                  <motion.div className="flex items-center space-x-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <Shield className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-500">Vai trò</p>
-                      <p className="text-lg font-semibold text-gray-900 capitalize">{user.role}</p>
                     </div>
                   </motion.div>
                 </CardContent>

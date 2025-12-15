@@ -115,19 +115,11 @@ export const AdminPage = () => {
         animate="visible"
       >
         <Sidebar className="fixed left-0 top-0 z-30 h-screen overflow-y-auto" collapsed={collapsed}>
-          <SidebarHeader>
-            <SidebarHeaderTitle>
-              <motion.div 
-                className="w-[100px] h-[80px] flex items-center justify-center overflow-hidden p-2"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-              >
-                <img 
-                  src={logo2}
-                  alt="VerdantTech Logo" 
-                  className="w-full h-full object-contain"
-                />
-              </motion.div>
+        <SidebarHeader className="mr-[100px]">
+            <SidebarHeaderTitle className="pr-7">
+              <div className="w-[60px] h-[70px] flex items-center justify-center overflow-hidden p-2">
+                <img src={logo2} alt="VerdantTech Logo" className="w-full h-full object-contain" />
+              </div>
               <SidebarHeaderTitleText>
                 <SidebarHeaderTitleMain>VerdantTech</SidebarHeaderTitleMain>
                 <SidebarHeaderTitleSub>Admin Panel</SidebarHeaderTitleSub>
@@ -219,7 +211,7 @@ export const AdminPage = () => {
                   onClick={() => setSelectedView('balance')}
                   icon={<Shield className="w-5 h-5" />}
                 >
-                  Số dư tài khoản
+                  Số Dư Tài Khoản
                 </SidebarNavItem>
               </motion.div>
               <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
@@ -287,7 +279,7 @@ export const AdminPage = () => {
                 {selectedView === 'orders' && 'Quản Lý Đơn Hàng'}
                 {selectedView === 'posts' && 'Quản lý bài viết'}
                 {selectedView === 'categories' && 'Danh mục sản phẩm'}
-                {selectedView === 'balance' && 'Số dư tài khoản'}
+                {selectedView === 'balance' && 'Số Dư Tài Khoản'}
                 {selectedView === 'cashout' && 'Quản lý rút tiền'}
                 {selectedView === 'support' && 'Yêu cầu hỗ trợ'}
                 {selectedView === 'overview' && 'Tổng quan hệ thống'}

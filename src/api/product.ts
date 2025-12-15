@@ -180,12 +180,12 @@ export const getAllProductCategories = async (): Promise<ProductCategory[]> => {
       categories = pagedResponse.data || [];
       totalRecords = pagedResponse.totalRecords || categories.length;
       
-      // Nếu totalRecords <= pageSize (100), đã có đủ rồi
-      if (totalRecords <= 100) {
+      // Nếu totalRecords <= 30 (pageSize đã fetch), đã có đủ rồi
+      if (totalRecords <= 30) {
         return categories;
       }
       
-      // Nếu có nhiều hơn 100, fetch tất cả trong 1 lần với pageSize = totalRecords
+      // Nếu có nhiều hơn 30, fetch tất cả trong 1 lần với pageSize = totalRecords
       const allResponse = await getProductCategories({ page: 1, pageSize: totalRecords });
       
       if (Array.isArray(allResponse)) {
@@ -346,6 +346,50 @@ const transformProductData = (apiProduct: any): Product => {
     }
   }
 
+  // Xử lý dimensionsCm: normalize từ PascalCase sang camelCase
+  let normalizedDimensionsCm: { width?: number; height?: number; length?: number } | undefined;
+  if (apiProduct.dimensionsCm) {
+    const dims = apiProduct.dimensionsCm;
+    normalizedDimensionsCm = {
+      width: dims.width ?? dims.Width,
+      height: dims.height ?? dims.Height,
+      length: dims.length ?? dims.Length
+    };
+    // Chỉ giữ lại nếu có ít nhất 1 giá trị hợp lệ
+    if (!normalizedDimensionsCm.width && !normalizedDimensionsCm.height && !normalizedDimensionsCm.length) {
+      normalizedDimensionsCm = undefined;
+    }
+  }
+
+  // Xử lý specifications: có thể là JSON string hoặc object
+  let normalizedSpecifications: { [key: string]: string } = {};
+  if (apiProduct.specifications) {
+    if (typeof apiProduct.specifications === 'string') {
+      // Nếu là JSON string, parse nó
+      try {
+        const parsed = JSON.parse(apiProduct.specifications);
+        if (typeof parsed === 'object' && parsed !== null) {
+          // Filter out null values và empty strings
+          Object.entries(parsed).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== '') {
+              normalizedSpecifications[key] = String(value);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to parse specifications JSON string:', e);
+        // Nếu parse lỗi, giữ nguyên string hoặc để empty
+      }
+    } else if (typeof apiProduct.specifications === 'object' && apiProduct.specifications !== null) {
+      // Nếu đã là object, filter out null values và empty strings
+      Object.entries(apiProduct.specifications).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          normalizedSpecifications[key] = String(value);
+        }
+      });
+    }
+  }
+
   return {
     ...apiProduct,
     // Map API fields to component expected fields
@@ -355,17 +399,26 @@ const transformProductData = (apiProduct: any): Product => {
       ? Math.round(apiProduct.unitPrice / (1 - apiProduct.discountPercentage / 100))
       : apiProduct.unitPrice,
     discount: apiProduct.discountPercentage,
-    unit: 'chiếc',
-    category: 'machines',
-    rating: apiProduct.ratingAverage || 4.5,
-    reviews: apiProduct.soldCount || Math.floor(Math.random() * 100) + 10,
-    location: 'TP. HCM',
-    delivery: '3-5 ngày',
+    unit: apiProduct.unit || 'chiếc', // Lấy từ API nếu có, fallback 'chiếc'
+    category: apiProduct.categoryName || apiProduct.category || '', // Lấy từ API
+    rating: apiProduct.ratingAverage ?? 0, // Sửa: 0 thay vì 4.5, dùng ?? để xử lý 0 hợp lệ
+    reviews: apiProduct.reviewCount ?? 0, // Sửa: dùng reviewCount từ API, fallback 0
+    location: apiProduct.location || apiProduct.vendorLocation || '', // Lấy từ API
+    delivery: apiProduct.delivery || apiProduct.deliveryTime || '', // Lấy từ API
     image: imageUrl,
     // Đảm bảo images được giữ nguyên từ API (có thể là MediaLinkItemDTO[] hoặc string)
     images: apiProduct.images || [],
     // Đảm bảo stockQuantity được giữ nguyên từ API (có thể là stockQuantity hoặc stock)
-    stockQuantity: apiProduct.stockQuantity ?? apiProduct.stock ?? 0
+    stockQuantity: apiProduct.stockQuantity ?? apiProduct.stock ?? 0,
+    // Normalize dimensionsCm từ PascalCase sang camelCase
+    dimensionsCm: normalizedDimensionsCm || apiProduct.dimensionsCm,
+    // Parse và normalize specifications từ JSON string hoặc object
+    specifications: normalizedSpecifications,
+    weightKg: apiProduct.weightKg,
+    warrantyMonths: apiProduct.warrantyMonths,
+    energyEfficiencyRating: apiProduct.energyEfficiencyRating,
+    // Map manualUrls từ API (có thể là manualUrls, manualUrl, hoặc manualPublicUrl)
+    manualUrls: apiProduct.manualUrls || apiProduct.manualUrl || apiProduct.manualPublicUrl || undefined
   };
 };
 
@@ -529,12 +582,86 @@ export interface UpdateProductRequest {
   discountPercentage?: number;
 }
 
+export interface ProductUpdateDTO {
+  categoryId: number;
+  vendorId: number;
+  productCode: string;
+  productName: string;
+  description: string;
+  unitPrice: number;
+  commissionRate: number;
+  discountPercentage: number;
+  energyEfficiencyRating?: string;
+  specifications?: {
+    [key: string]: string;
+  };
+  manualUrls?: string;
+  publicUrl?: string;
+  warrantyMonths: number;
+  stockQuantity: number;
+  weightKg?: number;
+  dimensionsCm?: {
+    width?: number;
+    height?: number;
+    length?: number;
+  };
+  isActive: boolean;
+  viewCount?: number;
+  soldCount?: number;
+  ratingAverage?: number;
+}
+
+export interface UpdateProductPayload {
+  data: ProductUpdateDTO;
+  addImages?: Array<{
+    imageUrl?: string;
+    imagePublicId?: string;
+    purpose?: string;
+    sortOrder?: number;
+  }>;
+  removeImagePublicIds?: string[];
+}
+
 export const updateProduct = async (
   id: number,
   data: UpdateProductRequest
 ): Promise<Product> => {
   try {
-    const response = await apiClient.patch(`/api/Product/${id}`, data);
+    // Load product hiện tại để lấy đầy đủ thông tin
+    const currentProduct = await getProductById(id);
+    
+    // Merge với data cần update
+    const updateData: ProductUpdateDTO = {
+      categoryId: currentProduct.categoryId,
+      vendorId: currentProduct.vendorId,
+      productCode: currentProduct.productCode,
+      productName: currentProduct.productName,
+      description: currentProduct.description,
+      unitPrice: data.unitPrice !== undefined ? data.unitPrice : currentProduct.unitPrice,
+      commissionRate: data.commissionRate !== undefined ? data.commissionRate : currentProduct.commissionRate,
+      discountPercentage: data.discountPercentage !== undefined ? data.discountPercentage : currentProduct.discountPercentage,
+      energyEfficiencyRating: currentProduct.energyEfficiencyRating,
+      specifications: currentProduct.specifications,
+      manualUrls: currentProduct.manualUrls,
+      publicUrl: currentProduct.publicUrl,
+      warrantyMonths: currentProduct.warrantyMonths,
+      stockQuantity: data.stockQuantity !== undefined ? data.stockQuantity : currentProduct.stockQuantity,
+      weightKg: currentProduct.weightKg,
+      dimensionsCm: currentProduct.dimensionsCm,
+      isActive: data.isActive !== undefined ? data.isActive : currentProduct.isActive,
+      viewCount: currentProduct.viewCount,
+      soldCount: currentProduct.soldCount,
+      ratingAverage: currentProduct.ratingAverage
+    };
+    
+    // Format payload theo API spec: { data: {...}, addImages: [], removeImagePublicIds: [] }
+    const payload: UpdateProductPayload = {
+      data: updateData,
+      addImages: [],
+      removeImagePublicIds: []
+    };
+    
+    const response = await apiClient.put(`/api/Product/${id}`, payload);
     
     let productData = null;
     
@@ -678,12 +805,37 @@ export const registerProduct = async (data: RegisterProductRequest): Promise<any
     if (data.energyEfficiencyRating !== undefined && data.energyEfficiencyRating !== null) {
       formData.append('Data.EnergyEfficiencyRating', data.energyEfficiencyRating.toString());
     }
-    
+
     // Add specifications as individual key-value pairs
+    // Backend nhận specifications dưới dạng các field riêng lẻ (không có prefix Data.Specifications[...])
+    // Ví dụ: -F 'Màu=Vàng' -F 'Năng suât=100 mã lực'
     if (data.specifications && Object.keys(data.specifications).length > 0) {
+      console.log('Sending specifications:', data.specifications);
+      
       Object.entries(data.specifications).forEach(([key, value]) => {
-        formData.append(`Data.Specifications[${key}]`, value);
+        // Đảm bảo key và value đều có giá trị hợp lệ
+        const trimmedKey = key ? String(key).trim() : '';
+        const trimmedValue = value ? String(value).trim() : '';
+        
+        // Chỉ gửi nếu cả key và value đều có giá trị hợp lệ
+        if (trimmedKey && trimmedValue) {
+          console.log(`Adding specification: ${trimmedKey} = ${trimmedValue}`);
+          // SỬA: Gửi key trực tiếp, không có prefix Data.Specifications[...]
+          formData.append(trimmedKey, trimmedValue);
+        } else {
+          console.warn(`Skipping invalid specification: key="${trimmedKey}", value="${trimmedValue}"`);
+        }
       });
+      
+      // Debug: Log số lượng specifications được gửi
+      const validSpecs = Object.entries(data.specifications).filter(([key, value]) => {
+        const trimmedKey = key ? String(key).trim() : '';
+        const trimmedValue = value ? String(value).trim() : '';
+        return trimmedKey && trimmedValue;
+      });
+      console.log(`Total valid specifications to send: ${validSpecs.length}`);
+    } else {
+      console.log('No specifications to send or specifications is empty');
     }
     
     if (data.warrantyMonths !== undefined) {

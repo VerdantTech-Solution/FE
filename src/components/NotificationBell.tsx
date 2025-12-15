@@ -78,35 +78,6 @@ export const NotificationBell = () => {
     }
   };
 
-  const getConnectionIndicatorColor = () => {
-    switch (connectionState) {
-      case CONNECTION_STATES.Connected:
-        return 'bg-green-500';
-      case CONNECTION_STATES.Connecting:
-      case CONNECTION_STATES.Reconnecting:
-        return 'bg-yellow-500';
-      case CONNECTION_STATES.Disconnected:
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-400';
-    }
-  };
-
-  const getConnectionIndicatorTitle = () => {
-    switch (connectionState) {
-      case CONNECTION_STATES.Connected:
-        return 'Đã kết nối';
-      case CONNECTION_STATES.Connecting:
-        return 'Đang kết nối...';
-      case CONNECTION_STATES.Reconnecting:
-        return 'Đang kết nối lại...';
-      case CONNECTION_STATES.Disconnected:
-        return 'Mất kết nối';
-      default:
-        return 'Không xác định';
-    }
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       <Button
@@ -121,10 +92,12 @@ export const NotificationBell = () => {
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
-        <span
-          className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${getConnectionIndicatorColor()}`}
-          title={getConnectionIndicatorTitle()}
-        />
+        {connectionState === CONNECTION_STATES.Connected && (
+          <span
+            className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500"
+            title="Đã kết nối"
+          />
+        )}
       </Button>
 
       {isOpen && (

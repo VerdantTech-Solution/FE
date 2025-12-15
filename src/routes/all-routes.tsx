@@ -1,5 +1,5 @@
 import { PATH_NAMES } from "@/constants";
-import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, PayOSCancelPage, PayOSReturnPage, TicketPage, ChatPage, ForumPage, ForumDetailPage } from "@/pages";
+import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, AdminPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, PayOSCancelPage, PayOSReturnPage, TicketPage, ChatPage, ForumPage, ForumDetailPage, TermsPage, PrivacyPolicyPage, RefundPolicyPage } from "@/pages";
 import OrderHistoryPage from "@/pages/OrderHistoryPage";
 import UpdateFarmPage from "@/pages/UpdateFarmPage";
 
@@ -27,4 +27,7 @@ export const allRoutes = [
   { path: PATH_NAMES.FORUM, component: <ForumPage /> },
   { path: `${PATH_NAMES.FORUM_DETAIL}/:id`, component: <ForumDetailPage /> },
   { path: '/chat', component: <ChatPage /> },
+  { path: PATH_NAMES.TERMS, component: <TermsPage /> },
+  { path: PATH_NAMES.PRIVACY, component: <PrivacyPolicyPage /> },
+  { path: PATH_NAMES.REFUND_POLICY, component: <RefundPolicyPage /> },
 ];

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { 
   Settings, 
   Zap, 
@@ -170,48 +169,6 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
 
   const specificationsList = categorizeSpecifications();
 
-  // Nhóm thông số theo category
-  const groupedSpecs = specificationsList.reduce((acc, spec) => {
-    if (!acc[spec.category]) {
-      acc[spec.category] = [];
-    }
-    acc[spec.category].push(spec);
-    return acc;
-  }, {} as Record<string, SpecificationItem[]>);
-
-  const getCategoryTitle = (category: string) => {
-    switch (category) {
-      case 'performance': return 'Hiệu suất & Công suất';
-      case 'physical': return 'Thông số vật lý';
-      case 'operational': return 'Vận hành & Điều khiển';
-      case 'safety': return 'An toàn & Bảo hành';
-      default: return 'Thông số khác';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'performance': return <Zap className="w-5 h-5 text-yellow-500" />;
-      case 'physical': return <Ruler className="w-5 h-5 text-blue-500" />;
-      case 'operational': return <Settings className="w-5 h-5 text-green-500" />;
-      case 'safety': return <Shield className="w-5 h-5 text-red-500" />;
-      default: return <Info className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  const getImportanceBadge = (importance: string) => {
-    switch (importance) {
-      case 'critical':
-        return <Badge variant="destructive" className="text-xs">Quan trọng</Badge>;
-      case 'important':
-        return <Badge variant="default" className="text-xs bg-orange-100 text-orange-800">Cần thiết</Badge>;
-      case 'standard':
-        return <Badge variant="secondary" className="text-xs">Thông tin</Badge>;
-      default:
-        return null;
-    }
-  };
-
   if (specificationsList.length === 0) {
     return (
       <Card className="w-full">
@@ -239,57 +196,28 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
           Thông số kỹ thuật
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {Object.entries(groupedSpecs).map(([category, specs]) => (
-          <div key={category} className="space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-              {getCategoryIcon(category)}
-              <h4 className="font-semibold text-gray-900">
-                {getCategoryTitle(category)}
-              </h4>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {specs.map((spec, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="text-gray-600">
-                      {spec.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {spec.key}
-                      </div>
-                      <div className="text-gray-600 text-sm">
-                        {spec.value}
-                      </div>
-                    </div>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {specificationsList.map((spec, index) => (
+            <div 
+              key={index} 
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <div className="text-gray-600">
+                  {spec.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 text-sm">
+                    {spec.key}
                   </div>
-                  <div className="ml-2">
-                    {getImportanceBadge(spec.importance)}
+                  <div className="text-gray-600 text-sm">
+                    {spec.value}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        ))}
-        
-        {/* Thông tin bổ sung */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <div className="flex items-start gap-2">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Lưu ý về thông số kỹ thuật:</p>
-              <ul className="space-y-1 text-xs">
-                <li>• <strong>Quan trọng:</strong> Thông số ảnh hưởng trực tiếp đến hiệu suất và khả năng hoạt động</li>
-                <li>• <strong>Cần thiết:</strong> Thông số quan trọng cho việc lựa chọn và sử dụng sản phẩm</li>
-                <li>• <strong>Thông tin:</strong> Thông số bổ sung giúp hiểu rõ hơn về sản phẩm</li>
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
       </CardContent>
     </Card>

@@ -37,7 +37,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { getOrderById, type OrderWithCustomer } from "@/api/order";
-import { getVendorBankAccounts, type VendorBankAccount } from "@/api/vendorbankaccounts";
+import { formatVietnamDateTime } from "@/lib/utils";
+import { getVendorBankAccounts, getSupportedBanks, type VendorBankAccount, type SupportedBank } from "@/api/vendorbankaccounts";
 import { processRefundRequest, type ProcessRefundRequestPayload } from "@/api/cashout";
 import { getExportedIdentityNumbersByOrderDetailId, type IdentityNumberItem } from "@/api/export";
 
@@ -64,17 +65,15 @@ const MACHINERY_CATEGORY_IDS = [24, 25, 28, 29];
 const requiresSerialForCategory = (categoryId?: number | null) =>
   Boolean(categoryId && MACHINERY_CATEGORY_IDS.includes(categoryId));
 
+// Kiểm tra xem sản phẩm có số seri trong exportedIdentityNumbers không
+const hasSerialNumbers = (exportedIdentityNumbers: IdentityNumberItem[]) =>
+  exportedIdentityNumbers.some((item) => item.serialNumber);
+
 const formatDateTime = (value?: string | null) => {
   if (!value) return "---";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "---";
-  return date.toLocaleString("vi-VN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatVietnamDateTime(value);
 };
 
 interface SupportTicketDetailDialogProps {
@@ -814,7 +813,7 @@ interface RefundDetailForm {
   maxQuantity: number;
   quantity: number;
   lotNumber: string;
-  serialNumber: string;
+  serialNumbers: string[]; // Mảng số seri, mỗi phần tử tương ứng với 1 sản phẩm
   include: boolean;
   requiresSerial: boolean;
   unitPrice: number;
@@ -847,8 +846,31 @@ const RefundProcessingPanel = ({
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isCustomRefundAmount, setIsCustomRefundAmount] = useState(false);
+  const [supportedBanks, setSupportedBanks] = useState<SupportedBank[]>([]);
+  const [isRefundSuccessDialogOpen, setIsRefundSuccessDialogOpen] = useState(false);
 
   const derivedOrderId = useMemo(() => extractOrderIdFromTicket(ticket), [ticket]);
+
+  // Helper function để tìm thông tin ngân hàng theo bankCode
+  const findBankInfo = useMemo(() => {
+    return (bankCode?: string | null): SupportedBank | null => {
+      if (!bankCode) return null;
+      return supportedBanks.find((bank) => bank.bin === bankCode || bank.code === bankCode) || null;
+    };
+  }, [supportedBanks]);
+
+  // Load danh sách ngân hàng được hỗ trợ
+  useEffect(() => {
+    const loadSupportedBanks = async () => {
+      try {
+        const banks = await getSupportedBanks();
+        setSupportedBanks(banks);
+      } catch (err) {
+        console.error('Error loading supported banks:', err);
+      }
+    };
+    loadSupportedBanks();
+  }, []);
 
   useEffect(() => {
     setOrderInfo(null);
@@ -910,7 +932,7 @@ const RefundProcessingPanel = ({
               maxQuantity: detail.quantity,
               quantity: 0,
               lotNumber: "",
-              serialNumber: "",
+              serialNumbers: [] as string[],
               include: false,
               requiresSerial: requiresSerialForCategory(detail.product.categoryId),
               unitPrice: detail.unitPrice,
@@ -933,10 +955,18 @@ const RefundProcessingPanel = ({
                 const identityNumbers = await getExportedIdentityNumbersByOrderDetailId(
                   form.orderDetailId
                 );
+                // Kiểm tra xem có số seri trong identityNumbers không
+                const hasSerialInExported = hasSerialNumbers(identityNumbers);
                 setDetailForms((prev) =>
                   prev.map((f) =>
                     f.orderDetailId === form.orderDetailId
-                      ? { ...f, exportedIdentityNumbers: identityNumbers, identityNumbersLoading: false }
+                      ? { 
+                          ...f, 
+                          exportedIdentityNumbers: identityNumbers, 
+                          identityNumbersLoading: false,
+                          // Nếu có số seri trong exportedIdentityNumbers, thì bắt buộc phải nhập số seri
+                          requiresSerial: f.requiresSerial || hasSerialInExported
+                        }
                       : f
                   )
                 );
@@ -979,17 +1009,22 @@ const RefundProcessingPanel = ({
 
   const handleDetailToggle = (detailId: number, include: boolean) => {
     setDetailForms((prev) =>
-      prev.map((detail) =>
-        detail.orderDetailId === detailId
-          ? {
-              ...detail,
-              include,
-              quantity: include
-                ? Math.min(detail.maxQuantity, detail.quantity > 0 ? detail.quantity : 1)
-                : 0,
-            }
-          : detail
-      )
+      prev.map((detail) => {
+        if (detail.orderDetailId !== detailId) return detail;
+        const newQuantity = include
+          ? Math.min(detail.maxQuantity, detail.quantity > 0 ? detail.quantity : 1)
+          : 0;
+        // Khởi tạo serialNumbers array với số lượng phần tử tương ứng với quantity
+        const newSerialNumbers = include
+          ? Array.from({ length: newQuantity }, () => "")
+          : [];
+        return {
+          ...detail,
+          include,
+          quantity: newQuantity,
+          serialNumbers: newSerialNumbers,
+        };
+      })
     );
     if (!include) {
       setIsCustomRefundAmount(false);
@@ -998,7 +1033,7 @@ const RefundProcessingPanel = ({
 
   const handleDetailFieldChange = (
     detailId: number,
-    field: keyof Pick<RefundDetailForm, "quantity" | "lotNumber" | "serialNumber">,
+    field: keyof Pick<RefundDetailForm, "quantity" | "lotNumber">,
     value: string
   ) => {
     setDetailForms((prev) =>
@@ -1009,7 +1044,18 @@ const RefundProcessingPanel = ({
             0,
             Math.min(detail.maxQuantity, Number.isNaN(Number(value)) ? 0 : Number(value))
           );
-          return { ...detail, quantity: parsed };
+          // Khi quantity thay đổi, điều chỉnh số lượng phần tử trong serialNumbers array
+          const newSerialNumbers = [...detail.serialNumbers];
+          if (parsed < newSerialNumbers.length) {
+            // Nếu giảm quantity, cắt bớt serial numbers
+            newSerialNumbers.splice(parsed);
+          } else if (parsed > newSerialNumbers.length) {
+            // Nếu tăng quantity, thêm empty strings để có đủ số lượng ô nhập
+            while (newSerialNumbers.length < parsed) {
+              newSerialNumbers.push("");
+            }
+          }
+          return { ...detail, quantity: parsed, serialNumbers: newSerialNumbers };
         }
         return { ...detail, [field]: value };
       })
@@ -1017,6 +1063,25 @@ const RefundProcessingPanel = ({
     if (field === "quantity") {
       setIsCustomRefundAmount(false);
     }
+  };
+
+  const handleSerialNumberChange = (detailId: number, index: number, value: string) => {
+    setDetailForms((prev) =>
+      prev.map((detail) => {
+        if (detail.orderDetailId !== detailId) return detail;
+        const newSerialNumbers = [...detail.serialNumbers];
+        newSerialNumbers[index] = value;
+        // Auto-set lot number if available
+        const serialNumbers = detail.exportedIdentityNumbers.filter((item) => item.serialNumber);
+        const selectedItem = serialNumbers.find((item) => item.serialNumber === value);
+        return {
+          ...detail,
+          serialNumbers: newSerialNumbers,
+          lotNumber: selectedItem?.lotNumber || detail.lotNumber,
+        };
+      })
+    );
+    setIsCustomRefundAmount(false);
   };
 
   const handleRestoreAutoAmount = () => {
@@ -1065,12 +1130,24 @@ const RefundProcessingPanel = ({
       if (!detail.lotNumber.trim()) {
         return `Vui lòng nhập số lô cho sản phẩm "${detail.productName}".`;
       }
-      if (detail.requiresSerial) {
-        if (!detail.serialNumber.trim()) {
-          return `Sản phẩm "${detail.productName}" yêu cầu số seri cho mỗi mục hoàn.`;
+      
+      // Kiểm tra xem sản phẩm có số seri trong exportedIdentityNumbers không
+      const hasSerialInExported = hasSerialNumbers(detail.exportedIdentityNumbers);
+      // Nếu có số seri trong exportedIdentityNumbers hoặc requiresSerial = true, thì bắt buộc phải nhập số seri
+      const mustHaveSerial = detail.requiresSerial || hasSerialInExported;
+      
+      if (mustHaveSerial) {
+        if (detail.serialNumbers.length !== detail.quantity) {
+          return `Sản phẩm "${detail.productName}" yêu cầu số lượng số seri phải bằng số lượng sản phẩm (${detail.quantity}).`;
         }
-        if (detail.quantity !== 1) {
-          return `Sản phẩm "${detail.productName}" yêu cầu số seri nên số lượng mỗi lần hoàn phải là 1.`;
+        // Kiểm tra không có serial number nào trống
+        if (detail.serialNumbers.some((sn) => !sn.trim())) {
+          return `Sản phẩm "${detail.productName}" có số seri trống. Vui lòng nhập đầy đủ số seri.`;
+        }
+        // Kiểm tra không có serial number nào trùng lặp
+        const uniqueSerials = new Set(detail.serialNumbers.filter((sn) => sn.trim()));
+        if (uniqueSerials.size !== detail.serialNumbers.filter((sn) => sn.trim()).length) {
+          return `Sản phẩm "${detail.productName}" có số seri trùng lặp. Vui lòng chọn các số seri khác nhau.`;
         }
       }
     }
@@ -1094,18 +1171,33 @@ const RefundProcessingPanel = ({
       refundAmount: Math.round(parsedRefundAmount),
       bankAccountId: selectedBankId!,
       gatewayPaymentId: refundMode === "manual" ? gatewayPaymentId.trim() : null,
-      orderDetails: selectedDetails.map((detail) => ({
-        orderDetailId: detail.orderDetailId,
-        identityNumbers: [
-          {
-            lotNumber: detail.lotNumber.trim(),
-            quantity: detail.quantity,
-            ...(detail.serialNumber.trim()
-              ? { serialNumber: detail.serialNumber.trim() }
-              : {}),
-          },
-        ],
-      })),
+      orderDetails: selectedDetails.map((detail) => {
+        // Kiểm tra xem sản phẩm có số seri trong exportedIdentityNumbers không
+        const hasSerialInExported = hasSerialNumbers(detail.exportedIdentityNumbers);
+        const mustHaveSerial = detail.requiresSerial || hasSerialInExported;
+        
+        // Nếu có serial numbers, tạo một identityNumber cho mỗi serial number (quantity = 1)
+        if (mustHaveSerial && detail.serialNumbers.length > 0) {
+          return {
+            orderDetailId: detail.orderDetailId,
+            identityNumbers: detail.serialNumbers.map((serialNumber) => ({
+              lotNumber: detail.lotNumber.trim(),
+              quantity: 1,
+              serialNumber: serialNumber.trim(),
+            })),
+          };
+        }
+        // Nếu không có serial numbers, tạo một identityNumber với quantity tổng
+        return {
+          orderDetailId: detail.orderDetailId,
+          identityNumbers: [
+            {
+              lotNumber: detail.lotNumber.trim(),
+              quantity: detail.quantity,
+            },
+          ],
+        };
+      }),
     };
 
     try {
@@ -1113,13 +1205,14 @@ const RefundProcessingPanel = ({
       if (response.status) {
         setSubmitSuccess(response.data || "Đã gửi yêu cầu hoàn tiền thành công.");
         setSubmitError("");
+        setIsRefundSuccessDialogOpen(true);
         setDetailForms((prev) =>
           prev.map((detail) => ({
             ...detail,
             include: false,
             quantity: 0,
             lotNumber: "",
-            serialNumber: "",
+            serialNumbers: [],
           }))
         );
         setRefundMode("payos");
@@ -1226,6 +1319,7 @@ const RefundProcessingPanel = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {bankAccounts.map((account) => {
               const isSelected = selectedBankId === account.id;
+              const bankInfo = findBankInfo(account.bankCode);
               return (
                 <button
                   key={account.id}
@@ -1238,23 +1332,36 @@ const RefundProcessingPanel = ({
                   } ${!account.isActive ? "opacity-60" : ""}`}
                   disabled={!account.isActive}
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {account.accountHolder || "Chủ tài khoản"}
-                    </p>
-                    {isSelected && (
-                      <span className="text-[10px] uppercase font-semibold text-emerald-700">
-                        Đang chọn
-                      </span>
+                  <div className="flex items-start gap-3">
+                    {bankInfo?.logo && (
+                      <div className="w-10 h-10 bg-gray-50 rounded-lg p-2 flex items-center justify-center flex-shrink-0 border border-gray-100">
+                        <img 
+                          src={bankInfo.logo} 
+                          alt={bankInfo.shortName || bankInfo.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        {isSelected && (
+                          <span className="text-[10px] uppercase font-semibold text-emerald-700">
+                            Đang chọn
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 font-medium">{account.accountNumber}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {bankInfo ? bankInfo.name : account.bankCode || "Không xác định"}
+                      </p>
+                      {!account.isActive && (
+                        <p className="text-[10px] text-red-600 mt-2">Tài khoản đã vô hiệu hóa</p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500">{account.accountNumber}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ngân hàng: {account.bankCode}
-                  </p>
-                  {!account.isActive && (
-                    <p className="text-[10px] text-red-600 mt-2">Tài khoản đã vô hiệu hóa</p>
-                  )}
                 </button>
               );
             })}
@@ -1436,7 +1543,7 @@ const RefundProcessingPanel = ({
                       );
                     })()}
                   </div>
-                  <div>
+                  <div className="md:col-span-3">
                     <Label>Số seri (nếu có)</Label>
                     {detail.identityNumbersLoading ? (
                       <div className="flex items-center gap-2 text-xs text-gray-500 h-11 border border-gray-200 rounded-md px-3">
@@ -1444,58 +1551,112 @@ const RefundProcessingPanel = ({
                         Đang tải...
                       </div>
                     ) : (() => {
-                      const serialNumbers = detail.exportedIdentityNumbers.filter(
+                      const availableSerialNumbers = detail.exportedIdentityNumbers.filter(
                         (item) => item.serialNumber
                       );
+                      // Filter theo lot number nếu đã chọn
+                      const filteredSerialNumbers = detail.lotNumber
+                        ? availableSerialNumbers.filter((item) => item.lotNumber === detail.lotNumber)
+                        : availableSerialNumbers;
 
-                      if (serialNumbers.length > 0) {
+                      // Kiểm tra xem sản phẩm có số seri trong exportedIdentityNumbers không
+                      const hasSerialInExported = hasSerialNumbers(detail.exportedIdentityNumbers);
+                      const mustHaveSerial = detail.requiresSerial || hasSerialInExported;
+                      
+                      // Luôn hiển thị khi quantity > 0 hoặc có serial numbers available hoặc bắt buộc phải có số seri
+                      if (detail.quantity > 0 || mustHaveSerial || filteredSerialNumbers.length > 0) {
+                        // Hiển thị số lượng ô nhập tương ứng với quantity
                         return (
-                          <Select
-                            value={detail.serialNumber}
-                            onValueChange={(value) => {
-                              // When selecting serial number, also set the lot number if available
-                              const selectedItem = serialNumbers.find(
-                                (item) => item.serialNumber === value
+                          <div className="space-y-2 mt-1">
+                            {detail.quantity > 0 ? Array.from({ length: detail.quantity }).map((_, index) => {
+                              // Lấy các số seri đã chọn ở các vị trí khác để loại trừ
+                              const selectedSerials = detail.serialNumbers.filter((_, i) => i !== index);
+                              const currentSerial = detail.serialNumbers[index];
+                              
+                              // Các số seri có thể chọn (không trùng với các số đã chọn ở vị trí khác)
+                              // Nhưng vẫn bao gồm số seri hiện tại đã chọn ở vị trí này
+                              const selectableSerials = filteredSerialNumbers.filter(
+                                (item) => {
+                                  const serialValue = item.serialNumber!;
+                                  // Bao gồm số seri hiện tại nếu đã chọn
+                                  if (currentSerial && serialValue === currentSerial) {
+                                    return true;
+                                  }
+                                  // Loại trừ các số seri đã chọn ở vị trí khác
+                                  return !selectedSerials.includes(serialValue);
+                                }
                               );
-                              setDetailForms((prev) =>
-                                prev.map((d) =>
-                                  d.orderDetailId === detail.orderDetailId
-                                    ? {
-                                        ...d,
-                                        serialNumber: value,
-                                        lotNumber: selectedItem?.lotNumber || d.lotNumber,
+
+                              return (
+                                <div key={index} className="flex items-center gap-2">
+                                  <Label className="text-xs text-gray-600 w-20 shrink-0">
+                                    Sản phẩm {index + 1}:
+                                  </Label>
+                                  {filteredSerialNumbers.length > 0 ? (
+                                    <Select
+                                      value={detail.serialNumbers[index] || ""}
+                                      onValueChange={(value) => {
+                                        handleSerialNumberChange(detail.orderDetailId, index, value);
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-10 flex-1">
+                                        <SelectValue placeholder="Chọn số seri" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {/* Hiển thị tất cả các số seri có thể chọn (đã loại trừ trùng lặp) */}
+                                        {selectableSerials.map((item, idx) => (
+                                          <SelectItem
+                                            key={`${item.serialNumber}-${idx}`}
+                                            value={item.serialNumber!}
+                                          >
+                                            {item.serialNumber}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      value={detail.serialNumbers[index] || ""}
+                                      onChange={(e) =>
+                                        handleSerialNumberChange(detail.orderDetailId, index, e.target.value)
                                       }
-                                    : d
-                                )
+                                      placeholder={(() => {
+                                        const hasSerialInExported = hasSerialNumbers(detail.exportedIdentityNumbers);
+                                        const mustHaveSerial = detail.requiresSerial || hasSerialInExported;
+                                        return mustHaveSerial ? "Bắt buộc" : "Không bắt buộc";
+                                      })()}
+                                      className="flex-1"
+                                    />
+                                  )}
+                                </div>
                               );
-                            }}
-                          >
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Chọn số seri" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {serialNumbers.map((item, index) => (
-                                <SelectItem
-                                  key={`${item.serialNumber}-${index}`}
-                                  value={item.serialNumber!}
-                                >
-                                  {item.serialNumber}
-                               
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            }) : null}
+                            {(() => {
+                              const hasSerialInExported = hasSerialNumbers(detail.exportedIdentityNumbers);
+                              const mustHaveSerial = detail.requiresSerial || hasSerialInExported;
+                              return mustHaveSerial && detail.serialNumbers.some((sn) => !sn.trim()) ? (
+                                <p className="text-xs text-amber-600">
+                                  Vui lòng chọn đầy đủ số seri cho tất cả sản phẩm.
+                                </p>
+                              ) : null;
+                            })()}
+                            {detail.lotNumber && filteredSerialNumbers.length === 0 && (
+                              <p className="text-xs text-gray-500">
+                                Không còn số seri nào khả dụng cho số lô "{detail.lotNumber}".
+                              </p>
+                            )}
+                          </div>
                         );
                       }
 
                       return (
                         <Input
-                          value={detail.serialNumber}
+                          value={detail.serialNumbers[0] || ""}
                           onChange={(e) =>
-                            handleDetailFieldChange(detail.orderDetailId, "serialNumber", e.target.value)
+                            handleSerialNumberChange(detail.orderDetailId, 0, e.target.value)
                           }
-                          placeholder={detail.requiresSerial ? "Bắt buộc với máy móc" : "Không bắt buộc"}
-                          disabled={!detail.requiresSerial}
+                          placeholder="Không bắt buộc"
+                          className="mt-1"
                         />
                       );
                     })()}
@@ -1538,6 +1699,41 @@ const RefundProcessingPanel = ({
           {submitting ? "Đang xử lý hoàn tiền..." : "Thực hiện hoàn tiền"}
         </Button>
       </div>
+
+      <AlertDialog
+        open={isRefundSuccessDialogOpen}
+        onOpenChange={(open) => {
+          setIsRefundSuccessDialogOpen(open);
+          if (!open) {
+            setSubmitSuccess("");
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center border border-green-100">
+              <CheckCircle className="w-7 h-7 text-green-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-center text-gray-900">
+              Thành công!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-gray-700">
+              Yêu cầu hoàn tiền đã được xử lý thành công. Chúng tôi sẽ phản hồi sớm nhất có thể.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                setIsRefundSuccessDialogOpen(false);
+                setSubmitSuccess("");
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white w-full rounded-md"
+            >
+              Đóng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

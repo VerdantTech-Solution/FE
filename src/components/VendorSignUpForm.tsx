@@ -110,7 +110,7 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
       const response = await signUpVendor(vendorData);
       console.log("✅ Vendor Signup API response:", response);
       
-      toast.success("Đăng ký vendor thành công! Tài khoản của bạn đang chờ xét duyệt.");
+      toast.success("Đăng ký làm nhà cung cấp thành công! Tài khoản của bạn đang chờ xét duyệt.");
       
       // Navigate to login or vendor dashboard
       if (onSuccess) {
@@ -122,7 +122,7 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
     } catch (error: unknown) {
       console.error("💥 Vendor sign up error:", error);
       
-      let errorMessage = "Đăng ký vendor thất bại. Vui lòng thử lại.";
+      let errorMessage = "Đăng ký làm nhà cung cấp thất bại. Vui lòng thử lại.";
       
       if (error && typeof error === 'object' && 'message' in error) {
         errorMessage = String(error.message);
@@ -437,7 +437,7 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
               Đang xử lý...
             </>
           ) : (
-            "Đăng ký làm Vendor"
+            "Đăng ký làm nhà cung cấp"
           )}
         </Button>
       </form>

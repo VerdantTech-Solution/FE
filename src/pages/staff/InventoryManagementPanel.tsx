@@ -21,7 +21,7 @@ import {
   X,
   Plus
 } from "lucide-react";
-//import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   getBatchInventories, 
   createBatchInventory,
@@ -40,10 +40,10 @@ import {
   type ProductSerial
 } from "@/api/inventory";
 import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
-import { getAllProducts, type Product } from "@/api/product";
+import { getAllProducts, getAllProductCategories, getProductRegistrations, type Product, type ProductCategory, type ProductRegistration } from "@/api/product";
 
 export const InventoryManagementPanel: React.FC = () => {
-  //const { user } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"import" | "export" | "history">("import");
   
   // Import states
@@ -78,6 +78,8 @@ export const InventoryManagementPanel: React.FC = () => {
   
   // Form states
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [productRegistrations, setProductRegistrations] = useState<ProductRegistration[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [_availableSerials,setAvailableSerials] = useState<ProductSerial[]>([]);
   const [_availableLotNumbers,setAvailableLotNumbers] = useState<string[]>([]);
@@ -86,13 +88,22 @@ export const InventoryManagementPanel: React.FC = () => {
   const [identityNumbersCache, setIdentityNumbersCache] = useState<Record<number, IdentityNumberItem[]>>({});
   const [identityNumbersLoading, setIdentityNumbersLoading] = useState<Record<number, boolean>>({});
   
-  // Import form
-  const [importForm, setImportForm] = useState<CreateBatchInventoryDTO>({
+  // Product search for import form
+  const [importProductSearchQuery, setImportProductSearchQuery] = useState("");
+  const [showImportProductSuggestions, setShowImportProductSuggestions] = useState(false);
+  
+  // Import form - extends CreateBatchInventoryDTO to include serialNumbers for UI
+  type ImportFormData = CreateBatchInventoryDTO & {
+    serialNumbers?: string[];
+  };
+  
+  const [importForm, setImportForm] = useState<ImportFormData>({
     productId: 0,
+    vendorId: undefined,
     sku: "",
     batchNumber: "",
     lotNumber: "",
-    quantity: 1,
+    quantity: 0,
     unitCostPrice: 0,
     qualityCheckStatus: "NotRequired",
     serialNumbers: [],
@@ -192,17 +203,23 @@ export const InventoryManagementPanel: React.FC = () => {
     });
   }, [exportFormItems, identityNumbersCache, identityNumbersLoading]);
 
-  // Fetch products
+  // Fetch products, categories, and product registrations
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getAllProducts({ page: 1, pageSize: 1000 });
-        setProducts(data);
+        const [productsData, categoriesData, registrationsData] = await Promise.all([
+          getAllProducts({ page: 1, pageSize: 1000 }),
+          getAllProductCategories(),
+          getProductRegistrations()
+        ]);
+        setProducts(productsData);
+        setCategories(categoriesData);
+        setProductRegistrations(registrationsData);
       } catch (err) {
-        console.error("Error fetching products:", err);
+        console.error("Error fetching data:", err);
       }
     };
-    fetchProducts();
+    fetchData();
   }, []);
 
   // Fetch import inventories
@@ -303,47 +320,141 @@ export const InventoryManagementPanel: React.FC = () => {
     }
   }, [activeTab, importPage, exportPage, exportMovementTypeFilter, exportFilterProductId, filterProductId, filterVendorId]);
 
-  // When product is selected for import, check if it needs serial numbers
+  // When product is selected for import, check if it needs serial numbers and auto-set vendorId
   useEffect(() => {
     if (importForm.productId > 0) {
       const product = products.find(p => p.id === importForm.productId);
       setSelectedProduct(product || null);
       
-      // Generate default SKU
-      if (product && !importForm.sku) {
-        const timestamp = Date.now();
-        setImportForm(prev => ({
-          ...prev,
-          sku: `SKU-${product.id}-${timestamp}`,
-        }));
+      // Tự động lấy vendorId từ Product (ưu tiên) hoặc ProductRegistration (fallback)
+      if (product) {
+        if (product.vendorId) {
+          // Lấy trực tiếp từ Product
+          setImportForm(prev => ({ 
+            ...prev, 
+            vendorId: product.vendorId 
+          }));
+        } else if (product.productCode) {
+          // Fallback: lấy từ ProductRegistration nếu Product không có vendorId
+          const registration = productRegistrations.find(
+            reg => reg.proposedProductCode === product.productCode && 
+                   reg.status === 'Approved'
+          );
+          
+          if (registration && registration.vendorId) {
+            setImportForm(prev => ({ 
+              ...prev, 
+              vendorId: registration.vendorId 
+            }));
+          } else {
+            // Nếu không tìm thấy, set về undefined
+            setImportForm(prev => ({ 
+              ...prev, 
+              vendorId: undefined 
+            }));
+          }
+        } else {
+          setImportForm(prev => ({ 
+            ...prev, 
+            vendorId: undefined 
+          }));
+        }
       }
     }
-  }, [importForm.productId, products]);
+  }, [importForm.productId, products, productRegistrations]);
 
   // Note: Các useEffect cho serials và lotNumbers sẽ được xử lý trong form khi chọn product cho từng item
 
   // Handle import form submit
   const handleImportSubmit = async () => {
-    if (!importForm.productId || !importForm.sku || !importForm.batchNumber || !importForm.lotNumber) {
+    if (!importForm.productId || !importForm.batchNumber || !importForm.lotNumber) {
       setError("Vui lòng điền đầy đủ thông tin bắt buộc");
       return;
     }
 
-    if (importForm.quantity <= 0) {
+    if (!importForm.quantity || importForm.quantity <= 0) {
       setError("Số lượng phải lớn hơn 0");
       return;
     }
 
-    if (importForm.unitCostPrice <= 0) {
+    if (!importForm.unitCostPrice || importForm.unitCostPrice <= 0) {
       setError("Giá vốn phải lớn hơn 0");
       return;
+    }
+
+    // Validate dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+
+    if (importForm.manufacturingDate) {
+      const manufacturingDate = new Date(importForm.manufacturingDate);
+      manufacturingDate.setHours(0, 0, 0, 0);
+      
+      if (manufacturingDate > today) {
+        setError("Ngày sản xuất không được sau ngày hôm nay");
+        return;
+      }
+    }
+
+    if (importForm.expiryDate) {
+      const expiryDate = new Date(importForm.expiryDate);
+      expiryDate.setHours(0, 0, 0, 0);
+      
+      if (expiryDate < today) {
+        setError("Hạn sử dụng không được trước ngày hôm nay");
+        return;
+      }
+      
+      // Nếu có cả ngày sản xuất và hạn sử dụng, kiểm tra hạn sử dụng phải sau ngày sản xuất
+      if (importForm.manufacturingDate) {
+        const manufacturingDate = new Date(importForm.manufacturingDate);
+        manufacturingDate.setHours(0, 0, 0, 0);
+        
+        if (expiryDate <= manufacturingDate) {
+          setError("Hạn sử dụng phải sau ngày sản xuất");
+          return;
+        }
+      }
+    }
+
+    // Validate serial numbers chỉ khi category yêu cầu serial
+    const product = products.find(p => p.id === importForm.productId);
+    let requiresSerial = false;
+    if (product && product.categoryId) {
+      const category = categories.find(c => c.id === product.categoryId);
+      requiresSerial = (category?.serialRequired === true) || (product.categoryId === 1 || product.categoryId === 2);
+    }
+    
+    if (requiresSerial) {
+      const serialNumbers = importForm.serialNumbers || [];
+      const validSerials = serialNumbers.filter(s => s.trim());
+      
+      if (validSerials.length === 0) {
+        setError("Sản phẩm này yêu cầu nhập số serial. Vui lòng nhập ít nhất một số serial");
+        return;
+      }
+      if (validSerials.length !== importForm.quantity) {
+        setError(`Số lượng serial đã nhập (${validSerials.length}) phải bằng số lượng sản phẩm (${importForm.quantity}). Vui lòng nhập đầy đủ ${importForm.quantity} số serial.`);
+        return;
+      }
+      
+      // Kiểm tra trùng lặp serial numbers
+      const duplicates = validSerials.filter((serial, index) => validSerials.indexOf(serial) !== index);
+      if (duplicates.length > 0) {
+        setError(`Có số serial bị trùng lặp: ${[...new Set(duplicates)].join(', ')}. Vui lòng nhập các số serial khác nhau.`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await createBatchInventory(importForm);
+      // Tạo batch inventory - backend tự động tạo product serials nếu có serialNumbers
+      console.log('Creating batch inventory with data:', importForm);
+      const batchInventory = await createBatchInventory(importForm);
+      console.log('Batch inventory created:', batchInventory);
+
       setSuccessMessage("Nhập hàng thành công!");
       setImportDialogOpen(false);
       resetImportForm();
@@ -448,6 +559,7 @@ export const InventoryManagementPanel: React.FC = () => {
   const resetImportForm = () => {
     setImportForm({
       productId: 0,
+      vendorId: undefined,
       sku: "",
       batchNumber: "",
       lotNumber: "",
@@ -457,6 +569,8 @@ export const InventoryManagementPanel: React.FC = () => {
       serialNumbers: [],
     });
     setSelectedProduct(null);
+    setImportProductSearchQuery("");
+    setShowImportProductSuggestions(false);
   };
 
   // Handle view detail
@@ -510,15 +624,38 @@ export const InventoryManagementPanel: React.FC = () => {
   const handleQualityCheckSubmit = async () => {
     if (!selectedInventory) return;
 
+    // Kiểm tra user ID
+    if (!user?.id) {
+      setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await qualityCheckBatchInventory(selectedInventory.id, qualityCheckForm);
+      // Gọi API với qualityCheckedByUserId theo đúng API spec
+      const updatedItem = await qualityCheckBatchInventory(selectedInventory.id, {
+        qualityCheckStatus: qualityCheckForm.qualityCheckStatus,
+        qualityCheckedByUserId: Number(user.id),
+        notes: qualityCheckForm.notes || undefined,
+      });
+      console.log('Quality check updated item:', updatedItem);
+      
+      // Update the item in the state immediately
+      if (updatedItem && updatedItem.id) {
+        setImportInventories(prev => 
+          prev.map(item => item.id === updatedItem.id ? updatedItem : item)
+        );
+      }
+      
       setSuccessMessage("Kiểm tra chất lượng thành công!");
       setQualityCheckDialogOpen(false);
       setSelectedInventory(null);
+      
+      // Refresh the list to ensure consistency
       fetchImportInventories();
+      
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
       console.error("Error quality checking:", err);
@@ -687,24 +824,10 @@ export const InventoryManagementPanel: React.FC = () => {
 
   return (
     <div className="w-full space-y-6">
-      {/* Success/Error Messages */}
+      {/* Success Messages */}
       {successMessage && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-green-700">{successMessage}</p>
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-red-600" />
-          <p className="text-red-700">{error}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setError(null)}
-            className="ml-auto"
-          >
-            Đóng
-          </Button>
         </div>
       )}
 
@@ -1275,36 +1398,101 @@ export const InventoryManagementPanel: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           
+          {/* Error Message - Hiển thị trong Dialog */}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <p className="text-red-700 flex-1">{error}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setError(null)}
+                className="ml-auto"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          
           <div className="space-y-4 py-4">
-            {/* Product Selection */}
+            {/* Product Selection with Search */}
             <div className="space-y-2">
               <Label htmlFor="import-product">Sản phẩm *</Label>
-              <Select
-                value={importForm.productId.toString()}
-                onValueChange={(v) => setImportForm(prev => ({ ...prev, productId: parseInt(v) }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn sản phẩm" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id.toString()}>
-                      {product.name} ({(product as any).code || product.productCode || `#${product.id}`})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* SKU */}
-            <div className="space-y-2">
-              <Label htmlFor="import-sku">SKU (Mã quản lý kho) *</Label>
-              <Input
-                id="import-sku"
-                value={importForm.sku}
-                onChange={(e) => setImportForm(prev => ({ ...prev, sku: e.target.value }))}
-                placeholder="SKU-001-2024"
-              />
+              <div className="relative">
+                <div className="relative">
+                  <Input
+                    id="import-product"
+                    placeholder="Tìm kiếm hoặc chọn sản phẩm..."
+                    value={importProductSearchQuery || (importForm.productId > 0 ? products.find(p => p.id === importForm.productId)?.name || products.find(p => p.id === importForm.productId)?.productName || `Sản phẩm #${importForm.productId}` : "")}
+                    onChange={(e) => {
+                      const query = e.target.value;
+                      setImportProductSearchQuery(query);
+                      setShowImportProductSuggestions(true);
+                      // Clear selection if user is typing
+                      if (query !== (products.find(p => p.id === importForm.productId)?.name || products.find(p => p.id === importForm.productId)?.productName || "")) {
+                        setImportForm(prev => ({ ...prev, productId: 0 }));
+                        setSelectedProduct(null);
+                      }
+                    }}
+                    onFocus={() => setShowImportProductSuggestions(true)}
+                    onBlur={() => {
+                      // Delay to allow click on suggestion
+                      setTimeout(() => setShowImportProductSuggestions(false), 200);
+                    }}
+                    className="w-full"
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                
+                {/* Product Suggestions Dropdown */}
+                {showImportProductSuggestions && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {(() => {
+                      const filteredProducts = products.filter((product) => {
+                        if (!importProductSearchQuery.trim()) return true;
+                        const query = importProductSearchQuery.toLowerCase();
+                        const productName = (product.name || product.productName || "").toLowerCase();
+                        const productCode = (product.productCode || (product as any).code || "").toLowerCase();
+                        const description = (product.description || "").toLowerCase();
+                        return productName.includes(query) || productCode.includes(query) || description.includes(query);
+                      });
+                      
+                      if (filteredProducts.length === 0) {
+                        return (
+                          <div className="p-3 text-sm text-gray-500 text-center">
+                            Không tìm thấy sản phẩm
+                          </div>
+                        );
+                      }
+                      
+                      return filteredProducts.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors"
+                          onClick={() => {
+                            setImportForm(prev => ({ ...prev, productId: product.id }));
+                            setSelectedProduct(product);
+                            setImportProductSearchQuery(product.name || product.productName || `Sản phẩm #${product.id}`);
+                            setShowImportProductSuggestions(false);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {product.name || product.productName || `Sản phẩm #${product.id}`}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(product as any).code || product.productCode || `#${product.id}`}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1339,21 +1527,55 @@ export const InventoryManagementPanel: React.FC = () => {
                   id="import-quantity"
                   type="number"
                   min="1"
-                  value={importForm.quantity}
-                  onChange={(e) => setImportForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                  step="1"
+                  value={importForm.quantity || ""}
+                  placeholder="Nhập số lượng"
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    const newQuantity = value > 0 ? value : 0;
+                    
+                    // Update serial numbers array khi quantity thay đổi
+                    const currentSerials = importForm.serialNumbers || [];
+                    let newSerials: string[] = currentSerials; // Mặc định giữ nguyên
+                    
+                    if (newQuantity > 0) {
+                      if (newQuantity > currentSerials.length) {
+                        // Tăng số lượng: giữ nguyên serials cũ, thêm empty strings
+                        newSerials = [...currentSerials, ...Array(newQuantity - currentSerials.length).fill('')];
+                      } else if (newQuantity < currentSerials.length) {
+                        // Giảm số lượng: cắt bớt serials (nhưng giữ lại các serial đã nhập)
+                        newSerials = currentSerials.slice(0, newQuantity);
+                      }
+                      // Nếu newQuantity === currentSerials.length, giữ nguyên
+                    }
+                    // Nếu newQuantity = 0, giữ nguyên serialNumbers (không reset)
+                    
+                    setImportForm(prev => ({ 
+                      ...prev, 
+                      quantity: newQuantity,
+                      serialNumbers: newSerials
+                    }));
+                  }}
                 />
               </div>
 
               {/* Unit Cost Price */}
               <div className="space-y-2">
-                <Label htmlFor="import-price">Giá vốn (VND) *</Label>
+                <Label htmlFor="import-price">Giá mỗi sản phẩm(VND) *</Label>
                 <Input
                   id="import-price"
                   type="number"
-                  min="0"
+                  min="0.01"
                   step="0.01"
-                  value={importForm.unitCostPrice}
-                  onChange={(e) => setImportForm(prev => ({ ...prev, unitCostPrice: parseFloat(e.target.value) || 0 }))}
+                  value={importForm.unitCostPrice || ""}
+                  placeholder="Nhập giá vốn"
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setImportForm(prev => ({ 
+                      ...prev, 
+                      unitCostPrice: value > 0 ? value : 0 
+                    }));
+                  }}
                 />
               </div>
             </div>
@@ -1365,8 +1587,23 @@ export const InventoryManagementPanel: React.FC = () => {
                 <Input
                   id="import-manufacturing"
                   type="date"
+                  max={new Date().toISOString().split('T')[0]} // Không được sau hôm nay
                   value={importForm.manufacturingDate || ""}
-                  onChange={(e) => setImportForm(prev => ({ ...prev, manufacturingDate: e.target.value || undefined }))}
+                  onChange={(e) => {
+                    const value = e.target.value || undefined;
+                    setImportForm(prev => {
+                      const updated = { ...prev, manufacturingDate: value };
+                      // Nếu hạn sử dụng đã được set và nhỏ hơn hoặc bằng ngày sản xuất mới, reset hạn sử dụng
+                      if (value && updated.expiryDate) {
+                        const manufacturingDate = new Date(value);
+                        const expiryDate = new Date(updated.expiryDate);
+                        if (expiryDate <= manufacturingDate) {
+                          updated.expiryDate = undefined;
+                        }
+                      }
+                      return updated;
+                    });
+                  }}
                 />
               </div>
 
@@ -1376,6 +1613,11 @@ export const InventoryManagementPanel: React.FC = () => {
                 <Input
                   id="import-expiry"
                   type="date"
+                  min={
+                    importForm.manufacturingDate 
+                      ? new Date(new Date(importForm.manufacturingDate).getTime() + 86400000).toISOString().split('T')[0] // Ngày sản xuất + 1 ngày
+                      : new Date().toISOString().split('T')[0] // Hoặc hôm nay (cho phép bằng hôm nay)
+                  }
                   value={importForm.expiryDate || ""}
                   onChange={(e) => setImportForm(prev => ({ ...prev, expiryDate: e.target.value || undefined }))}
                 />
@@ -1402,26 +1644,85 @@ export const InventoryManagementPanel: React.FC = () => {
               </p>
             </div>
 
-            {/* Serial Numbers (for machines) */}
-            {selectedProduct && isMachineProduct(selectedProduct.id) && (
-              <div className="space-y-2">
-                <Label htmlFor="import-serials">Số serial (mỗi dòng một số) *</Label>
-                <Textarea
-                  id="import-serials"
-                  placeholder="SN001&#10;SN002&#10;SN003"
-                  rows={5}
-                  value={importForm.serialNumbers?.join("\n") || ""}
-                  
-                  onChange={(e) => {
-                    const serials = e.target.value.split("\n").filter(s => s.trim());
-                    setImportForm(prev => ({ ...prev, serialNumbers: serials }));
-                  }}
-                />
-                <p className="text-xs text-gray-500">
-                  Nhập {importForm.quantity} số serial (mỗi dòng một số)
-                </p>
-              </div>
-            )}
+            {/* Serial Numbers - Chỉ hiển thị khi category có serialRequired = true hoặc categoryId 1,2 */}
+            {(() => {
+              const quantity = importForm.quantity || 0;
+              const hasProduct = importForm.productId > 0;
+              const product = selectedProduct || products.find(p => p.id === importForm.productId);
+              
+              // Kiểm tra category có yêu cầu serial không
+              let requiresSerial = false;
+              if (product && product.categoryId) {
+                const category = categories.find(c => c.id === product.categoryId);
+                // Kiểm tra serialRequired từ category hoặc categoryId 1,2 (máy móc)
+                requiresSerial = (category?.serialRequired === true) || (product.categoryId === 1 || product.categoryId === 2);
+              }
+              
+              // Hiển thị phần serial numbers khi đã chọn sản phẩm, số lượng > 0, và category yêu cầu serial
+              if (hasProduct && quantity > 0 && requiresSerial) {
+                // Đảm bảo mảng serialNumbers có đủ phần tử bằng số lượng
+                const currentSerials = importForm.serialNumbers || [];
+                const serials = Array.from({ length: quantity }, (_, i) => currentSerials[i] || '');
+                const filledCount = serials.filter(s => s.trim()).length;
+                const allFilled = filledCount === quantity;
+                
+                return (
+                  <div className="space-y-3 border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">Số serial cho từng sản phẩm *</Label>
+                      <span className={`text-xs font-medium ${
+                        allFilled ? 'text-green-600' : 'text-orange-600'
+                      }`}>
+                        Đã nhập: {filledCount} / {quantity}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                      {Array.from({ length: quantity }, (_, index) => {
+                        const serialValue = serials[index] || '';
+                        const isEmpty = !serialValue.trim();
+                        
+                        return (
+                          <div key={index} className="space-y-1">
+                            <Label htmlFor={`serial-${index}`} className="text-sm font-medium">
+                              Serial số {index + 1} *
+                            </Label>
+                            <Input
+                              id={`serial-${index}`}
+                              type="text"
+                              placeholder={`Nhập serial số ${index + 1} (VD: SN${String(index + 1).padStart(3, '0')})`}
+                              value={serialValue}
+                              onChange={(e) => {
+                                const newSerials = [...serials];
+                                newSerials[index] = e.target.value;
+                                setImportForm(prev => ({ 
+                                  ...prev, 
+                                  serialNumbers: newSerials
+                                }));
+                              }}
+                              className={isEmpty ? 'border-orange-300 focus:border-orange-500' : 'border-green-300 focus:border-green-500'}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">
+                        Vui lòng nhập số serial cho từng sản phẩm. Cần nhập đầy đủ <strong>{quantity} số serial</strong>.
+                      </p>
+                      {!allFilled && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          ⚠️ Vui lòng nhập đầy đủ {quantity} số serial cho tất cả sản phẩm. Còn thiếu {quantity - filledCount} số serial.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              
+              return null;
+            })()}
 
             {/* Notes */}
             <div className="space-y-2">

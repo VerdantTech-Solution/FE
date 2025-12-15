@@ -555,7 +555,7 @@ const UpdateFarmPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Form */}
           <Card className="w-full shadow-xl border-2 border-blue-100">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+            <CardHeader className=" from-blue-50 to-indigo-50">
               <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Crop className="h-6 w-6 text-blue-600" />
                 Thông tin trang trại
@@ -809,7 +809,7 @@ const UpdateFarmPage = () => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-xs font-medium text-gray-600">Nhóm cây trồng</Label>
+                          <Label className="text-xs font-medium text-gray-600">Nhóm rau củ</Label>
                           <Select
                             value={crop.cropType || 'RauAnLa'}
                             onValueChange={(value) => {
@@ -1084,7 +1084,7 @@ const UpdateFarmPage = () => {
 
           {/* Right Column - Map */}
           <Card className="w-full shadow-xl border-2 border-green-100">
-            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardHeader>
               <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 🗺️ Bản đồ & Đo diện tích
               </CardTitle>

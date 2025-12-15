@@ -11,12 +11,8 @@ import {
   Save,
   Edit,
   MapPin,
-  Phone,
-  Mail,
-  Building,
   Loader2,
   FileText,
-  Award,
   ExternalLink,
   CheckCircle
 } from 'lucide-react';
@@ -136,7 +132,7 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
       <Card>
         <CardContent className="p-6">
           <div className="text-center py-8">
-            <p className="text-gray-600">Không tìm thấy thông tin vendor</p>
+            <p className="text-gray-600">Không tìm thấy thông tin nhà cung cấp</p>
           </div>
         </CardContent>
       </Card>
@@ -225,6 +221,46 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
                 className="h-11"
               />
             </div>
+            {/* Chứng chỉ */}
+            {vendorData?.files && vendorData.files.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Chứng chỉ công ty
+                </Label>
+                <div className="space-y-2">
+                  {vendorData.files.map((file, index) => {
+                    const isPdf = file.imageUrl?.toLowerCase().includes('.pdf') || false;
+                    return (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">
+                            {isPdf ? 'PDF' : 'Hình ảnh'} - Chứng chỉ {index + 1}
+                          </span>
+                          {file.purpose && (
+                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                              {file.purpose}
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-8"
+                          onClick={() => window.open(file.imageUrl, '_blank')}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          {isPdf ? 'Mở PDF' : 'Xem'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <div className="space-y-5">
             <div className="space-y-2">
@@ -321,92 +357,6 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
   );
 };
 
-
-const CertificatesSection = ({ vendorData }: { vendorData: VendorProfileResponse | null }) => {
-  if (!vendorData || !vendorData.files || vendorData.files.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-500" />
-            Chứng chỉ
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium">Chưa có chứng chỉ nào</p>
-            <p className="text-sm text-gray-400 mt-1">Vui lòng tải lên chứng chỉ của công ty</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Award className="w-5 h-5 text-amber-500" />
-          Chứng chỉ ({vendorData.files.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {vendorData.files.map((file, index) => (
-            <div
-              key={file.id}
-              className="group relative border-2 border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-lg transition-all duration-200 bg-white"
-            >
-              {/* Image Preview */}
-              <div className="aspect-video w-full bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                <img
-                  src={file.imageUrl}
-                  alt={`Chứng chỉ ${index + 1}`}
-                  className="w-full h-full object-contain p-2"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Certificate';
-                  }}
-                />
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    onClick={() => window.open(file.imageUrl, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Xem chi tiết
-                  </Button>
-                </div>
-              </div>
-              
-              {/* File Info */}
-              <div className="p-4 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm font-semibold text-gray-900">
-                      Chứng chỉ {index + 1}
-                    </span>
-                  </div>
-                  {file.purpose && (
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                      {file.purpose}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">ID: {file.id}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 const VendorInfoPage = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -429,9 +379,9 @@ const VendorInfoPage = () => {
         const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id;
         const profile = await getVendorByUserId(userId);
         setVendorData(profile);
-      } catch (err: any) {
+      } catch (err: Error | unknown) {
         console.error('Error fetching vendor profile:', err);
-        setError(err?.message || 'Không thể tải thông tin vendor');
+        setError(err instanceof Error ? err.message : 'Không thể tải thông tin nhà cung cấp');
       } finally {
         setLoading(false);
       }
@@ -451,7 +401,7 @@ const VendorInfoPage = () => {
 
   const handleUpdateVendor = async (data: Partial<VendorProfileResponse>) => {
     if (!vendorData?.id) {
-      setUpdateError('Không tìm thấy ID vendor');
+      setUpdateError('Không tìm thấy ID nhà cung cấp');
       return;
     }
 
@@ -483,9 +433,9 @@ const VendorInfoPage = () => {
       setShowSuccessDialog(true);
       console.log('showSuccessDialog should be true now');
       
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
       console.error('Error updating vendor profile:', err);
-      setUpdateError(err?.message || 'Không thể cập nhật thông tin vendor');
+      setUpdateError(err instanceof Error ? err.message : 'Không thể cập nhật thông tin nhà cung cấp');
       
       // Ẩn thông báo lỗi sau 5 giây
       setTimeout(() => {
@@ -495,6 +445,7 @@ const VendorInfoPage = () => {
       setIsUpdating(false);
     }
   };
+  
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -507,7 +458,7 @@ const VendorInfoPage = () => {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Thông tin vendor</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Thông tin nhà cung cấp</h1>
               <p className="text-gray-600">Quản lý thông tin công ty và hồ sơ</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -517,7 +468,7 @@ const VendorInfoPage = () => {
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
                 <span className="text-sm font-medium text-gray-700">
-                  {vendorData?.companyName || user?.fullName || 'Vendor'}
+                  {vendorData?.companyName || user?.fullName || 'Nhà cung cấp'}
                 </span>
               </div>
               <Button 
@@ -559,7 +510,6 @@ const VendorInfoPage = () => {
                 console.log('Vendor data updated successfully');
               }}
             />
-            {vendorData && <CertificatesSection vendorData={vendorData} />}
           </div>
         </main>
       </div>
@@ -579,7 +529,7 @@ const VendorInfoPage = () => {
                 Cập nhật thành công!
               </AlertDialogTitle>
               <AlertDialogDescription className="text-center">
-                Thông tin vendor đã được cập nhật thành công. Các thay đổi đã được lưu vào hệ thống.
+                Thông tin nhà cung cấp đã được cập nhật thành công. Các thay đổi đã được lưu vào hệ thống.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

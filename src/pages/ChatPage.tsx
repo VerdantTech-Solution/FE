@@ -2,12 +2,22 @@ import { motion } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 import { Bot, User, Trash2, History, Send, Plus, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router';
-import { sendChatbotMessage } from '@/api/chatbot';
+import { 
+  sendChatbotMessage, 
+  getChatbotConversations, 
+  getChatbotMessages, 
+  createChatbotConversation, 
+  deleteChatbotConversation, // <-- added
+  type ChatbotConversation as BackendConversation,
+  type ChatbotMessage as BackendMessage,
+  normalizeChatbotMessage,
+} from '@/api/chatbot';
 import { parseProductsFromMessage } from '@/utils/parseChatProducts';
 import { ChatProductCarousel } from '@/components/ChatProductCarousel';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -25,38 +35,61 @@ interface Conversation {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Làm thế nào để đăng ký tài khoản?',
-  'Cách mua sản phẩm trên nền tảng?',
-  'Phương thức thanh toán nào được hỗ trợ?',
-  'Làm sao để trở thành nhà cung cấp?',
-  'Chính sách đổi trả như thế nào?',
-  'Cách theo dõi đơn hàng của tôi?',
-  'Phí vận chuyển được tính như thế nào?',
-  'Làm thế nào để liên hệ hỗ trợ?',
+  'Giới thiệu về nền tảng VerdantTech',
+  'Tôi muốn tư vấn canh tác bền vững',
+  'Tôi có thể liên hệ hỗ trợ như thế nào',
+  'Tôi muốn biết thêm về các chính sách của cửa hàng ? ',
+  'Phương thức thanh toán nào hiện đang được hỗ trợ?',
+ 
 ];
 
 const getWelcomeMessage = (): Message => ({
   id: '1',
-  text: 'Xin chào! Tôi là trợ lý AI của VerdantTech. Tôi có thể giúp gì cho bạn hôm nay?',
+  text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
   sender: 'ai',
   timestamp: new Date(),
 });
 
-// Load conversations from localStorage
-const loadConversations = (): Conversation[] => {
+// Helper function to validate Date objects
+const isValidDate = (date: any): date is Date => {
+  return date instanceof Date && !isNaN(date.getTime());
+};
+
+// Helper tạo key localStorage theo từng user
+const getStorageKeys = (userId?: number | string) => {
+  const key = userId ?? 'guest';
+  return {
+    conversationsKey: `chatAI_conversations_${key}`,
+    currentConversationIdKey: `chatAI_currentConversationId_${key}`,
+  };
+};
+
+// Load conversations từ localStorage (theo từng user)
+const loadConversations = (userId?: number | string): Conversation[] => {
+  const { conversationsKey } = getStorageKeys(userId);
   try {
-    const saved = localStorage.getItem('chatAI_conversations');
+    const saved = localStorage.getItem(conversationsKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return parsed.map((conv: any) => ({
-        ...conv,
-        messages: conv.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-        createdAt: new Date(conv.createdAt),
-        updatedAt: new Date(conv.updatedAt),
-      }));
+      return parsed.map((conv: any) => {
+        const createdAt = new Date(conv.createdAt);
+        const updatedAt = new Date(conv.updatedAt);
+        return {
+          ...conv,
+          messages: conv.messages.map((msg: any) => {
+            const timestamp = new Date(msg.timestamp);
+            return {
+              ...msg,
+              text: normalizeChatbotMessage(
+                msg.text || msg.messageText || msg.content || '',
+              ),
+              timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+            };
+          }),
+          createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+          updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+        };
+      });
     }
   } catch (error) {
     console.error('Error loading conversations:', error);
@@ -64,79 +97,268 @@ const loadConversations = (): Conversation[] => {
   return [];
 };
 
-// Save conversations to localStorage
-const saveConversations = (conversations: Conversation[]) => {
+// Save conversations to localStorage (theo từng user)
+const saveConversations = (conversations: Conversation[], userId?: number | string) => {
   try {
-    localStorage.setItem('chatAI_conversations', JSON.stringify(conversations));
+    const { conversationsKey } = getStorageKeys(userId);
+    localStorage.setItem(conversationsKey, JSON.stringify(conversations));
   } catch (error) {
     console.error('Error saving conversations:', error);
   }
 };
 
-// Get current conversation ID
-const getCurrentConversationId = (): string | null => {
-  return localStorage.getItem('chatAI_currentConversationId');
+// Get current conversation ID (theo từng user)
+const getCurrentConversationId = (userId?: number | string): string | null => {
+  const { currentConversationIdKey } = getStorageKeys(userId);
+  return localStorage.getItem(currentConversationIdKey);
 };
 
-// Set current conversation ID
-const setCurrentConversationId = (id: string | null) => {
+// Set current conversation ID (theo từng user)
+const setCurrentConversationId = (id: string | null, userId?: number | string) => {
+  const { currentConversationIdKey } = getStorageKeys(userId);
   if (id) {
-    localStorage.setItem('chatAI_currentConversationId', id);
+    localStorage.setItem(currentConversationIdKey, id);
   } else {
-    localStorage.removeItem('chatAI_currentConversationId');
+    localStorage.removeItem(currentConversationIdKey);
   }
 };
 
 export const ChatPage = () => {
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
-  const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(getCurrentConversationId());
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    loadConversations(user?.id),
+  );
+  const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(() =>
+    getCurrentConversationId(user?.id),
+  );
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState('');
+  const [_isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [_isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-resize textarea to fit content
+  const adjustTextareaHeight = (el?: HTMLTextAreaElement | null) => {
+    const ta = el ?? inputRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    const max = 300; // px
+    ta.style.height = Math.min(ta.scrollHeight, max) + 'px';
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputValue]);
 
   // Get current conversation
   const currentConversation = conversations.find(c => c.id === currentConversationId);
   const messages = currentConversation?.messages || [getWelcomeMessage()];
 
-  // Initialize with first conversation or create new one
+  // Load conversations from backend when user changes or on mount
   useEffect(() => {
-    if (conversations.length === 0) {
-      const newConversation: Conversation = {
-        id: Date.now().toString(),
-        title: 'Cuộc trò chuyện mới',
-        messages: [getWelcomeMessage()],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setConversations([newConversation]);
-      setCurrentConversationIdState(newConversation.id);
-      setCurrentConversationId(newConversation.id);
-    } else if (!currentConversationId) {
-      // If no current conversation, use the most recent one
-      const mostRecent = [...conversations].sort((a, b) => 
-        b.updatedAt.getTime() - a.updatedAt.getTime()
-      )[0];
-      setCurrentConversationIdState(mostRecent.id);
-      setCurrentConversationId(mostRecent.id);
-    }
-  }, []);
+    const loadConversationsFromBackend = async () => {
+      // Guest -> load local only
+      if (!user?.id) {
+        const loadedConversations = loadConversations(user?.id);
+        setConversations(loadedConversations);
+        const loadedCurrentId = getCurrentConversationId(user?.id);
+        if (loadedCurrentId && loadedConversations.find(c => c.id === loadedCurrentId)) {
+          setCurrentConversationIdState(loadedCurrentId);
+        }
+        return;
+      }
 
-  // Save conversations when they change
+      setIsLoadingConversations(true);
+      try {
+        // fetch backend conversations (page 1, large pageSize)
+        const resp = await getChatbotConversations(1, 100);
+        const backendItems = resp.items || [];
+
+        // load cached local conversations to preserve messages
+        const cachedConversations = loadConversations(user?.id);
+
+        const backendMapped: Conversation[] = backendItems.map((backendConv: BackendConversation) => {
+          const createdAt = new Date(backendConv.createdAt);
+          const updatedAt = new Date(backendConv.updatedAt);
+          const cachedConv = cachedConversations.find(c => c.id === backendConv.id.toString());
+          return {
+            id: backendConv.id.toString(),
+            title: backendConv.title || 'Cuộc trò chuyện',
+            messages: cachedConv?.messages || [],
+            createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+            updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+          };
+        });
+
+        // include any local-only conversations not present in backend
+        const localOnly = cachedConversations.filter(cached => !backendMapped.find(b => b.id === cached.id));
+        const allConversations = [...backendMapped, ...localOnly];
+
+        // sort by updatedAt desc
+        allConversations.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
+        setConversations(allConversations);
+
+        // set current conversation id
+        const loadedCurrentId = getCurrentConversationId(user?.id);
+        if (loadedCurrentId && allConversations.find(c => c.id === loadedCurrentId)) {
+          setCurrentConversationIdState(loadedCurrentId);
+        } else if (allConversations.length > 0) {
+          setCurrentConversationIdState(allConversations[0].id);
+          setCurrentConversationId(allConversations[0].id, user?.id);
+        } else {
+          // none -> empty state (welcome handled elsewhere)
+          setConversations([]);
+        }
+
+        // persist merged result
+        saveConversations(allConversations, user?.id);
+      } catch (error) {
+        console.error('Error loading conversations from backend:', error);
+        // fallback to local cache
+        const loadedConversations = loadConversations(user?.id);
+        setConversations(loadedConversations);
+        const loadedCurrentId = getCurrentConversationId(user?.id);
+        if (loadedCurrentId && loadedConversations.find(c => c.id === loadedCurrentId)) {
+          setCurrentConversationIdState(loadedCurrentId);
+        }
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    };
+
+    loadConversationsFromBackend();
+  }, [user?.id]);
+
+  // Load messages when conversation is selected
   useEffect(() => {
-    if (conversations.length > 0) {
-      saveConversations(conversations);
+    const loadMessagesForConversation = async () => {
+      if (!currentConversationId || !user?.id) {
+        return;
+      }
+
+      // Check if messages are already loaded
+      const conv = conversations.find(c => c.id === currentConversationId);
+      if (conv && conv.messages.length > 0) {
+        return; // Already loaded
+      }
+
+      // First, try to load from localStorage for immediate display
+      const loadedConversations = loadConversations(user?.id);
+      const localConv = loadedConversations.find(c => c.id === currentConversationId);
+      if (localConv && localConv.messages.length > 0) {
+        setConversations(prev => {
+          const updated = prev.map(c => 
+            c.id === currentConversationId 
+              ? { ...c, messages: localConv.messages }
+              : c
+          );
+          saveConversations(updated, user?.id);
+          return updated;
+        });
+      }
+
+      try {
+        setIsLoadingMessages(true);
+        const conversationIdNum = parseInt(currentConversationId);
+        if (isNaN(conversationIdNum)) {
+          // Local conversation, already loaded from localStorage above
+          return;
+        }
+
+        // Try to load from backend to get latest messages
+        const response = await getChatbotMessages(conversationIdNum, 1, 1000);
+        const backendMessages = response.items;
+
+        // Convert backend messages to local format
+        const localMessages: Message[] = backendMessages.map((msg: BackendMessage) => {
+          const timestamp = new Date(msg.createdAt);
+          return {
+            id: msg.id.toString(),
+            text: normalizeChatbotMessage(msg.messageText || msg.content || ''),
+            sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
+            timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+          };
+        });
+
+        // Update conversation with messages from backend (if available)
+        if (localMessages.length > 0) {
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: localMessages }
+                : c
+            );
+            // Save to localStorage immediately
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        } else if (!localConv || localConv.messages.length === 0) {
+          // No messages from backend and no local cache, show welcome
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: [getWelcomeMessage()] }
+                : c
+            );
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error('Error loading messages from backend:', error);
+        // Fallback to localStorage - try to load from cache first
+        const loadedConversations = loadConversations(user?.id);
+        const localConv = loadedConversations.find(c => c.id === currentConversationId);
+        if (localConv && localConv.messages.length > 0) {
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: localConv.messages }
+                : c
+            );
+            // Save to localStorage
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        } else {
+          // If no local cache, at least show welcome message
+          setConversations(prev => {
+            const updated = prev.map(c => 
+              c.id === currentConversationId 
+                ? { ...c, messages: [getWelcomeMessage()] }
+                : c
+            );
+            saveConversations(updated, user?.id);
+            return updated;
+          });
+        }
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    loadMessagesForConversation();
+  }, [currentConversationId, user?.id]);
+
+  // Save conversations to localStorage whenever they change
+  useEffect(() => {
+    if (conversations.length >= 0) {
+      saveConversations(conversations, user?.id);
     }
-  }, [conversations]);
+  }, [conversations, user?.id]);
 
   // Update current conversation ID in localStorage
   useEffect(() => {
-    setCurrentConversationId(currentConversationId);
-  }, [currentConversationId]);
+    if (currentConversationId) {
+      setCurrentConversationId(currentConversationId, user?.id);
+    }
+  }, [currentConversationId, user?.id]);
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
@@ -170,20 +392,58 @@ export const ChatPage = () => {
     updatedAt: new Date(),
   });
 
-  const handleCreateNewConversation = () => {
-    const newConversation = createConversation();
-    setConversations([newConversation, ...conversations]);
-    setCurrentConversationIdState(newConversation.id);
-    setCurrentConversationId(newConversation.id);
+  const handleCreateNewConversation = async () => {
+    if (user?.id) {
+      try {
+        const backendConv = await createChatbotConversation('Cuộc trò chuyện mới');
+        const createdAt = new Date(backendConv.createdAt);
+        const updatedAt = new Date(backendConv.updatedAt);
+        const newConversation: Conversation = {
+          id: backendConv.id.toString(),
+          title: backendConv.title,
+          messages: [getWelcomeMessage()],
+          createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+          updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+        };
+        setConversations([newConversation, ...conversations]);
+        setCurrentConversationIdState(newConversation.id);
+        setCurrentConversationId(newConversation.id, user?.id);
+      } catch (error) {
+        console.error('Error creating conversation on backend:', error);
+        // Fallback to local
+        const newConversation = createConversation();
+        setConversations([newConversation, ...conversations]);
+        setCurrentConversationIdState(newConversation.id);
+        setCurrentConversationId(newConversation.id, user?.id);
+      }
+    } else {
+      // Guest user, use local
+      const newConversation = createConversation();
+      setConversations([newConversation, ...conversations]);
+      setCurrentConversationIdState(newConversation.id);
+      setCurrentConversationId(newConversation.id, user?.id);
+    }
   };
 
   const handleSelectConversation = (id: string) => {
     setCurrentConversationIdState(id);
-    setCurrentConversationId(id);
+    setCurrentConversationId(id, user?.id);
   };
 
-  const handleDeleteConversation = (id: string, e: React.MouseEvent) => {
+  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // If this conversation exists on backend (numeric id) and user logged in, try delete there
+    const idNum = parseInt(id);
+    if (!isNaN(idNum) && user?.id) {
+      try {
+        await deleteChatbotConversation(idNum);
+      } catch (err) {
+        console.error('Error deleting conversation on backend, fallback to local remove:', err);
+        // continue to local removal so UI updates
+      }
+    }
+
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
     
@@ -193,12 +453,12 @@ export const ChatPage = () => {
           b.updatedAt.getTime() - a.updatedAt.getTime()
         )[0];
         setCurrentConversationIdState(mostRecent.id);
-        setCurrentConversationId(mostRecent.id);
+        setCurrentConversationId(mostRecent.id, user?.id);
       } else {
         const newConversation = createConversation();
         setConversations([newConversation]);
         setCurrentConversationIdState(newConversation.id);
-        setCurrentConversationId(newConversation.id);
+        setCurrentConversationId(newConversation.id, user?.id);
         return;
       }
     }
@@ -224,9 +484,33 @@ export const ChatPage = () => {
         : userMessage.text;
     }
 
-    setConversations(prev =>
-      prev.map(conv => {
-        if (conv.id === conversationId) {
+    // Create conversation on backend if it's a new local conversation
+    let backendConversationId: number | null = null;
+    const conversationIdNum = parseInt(conversationId);
+    if (isNaN(conversationIdNum) && user?.id) {
+      // Local conversation, create on backend
+      try {
+        const backendConv = await createChatbotConversation(newTitle);
+        backendConversationId = backendConv.id;
+        // Update conversation ID
+        setCurrentConversationIdState(backendConv.id.toString());
+        setCurrentConversationId(backendConv.id.toString(), user?.id);
+        // Update conversations list
+        setConversations(prev => prev.map(conv => 
+          conv.id === conversationId 
+            ? { ...conv, id: backendConv.id.toString(), title: newTitle }
+            : conv
+        ));
+      } catch (error) {
+        console.error('Error creating conversation on backend:', error);
+      }
+    } else {
+      backendConversationId = conversationIdNum;
+    }
+
+    setConversations(prev => {
+      const updated = prev.map(conv => {
+        if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
           return {
             ...conv,
             messages: [...conv.messages, userMessage],
@@ -235,14 +519,18 @@ export const ChatPage = () => {
           };
         }
         return conv;
-      }),
-    );
+      });
+      // Save to localStorage immediately
+      saveConversations(updated, user?.id);
+      return updated;
+    });
 
     setInputValue('');
     setIsTyping(true);
 
     try {
-      const aiText = await sendChatbotMessage(userMessage.text, conversationId);
+      const sessionId = backendConversationId?.toString() || conversationId;
+      const aiText = await sendChatbotMessage(userMessage.text, sessionId);
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: aiText,
@@ -250,9 +538,9 @@ export const ChatPage = () => {
         timestamp: new Date(),
       };
 
-      setConversations(prev =>
-        prev.map(conv => {
-          if (conv.id === conversationId) {
+      setConversations(prev => {
+        const updated = prev.map(conv => {
+          if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
             return {
               ...conv,
               messages: [...conv.messages, aiResponse],
@@ -260,8 +548,11 @@ export const ChatPage = () => {
             };
           }
           return conv;
-        }),
-      );
+        });
+        // Save to localStorage immediately
+        saveConversations(updated, user?.id);
+        return updated;
+      });
     } catch (error: any) {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -272,9 +563,9 @@ export const ChatPage = () => {
         timestamp: new Date(),
       };
 
-      setConversations(prev =>
-        prev.map(conv => {
-          if (conv.id === conversationId) {
+      setConversations(prev => {
+        const updated = prev.map(conv => {
+          if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
             return {
               ...conv,
               messages: [...conv.messages, aiResponse],
@@ -282,8 +573,11 @@ export const ChatPage = () => {
             };
           }
           return conv;
-        }),
-      );
+        });
+        // Save to localStorage immediately
+        saveConversations(updated, user?.id);
+        return updated;
+      });
     } finally {
       setIsTyping(false);
     }
@@ -296,7 +590,7 @@ export const ChatPage = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -332,6 +626,9 @@ export const ChatPage = () => {
   };
 
   const formatTime = (date: Date) => {
+    if (!isValidDate(date)) {
+      return '';
+    }
     return new Intl.DateTimeFormat('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -339,6 +636,9 @@ export const ChatPage = () => {
   };
 
   const formatDate = (date: Date) => {
+    if (!isValidDate(date)) {
+      return '';
+    }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -357,6 +657,9 @@ export const ChatPage = () => {
   };
 
   const formatConversationDate = (date: Date) => {
+    if (!isValidDate(date)) {
+      return '';
+    }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -489,9 +792,9 @@ export const ChatPage = () => {
                       onClick={handleStartEditTitle}
                       title="Click để đổi tên"
                     >
-                      {currentConversation?.title || 'Trợ lý AI VerdantTech'}
+                      {currentConversation?.title || 'Verdant AI'}
                     </h3>
-                    <p className="text-xs text-green-100">Thường phản hồi trong vài giây</p>
+                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
                   </div>
                 )}
               </div>
@@ -512,7 +815,7 @@ export const ChatPage = () => {
           {/* Messages Area */}
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4 min-h-0"
+            className="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-6 min-h-0"
           >
             {Object.entries(groupedMessages).map(([date, dateMessages]) => (
               <div key={date}>
@@ -537,7 +840,7 @@ export const ChatPage = () => {
                       key={message.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {message.sender === 'ai' && (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
@@ -547,8 +850,8 @@ export const ChatPage = () => {
                       <div
                         className={`${
                           message.sender === 'user'
-                            ? 'max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                            : 'w-full max-w-full'
+                            ? 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line'
+                            : 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line'
                         }`}
                       >
                         {message.sender === 'ai' && products.length > 0 ? (
@@ -568,19 +871,9 @@ export const ChatPage = () => {
                             </p>
                           </div>
                         ) : (
-                          <div
-                            className={`rounded-2xl px-4 py-2 ${
-                              message.sender === 'user'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                                : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-line">{message.text}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                              }`}
-                            >
+                          <div>
+                            <p className="text-sm whitespace-pre-line break-words">{message.text}</p>
+                            <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-green-100' : 'text-gray-500'}`}>
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
@@ -601,7 +894,7 @@ export const ChatPage = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex gap-2 justify-start"
+                className="flex gap-4 justify-start"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
                   <Bot className="w-5 h-5 text-white" />
@@ -659,22 +952,24 @@ export const ChatPage = () => {
 
           {/* Input Area */}
           <div className="p-4 bg-white border-t border-gray-200 rounded-b-lg">
-            <div className="flex gap-2">
-              <Input
+            <div className="flex gap-2 items-end">
+              <textarea
                 ref={inputRef}
+                rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onInput={() => adjustTextareaHeight()}
+                onKeyDown={handleKeyPress}
                 placeholder="Nhập câu hỏi của bạn..."
-                className="flex-1"
+                className="flex-1 resize-none bg-white p-3 rounded-md border border-gray-200 outline-none max-h-[300px] leading-5"
                 disabled={isTyping || !currentConversationId}
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isTyping || !currentConversationId}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                className="h-10 w-10 p-0 rounded-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 text-white" />
               </Button>
             </div>
             {messages.length > 1 && (

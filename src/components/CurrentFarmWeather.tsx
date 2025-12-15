@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ThermometerSun, Droplets, Wind, Gauge, CloudRain, Sun, Sunrise, GaugeCircle } from "lucide-react";
-import { getCurrentWeather, type CurrentWeatherData } from "@/api";
+import { type CurrentWeatherData } from "@/api";
+import { formatVietnamDateTime, formatVietnamTime } from "@/lib/utils";
+import { getCachedCurrentWeather } from "@/services/weatherCache";
 
 type StatCardProps = {
   title: string;
@@ -37,7 +39,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
         setLoading(true);
         setError(null);
         console.log(`CurrentFarmWeather: Fetching data for farm ID: ${farmId}`);
-        const res = await getCurrentWeather(farmId);
+        const res = await getCachedCurrentWeather(farmId, setCurrentWeather);
         console.log('CurrentFarmWeather: Received data:', res);
         setCurrentWeather(res);
       } catch (err) {
@@ -91,7 +93,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between text-gray-700">
         {currentWeather?.time && (
-          <div className="text-xs">{new Date(currentWeather.time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+          <div className="text-xs">{formatVietnamDateTime(currentWeather.time)}</div>
         )}
       </div>
 
@@ -141,7 +143,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
         />
         <StatCard
           title="Thời Gian"
-          value={currentWeather?.time ? new Date(currentWeather.time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '-'}
+          value={currentWeather?.time ? formatVietnamTime(currentWeather.time) : '-'}
           subtitle="Thời điểm đo"
           icon={<Sunrise className="h-4 w-4" />}
         />
