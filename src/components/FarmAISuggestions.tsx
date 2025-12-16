@@ -136,7 +136,7 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
             className="w-full sm:w-auto"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Ai gợi ý nông nghiệp
+            AI gợi ý canh tác
           </Button>
         </CardHeader>
         {(!hasRequested || !farmId || lastUpdated) && (
