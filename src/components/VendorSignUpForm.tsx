@@ -8,6 +8,7 @@ import { useNavigate } from "react-router";
 import { User, Mail, Phone, Lock, Eye, EyeOff, Building2, FileText, MapPin, X } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { toast } from "sonner";
+import { VendorTermsSection } from "./VendorTermsSection";
 
 interface VendorSignUpFormProps {
   onSuccess?: () => void;
@@ -34,6 +35,7 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [certifications, setCertifications] = useState<Array<{ name: string; code: string; files: File[] }>>([]);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const navigate = useNavigate();
 
@@ -79,6 +81,12 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
     // Validate required fields
     if (!formData.email || !formData.password || !formData.companyName || !formData.businessRegistrationNumber) {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc!");
+      return;
+    }
+    
+    // Validate terms acceptance
+    if (!acceptedTerms) {
+      toast.error("Vui lòng đọc và đồng ý với các điều khoản để tiếp tục!");
       return;
     }
     
@@ -429,8 +437,19 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
           ))}
         </div>
 
+        {/* Vendor Terms Section */}
+        <VendorTermsSection
+          accepted={acceptedTerms}
+          onAcceptChange={setAcceptedTerms}
+        />
+
         {/* Submit Button */}
-        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
+        <Button 
+          type="submit" 
+          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" 
+          disabled={isLoading || !acceptedTerms}
+          title={!acceptedTerms ? "Vui lòng đồng ý với điều khoản để tiếp tục" : ""}
+        >
           {isLoading ? (
             <>
               <Spinner className="mr-2 h-4 w-4" />
