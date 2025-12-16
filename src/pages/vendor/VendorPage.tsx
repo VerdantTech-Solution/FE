@@ -3,6 +3,7 @@ import RegistrationManagementPage from './RegistrationManagementPage';
 import WalletPage from './WalletPage';
 import VendorInfoPage from './VendorInfoPage';
 import RegisterProductPage from './RegisterProductPage';
+import RegisterProductByExcelPage from './RegisterProductByExcelPage';
 import CashoutRequestManagementPage from './CashoutRequestManagementPage';
 import CashoutHistoryPage from './CashoutHistoryPage';
 import { Route, Routes as RRDRoutes, Navigate } from 'react-router';
@@ -14,6 +15,7 @@ const VendorPage = () => {
       <Route path="dashboard" element={<VendorDashboard />} />
       <Route path="registrations" element={<RegistrationManagementPage />} />
       <Route path="registrations/new" element={<RegisterProductPage />} />
+      <Route path="registrations/new-excel" element={<RegisterProductByExcelPage />} />
       <Route path="wallet" element={<WalletPage />} />
       <Route path="cashout-requests" element={<CashoutRequestManagementPage />} />
       <Route path="cashout-history" element={<CashoutHistoryPage />} />
