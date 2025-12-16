@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2, ArrowLeft, Package } from "lucide-react";
-import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product, getAllProductCategories } from "@/api/product";
+import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product } from "@/api/product";
 import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
 import { ProductDetailDialog } from "./components/ProductDetailDialog";
 import { getProductUnitById } from "@/lib/productUnitMapper";
