@@ -24,6 +24,7 @@ import { AIAdvisoryDialog } from "@/components/AIAdvisoryDialog";
 import { getFarmProfileById, type FarmProfile } from "@/api/farm";
 import { getSurveyResponsesByFarmId, type SurveyResponseItem } from "@/api/survey";
 import { getSoilDataByFarmId, type SoilData } from "@/api/co2";
+import { getCurrentWeather, type CurrentWeatherData } from "@/api/weather";
 import { formatVietnamDate, formatVietnamDateTime } from "@/lib/utils";
 import {
   getAdvisoryHistoryByFarmId,
@@ -99,6 +100,8 @@ const FarmDetailPage = () => {
   const [loadingSurvey, setLoadingSurvey] = useState<boolean>(false);
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [loadingSoil, setLoadingSoil] = useState<boolean>(false);
+  const [weatherData, setWeatherData] = useState<CurrentWeatherData | null>(null);
+  const [loadingWeather, setLoadingWeather] = useState<boolean>(false);
   const [showSurveyDialog, setShowSurveyDialog] = useState<boolean>(false);
   const [showAIAdvisoryDialog, setShowAIAdvisoryDialog] = useState<boolean>(false);
   const [aiAdvisoryHistory, setAiAdvisoryHistory] = useState<AIAdvisoryHistoryItem[]>([]);
@@ -154,6 +157,23 @@ const FarmDetailPage = () => {
       }
     };
     fetchSoilData();
+  }, [id]);
+
+  // Fetch weather data để lấy soil temperature
+  useEffect(() => {
+    const fetchWeatherData = async () => {
+      if (!id) return;
+      try {
+        setLoadingWeather(true);
+        const data = await getCurrentWeather(Number(id));
+        setWeatherData(data);
+      } catch (e) {
+        console.error("Không thể tải dữ liệu thời tiết:", e);
+      } finally {
+        setLoadingWeather(false);
+      }
+    };
+    fetchWeatherData();
   }, [id]);
 
   // Load lịch sử AI advisory
@@ -457,13 +477,31 @@ const FarmDetailPage = () => {
                   <CardTitle className="text-lg">Dữ Liệu Đất</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loadingSoil ? (
+                  {loadingSoil || loadingWeather ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                       <span className="ml-2 text-sm text-gray-600">Đang tải dữ liệu đất...</span>
                     </div>
                   ) : soilData ? (
                     <div className="space-y-4">
+                      {/* Hiển thị nhiệt độ đất hiện tại (màu dịu hơn) */}
+                      {weatherData?.soilTemperature !== undefined && (
+                        <div className="p-4 rounded-lg bg-emerald-50/40 border-emerald-200/60">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-1.5 h-12 rounded-full bg-emerald-400/70" aria-hidden />
+                              <div>
+                                <div className="text-xs font-semibold text-emerald-700/800 uppercase tracking-wide mb-1">🌡️ Nhiệt độ</div>
+                                <div className="text-2xl font-semibold text-emerald-700/800">{weatherData.soilTemperature.toFixed(1)}°C</div>
+                              </div>
+                            </div>
+                            <div className="text-right space-y-1">
+                              <div className="text-xs text-gray-500">Cập nhật lúc</div>
+                              <div className="text-sm text-gray-600">{weatherData.time ? new Date(weatherData.time).toLocaleTimeString('vi-VN') : 'N/A'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {/* 3 lớp đất: 0-5cm, 5-15cm, 15-30cm */}
                       {[
                         { label: "Độ sâu 0–5 cm", index: 0 },
