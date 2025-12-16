@@ -454,7 +454,7 @@ const FarmDetailPage = () => {
               {/* Thông tin đất */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Thông Tin Đất</CardTitle>
+                  <CardTitle className="text-lg">Dữ Liệu Đất</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {loadingSoil ? (
@@ -466,9 +466,9 @@ const FarmDetailPage = () => {
                     <div className="space-y-4">
                       {/* 3 lớp đất: 0-5cm, 5-15cm, 15-30cm */}
                       {[
-                        { label: "Lớp 0-5cm", index: 0 },
-                        { label: "Lớp 5-15cm", index: 1 },
-                        { label: "Lớp 15-30cm", index: 2 },
+                        { label: "Độ sâu 0–5 cm", index: 0 },
+                        { label: "Độ sâu 5-15cm", index: 1 },
+                        { label: "Độ sâu 15-30cm", index: 2 },
                       ].map((layer) => (
                         <div key={layer.index} className="p-4 border border-gray-200 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50">
                           <div className="text-sm font-semibold text-gray-900 mb-3">{layer.label}</div>
