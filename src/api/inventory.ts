@@ -1,4 +1,5 @@
-import { apiClient } from './apiClient';
+import { apiClient, API_BASE_URL } from './apiClient';
+import axios from 'axios';
 
 // =====================================================
 // BATCH INVENTORY (Nhập hàng) - Types & Interfaces
@@ -888,6 +889,70 @@ export const getAvailableProductSerials = async (
     return response.data || response || [];
   } catch (error) {
     console.error('Get available product serials error:', error);
+    throw error;
+  }
+};
+
+// =====================================================
+// EXCEL IMPORT APIs
+// =====================================================
+
+export interface BatchInventoryImportResponseDTO {
+  totalRows: number;
+  successfulCount: number;
+  failedCount: number;
+  results: BatchInventoryImportRowResultDTO[];
+}
+
+export interface BatchInventoryImportRowResultDTO {
+  rowNumber: number;
+  isSuccess: boolean;
+  batchInventoryId?: number;
+  batchNumber?: string;
+  errorMessage?: string;
+}
+
+// Import Batch Inventories from Excel
+export const importBatchInventoriesFromExcel = async (
+  file: File
+): Promise<BatchInventoryImportResponseDTO> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post('/api/BatchInventory/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  // Handle APIResponse wrapper if exists
+  if (response && typeof response === 'object' && 'data' in response) {
+    return (response as any).data;
+  }
+
+  return response as BatchInventoryImportResponseDTO;
+};
+
+// Download Excel Template for Batch Inventory
+export const downloadBatchInventoryTemplate = async (): Promise<void> => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/BatchInventory/import/template`, {
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'BatchInventory_Import_Template.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading template:', error);
     throw error;
   }
 };

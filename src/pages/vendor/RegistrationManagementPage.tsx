@@ -17,7 +17,8 @@ import {
   Star,
   AlertCircle,
   FileText,
-  Package
+  Package,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -583,7 +584,14 @@ const RegistrationManagementPage = () => {
                 onClick={handleRegisterNewProduct}
               >
                 <Plus size={20} className="mr-2" />
-                Đăng ký sản phẩm mới
+                Đăng ký sản phẩm thủ công
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => navigate('/vendor/registrations/new-excel')}
+              >
+                <FileSpreadsheet size={20} className="mr-2" />
+                Đăng ký bằng Excel
               </Button>
               <Button variant="ghost" size="sm" className="p-2">
                 <Bell size={20} />

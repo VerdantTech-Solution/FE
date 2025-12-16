@@ -19,7 +19,10 @@ import {
   CheckCircle,
   AlertCircle,
   X,
-  Plus
+  Plus,
+  FileSpreadsheet,
+  Download,
+  Upload
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
@@ -37,10 +40,14 @@ import {
   type ExportInventory,
   type CreateBatchInventoryDTO,
   type CreateExportInventoryDTO,
-  type ProductSerial
+  type ProductSerial,
+  importBatchInventoriesFromExcel,
+  downloadBatchInventoryTemplate,
+  type BatchInventoryImportResponseDTO
 } from "@/api/inventory";
 import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
 import { getAllProducts, getAllProductCategories, getProductRegistrations, type Product, type ProductCategory, type ProductRegistration } from "@/api/product";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const InventoryManagementPanel: React.FC = () => {
   const { user } = useAuth();
@@ -135,6 +142,12 @@ export const InventoryManagementPanel: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Excel Import states
+  const [excelImportDialogOpen, setExcelImportDialogOpen] = useState(false);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<BatchInventoryImportResponseDTO | null>(null);
 
   const getProductPrimaryImage = (product?: ExportInventory['product'] | Product | null) => {
     if (!product) return '';
@@ -822,6 +835,45 @@ export const InventoryManagementPanel: React.FC = () => {
     return product && (product.categoryId === 1 || product.categoryId === 2);
   };
 
+  // Excel Import handlers
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadBatchInventoryTemplate();
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      alert('Có lỗi xảy ra khi tải template. Vui lòng thử lại.');
+    }
+  };
+
+  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+        alert('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
+        return;
+      }
+      setExcelFile(file);
+      setImportResult(null);
+    }
+  };
+
+  const handleImportExcel = async () => {
+    if (!excelFile) return;
+
+    setImporting(true);
+    try {
+      const result = await importBatchInventoriesFromExcel(excelFile);
+      setImportResult(result);
+      // Refresh inventory list
+      await fetchImportInventories();
+    } catch (error: any) {
+      console.error('Error importing Excel:', error);
+      alert(error?.response?.data?.error || error?.message || 'Có lỗi xảy ra khi import Excel');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       {/* Success Messages */}
@@ -830,6 +882,55 @@ export const InventoryManagementPanel: React.FC = () => {
           <p className="text-green-700">{successMessage}</p>
         </div>
       )}
+
+      {/* Excel Import Section */}
+      <div className="mb-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="h-6 w-6 text-blue-600" />
+                <h3 className="text-lg font-semibold">Nhập kho bằng Excel</h3>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadTemplate}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Tải template
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => setExcelImportDialogOpen(true)}
+                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload Excel
+                </Button>
+              </div>
+            </div>
+            
+            {/* Note/Guide Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-2">Hướng dẫn sử dụng:</h4>
+                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    <li>Tải file template Excel để xem định dạng dữ liệu</li>
+                    <li>Điền thông tin nhập kho vào file Excel theo template</li>
+                    <li>Đối với sản phẩm yêu cầu serial, nhập danh sách serial numbers trong cột SerialNumbers (phân cách bằng dấu phẩy)</li>
+                    <li>Upload file Excel để import nhiều lô hàng cùng lúc</li>
+                    <li>File Excel tối đa 1000 dòng mỗi lần import</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -2273,6 +2374,121 @@ export const InventoryManagementPanel: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Excel Import Dialog */}
+      <Dialog open={excelImportDialogOpen} onOpenChange={setExcelImportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import nhập kho từ Excel</DialogTitle>
+            <DialogDescription>
+              Upload file Excel để import nhiều lô hàng cùng lúc
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="excel-file">Chọn file Excel</Label>
+              <Input
+                id="excel-file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelFileChange}
+                className="mt-2"
+              />
+              {excelFile && (
+                <p className="text-sm text-gray-600 mt-2">Đã chọn: {excelFile.name}</p>
+              )}
+            </div>
+
+            {importResult && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600">Tổng số dòng</p>
+                    <p className="text-2xl font-bold text-blue-600">{importResult.totalRows}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600">Thành công</p>
+                    <p className="text-2xl font-bold text-green-600">{importResult.successfulCount}</p>
+                  </div>
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600">Thất bại</p>
+                    <p className="text-2xl font-bold text-red-600">{importResult.failedCount}</p>
+                  </div>
+                </div>
+
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Dòng</TableHead>
+                        <TableHead>Số lô</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Lỗi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importResult.results.map((result, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{result.rowNumber}</TableCell>
+                          <TableCell>{result.batchNumber || '-'}</TableCell>
+                          <TableCell>
+                            {result.isSuccess ? (
+                              <span className="text-green-600 flex items-center gap-1">
+                                <CheckCircle className="h-4 w-4" />
+                                Thành công
+                              </span>
+                            ) : (
+                              <span className="text-red-600 flex items-center gap-1">
+                                <X className="h-4 w-4" />
+                                Thất bại
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {result.errorMessage && (
+                              <span className="text-sm text-red-600">{result.errorMessage}</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setExcelImportDialogOpen(false);
+                  setExcelFile(null);
+                  setImportResult(null);
+                }}
+              >
+                Đóng
+              </Button>
+              <Button
+                onClick={handleImportExcel}
+                disabled={!excelFile || importing}
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Đang import...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

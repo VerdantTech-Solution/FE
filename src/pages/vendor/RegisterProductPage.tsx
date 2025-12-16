@@ -13,9 +13,12 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, ArrowLeft, ArrowRight, Package, FileText, Plus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { registerProduct, getAllProductCategories } from "@/api/product";
+import { 
+  registerProduct, 
+  getAllProductCategories
+} from "@/api/product";
 import type { RegisterProductRequest, ProductCategory } from "@/api/product";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
@@ -67,6 +70,7 @@ export const RegisterProductPage = () => {
   const [certificates, setCertificates] = useState<CertificateItem[]>([
     { code: '', name: '', file: null }
   ]);
+
 
   const steps = [
     "Thông tin sản phẩm",
@@ -479,6 +483,7 @@ export const RegisterProductPage = () => {
     navigate('/vendor/registrations');
   };
 
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -495,10 +500,8 @@ export const RegisterProductPage = () => {
               <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl mb-4 shadow-lg">
                 <Package className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Thông tin sản phẩm</h3>
-              <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                Nhập đầy đủ thông tin về sản phẩm bạn muốn đăng ký
-              </p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Đăng ký sản phẩm thủ công</h2>
+              <p className="text-gray-600">Điền thông tin sản phẩm để đăng ký</p>
             </div>
 
             <div className="space-y-6">
@@ -876,9 +879,6 @@ export const RegisterProductPage = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-                    <Upload className="w-4 h-4 text-emerald-600" />
-                  </div>
                   <h4 className="text-lg font-semibold text-gray-800">Thông tin chứng nhận sản phẩm</h4>
                 </div>
                 <Button
@@ -947,10 +947,6 @@ export const RegisterProductPage = () => {
                               className="h-8 cursor-pointer w-full justify-start"
                               asChild
                             >
-                              <span>
-                                <Upload size={16} className="mr-1" />
-                                {cert.file ? cert.file.name : 'Choose File'}
-                              </span>
                             </Button>
                             <input
                               type="file"
@@ -1209,6 +1205,7 @@ export const RegisterProductPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </motion.div>
   );
 };
