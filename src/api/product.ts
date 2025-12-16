@@ -1554,7 +1554,8 @@ export const importProductRegistrationsFromExcel = async (
     return (response as any).data as ProductRegistrationImportResponseDTO;
   }
 
-  return response as ProductRegistrationImportResponseDTO;
+  // Cast qua unknown để tránh lỗi TypeScript khi apiClient interceptor đã unwrap data
+  return response as unknown as ProductRegistrationImportResponseDTO;
 };
 
 // Download Excel Template for Product Registration
