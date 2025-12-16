@@ -1548,7 +1548,14 @@ export const importProductRegistrationsFromExcel = async (
     },
   });
 
-  return response.data as ProductRegistrationImportResponseDTO;
+  // apiClient interceptor đã unwrap AxiosResponse nên response ở đây thường là dữ liệu thực tế
+  // Tuy nhiên, để an toàn nếu backend bọc thêm APIResponse { data: ... } thì vẫn xử lý được.
+  if (response && typeof response === 'object' && 'data' in (response as any)) {
+    return (response as any).data as ProductRegistrationImportResponseDTO;
+  }
+
+  // Cast qua unknown để tránh lỗi TypeScript khi apiClient interceptor đã unwrap data
+  return response as unknown as ProductRegistrationImportResponseDTO;
 };
 
 // Download Excel Template for Product Registration

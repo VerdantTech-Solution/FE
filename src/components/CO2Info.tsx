@@ -289,12 +289,12 @@ const CO2Info: React.FC = () => {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button variant="default">
-                {records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Thêm CO2 Footprint'}
+                {records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Tạo bản ghi'}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Thêm CO2 Footprint cho trang trại'}</DialogTitle>
+              <DialogTitle>{records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Bản ghi CO2 Footprint cho trang trại'}</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -410,7 +410,7 @@ const CO2Info: React.FC = () => {
                   <span className="text-sm text-gray-600">{submitMessage}</span>
                 )}
                 <Button onClick={handleCreateFootprint} disabled={submitting}>
-                  {submitting ? 'Đang tạo...' : 'Lưu CO2 Footprint'}
+                  {submitting ? 'Đang tạo...' : 'Lưu bản ghi'}
                 </Button>
               </div>
             </DialogFooter>

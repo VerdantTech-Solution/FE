@@ -166,7 +166,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
           return (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-gray-700 text-sm">
-                <span>Độ ẩm đất (0-1cm)</span>
+                <span>Độ sâu (0-1cm)</span>
                 <span className="font-semibold text-gray-900">{topSoil}%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -174,7 +174,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
               </div>
 
               <div className="flex items-center justify-between text-gray-700 text-sm mt-3">
-                <span>Độ ẩm đất (3-9cm)</span>
+                <span>Độ sâu (3-9cm)</span>
                 <span className="font-semibold text-gray-900">{deepSoil}%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-800 overflow-hidden">

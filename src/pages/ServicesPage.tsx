@@ -84,15 +84,7 @@ const ServicesPage = () => {
             style={{ fontFamily: 'Playfair Display, serif' }}
             whileHover={{ scale: 1.05 }}
           >
-            Dịch Vụ
           </motion.h1>
-          <motion.button
-            className="text-green-600 font-semibold hover:text-green-700 transition-colors duration-300 text-sm sm:text-base"
-            whileHover={{ x: 5 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Xem tất cả
-          </motion.button>
         </motion.div>
 
         {/* Main Title */}
@@ -104,7 +96,7 @@ const ServicesPage = () => {
             className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 leading-tight"
             style={{ fontFamily: 'Playfair Display, serif' }}
           >
-            Dịch Vụ Tiên Tiến Cho Nông Nghiệp Hiệu Quả
+           Hỗ Trợ Canh Tác Rau Củ Bền Vững
           </h2>
         </motion.div>
 
@@ -114,9 +106,13 @@ const ServicesPage = () => {
           variants={itemVariants}
         >
           <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
-            Chúng tôi cung cấp một bộ dịch vụ nông nghiệp đầy đủ được thiết kế để trao quyền cho nông dân với những đổi mới mới nhất và thực hành bền vững. 
-            Từ các kỹ thuật canh tác chính xác giúp tối đa hóa năng suất cây trồng đến các giải pháp thân thiện với môi trường bảo vệ hành tinh của chúng ta, 
-            các dịch vụ toàn diện của chúng tôi được điều chỉnh để đáp ứng nhu cầu riêng biệt của mọi trang trại.
+            VerdantTech cung cấp các chức năng hỗ trợ canh tác rau củ theo
+            định hướng nông nghiệp xanh bền vững thông qua việc ứng dụng
+            trí tuệ nhân tạo (AI).
+
+            Nền tảng cho phép người dùng quản lý thông tin trang trại,
+            nhập dữ liệu canh tác và nhận các khuyến nghị từ AI nhằm
+            nâng cao hiệu quả sản xuất và giảm tác động đến môi trường.
           </p>
         </motion.div>
 
@@ -165,11 +161,13 @@ const ServicesPage = () => {
                   className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
-                  Tăng Năng Suất Rau Củ Với Chất Lượng Tốt Nhất
+                  Hỗ Trợ Tối Ưu Năng Suất Rau Củ
                 </h3>
                 
                 <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4 sm:mb-6">
-                  Tại VerdantTech, chúng tôi cam kết giúp bạn đạt được năng suất cây trồng cao nhất thông qua các dịch vụ nông nghiệp toàn diện và đổi mới.
+                  Nền tảng hỗ trợ phân tích dữ liệu canh tác do người dùng cung cấp,
+                  từ đó AI đưa ra các khuyến nghị giúp tối ưu năng suất rau củ
+                  theo hướng bền vững.
                 </p>
 
                 <motion.button
@@ -263,11 +261,14 @@ const ServicesPage = () => {
                   className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight"
                   style={{ fontFamily: 'Playfair Display, serif' }}
                 >
-                  Tích Hợp Công Nghệ
+                  Ứng Dụng AI Trong Canh Tác Rau Củ
                 </h3>
                 
                 <p className="text-sm sm:text-base text-gray-900 leading-relaxed mb-4 sm:mb-6">
-                  Tại VerdantTech, chúng tôi chuyên tích hợp liền mạch các công nghệ tiên tiến vào hoạt động nông nghiệp để tối ưu hóa hiệu quả và năng suất.
+                  VerdantTech ứng dụng trí tuệ nhân tạo (AI) để phân tích thông tin
+                  canh tác và điều kiện môi trường do người dùng nhập,
+                  từ đó hỗ trợ định hướng canh tác rau củ phù hợp
+                  với từng quy mô trang trại.
                 </p>
 
                 <motion.button
