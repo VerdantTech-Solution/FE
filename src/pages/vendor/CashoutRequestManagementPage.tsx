@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import { 
   FileText,
   Building2,
@@ -175,12 +176,19 @@ const CashoutRequestManagementPage = () => {
     return (
       <div className="flex h-screen bg-gray-50">
         <VendorSidebar />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex flex-col">
+          <VendorHeader
+            title="Quản lý yêu cầu rút tiền"
+            subtitle="Xem và theo dõi trạng thái yêu cầu rút tiền của bạn"
+            showNotification={false}
+          />
+          <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="flex justify-center mb-6">
           <Spinner variant="circle-filled" size={60} className="text-green-600" />
         </div>
             <p className="text-gray-600">Đang tải thông tin yêu cầu rút tiền...</p>
+          </div>
           </div>
         </div>
       </div>
@@ -192,13 +200,11 @@ const CashoutRequestManagementPage = () => {
       <VendorSidebar />
       
       <div className="flex-1 overflow-y-auto">
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Quản lý yêu cầu rút tiền</h1>
-              <p className="text-gray-600 mt-1">Xem và theo dõi trạng thái yêu cầu rút tiền của bạn</p>
-            </div>
+        <VendorHeader
+          title="Quản lý yêu cầu rút tiền"
+          subtitle="Xem và theo dõi trạng thái yêu cầu rút tiền của bạn"
+          showNotification={false}
+          rightContent={
             <div className="flex items-center gap-3">
               {cashoutRequest && (cashoutRequest.status === 'Pending' || cashoutRequest.status === 'Processing') && (
                 <Button 
@@ -223,7 +229,9 @@ const CashoutRequestManagementPage = () => {
                 Làm mới
               </Button>
             </div>
-          </div>
+          }
+        />
+        <div className="p-8">
 
           {/* Error Message */}
           {error && (

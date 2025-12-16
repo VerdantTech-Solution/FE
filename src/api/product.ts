@@ -510,6 +510,69 @@ export const getProductsByCategory = async (
   }
 };
 
+// API lấy danh sách sản phẩm theo Vendor (có phân trang)
+export const getProductsByVendor = async (
+  vendorId: number,
+  params: PaginationParams = { page: 1, pageSize: 20 }
+): Promise<PaginatedResponse<Product>> => {
+  try {
+    const { page = 1, pageSize = 20 } = params;
+    const response = await apiClient.get(`/api/Product/vendor/${vendorId}`, {
+      params: { page, pageSize }
+    });
+
+    // apiClient interceptor đã unwrap response.data
+    let pagedResponse: PaginatedResponse<any> | null = null;
+
+    // Trường hợp response là APIResponse có data
+    if (response && typeof response === 'object' && 'status' in response && 'data' in response) {
+      const apiResponse = response as unknown as { status: boolean; data: any; errors?: string[] };
+      if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
+        pagedResponse = apiResponse.data as PaginatedResponse<any>;
+      }
+    }
+    // Trường hợp response là PagedResponse trực tiếp
+    else if (response && typeof response === 'object' && 'data' in response && 'currentPage' in response) {
+      pagedResponse = response as PaginatedResponse<any>;
+    }
+
+    if (pagedResponse && Array.isArray(pagedResponse.data)) {
+      const products = pagedResponse.data.map(transformProductData);
+      return {
+        ...pagedResponse,
+        data: products
+      };
+    }
+
+    // Fallback: response là array trực tiếp
+    if (Array.isArray(response)) {
+      const products = response.map(transformProductData);
+      return {
+        data: products,
+        currentPage: page,
+        pageSize: pageSize,
+        totalPages: 1,
+        totalRecords: products.length,
+        hasNextPage: false,
+        hasPreviousPage: false
+      };
+    }
+
+    return {
+      data: [],
+      currentPage: page,
+      pageSize: pageSize,
+      totalPages: 0,
+      totalRecords: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
+  } catch (error) {
+    console.error('Get products by vendor error:', error);
+    throw error;
+  }
+};
+
 // API lấy tất cả sản phẩm (có phân trang)
 export const getAllProducts = async (
   params: PaginationParams = { page: 1, pageSize: 100 }
@@ -757,6 +820,221 @@ export const updateProductCommission = async (
       throw new Error(error.errors[0]);
     }
     throw new Error('Không thể cập nhật hoa hồng. Vui lòng thử lại.');
+  }
+};
+
+// Interface cho payload tạo yêu cầu cập nhật sản phẩm (ProductUpdateRequest)
+export interface ProductUpdateRequestPayload {
+  productId: number;
+  productCode?: string | null;
+  productName?: string | null;
+  description?: string | null;
+  unitPrice?: number | null;
+  discountPercentage?: number | null;
+  energyEfficiencyRating?: number | null;
+  specifications?: Record<string, string> | null;
+  manualFile?: File | null;
+  warrantyMonths?: number | null;
+  weightKg?: number | null;
+  dimensionsCm?: {
+    width?: number | null;
+    height?: number | null;
+    length?: number | null;
+  } | null;
+  imagesToAdd?: (File | string)[] | null;
+  imagesToDelete?: number[] | null;
+}
+
+// Interface cho yêu cầu cập nhật sản phẩm (staff view)
+export interface ProductUpdateRequest {
+  id: number;
+  productId: number;
+  productSnapshot?: any;
+  productCode?: string;
+  productName?: string;
+  vendorId?: number;
+  status?: 'Pending' | 'Approved' | 'Rejected' | string;
+  createdAt?: string;
+  updatedAt?: string;
+  processedAt?: string | null;
+  processedByUser?: any;
+  [key: string]: any;
+}
+
+export interface ProcessProductUpdateRequestPayload {
+  status: 'Approved' | 'Rejected';
+  rejectionReason?: string | null;
+}
+
+export interface ProductUpdateRequestQuery {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  vendorId?: number;
+}
+
+export interface ProductUpdateRequestResponse {
+  data: ProductUpdateRequest[];
+  totalRecords: number;
+  currentPage?: number;
+  pageSize?: number;
+}
+
+// API lấy danh sách yêu cầu cập nhật sản phẩm (staff)
+export const getProductUpdateRequests = async (
+  params: ProductUpdateRequestQuery = { page: 1, pageSize: 20 }
+): Promise<ProductUpdateRequestResponse> => {
+  const { page = 1, pageSize = 20, status, vendorId } = params;
+  try {
+    const response = await apiClient.get('/api/ProductUpdateRequest', {
+      params: { page, pageSize, status, vendorId }
+    });
+
+    // apiClient đã unwrap response.data; có thể là:
+    // 1) APIResponse { status, data, errors }
+    // 2) PagedResponse { data, totalRecords, currentPage, pageSize }
+    // 3) Array trực tiếp
+    let items: ProductUpdateRequest[] = [];
+    let totalRecords = 0;
+    let currentPage = page;
+    let size = pageSize;
+
+    if (Array.isArray(response)) {
+      items = response as ProductUpdateRequest[];
+      totalRecords = items.length;
+    } else if (response && typeof response === 'object') {
+      // Nếu là APIResponse bọc data
+      if ('data' in response && response.data) {
+        const dataField = (response as any).data;
+        if (Array.isArray(dataField)) {
+          items = dataField as ProductUpdateRequest[];
+          totalRecords = (response as any).totalRecords || items.length;
+        } else if (
+          dataField &&
+          typeof dataField === 'object' &&
+          'data' in dataField &&
+          Array.isArray(dataField.data)
+        ) {
+          items = dataField.data as ProductUpdateRequest[];
+          totalRecords = dataField.totalRecords || items.length;
+          currentPage = dataField.currentPage || currentPage;
+          size = dataField.pageSize || size;
+        }
+      } else if ('data' in response && Array.isArray((response as any).data)) {
+        items = (response as any).data as ProductUpdateRequest[];
+        totalRecords = (response as any).totalRecords || items.length;
+      }
+    }
+
+    return {
+      data: items,
+      totalRecords,
+      currentPage,
+      pageSize: size
+    };
+  } catch (error) {
+    console.error('Get product update requests error:', error);
+    throw error;
+  }
+};
+
+// API duyệt / từ chối yêu cầu cập nhật sản phẩm
+export const processProductUpdateRequest = async (
+  requestId: number,
+  payload: ProcessProductUpdateRequestPayload
+): Promise<any> => {
+  try {
+    const response = await apiClient.patch(`/api/ProductUpdateRequest/${requestId}`, payload, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return response;
+  } catch (error) {
+    console.error('Process product update request error:', error);
+    throw error;
+  }
+};
+
+// API tạo yêu cầu cập nhật sản phẩm (ProductUpdateRequest)
+export const createProductUpdateRequest = async (payload: ProductUpdateRequestPayload): Promise<any> => {
+  const formData = new FormData();
+
+  // Helper: chỉ append khi có giá trị (BE không chấp nhận 'null' string)
+  const appendIfDefined = (key: string, value: any) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+    formData.append(key, value as any);
+  };
+
+  // ProductId bắt buộc
+  formData.append('ProductId', String(payload.productId));
+
+  appendIfDefined('ProductCode', payload.productCode ?? undefined);
+  appendIfDefined('ProductName', payload.productName ?? undefined);
+  appendIfDefined('Description', payload.description ?? undefined);
+  appendIfDefined('UnitPrice', payload.unitPrice);
+  appendIfDefined('DiscountPercentage', payload.discountPercentage);
+  appendIfDefined('EnergyEfficiencyRating', payload.energyEfficiencyRating);
+
+  // Specifications: gửi JSON string nếu có
+  if (payload.specifications && Object.keys(payload.specifications).length > 0) {
+    appendIfDefined('Specifications', JSON.stringify(payload.specifications));
+  }
+
+  appendIfDefined('WarrantyMonths', payload.warrantyMonths);
+  appendIfDefined('WeightKg', payload.weightKg);
+
+  // Dimensions: chuẩn hóa sang Dictionary<string, decimal> và bỏ các giá trị null
+  if (payload.dimensionsCm) {
+    const dim: Record<string, number> = {};
+    const { width, height, length } = payload.dimensionsCm;
+
+    if (width != null && !Number.isNaN(width)) {
+      dim.Width = width;
+    }
+    if (height != null && !Number.isNaN(height)) {
+      dim.Height = height;
+    }
+    if (length != null && !Number.isNaN(length)) {
+      dim.Length = length;
+    }
+
+    if (Object.keys(dim).length > 0) {
+      appendIfDefined('DimensionsCm', JSON.stringify(dim));
+    }
+  }
+
+  // Manual file: chỉ gửi khi chọn file
+  if (payload.manualFile instanceof File) {
+    formData.append('ManualFile', payload.manualFile);
+  }
+
+  // ImagesToAdd: gửi từng item nếu có
+  if (Array.isArray(payload.imagesToAdd) && payload.imagesToAdd.length > 0) {
+    payload.imagesToAdd.forEach((img) => {
+      if (img instanceof File) {
+        formData.append('ImagesToAdd', img);
+      } else {
+        formData.append('ImagesToAdd', img);
+      }
+    });
+  }
+
+  // ImagesToDelete: gửi từng id nếu có
+  if (Array.isArray(payload.imagesToDelete) && payload.imagesToDelete.length > 0) {
+    payload.imagesToDelete.forEach((id) => formData.append('ImagesToDelete', String(id)));
+  }
+
+  try {
+    const response = await apiClient.post('/api/ProductUpdateRequest', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response;
+  } catch (error) {
+    console.error('Create product update request error:', error);
+    throw error;
   }
 };
 

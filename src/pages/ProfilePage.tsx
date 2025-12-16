@@ -2,10 +2,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, LogOut, Edit, Key, Trash2 } from "lucide-react";
+import { User, Mail, Phone, LogOut, Edit, Key, Trash2, Plus } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
-import { getUserProfile, createUserAddress, updateUserAddress, deleteUserAddress, type UserAddress, type CreateAddressRequest } from "@/api/user";
+import { getUserProfile, createUserAddress, updateUserAddress, deleteUserAddress, updateUser as updateUserAPI, type UserAddress, type CreateAddressRequest } from "@/api/user";
+import { toast } from "sonner";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AvatarUpload } from "@/components/AvatarUpload";
@@ -94,6 +95,9 @@ export const ProfilePage = () => {
   const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
   const [deleteAddressDialogOpen, setDeleteAddressDialogOpen] = useState(false);
   const [pendingDeleteAddress, setPendingDeleteAddress] = useState<UserAddress | null>(null);
+  const [isPhoneDialogOpen, setIsPhoneDialogOpen] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
 
   // Lấy thông tin user mới nhất từ API khi component mount
   useEffect(() => {
@@ -359,6 +363,53 @@ export const ProfilePage = () => {
     setPendingDeleteAddress(null);
   };
 
+  const handleOpenPhoneDialog = () => {
+    setPhoneNumber(user?.phoneNumber || "");
+    setIsPhoneDialogOpen(true);
+  };
+
+  const handleUpdatePhoneNumber = async () => {
+    if (!user) return;
+    
+    if (!phoneNumber.trim()) {
+      toast.error('Vui lòng nhập số điện thoại');
+      return;
+    }
+
+    // Validate phone number format (optional - basic check)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(phoneNumber.trim())) {
+      toast.error('Số điện thoại không hợp lệ. Vui lòng nhập 10-11 chữ số');
+      return;
+    }
+
+    try {
+      setIsUpdatingPhone(true);
+      
+      // Gọi API updateUser từ @/api/user
+      await updateUserAPI(user.id, {
+        phoneNumber: phoneNumber.trim(),
+      });
+      
+      // Cập nhật user context
+      updateUser({
+        phoneNumber: phoneNumber.trim(),
+      });
+      
+      toast.success('Cập nhật số điện thoại thành công!');
+      setIsPhoneDialogOpen(false);
+      setPhoneNumber("");
+      
+      // Refresh user data từ server
+      await fetchLatestUserData();
+    } catch (error) {
+      console.error('Failed to update phone number:', error);
+      toast.error('Cập nhật số điện thoại thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsUpdatingPhone(false);
+    }
+  };
+
 
   const openEditAddress = (addr: UserAddress) => {
     setAddressForm({
@@ -583,9 +634,24 @@ export const ProfilePage = () => {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-500">Số điện thoại</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {user.phoneNumber || 'Chưa cập nhật'}
-                      </p>
+                      {user.phoneNumber ? (
+                        <p className="text-lg font-semibold text-gray-900">
+                          {user.phoneNumber}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <p className="text-sm text-gray-500 italic">Chưa cập nhật</p>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={handleOpenPhoneDialog}
+                            className="bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-700"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Thêm số điện thoại
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                   {/* Address */}
@@ -845,6 +911,57 @@ export const ProfilePage = () => {
         </AlertFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Phone Number Update Dialog */}
+    <Dialog open={isPhoneDialogOpen} onOpenChange={setIsPhoneDialogOpen}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Thêm số điện thoại</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="phone">Số điện thoại <span className="text-red-500">*</span></Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="Nhập số điện thoại (10-11 chữ số)"
+              className="h-11"
+            />
+            <p className="text-xs text-gray-500">Ví dụ: 0912345678</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setIsPhoneDialogOpen(false);
+              setPhoneNumber("");
+            }}
+            disabled={isUpdatingPhone}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="button"
+            onClick={handleUpdatePhoneNumber}
+            disabled={isUpdatingPhone || !phoneNumber.trim()}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {isUpdatingPhone ? (
+              <>
+                <Spinner variant="circle-filled" size={16} className="mr-2" />
+                Đang cập nhật...
+              </>
+            ) : (
+              'Lưu'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 };

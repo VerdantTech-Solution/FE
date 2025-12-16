@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import {
   Select,
   SelectContent,
@@ -23,7 +24,6 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router';
 import {
   getVendorCashoutHistory,
   type CashoutRequestData,
@@ -89,8 +89,7 @@ const defaultPagination: CashoutRequestsPage = {
 };
 
 const CashoutHistoryPage = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<CashoutRequestData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,11 +98,6 @@ const CashoutHistoryPage = () => {
   const [paginationMeta, setPaginationMeta] =
     useState<CashoutRequestsPage>(defaultPagination);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   const fetchCashoutHistory = useCallback(
     async (
@@ -217,31 +211,15 @@ const CashoutHistoryPage = () => {
       <VendorSidebar />
 
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Lịch sử rút tiền</h1>
-              <p className="text-gray-600">Xem tất cả các yêu cầu rút tiền của bạn</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="p-2">
-                <History size={20} />
-              </Button>
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Nhà cung cấp'}</span>
-              </div>
-              <Button 
-                variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-50"
-                onClick={handleLogout}
-              >
-                Đăng xuất
-              </Button>
-            </div>
-          </div>
-        </header>
+        <VendorHeader
+          title="Lịch sử rút tiền"
+          subtitle="Xem tất cả các yêu cầu rút tiền của bạn"
+          rightContent={
+            <Button variant="ghost" size="sm" className="p-2">
+              <History size={20} />
+            </Button>
+          }
+        />
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">

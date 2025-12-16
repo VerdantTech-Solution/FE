@@ -5,8 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import { 
-  Bell,
   Search,
   Eye,
   Check,
@@ -21,7 +21,6 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 import { useState, useEffect, useCallback } from 'react';
 import { getProductRegistrations, getProductRegistrationById, getAllProducts, getProductById, getMediaLinks, type Product } from '@/api/product';
@@ -285,7 +284,6 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
 };
 
 const RegistrationManagementPage = () => {
-  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<ProductRegistration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -333,11 +331,6 @@ const RegistrationManagementPage = () => {
   useEffect(() => {
     fetchRegistrations();
   }, []);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   const findMatchingProduct = useCallback(async (registration: ProductRegistration): Promise<Product | null> => {
     // Try to detect productId field if backend provides it
