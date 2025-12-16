@@ -38,6 +38,7 @@ import {
   type ProductRegistrationImportRowResultDTO
 } from "@/api/product";
 import VendorSidebar from "./VendorSidebar";
+import VendorHeader from "./VendorHeader";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -233,12 +234,10 @@ export const RegisterProductByExcelPage = () => {
       <VendorSidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Đăng ký sản phẩm bằng Excel</h1>
-              <p className="text-gray-600">Import nhiều sản phẩm cùng lúc từ file Excel</p>
-            </div>
+        <VendorHeader
+          title="Đăng ký sản phẩm bằng Excel"
+          subtitle="Import nhiều sản phẩm cùng lúc từ file Excel"
+          rightContent={
             <Button
               variant="outline"
               onClick={() => navigate('/vendor/registrations')}
@@ -247,8 +246,8 @@ export const RegisterProductByExcelPage = () => {
               <ArrowLeft className="h-4 w-4" />
               Quay lại
             </Button>
-          </div>
-        </header>
+          }
+        />
 
         <main className="flex-1 p-6 overflow-y-auto">
           <motion.div

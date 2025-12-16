@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bell } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface VendorHeaderProps {
   title: string;
@@ -51,11 +51,7 @@ export const VendorHeader = ({
         <div className="flex items-center space-x-4">
           {rightContent}
 
-          {showNotification && (
-            <Button variant="ghost" size="sm" className="p-2">
-              <Bell size={20} />
-            </Button>
-          )}
+          {showNotification && <NotificationBell />}
 
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gray-300 rounded-full" />

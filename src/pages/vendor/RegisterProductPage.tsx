@@ -23,6 +23,8 @@ import type { RegisterProductRequest, ProductCategory } from "@/api/product";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router";
 import StepIndicator from "@/components/StepIndicator";
+import VendorSidebar from "./VendorSidebar";
+import VendorHeader from "./VendorHeader";
 
 interface SpecificationItem {
   key: string;
@@ -1057,27 +1059,33 @@ export const RegisterProductPage = () => {
   };
 
   return (
-    <motion.div
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 py-8"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div 
-          className="text-center mb-12 mt-[80px]"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-emerald-700 bg-clip-text text-transparent mb-4">
-            Đăng ký sản phẩm mới
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Đăng ký sản phẩm của bạn trong 2 bước đơn giản
-          </p>
-        </motion.div>
+    <div className="flex h-screen bg-gray-50">
+      <VendorSidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <VendorHeader
+          title="Đăng ký sản phẩm mới"
+          subtitle="Đăng ký sản phẩm của bạn trong 2 bước đơn giản"
+          rightContent={
+            <Button
+              variant="outline"
+              onClick={() => navigate('/vendor/registrations')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Quay lại
+            </Button>
+          }
+        />
+        
+        <main className="flex-1 overflow-y-auto">
+          <motion.div
+            className="min-h-full bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 py-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Step Indicator */}
         <motion.div 
@@ -1172,41 +1180,43 @@ export const RegisterProductPage = () => {
             )}
           </div>
         </motion.div>
+            </div>
+          </motion.div>
+        </main>
+
+        {/* Success Alert Dialog */}
+        <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-white" />
+              </div>
+              <AlertDialogTitle className="text-2xl font-bold text-emerald-700">
+                🎉 Đăng ký sản phẩm thành công!
+              </AlertDialogTitle>
+              <div className="text-gray-600 space-y-2">
+                <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                  <div className="font-semibold text-emerald-800 mb-2">Thông tin sản phẩm:</div>
+                  <div><strong>Tên sản phẩm:</strong> {successData?.productName}</div>
+                  <div><strong>Mã sản phẩm:</strong> {successData?.productCode}</div>
+                </div>
+                <div className="text-sm">
+                  Sản phẩm của bạn đang được chờ duyệt. Bạn có thể theo dõi trạng thái tại trang quản lý đơn đăng ký.
+                </div>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex justify-center">
+              <AlertDialogAction 
+                onClick={handleSuccessClose}
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-2 rounded-lg"
+              >
+                Về trang quản lý
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      {/* Success Alert Dialog */}
-      <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-white" />
-            </div>
-            <AlertDialogTitle className="text-2xl font-bold text-emerald-700">
-              🎉 Đăng ký sản phẩm thành công!
-            </AlertDialogTitle>
-            <div className="text-gray-600 space-y-2">
-              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-                <div className="font-semibold text-emerald-800 mb-2">Thông tin sản phẩm:</div>
-                <div><strong>Tên sản phẩm:</strong> {successData?.productName}</div>
-                <div><strong>Mã sản phẩm:</strong> {successData?.productCode}</div>
-              </div>
-              <div className="text-sm">
-                Sản phẩm của bạn đang được chờ duyệt. Bạn có thể theo dõi trạng thái tại trang quản lý đơn đăng ký.
-              </div>
-            </div>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex justify-center">
-            <AlertDialogAction 
-              onClick={handleSuccessClose}
-              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-2 rounded-lg"
-            >
-              Về trang quản lý
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-    </motion.div>
+    </div>
   );
 };
 

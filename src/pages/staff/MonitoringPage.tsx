@@ -17,9 +17,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Plus, X, Search, Edit, Eye, Trash2, Bell, CheckCircle2, ArrowLeft, Package } from "lucide-react";
-import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product } from "@/api/product";
+import { getProductCategories, createProductCategory, updateProductCategory, getProductsByCategory, type Product, getAllProductCategories } from "@/api/product";
 import type { ProductCategory, CreateProductCategoryRequest, UpdateProductCategoryRequest, ResponseWrapper } from "@/api/product";
 import { ProductDetailDialog } from "./components/ProductDetailDialog";
+import { getProductUnitById } from "@/lib/productUnitMapper";
 
 export const MonitoringPage: React.FC = () => {
   const [monitoringItems, setMonitoringItems] = useState<ProductCategory[]>([]);
@@ -40,6 +41,7 @@ export const MonitoringPage: React.FC = () => {
   const [productsError, setProductsError] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [isProductDetailDialogOpen, setIsProductDetailDialogOpen] = useState(false);
+  const [allCategoriesForUnit, setAllCategoriesForUnit] = useState<ProductCategory[]>([]);
 
   // Create form states
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
@@ -339,6 +341,21 @@ export const MonitoringPage: React.FC = () => {
   };
 
   useEffect(() => { fetchMonitoringItems(1); }, []);
+  
+  // Load all categories for unit mapping
+  useEffect(() => {
+    const fetchAllCategories = async () => {
+      try {
+        const response = await getProductCategories({ page: 1, pageSize: 1000 });
+        const categories = Array.isArray(response) ? response : response.data;
+        setAllCategoriesForUnit(categories);
+      } catch (error) {
+        console.error('Error fetching categories for unit mapping:', error);
+      }
+    };
+    fetchAllCategories();
+  }, []);
+
   useEffect(() => {
     const fetchCategories = async () => {
       try { 
@@ -527,7 +544,7 @@ export const MonitoringPage: React.FC = () => {
                             <div className="flex justify-between">
                               <span className="text-gray-500">Giá:</span>
                               <span className="font-semibold text-green-600">
-                                {currency(product.unitPrice)}
+                                {currency(product.unitPrice)} / {getProductUnitById(product.categoryId, allCategoriesForUnit)}
                               </span>
                             </div>
                             {product.stockQuantity !== undefined && (
