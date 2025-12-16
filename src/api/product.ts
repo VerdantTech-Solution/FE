@@ -1,4 +1,5 @@
-import { apiClient } from './apiClient';
+import { apiClient, API_BASE_URL } from './apiClient';
+import axios from 'axios';
 
 // Interface for product registration response
 export interface ProductRegistration {
@@ -1513,4 +1514,142 @@ export const updateProductRegistrationStatus = async (
     console.error('Update product registration status error:', error);
     throw error;
   }
+};
+
+// =====================================================
+// EXCEL IMPORT APIs
+// =====================================================
+
+export interface ProductRegistrationImportResponseDTO {
+  totalRows: number;
+  successfulCount: number;
+  failedCount: number;
+  results: ProductRegistrationImportRowResultDTO[];
+}
+
+export interface ProductRegistrationImportRowResultDTO {
+  rowNumber: number;
+  isSuccess: boolean;
+  productRegistrationId?: number;
+  proposedProductName?: string;
+  errorMessage?: string;
+}
+
+// Import Product Registrations from Excel
+export const importProductRegistrationsFromExcel = async (
+  file: File
+): Promise<ProductRegistrationImportResponseDTO> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post('/api/ProductRegistrations/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return response.data as ProductRegistrationImportResponseDTO;
+};
+
+// Download Excel Template for Product Registration
+export const downloadProductRegistrationTemplate = async (): Promise<void> => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/ProductRegistrations/import/template`, {
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'ProductRegistration_Import_Template.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading template:', error);
+    throw error;
+  }
+};
+
+// Upload images for Product Registration after import
+export const uploadProductRegistrationImages = async (
+  registrationId: number,
+  images: File[]
+): Promise<ProductRegistration> => {
+  const formData = new FormData();
+  images.forEach((image) => {
+    formData.append('images', image);
+  });
+
+  const response = await apiClient.post(
+    `/api/ProductRegistrations/${registrationId}/images`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data as ProductRegistration;
+};
+
+// Upload certificates for Product Registration after import
+export const uploadProductRegistrationCertificates = async (
+  registrationId: number,
+  certificates: Array<{ file: File; code?: string; name: string }>
+): Promise<ProductRegistration> => {
+  const formData = new FormData();
+  
+  const certificationCodes: string[] = [];
+  const certificationNames: string[] = [];
+  
+  certificates.forEach((cert, index) => {
+    formData.append('certificates', cert.file);
+    if (cert.code) {
+      certificationCodes.push(cert.code);
+      formData.append(`certificationCodes[${index}]`, cert.code);
+    }
+    if (cert.name) {
+      certificationNames.push(cert.name);
+      formData.append(`certificationNames[${index}]`, cert.name);
+    }
+  });
+
+  const response = await apiClient.post(
+    `/api/ProductRegistrations/${registrationId}/certificates`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data as ProductRegistration;
+};
+
+// Upload manual for Product Registration after import
+export const uploadProductRegistrationManual = async (
+  registrationId: number,
+  manualFile: File
+): Promise<ProductRegistration> => {
+  const formData = new FormData();
+  formData.append('manualFile', manualFile);
+
+  const response = await apiClient.post(
+    `/api/ProductRegistrations/${registrationId}/manual`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data as ProductRegistration;
 };

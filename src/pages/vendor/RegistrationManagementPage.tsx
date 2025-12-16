@@ -17,7 +17,8 @@ import {
   Star,
   AlertCircle,
   FileText,
-  Package
+  Package,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router';
@@ -564,19 +565,44 @@ const RegistrationManagementPage = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <VendorHeader
-          title="Quản lý đơn đăng ký"
-          subtitle="Duyệt và quản lý các đơn đăng ký sản phẩm"
-          rightContent={
-            <Button 
-              className="bg-green-600 hover:bg-green-700"
-              onClick={handleRegisterNewProduct}
-            >
-              <Plus size={20} className="mr-2" />
-              Đăng ký sản phẩm mới
-            </Button>
-          }
-        />
+        <header className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Quản lý đơn đăng ký</h1>
+              <p className="text-gray-600">Duyệt và quản lý các đơn đăng ký sản phẩm</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={handleRegisterNewProduct}
+              >
+                <Plus size={20} className="mr-2" />
+                Đăng ký sản phẩm thủ công
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => navigate('/vendor/registrations/new-excel')}
+              >
+                <FileSpreadsheet size={20} className="mr-2" />
+                Đăng ký bằng Excel
+              </Button>
+              <Button variant="ghost" size="sm" className="p-2">
+                <Bell size={20} />
+              </Button>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Nhà cung cấp'}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </Button>
+            </div>
+          </div>
+        </header>
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">

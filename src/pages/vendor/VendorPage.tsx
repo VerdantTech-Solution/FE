@@ -3,6 +3,7 @@ import RegistrationManagementPage from './RegistrationManagementPage';
 import WalletPage from './WalletPage';
 import VendorInfoPage from './VendorInfoPage';
 import RegisterProductPage from './RegisterProductPage';
+import RegisterProductByExcelPage from './RegisterProductByExcelPage';
 import CashoutRequestManagementPage from './CashoutRequestManagementPage';
 import CashoutHistoryPage from './CashoutHistoryPage';
 import ProductManagementPage from './ProductManagementPage';
@@ -20,6 +21,7 @@ const VendorPage = () => {
       <Route path="products" element={<ProductManagementPage />} />
       <Route path="products/:id" element={<VendorProductDetailPage />} />
       <Route path="products/:id/update" element={<VendorProductUpdatePage />} />
+      <Route path="registrations/new-excel" element={<RegisterProductByExcelPage />} />
       <Route path="wallet" element={<WalletPage />} />
       <Route path="cashout-requests" element={<CashoutRequestManagementPage />} />
       <Route path="cashout-history" element={<CashoutHistoryPage />} />
