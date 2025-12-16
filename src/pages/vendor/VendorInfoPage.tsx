@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import AddressSelector from '@/components/AddressSelector';
 import { 
-  Bell,
   Save,
   Edit,
   MapPin,
@@ -17,7 +17,6 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router';
 import { 
   getVendorByUserId, 
   updateVendorProfile,
@@ -358,8 +357,7 @@ const VendorProfile = ({ vendorData, loading, onUpdate, isUpdating = false, onVe
 };
 
 const VendorInfoPage = () => {
-  const { logout, user } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [vendorData, setVendorData] = useState<VendorProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -389,11 +387,6 @@ const VendorInfoPage = () => {
 
     fetchVendorProfile();
   }, [user?.id]);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -455,32 +448,11 @@ const VendorInfoPage = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Thông tin nhà cung cấp</h1>
-              <p className="text-gray-600">Quản lý thông tin công ty và hồ sơ</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="p-2">
-                <Bell size={20} />
-              </Button>
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">
-                  {vendorData?.companyName || user?.fullName || 'Nhà cung cấp'}
-                </span>
-              </div>
-              <Button 
-                variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-50"
-                onClick={handleLogout}
-              >
-                Đăng xuất
-              </Button>
-            </div>
-          </div>
-        </header>
+        <VendorHeader
+          title="Thông tin nhà cung cấp"
+          subtitle="Quản lý thông tin công ty và hồ sơ"
+          displayNameOverride={vendorData?.companyName}
+        />
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">

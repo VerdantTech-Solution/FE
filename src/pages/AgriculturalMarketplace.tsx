@@ -252,7 +252,7 @@ export default function AgriculturalMarketplace() {
       {!loading && !error && products.length > 0 && (
         <div className="text-center mb-12">
           <Button onClick={handleMarketplace} size="lg" className="bg-green-600 hover:bg-green-700 hover:scale-105 hover:shadow-xl px-8 py-3 transition-all duration-300">
-            Xem tất cả sản phẩm
+            Xem các sản phẩm khác
             <ArrowRight className="h-5 w-5 ml-2" />
           </Button>
         </div>
@@ -304,14 +304,6 @@ export default function AgriculturalMarketplace() {
             Kết nối trực tiếp với nông dân, nhà cung cấp và chuyên gia nông nghiệp trong khu vực của bạn.
           </p>
         </div>
-      </div>
-
-      {/* Call to Action */}
-      <div className="text-center">
-        <Button onClick={handleMarketplace} size="lg" className="bg-green-600 hover:bg-green-700 hover:scale-105 hover:shadow-xl px-8 py-3 transition-all duration-300">
-          Xem Tất Cả Sản Phẩm
-          <ArrowRight className="h-5 w-5 ml-2" />
-        </Button>
       </div>
     </div>
   )

@@ -6,7 +6,8 @@ import {
   CreditCard, 
   User,
   FileText,
-  History
+  History,
+  Package
 } from 'lucide-react';
 
 const VendorSidebar = () => {
@@ -25,6 +26,12 @@ const VendorSidebar = () => {
       label: "Quản lý đơn đăng ký", 
       icon: Square, 
       path: "/vendor/registrations" 
+    },
+    { 
+      id: "products", 
+      label: "Quản lý sản phẩm", 
+      icon: Package, 
+      path: "/vendor/products" 
     },
     { 
       id: "wallet", 

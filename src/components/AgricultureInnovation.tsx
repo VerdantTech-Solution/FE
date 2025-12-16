@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Sprout, Leaf, Brain, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const AgricultureInnovation = () => {
+  const navigate = useNavigate();
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -51,18 +53,18 @@ const AgricultureInnovation = () => {
   const features = [
     {
       icon: Sprout,
-      title: "Cải Thiện Sức Khỏe Đất",
-      description: "Cho cây trồng khỏe mạnh hơn"
+      title: "Phân Tích Sức Khỏe Đất",
+      description: "Đánh giá đất và dữ liệu môi trường để hỗ trợ canh tác bền vững"
     },
     {
       icon: Leaf,
-      title: "Giống Rau Củ Đổi Mới",
-      description: "Trong các điều kiện khác nhau"
+      title: "Hỗ Trợ Canh Tác Rau Củ",
+      description: "AI tư vấn phương pháp canh tác phù hợp với từng điều kiện trang trại"
     },
     {
       icon: Brain,
-      title: "Nông Nghiệp với Tích Hợp Công Nghệ",
-      description: "Kết hợp trí tuệ nhân tạo"
+      title: "Chia sẻ Kiến Thức Nông Nghiệp",
+      description: "Định hướng nông dân áp dụng công nghệ xanh và bền vững trong canh tác"
     }
   ];
 
@@ -82,26 +84,30 @@ const AgricultureInnovation = () => {
             <h2 
               className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight"
               style={{ fontFamily: 'Playfair Display, serif' }}
-            >
-              Đổi Mới Tương Lai<br />
-              <span className="text-green-600">Nông Nghiệp</span>
+            >Giải Pháp Nông Nghiệp<br/>
+              <span className="text-green-600">Xanh - Bền Vững</span>
             </h2>
           </motion.div>
 
           {/* Right - Description */}
           <motion.div variants={itemVariants}>
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              Thu Hoạch, nơi truyền thống gặp gỡ đổi mới. Chúng tôi cam kết{' '}
+              VerdantTech là {' '}
               <span className="font-semibold text-gray-900">
-                cách mạng hóa ngành nông nghiệp thông qua các thực hành bền vững và những tiến bộ công nghệ mới nhất.
-              </span>{' '}
-              Cam kết của chúng tôi là trao quyền cho nông dân với những công cụ và kiến thức họ cần để nuôi dưỡng một tương lai thịnh vượng.
+               nền tảng số cung cấp các thiết bị nông nghiệp xanh kết hợp trí tuệ nhân tạo (AI)
+              </span>{' '}            
+              nhằm hỗ trợ nông dân trong quá trình {' '} 
+              <span className="font-semibold text-gray-900">canh tác rau củ theo hướng bền vững</span>
+              . Hệ thống cho phép quản lý trang trại, thu thập dữ liệu môi trường,
+              đánh giá mức độ xanh và đưa ra các khuyến nghị canh tác thông minh
+              giúp tối ưu năng suất và giảm tác động đến môi trường.
             </p>
             
             <motion.button
               className="inline-flex items-center gap-2 text-green-600 font-semibold hover:text-green-700 transition-colors duration-300"
               whileHover={{ x: 5 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/farmlist')}
             >
               Tìm hiểu thêm
               <ArrowRight className="w-4 h-4" />
@@ -184,9 +190,8 @@ const AgricultureInnovation = () => {
             className="text-4xl lg:text-6xl font-bold leading-tight"
             style={{ fontFamily: 'Playfair Display, serif' }}
           >
-            <span className="text-gray-400">Chuyển Đổi</span>{' '}
-            <span className="text-green-600">Nông Nghiệp Với Giải Pháp Thông Minh</span><br />
-            <span className="text-green-600">Cho Tương Lai Bền Vững</span>
+            <span className="text-gray-400">Định Hướng Canh Tác Rau Củ</span><br/>
+            <span className="text-green-600">Xanh & Bền Vững</span>
           </h3>
         </motion.div>
       </motion.div>

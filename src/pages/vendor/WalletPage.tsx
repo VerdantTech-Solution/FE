@@ -2,14 +2,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import CreateBankDialog from '@/components/bank/CreateBankDialog';
 import BankAccountsList from '@/components/bank/BankAccountsList';
 import WithdrawRequestDialog from '@/components/wallet/WithdrawRequestDialog';
-import { 
-  Bell
-} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router';
 import { 
   getSupportedBanks, 
   getVendorBankAccounts,
@@ -98,8 +95,7 @@ const WithdrawForm = ({
 };
 
 const WalletPage = () => {
-  const { logout, user } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [banks, setBanks] = useState<SupportedBank[]>([]);
@@ -109,11 +105,6 @@ const WalletPage = () => {
   // Use wallet hook để quản lý wallet
   const userId = user?.id ? Number(user.id) : undefined;
   const { balance, loading: walletLoading, refreshWallet } = useWallet(userId);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   // Load vendor bank accounts
   const loadVendorBankAccounts = async () => {
@@ -169,30 +160,10 @@ const WalletPage = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Ví</h1>
-              <p className="text-gray-600">Quản lý tài chính và giao dịch</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="p-2">
-                <Bell size={20} />
-              </Button>
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Nhà cung cấp'}</span>
-              </div>
-              <Button 
-                variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-50"
-                onClick={handleLogout}
-              >
-                Đăng xuất
-              </Button>
-            </div>
-          </div>
-        </header>
+        <VendorHeader
+          title="Ví"
+          subtitle="Quản lý tài chính và giao dịch"
+        />
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">

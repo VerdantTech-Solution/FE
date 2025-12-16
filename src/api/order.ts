@@ -105,6 +105,7 @@ export interface OrderDetailItem {
   discountAmount: number;
   subtotal: number;
   createdAt: string;
+  isRefunded: boolean;
   product: OrderProductSummary;
 }
 

@@ -95,8 +95,7 @@ const NewHeroSection = () => {
             ease: "easeOut"
           }}
         >
-          Khám phá cách các công cụ tiên tiến của chúng tôi 
-          <span className="block">biến đổi cánh đồng và tăng năng suất</span>
+          Cùng hướng tới canh tác rau củ theo mô hình nông nghiệp xanh, bền vững
         </motion.h2>
 
         {/* Sub-headline */}
@@ -111,7 +110,7 @@ const NewHeroSection = () => {
             delay: 0.2
           }}
         >
-          Sẵn sàng tăng năng suất? Biến đổi trang trại của bạn với các giải pháp đổi mới ngay bây giờ!
+          Tham gia cộng đồng VerdantTech để nhận những tư vấn canh tác rau củ thông minh, phù hợp với điều kiện trang trại của bạn      
         </motion.p>
 
         {/* Email Signup Form */}
