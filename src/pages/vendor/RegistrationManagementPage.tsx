@@ -5,8 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import { 
-  Bell,
   Search,
   Eye,
   Check,
@@ -20,7 +20,6 @@ import {
   Package
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 import { useState, useEffect, useCallback } from 'react';
 import { getProductRegistrations, getProductRegistrationById, getAllProducts, getProductById, getMediaLinks, type Product } from '@/api/product';
@@ -284,7 +283,6 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
 };
 
 const RegistrationManagementPage = () => {
-  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<ProductRegistration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -332,11 +330,6 @@ const RegistrationManagementPage = () => {
   useEffect(() => {
     fetchRegistrations();
   }, []);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   const findMatchingProduct = useCallback(async (registration: ProductRegistration): Promise<Product | null> => {
     // Try to detect productId field if backend provides it
@@ -571,37 +564,19 @@ const RegistrationManagementPage = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý đơn đăng ký</h1>
-              <p className="text-gray-600">Duyệt và quản lý các đơn đăng ký sản phẩm</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button 
-                className="bg-green-600 hover:bg-green-700"
-                onClick={handleRegisterNewProduct}
-              >
-                <Plus size={20} className="mr-2" />
-                Đăng ký sản phẩm mới
-              </Button>
-              <Button variant="ghost" size="sm" className="p-2">
-                <Bell size={20} />
-              </Button>
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Nhà cung cấp'}</span>
-              </div>
-              <Button 
-                variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-50"
-                onClick={handleLogout}
-              >
-                Đăng xuất
-              </Button>
-            </div>
-          </div>
-        </header>
+        <VendorHeader
+          title="Quản lý đơn đăng ký"
+          subtitle="Duyệt và quản lý các đơn đăng ký sản phẩm"
+          rightContent={
+            <Button 
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleRegisterNewProduct}
+            >
+              <Plus size={20} className="mr-2" />
+              Đăng ký sản phẩm mới
+            </Button>
+          }
+        />
 
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">

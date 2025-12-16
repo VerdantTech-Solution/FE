@@ -5,6 +5,9 @@ import VendorInfoPage from './VendorInfoPage';
 import RegisterProductPage from './RegisterProductPage';
 import CashoutRequestManagementPage from './CashoutRequestManagementPage';
 import CashoutHistoryPage from './CashoutHistoryPage';
+import ProductManagementPage from './ProductManagementPage';
+import VendorProductDetailPage from './VendorProductDetailPage';
+import VendorProductUpdatePage from './VendorProductUpdatePage';
 import { Route, Routes as RRDRoutes, Navigate } from 'react-router';
 
 const VendorPage = () => {
@@ -14,6 +17,9 @@ const VendorPage = () => {
       <Route path="dashboard" element={<VendorDashboard />} />
       <Route path="registrations" element={<RegistrationManagementPage />} />
       <Route path="registrations/new" element={<RegisterProductPage />} />
+      <Route path="products" element={<ProductManagementPage />} />
+      <Route path="products/:id" element={<VendorProductDetailPage />} />
+      <Route path="products/:id/update" element={<VendorProductUpdatePage />} />
       <Route path="wallet" element={<WalletPage />} />
       <Route path="cashout-requests" element={<CashoutRequestManagementPage />} />
       <Route path="cashout-history" element={<CashoutHistoryPage />} />
