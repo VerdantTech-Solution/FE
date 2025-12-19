@@ -11,7 +11,27 @@ import {
   Loader2,
   Star
 } from "lucide-react";
-import { getRevenue, getOrderStatistics, getProductRatings, type RevenueData, type OrderStatistics } from "@/api/dashboard";
+// Dashboard API removed
+type RevenueData = {
+  from?: string;
+  to?: string;
+  revenue?: number;
+  totalRevenue?: number;
+  dailyRevenues?: Array<{
+    date: string;
+    revenue: number;
+  }>;
+};
+type OrderStatistics = {
+  from?: string;
+  to?: string;
+  total?: number;
+  paid?: number;
+  shipped?: number;
+  cancelled?: number;
+  delivered?: number;
+  refunded?: number;
+};
 import { BestSellingProductsCard } from "@/components/BestSellingProductsCard";
 import { RevenueLast7DaysCard } from "@/components/RevenueLast7DaysCard";
 import { QueueStatisticsCard } from "@/components/QueueStatisticsCard";
@@ -316,19 +336,11 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
             const dayEndDate = new Date(dayRange.to);
             const today = new Date();
             if (dayEndDate <= today) {
-              const response = await getRevenue({ from: dayRange.from, to: dayRange.to });
-              if (response.status && response.data && response.data.revenue !== undefined) {
-                dailyData.push({
-                  day: dayRange.day,
-                  revenue: response.data.revenue,
-                });
-                totalRevenue += response.data.revenue;
-              } else {
-                dailyData.push({
-                  day: dayRange.day,
-                  revenue: 0,
-                });
-              }
+              // Dashboard API removed - functionality disabled
+              dailyData.push({
+                day: dayRange.day,
+                revenue: 0,
+              });
             } else {
               dailyData.push({
                 day: dayRange.day,
@@ -367,19 +379,11 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
             const monthEndDate = new Date(monthRange.to);
             const today = new Date();
             if (monthEndDate <= today) {
-              const response = await getRevenue({ from: monthRange.from, to: monthRange.to });
-              if (response.status && response.data && response.data.revenue !== undefined) {
-                monthlyData.push({
-                  month: monthRange.month,
-                  revenue: response.data.revenue,
-                });
-                totalRevenue += response.data.revenue;
-              } else {
-                monthlyData.push({
-                  month: monthRange.month,
-                  revenue: 0,
-                });
-              }
+              // Dashboard API removed - functionality disabled
+              monthlyData.push({
+                month: monthRange.month,
+                revenue: 0,
+              });
             } else {
               // Future month, set revenue to 0
               monthlyData.push({
@@ -417,19 +421,11 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
             const weekEndDate = new Date(weekRange.to);
             const today = new Date();
             if (weekEndDate <= today) {
-              const response = await getRevenue({ from: weekRange.from, to: weekRange.to });
-              if (response.status && response.data && response.data.revenue !== undefined) {
-                weeklyData.push({
-                  week: weekRange.week,
-                  revenue: response.data.revenue,
-                });
-                totalRevenue += response.data.revenue;
-              } else {
-                weeklyData.push({
-                  week: weekRange.week,
-                  revenue: 0,
-                });
-              }
+              // Dashboard API removed - functionality disabled
+              weeklyData.push({
+                week: weekRange.week,
+                revenue: 0,
+              });
             } else {
               weeklyData.push({
                 week: weekRange.week,
@@ -466,19 +462,11 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
             const yearEndDate = new Date(yearRange.to);
             const today = new Date();
             if (yearEndDate <= today) {
-              const response = await getRevenue({ from: yearRange.from, to: yearRange.to });
-              if (response.status && response.data && response.data.revenue !== undefined) {
-                yearlyData.push({
-                  year: yearRange.year,
-                  revenue: response.data.revenue,
-                });
-                totalRevenue += response.data.revenue;
-              } else {
-                yearlyData.push({
-                  year: yearRange.year,
-                  revenue: 0,
-                });
-              }
+              // Dashboard API removed - functionality disabled
+              yearlyData.push({
+                year: yearRange.year,
+                revenue: 0,
+              });
             } else {
               yearlyData.push({
                 year: yearRange.year,
@@ -523,19 +511,11 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
               const dayEndDate = new Date(dayRange.to);
               const today = new Date();
               if (dayEndDate <= today) {
-                const response = await getRevenue({ from: dayRange.from, to: dayRange.to });
-                if (response.status && response.data && response.data.revenue !== undefined) {
-                  dailyData.push({
-                    day: dayRange.day,
-                    revenue: response.data.revenue,
-                  });
-                  totalRevenue += response.data.revenue;
-                } else {
-                  dailyData.push({
-                    day: dayRange.day,
-                    revenue: 0,
-                  });
-                }
+                // Dashboard API removed - functionality disabled
+                dailyData.push({
+                  day: dayRange.day,
+                  revenue: 0,
+                });
               } else {
                 dailyData.push({
                   day: dayRange.day,
@@ -573,19 +553,11 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
               const monthEndDate = new Date(monthRange.to);
               const today = new Date();
               if (monthEndDate <= today) {
-                const response = await getRevenue({ from: monthRange.from, to: monthRange.to });
-                if (response.status && response.data && response.data.revenue !== undefined) {
-                  monthlyData.push({
-                    month: monthRange.month,
-                    revenue: response.data.revenue,
-                  });
-                  totalRevenue += response.data.revenue;
-                } else {
-                  monthlyData.push({
-                    month: monthRange.month,
-                    revenue: 0,
-                  });
-                }
+                // Dashboard API removed - functionality disabled
+                monthlyData.push({
+                  month: monthRange.month,
+                  revenue: 0,
+                });
               } else {
                 // Future month, set revenue to 0
                 monthlyData.push({
@@ -630,8 +602,8 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
   // Fetch order statistics
   const fetchOrderStatistics = async () => {
     try {
-      const dateRange = getDateRange(selectedPeriod);
-      const response = await getOrderStatistics({ from: dateRange.from, to: dateRange.to });
+      // Dashboard API removed - functionality disabled
+      const response = { status: false, data: null };
       if (response.status && response.data) {
         setOrderStats(response.data);
       } else {
@@ -655,12 +627,8 @@ export const AdminOverviewPage = ({ selectedPeriod, setSelectedPeriod }: Overvie
     
     setIsLoadingRatings(true);
     try {
-      const response = await getProductRatings();
-      if (response.status && response.data) {
-        setAverageRatingOfVendor(response.data.averageRatingOfVendor);
-      } else {
-        setAverageRatingOfVendor(null);
-      }
+      // Dashboard API removed - functionality disabled
+      setAverageRatingOfVendor(null);
     } catch (err) {
       console.error("Error fetching product ratings:", err);
       setAverageRatingOfVendor(null);

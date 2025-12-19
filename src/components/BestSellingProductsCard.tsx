@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, TrendingUp, Package, Calendar, Search } from "lucide-react";
-import { getBestSellingProducts, type BestSellingProduct } from "@/api/dashboard";
+// Dashboard API removed
+type BestSellingProduct = any;
 
 interface BestSellingProductsCardProps {
   selectedPeriod?: string;
@@ -25,47 +26,7 @@ const formatRevenue = (amount: number) => {
   return amount.toLocaleString('vi-VN');
 };
 
-const getDateRange = (period: string): { from: string; to: string } => {
-  const today = new Date();
-  const formatDate = (date: Date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  switch (period) {
-    case 'day':
-      return {
-        from: formatDate(today),
-        to: formatDate(today)
-      };
-    case 'week':
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
-      return {
-        from: formatDate(startOfWeek),
-        to: formatDate(today)
-      };
-    case 'month':
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      return {
-        from: formatDate(startOfMonth),
-        to: formatDate(today)
-      };
-    case 'year':
-      const startOfYear = new Date(today.getFullYear(), 0, 1);
-      return {
-        from: formatDate(startOfYear),
-        to: formatDate(today)
-      };
-    default:
-      return {
-        from: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-        to: formatDate(today)
-      };
-  }
-};
+// Dashboard API removed - getDateRange function removed
 
 export const BestSellingProductsCard: React.FC<BestSellingProductsCardProps> = ({
   selectedPeriod = 'month',
@@ -101,26 +62,12 @@ export const BestSellingProductsCard: React.FC<BestSellingProductsCardProps> = (
     }
   }, [propFrom, propTo]);
 
-  const fetchProducts = async (fromDate?: string, toDate?: string) => {
+  const fetchProducts = async (_fromDate?: string, _toDate?: string) => {
     setLoading(true);
     setError(null);
     try {
-      let dateRange: { from: string; to: string };
-      
-      if (fromDate && toDate) {
-        dateRange = { from: fromDate, to: toDate };
-      } else if (propFrom && propTo) {
-        dateRange = { from: propFrom, to: propTo };
-      } else if (useCustomDate && localFrom && localTo) {
-        dateRange = { from: localFrom, to: localTo };
-      } else {
-        dateRange = getDateRange(selectedPeriod);
-      }
-
-      const response = await getBestSellingProducts({
-        from: dateRange.from,
-        to: dateRange.to
-      });
+      // Dashboard API removed - functionality disabled
+      const response = { status: false, data: { products: [] } };
 
       if (response.status && response.data && response.data.products && Array.isArray(response.data.products)) {
         // Lấy top 5

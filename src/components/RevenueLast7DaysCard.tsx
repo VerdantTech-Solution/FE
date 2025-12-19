@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { getRevenueLast7Days, type RevenueData } from '@/api/dashboard';
+// Dashboard API removed
+type RevenueData = {
+  from?: string;
+  to?: string;
+  revenue?: number;
+  totalRevenue?: number;
+  dailyRevenues?: Array<{
+    date: string;
+    revenue: number;
+  }>;
+};
 import {
   LineChart,
   Line,
@@ -27,7 +37,8 @@ export const RevenueLast7DaysCard = ({ title = "Doanh thu 7 ngày gần nhất" 
       setIsLoading(true);
       setError(null);
       try {
-        const response = await getRevenueLast7Days();
+        // Dashboard API removed - functionality disabled
+        const response = { status: false, data: null };
         if (response.status && response.data) {
           setRevenueData(response.data);
         } else {
@@ -65,7 +76,7 @@ export const RevenueLast7DaysCard = ({ title = "Doanh thu 7 ngày gần nhất" 
   };
 
   // Prepare chart data
-  const chartData = revenueData?.dailyRevenues?.map(item => ({
+  const chartData = revenueData?.dailyRevenues?.map((item: any) => ({
     date: formatDate(item.date),
     revenue: item.revenue,
     fullDate: item.date

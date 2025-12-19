@@ -28,9 +28,6 @@ export * from './co2';
 // Export order API
 export * from './order';
 
-// Export dashboard API
-export * from './dashboard';
-
 // Export PayOS API
 export * from './payos';
 
@@ -51,3 +48,6 @@ export * from './cropVarieties';
 
 // Export survey API
 export * from './survey';
+
+// Export vendor dashboard API
+export * from './vendordashboard';

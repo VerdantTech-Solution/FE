@@ -1062,7 +1062,7 @@ export const RegisterProductPage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden ml-64">
         <VendorHeader
           title="Đăng ký sản phẩm mới"
           subtitle="Đăng ký sản phẩm của bạn trong 2 bước đơn giản"
