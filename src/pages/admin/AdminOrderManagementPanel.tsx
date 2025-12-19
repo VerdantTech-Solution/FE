@@ -19,7 +19,17 @@ import {
 import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, AlertCircle } from "lucide-react";
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
-import { getOrderStatistics, type OrderStatistics } from "@/api/dashboard";
+// Dashboard API removed
+type OrderStatistics = {
+  from?: string;
+  to?: string;
+  total?: number;
+  paid?: number;
+  shipped?: number;
+  cancelled?: number;
+  delivered?: number;
+  refunded?: number;
+};
 import { getIdentityNumbersWithMetadata, type IdentityNumberItem } from "@/api/export";
 import { formatVietnamDateTime } from "@/lib/utils";
 
@@ -140,7 +150,8 @@ export const AdminOrderManagementPanel: React.FC = () => {
       if (dateFrom) params.from = dateFrom;
       if (dateTo) params.to = dateTo;
       
-      const response = await getOrderStatistics(params);
+      // Dashboard API removed - functionality disabled
+      const response = { status: false, data: null };
       
       if (response.status && response.data) {
         const statistics: OrderStatistics = response.data;
@@ -153,7 +164,6 @@ export const AdminOrderManagementPanel: React.FC = () => {
           refunded: statistics.refunded || 0,
         });
       } else {
-        console.error("Failed to fetch order statistics:", response.errors);
         setStats({
           total: 0,
           paid: 0,

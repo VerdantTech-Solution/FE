@@ -51,7 +51,7 @@ const VendorProductDetailPage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-64">
         <VendorHeader
           title="Chi tiết sản phẩm"
           subtitle="Xem thông tin sản phẩm đã được duyệt"

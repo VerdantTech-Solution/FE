@@ -446,7 +446,7 @@ const VendorInfoPage = () => {
       <VendorSidebar />
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-64">
         {/* Header */}
         <VendorHeader
           title="Thông tin nhà cung cấp"

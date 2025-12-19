@@ -14,6 +14,11 @@ import {
   type VendorBankAccount
 } from '@/api/vendorbankaccounts';
 import { useWallet } from '@/hooks/useWallet';
+import { 
+  getVendorWalletStatistics, 
+  type WalletStatistics 
+} from '@/api/vendordashboard';
+import { Loader2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 
 interface WalletBalanceProps {
@@ -101,10 +106,41 @@ const WalletPage = () => {
   const [banks, setBanks] = useState<SupportedBank[]>([]);
   const [vendorBankAccounts, setVendorBankAccounts] = useState<VendorBankAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [walletStats, setWalletStats] = useState<WalletStatistics | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   
   // Use wallet hook để quản lý wallet
   const userId = user?.id ? Number(user.id) : undefined;
   const { balance, loading: walletLoading, refreshWallet } = useWallet(userId);
+
+  const getDefaultDateRange = () => {
+    const now = new Date();
+    const to = now.toISOString().split('T')[0];
+    const fromDate = new Date(now);
+    fromDate.setDate(now.getDate() - 30);
+    const from = fromDate.toISOString().split('T')[0];
+    return { from, to };
+  };
+
+  // Load wallet statistics for vendor dashboard (số dư, pending cashout, tổng nạp/rút)
+  const loadWalletStatistics = async () => {
+    if (!userId) return;
+
+    try {
+      setStatsLoading(true);
+      setStatsError(null);
+      const { from, to } = getDefaultDateRange();
+      const stats = await getVendorWalletStatistics(from, to);
+      setWalletStats(stats);
+    } catch (err: any) {
+      console.error('Load wallet statistics error:', err);
+      setStatsError(err?.message || 'Không thể tải thống kê ví');
+      setWalletStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   // Load vendor bank accounts
   const loadVendorBankAccounts = async () => {
@@ -127,6 +163,7 @@ const WalletPage = () => {
     if (user?.id) {
       loadVendorBankAccounts();
       loadBanks();
+      loadWalletStatistics();
     }
   }, [user?.id]);
 
@@ -146,10 +183,12 @@ const WalletPage = () => {
   const handleBankAccountSuccess = () => {
     loadVendorBankAccounts();
     refreshWallet(); // Refresh wallet sau khi thêm/xóa bank account
+    loadWalletStatistics(); // Cập nhật lại thống kê ví
   };
 
   const handleWithdrawSuccess = () => {
     refreshWallet(); // Refresh wallet sau khi tạo yêu cầu rút tiền
+    loadWalletStatistics(); // Cập nhật lại thống kê ví
   };
 
   return (
@@ -158,7 +197,7 @@ const WalletPage = () => {
       <VendorSidebar />
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-64">
         {/* Header */}
         <VendorHeader
           title="Ví"
@@ -168,6 +207,88 @@ const WalletPage = () => {
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           <WalletBalance balance={balance} loading={walletLoading} />
+
+          {/* Thống kê ví: pending cashout, tổng nạp/rút */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <ArrowUpCircle className="w-4 h-4 text-amber-500" />
+                  Số tiền đang chờ rút
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Đang tải...
+                  </div>
+                ) : statsError ? (
+                  <p className="text-sm text-red-500">{statsError}</p>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(walletStats?.pendingCashout ?? 0).toLocaleString('vi-VN')} ₫
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <ArrowDownCircle className="w-4 h-4 text-green-500" />
+                  Tổng tiền đã nạp vào ví
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Đang tải...
+                  </div>
+                ) : statsError ? (
+                  <p className="text-sm text-red-500">{statsError}</p>
+                ) : (
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {(walletStats?.transactionSummary.totalTopup ?? 0).toLocaleString('vi-VN')} ₫
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {walletStats?.transactionSummary.topupCount ?? 0} lần nạp
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <ArrowUpCircle className="w-4 h-4 text-red-500 rotate-180" />
+                  Tổng tiền đã rút khỏi ví
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Đang tải...
+                  </div>
+                ) : statsError ? (
+                  <p className="text-sm text-red-500">{statsError}</p>
+                ) : (
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {(walletStats?.transactionSummary.totalCashout ?? 0).toLocaleString('vi-VN')} ₫
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {walletStats?.transactionSummary.cashoutCount ?? 0} lần rút
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
           
           {/* Ngân hàng của bạn */}
           <BankAccountsList

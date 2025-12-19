@@ -176,7 +176,7 @@ const CashoutRequestManagementPage = () => {
     return (
       <div className="flex h-screen bg-gray-50">
         <VendorSidebar />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col ml-64">
           <VendorHeader
             title="Quản lý yêu cầu rút tiền"
             subtitle="Xem và theo dõi trạng thái yêu cầu rút tiền của bạn"
@@ -199,7 +199,7 @@ const CashoutRequestManagementPage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
       
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto ml-64">
         <VendorHeader
           title="Quản lý yêu cầu rút tiền"
           subtitle="Xem và theo dõi trạng thái yêu cầu rút tiền của bạn"

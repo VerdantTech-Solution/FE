@@ -5,7 +5,27 @@ import {
   DollarSign, 
   Package
 } from "lucide-react";
-import { getRevenue, getOrderStatistics, type RevenueData, type OrderStatistics } from "@/api/dashboard";
+// Dashboard API removed
+type RevenueData = {
+  from?: string;
+  to?: string;
+  revenue?: number;
+  totalRevenue?: number;
+  dailyRevenues?: Array<{
+    date: string;
+    revenue: number;
+  }>;
+};
+type OrderStatistics = {
+  from?: string;
+  to?: string;
+  total?: number;
+  paid?: number;
+  shipped?: number;
+  cancelled?: number;
+  delivered?: number;
+  refunded?: number;
+};
 import { BestSellingProductsCard } from "@/components/BestSellingProductsCard";
 import { RevenueLast7DaysCard } from "@/components/RevenueLast7DaysCard";
 import { QueueStatisticsCard } from "@/components/QueueStatisticsCard";
@@ -15,53 +35,12 @@ export const StaffOverviewPage: React.FC = () => {
   const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStatistics | null>(null);
 
-  // Calculate date range based on selected period
-  const getDateRange = (period: string): { from: string; to: string } => {
-    const today = new Date();
-    const formatDate = (date: Date) => {
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    };
-
-    switch (period) {
-      case 'day':
-        return {
-          from: formatDate(today),
-          to: formatDate(today)
-        };
-      case 'week':
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        return {
-          from: formatDate(startOfWeek),
-          to: formatDate(today)
-        };
-      case 'month':
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        return {
-          from: formatDate(startOfMonth),
-          to: formatDate(today)
-        };
-      case 'year':
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        return {
-          from: formatDate(startOfYear),
-          to: formatDate(today)
-        };
-      default:
-        return {
-          from: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-          to: formatDate(today)
-        };
-    }
-  };
+  // Dashboard API removed - getDateRange function removed
 
   const fetchRevenue = async () => {
     try {
-      const dateRange = getDateRange(selectedPeriod);
-      const response = await getRevenue({ from: dateRange.from, to: dateRange.to });
+      // Dashboard API removed - functionality disabled
+      const response = { status: false, data: null };
       if (response.status && response.data) {
         setRevenueData(response.data);
       } else {
@@ -75,8 +54,8 @@ export const StaffOverviewPage: React.FC = () => {
 
   const fetchOrderStatistics = async () => {
     try {
-      const dateRange = getDateRange(selectedPeriod);
-      const response = await getOrderStatistics({ from: dateRange.from, to: dateRange.to });
+      // Dashboard API removed - functionality disabled
+      const response = { status: false, data: null };
       if (response.status && response.data) {
         setOrderStats(response.data);
       } else {

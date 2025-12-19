@@ -233,7 +233,7 @@ export const RegisterProductByExcelPage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden ml-64">
         <VendorHeader
           title="Đăng ký sản phẩm bằng Excel"
           subtitle="Import nhiều sản phẩm cùng lúc từ file Excel"

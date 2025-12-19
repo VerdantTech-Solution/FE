@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, UserCheck, Package, Award, FileCheck, HelpCircle, AlertCircle } from 'lucide-react';
-import { getQueueStatistics, type QueueStatistics } from '@/api/dashboard';
+// Dashboard API removed
+type QueueStatistics = {
+  vendorProfile: number;
+  productRegistration: number;
+  vendorCertificate: number;
+  productCertificate: number;
+  request: number;
+  total: number;
+};
 
 interface QueueStatisticsCardProps {
   title?: string;
@@ -17,7 +25,8 @@ export const QueueStatisticsCard = ({ title = "Thống kê yêu cầu chờ xử
       setIsLoading(true);
       setError(null);
       try {
-        const response = await getQueueStatistics();
+        // Dashboard API removed - functionality disabled
+        const response = { status: false, data: null };
         if (response.status && response.data) {
           setQueueStats(response.data);
         } else {
@@ -140,7 +149,7 @@ export const QueueStatisticsCard = ({ title = "Thống kê yêu cầu chờ xử
               const value = queueStats[item.key] || 0;
               return (
                 <div
-                  key={item.key}
+                  key={String(item.key)}
                   className={`p-4 rounded-lg border ${
                     value > 0 ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'
                   }`}

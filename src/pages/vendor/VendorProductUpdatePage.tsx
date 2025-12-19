@@ -197,7 +197,7 @@ const VendorProductUpdatePage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-64">
         <VendorHeader
           title="Cập nhật sản phẩm"
           subtitle="Gửi yêu cầu cập nhật cho nhân viên duyệt"
