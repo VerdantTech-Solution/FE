@@ -1310,6 +1310,67 @@ export const getProductRegistrations = async (): Promise<ProductRegistration[]> 
   }
 };
 
+// API lấy product registrations theo VendorID cụ thể (với phân trang)
+export const getProductRegistrationsByVendor = async (
+  vendorId: number | string,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<{ data: ProductRegistration[], totalRecords: number, totalPages: number }> => {
+  try {
+    const response = await apiClient.get(
+      `/api/ProductRegistrations/vendor/${vendorId}`,
+      {
+        params: { page, pageSize }
+      }
+    ) as any; // Cast to any vì apiClient interceptor đã unwrap response
+    
+    console.log('Get product registrations by vendor response:', response);
+    console.log('Response type:', typeof response);
+    console.log('Response structure:', response);
+    
+    // Response có cấu trúc PagedResponse: { data: [], currentPage, pageSize, totalPages, totalRecords, ... }
+    if (response && typeof response === 'object' && 'data' in response) {
+      const data = Array.isArray(response.data) ? response.data : [];
+      
+      // Log first item nếu có
+      if (data.length > 0) {
+        console.log('=== First Vendor ProductRegistration item ===');
+        console.log('Full item:', JSON.stringify(data[0], null, 2));
+        console.log('All keys:', Object.keys(data[0]));
+        console.log('=====================================');
+      }
+      
+      return {
+        data: data,
+        totalRecords: response.totalRecords || 0,
+        totalPages: response.totalPages || 0
+      };
+    }
+    
+    // Fallback: nếu response là array trực tiếp
+    if (Array.isArray(response)) {
+      console.log('Response is direct array (unexpected), length:', response.length);
+      return {
+        data: response as ProductRegistration[],
+        totalRecords: response.length,
+        totalPages: 1
+      };
+    }
+    
+    console.warn('Unexpected response format for vendor registrations:', response);
+    return { data: [], totalRecords: 0, totalPages: 0 };
+  } catch (error: any) {
+    console.error('Error fetching vendor product registrations:', error);
+    console.error('Error response:', error?.response);
+    console.error('Error data:', error?.response?.data);
+    
+    throw new Error(
+      error?.response?.data?.message || 
+      'Không thể tải danh sách đăng ký sản phẩm của vendor.'
+    );
+  }
+};
+
 // API lấy chi tiết product registration theo ID
 export const getProductRegistrationById = async (id: number): Promise<ProductRegistration> => {
   try {

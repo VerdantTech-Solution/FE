@@ -23,7 +23,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router';
 import { useState, useEffect, useCallback } from 'react';
-import { getProductRegistrations, getProductRegistrationById, getAllProducts, getProductById, getMediaLinks, type Product } from '@/api/product';
+import { useAuth } from '@/contexts/AuthContext';
+import { getProductRegistrationsByVendor, getProductRegistrationById, getAllProducts, getProductById, getMediaLinks, type Product } from '@/api/product';
 import { getProductReviewsByProductId, type ProductReviewWithReply } from '@/api/productReview';
 import type { ProductRegistration } from '@/api/product';
 import { PATH_NAMES } from '@/constants';
@@ -285,6 +286,7 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
 
 const RegistrationManagementPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [registrations, setRegistrations] = useState<ProductRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -301,7 +303,13 @@ const RegistrationManagementPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getProductRegistrations();
+      
+      // Sử dụng API riêng cho vendor để chỉ lấy đăng ký của vendor hiện tại
+      if (!user?.id) {
+        throw new Error('Không tìm thấy thông tin vendor');
+      }
+      
+      const { data } = await getProductRegistrationsByVendor(user.id);
       setRegistrations(data);
     } catch (err: any) {
       console.error('Error fetching registrations:', err);

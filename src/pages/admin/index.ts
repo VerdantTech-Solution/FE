@@ -13,3 +13,7 @@ export * from './AdminCashoutManagementPanel';
 export * from './AdminSupportRequestManagementPanel';
 export * from './AdminVendorManagementPanel';
 export * from './AdminCategoryManagementPanel';
+export { default as AdminDashboardPage } from './AdminDashboardPage';
+export { default as AdminSidebar } from './AdminSidebar';
+export { AdminHeader } from './AdminHeader';
+export { default as AdminRouterPage } from './AdminRouterPage';

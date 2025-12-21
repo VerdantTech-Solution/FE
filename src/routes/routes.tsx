@@ -1,9 +1,10 @@
 import { Layout } from "@/layouts";
 import { Route, Routes as RRDRoutes } from "react-router";
 import { allRoutes } from "./all-routes";
-import { AdminPage, LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage, CartPage, StaffPage } from "@/pages";
+import { LoginPage, SignUpPage, SimpleRoleRedirect, EmailVerificationPage, SendVerificationPage, ForgotPasswordPage, ResetPasswordPage, ChangePasswordPage, CartPage, StaffPage } from "@/pages";
 import { AdminProtectedRoute, StaffProtectedRoute, VendorProtectedRoute } from "@/components";
 import VendorPage from "@/pages/vendor/VendorPage";
+import { AdminRouterPage } from "@/pages/admin";
 
 export const Routes = () => {
   return (
@@ -16,9 +17,9 @@ export const Routes = () => {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-password" element={<ChangePasswordPage />} />
       <Route path="/cart" element={<CartPage />} />
-      <Route path="/admin" element={
+      <Route path="/admin/*" element={
         <AdminProtectedRoute>
-          <AdminPage />
+          <AdminRouterPage />
         </AdminProtectedRoute>
       } />
        <Route path="/staff" element={
