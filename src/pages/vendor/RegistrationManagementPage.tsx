@@ -286,6 +286,7 @@ const RegistrationTable = ({ registrations, loading, onView }: { registrations: 
 
 const RegistrationManagementPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [registrations, setRegistrations] = useState<ProductRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
