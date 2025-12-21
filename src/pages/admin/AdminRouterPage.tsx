@@ -39,13 +39,23 @@ const AdminPageWrapper = ({
 const AdminRouterPage = () => {
   return (
     <RRDRoutes>
-      <Route path="" element={<AdminDashboardPage />} />
+      <Route 
+        path="" 
+        element={
+          <AdminPageWrapper 
+            title="Tổng quan hệ thống" 
+            subtitle="Thống kê toàn hệ thống: doanh thu, đơn hàng, người dùng, sản phẩm và hàng đợi"
+          >
+            <AdminDashboardPage />
+          </AdminPageWrapper>
+        } 
+      />
       <Route 
         path="warehouse" 
         element={
           <AdminPageWrapper 
-            title="Quản lý nhập kho" 
-            subtitle="Quản lý đăng ký sản phẩm và nhập kho"
+            title="Quản lý đơn đăng ký" 
+            subtitle="Duyệt và quản lý các đơn đăng ký sản phẩm từ vendor"
           >
             <AdminWarehousePanel />
           </AdminPageWrapper>

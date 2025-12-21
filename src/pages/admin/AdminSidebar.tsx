@@ -27,7 +27,7 @@ const AdminSidebar = () => {
     },
     {
       id: "warehouse",
-      label: "Quản lý nhập kho",
+      label: "Quản lý đơn đăng ký",
       icon: Warehouse,
       path: "/admin/warehouse"
     },

@@ -2,8 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AdminHeader } from "./AdminHeader";
-import AdminSidebar from "./AdminSidebar";
 import { 
   getAdminDashboardOverview, 
   getAdminRevenue,
@@ -345,17 +343,8 @@ const AdminDashboardPage = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <AdminSidebar />
-
-      <div className="flex-1 flex flex-col ml-64">
-        <AdminHeader
-          title="Tổng quan hệ thống"
-          subtitle="Thống kê toàn hệ thống: doanh thu, đơn hàng, người dùng, sản phẩm và hàng đợi"
-        />
-
-        <main className="flex-1 p-4 overflow-y-auto space-y-4">
-          {error && (
+    <div className="w-full space-y-4">
+      {error && (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="pt-4 text-red-600 text-sm">
                 {error}
@@ -1055,8 +1044,6 @@ const AdminDashboardPage = () => {
               Không có dữ liệu tổng quan.
             </div>
           )}
-        </main>
-      </div>
     </div>
   );
 };
