@@ -11,13 +11,14 @@ import {
   type PaginatedResponse,
   type ProductUpdateRequest,
 } from '@/api/product';
+import { getVendorProductStatistics, type ProductStatistics } from '@/api/vendordashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Package, Search, Eye, Filter, RefreshCcw, Pencil, ClipboardList } from 'lucide-react';
+import { Loader2, Package, Search, Eye, Filter, RefreshCcw, Pencil, ClipboardList, TrendingUp, AlertTriangle, BarChart3, ShoppingCart } from 'lucide-react';
 import { ProductUpdateRequestDialog } from '../staff/components/ProductUpdateRequestDialog';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -38,6 +39,11 @@ const ProductManagementPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
+
+  // Product statistics
+  const [productStats, setProductStats] = useState<ProductStatistics | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'products' | 'update-requests'>('products');
@@ -85,6 +91,29 @@ const ProductManagementPage: React.FC = () => {
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorId, page, pageSize]);
+
+  // Fetch product statistics
+  useEffect(() => {
+    const fetchProductStats = async () => {
+      try {
+        setStatsLoading(true);
+        setStatsError(null);
+        const stats = await getVendorProductStatistics();
+        setProductStats(stats);
+      } catch (err: any) {
+        const errorMessage =
+          err?.response?.data?.errors?.join(', ') ||
+          err?.message ||
+          'Có lỗi xảy ra khi tải thống kê sản phẩm';
+        setStatsError(errorMessage);
+        console.error('Error fetching product statistics:', err);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchProductStats();
+  }, []);
 
   const fetchUpdateRequests = async () => {
     if (!canLoad) {
@@ -192,7 +221,7 @@ const ProductManagementPage: React.FC = () => {
     <div className="flex min-h-screen bg-gray-50">
       <VendorSidebar />
 
-      <main className="flex-1 flex flex-col overflow-y-auto">
+      <main className="flex-1 flex flex-col overflow-y-auto ml-64">
         <VendorHeader
           title="Quản lý sản phẩm"
           subtitle="Quản lý sản phẩm và các yêu cầu cập nhật từ nhà cung cấp"
@@ -200,6 +229,159 @@ const ProductManagementPage: React.FC = () => {
         />
 
         <div className="space-y-6 p-6">
+          {/* Dashboard Statistics Section */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Thống kê sản phẩm</h2>
+            
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* Tổng sản phẩm */}
+              <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-gray-600">
+                    <span>Tổng sản phẩm</span>
+                    <Package className="w-5 h-5 text-blue-600" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {statsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  ) : statsError ? (
+                    <p className="text-sm text-red-600">{statsError}</p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {productStats?.totalProducts ?? 0}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Tổng số sản phẩm trong hệ thống
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Sản phẩm đang hoạt động */}
+              <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-gray-600">
+                    <span>Sản phẩm đang hoạt động</span>
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {statsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  ) : statsError ? (
+                    <p className="text-sm text-red-600">{statsError}</p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {productStats?.activeProducts ?? 0}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {productStats?.inactiveProducts ?? 0} sản phẩm ngừng hoạt động
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Sản phẩm hết hàng */}
+              <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-gray-600">
+                    <span>Sản phẩm hết hàng</span>
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {statsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  ) : statsError ? (
+                    <p className="text-sm text-red-600">{statsError}</p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {productStats?.outOfStockProducts ?? 0}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {productStats?.lowStockProducts ?? 0} sản phẩm sắp hết hàng
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Tổng giá trị tồn kho */}
+              <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-gray-600">
+                    <span>Tổng giá trị tồn kho</span>
+                    <BarChart3 className="w-5 h-5 text-purple-600" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {statsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  ) : statsError ? (
+                    <p className="text-sm text-red-600">{statsError}</p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {productStats?.totalStockValue ? currency(productStats.totalStockValue) : "0 ₫"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {productStats?.totalStockQuantity ?? 0} đơn vị tồn kho
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Category Distribution */}
+            {productStats && productStats.categoryDistribution && productStats.categoryDistribution.length > 0 && (
+              <Card className="border border-gray-200 mb-6">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5 text-gray-600" />
+                    Phân bố sản phẩm theo danh mục
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {productStats.categoryDistribution.map((category: ProductStatistics['categoryDistribution'][0]) => (
+                      <div key={category.categoryId} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">
+                            {category.categoryName}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {category.productCount} sản phẩm ({category.percentage.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-gradient-to-r from-green-500 to-green-600 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${category.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'products' | 'update-requests')}>
             <TabsList className="mb-4">

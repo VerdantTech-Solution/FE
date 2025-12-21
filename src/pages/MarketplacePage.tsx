@@ -10,6 +10,7 @@ import { getAllProducts, type Product, getAllProductCategories, type ProductCate
 import { addToCart } from '@/api/cart';
 import { toast } from 'sonner';
 import { getProductReviewsByProductId } from '@/api/productReview';
+import { getProductUnitById } from '@/lib/productUnitMapper';
 
 // Animation variants
 const containerVariants = {
@@ -871,7 +872,7 @@ export const MarketplacePage = () => {
                                   {product.price?.toLocaleString('vi-VN')}đ
                                 </span>
                               )}
-                              <span className="text-gray-500">/{product.unit}</span>
+                              <span className="text-gray-500">/{getProductUnitById(product.categoryId, categories)}</span>
                             </div>
                           </div>
                           

@@ -210,7 +210,7 @@ const CashoutHistoryPage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-64">
         <VendorHeader
           title="Lịch sử rút tiền"
           subtitle="Xem tất cả các yêu cầu rút tiền của bạn"

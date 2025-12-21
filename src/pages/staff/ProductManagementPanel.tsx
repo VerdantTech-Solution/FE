@@ -182,7 +182,7 @@ export const ProductManagementPanel: React.FC = () => {
       <Tabs defaultValue="products" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="products">Sản phẩm</TabsTrigger>
-          <TabsTrigger value="update-requests">Yêu cầu update sản phẩm</TabsTrigger>
+          <TabsTrigger value="update-requests">Yêu cầu cập nhật sản phẩm</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="space-y-6">
@@ -381,7 +381,7 @@ export const ProductManagementPanel: React.FC = () => {
         <TabsContent value="update-requests" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Yêu cầu update sản phẩm</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Yêu cầu cập nhật sản phẩm</h2>
               <p className="text-sm text-gray-500 mt-1">
                 Lọc theo trạng thái và nhà cung cấp
               </p>

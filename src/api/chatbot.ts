@@ -5,38 +5,6 @@ const FALLBACK_ERROR_MESSAGE =
 
 const DEFAULT_SESSION_ID = 'verdant-session';
 
-// const normalizeChatbotMessage = (value: string): string => {
-//   if (typeof value !== 'string') {
-//     return '';
-//   }
-
-//   // Check if it's a JSON string with products - don't normalize it
-//   try {
-//     const parsed = JSON.parse(value);
-//     if (parsed && typeof parsed === 'object' && parsed.products && Array.isArray(parsed.products)) {
-//       // It's a JSON with products, return as-is (but normalize the message field inside)
-//       if (parsed.message && typeof parsed.message === 'string') {
-//         parsed.message = parsed.message
-//           .replace(/<br\s*\/?>/gi, '\n')
-//           .replace(/&nbsp;/gi, ' ')
-//           .replace(/\r\n/g, '\n')
-//           .replace(/\n{3,}/g, '\n\n')
-//           .trim();
-//         return JSON.stringify(parsed);
-//       }
-//       return value; // Return original JSON string
-//     }
-//   } catch (_e) {
-//     // Not JSON, continue with normalization
-//   }
-
-//   return value
-//     .replace(/<br\s*\/?>/gi, '\n')
-//     .replace(/&nbsp;/gi, ' ')
-//     .replace(/\r\n/g, '\n')
-//     .replace(/\n{3,}/g, '\n\n')
-//     .trim();
-// };
 export const normalizeChatbotMessage = (value: string): string => {
   if (typeof value !== 'string') return '';
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import VendorSidebar from './VendorSidebar';
+import VendorHeader from './VendorHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, ArrowLeft, CheckCircle, Loader2, Upload } from 'lucide-react';
 import { createProductUpdateRequest, getProductById, type Product, type ProductImage } from '@/api/product';
+import { toast } from 'sonner';
 
 type UpdateState = {
   productName: string;
@@ -145,10 +147,38 @@ const VendorProductUpdatePage = () => {
         imagesToDelete: form.imagesToDelete.length > 0 ? form.imagesToDelete : null
       });
 
-      setSuccess('Đã gửi yêu cầu cập nhật sản phẩm.');
+      const successMessage = 'Đã gửi yêu cầu cập nhật sản phẩm.';
+      setSuccess(successMessage);
+      toast.success(successMessage);
       setForm(initialState);
     } catch (err: any) {
-      setError(err?.message || 'Không thể gửi yêu cầu cập nhật.');
+      // Xử lý lỗi từ API response
+      let errorMessage = 'Không thể gửi yêu cầu cập nhật.';
+      
+      // Kiểm tra error.response.data (format từ axios khi API trả về lỗi)
+      if (err?.response?.data) {
+        const errorData = err.response.data;
+        
+        // Format 1: errorData.errors là array (format chính từ API)
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          errorMessage = errorData.errors[0];
+        }
+        // Format 2: errorData.message
+        else if (errorData.message) {
+          errorMessage = String(errorData.message);
+        }
+      }
+      // Kiểm tra err.errors (từ interceptor của apiClient)
+      else if (err?.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+        errorMessage = err.errors[0];
+      }
+      // Kiểm tra err.message
+      else if (err?.message) {
+        errorMessage = String(err.message);
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -167,20 +197,20 @@ const VendorProductUpdatePage = () => {
     <div className="flex h-screen bg-gray-50">
       <VendorSidebar />
 
-      <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Quay lại
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Cập nhật sản phẩm</h1>
-              <p className="text-gray-600">Gửi yêu cầu cập nhật cho nhân viên duyệt</p>
+      <div className="flex-1 flex flex-col ml-64">
+        <VendorHeader
+          title="Cập nhật sản phẩm"
+          subtitle="Gửi yêu cầu cập nhật cho nhân viên duyệt"
+          rightContent={
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Quay lại
+              </Button>
+              {statusBadge()}
             </div>
-          </div>
-          {statusBadge()}
-        </header>
+          }
+        />
 
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
           {error && (

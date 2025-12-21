@@ -120,7 +120,7 @@ export const VendorSignUpForm: React.FC<VendorSignUpFormProps> = ({ onSuccess })
       
       toast.success("Đăng ký làm nhà cung cấp thành công! Tài khoản của bạn đang chờ xét duyệt.");
       
-      // Navigate to login or vendor dashboard
+      // Navigate to login
       if (onSuccess) {
         onSuccess();
       } else {

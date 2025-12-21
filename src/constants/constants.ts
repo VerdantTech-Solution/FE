@@ -15,7 +15,6 @@ export const PATH_NAMES = {
   UPDATE_FARM: '/update-farm',
   FARM_DETAIL: '/farm-detail',
   // Vendor routes
-  VENDOR_DASHBOARD: '/vendor/dashboard',
   VENDOR_PRODUCTS: '/vendor/products',
   VENDOR_REGISTRATIONS: '/vendor/registrations',
   VENDOR_REGISTER_PRODUCT: '/vendor/registrations/new',
