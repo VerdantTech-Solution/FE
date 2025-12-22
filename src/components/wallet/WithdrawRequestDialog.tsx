@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { createCashoutRequest, type CashoutRequest } from '@/api/wallet';
-import type { VendorBankAccount } from '@/api/vendorbankaccounts';
+import { getSupportedBanks, type SupportedBank, type VendorBankAccount } from '@/api/vendorbankaccounts';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
@@ -41,6 +41,34 @@ const WithdrawRequestDialog = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [supportedBanks, setSupportedBanks] = useState<SupportedBank[]>([]);
+  const [banksLoading, setBanksLoading] = useState(false);
+
+  // Lấy danh sách ngân hàng để map bankCode -> tên ngân hàng
+  useEffect(() => {
+    const loadBanks = async () => {
+      try {
+        setBanksLoading(true);
+        const banks = await getSupportedBanks();
+        setSupportedBanks(banks);
+      } catch (err) {
+        console.error('Load supported banks error:', err);
+      } finally {
+        setBanksLoading(false);
+      }
+    };
+
+    if (open && supportedBanks.length === 0 && !banksLoading) {
+      loadBanks();
+    }
+  }, [open, supportedBanks.length, banksLoading]);
+
+  const getBankDisplayName = (code: string): string => {
+    const bank = supportedBanks.find(
+      (item) => item.bin === code || item.code === code
+    );
+    return bank?.shortName || bank?.name || code;
+  };
 
   // Format số tiền với dấu phẩy ngăn cách
   const formatCurrency = (amount: number): string => {
@@ -161,7 +189,7 @@ const WithdrawRequestDialog = ({
                 ) : (
                   bankAccounts.map((account) => (
                     <SelectItem key={account.id} value={String(account.id)}>
-                      {account.bankCode} - {account.accountNumber} ({account.accountHolder})
+                      {getBankDisplayName(account.bankCode)} - {account.accountNumber} ({account.accountHolder})
                     </SelectItem>
                   ))
                 )}
