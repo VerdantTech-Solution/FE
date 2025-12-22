@@ -912,14 +912,14 @@ export interface BatchInventoryImportRowResultDTO {
   errorMessage?: string;
 }
 
-// Import Batch Inventories from Excel
+// Import Batch Inventories from Excel (using ProductCode/ProductName instead of ProductId)
 export const importBatchInventoriesFromExcel = async (
   file: File
 ): Promise<BatchInventoryImportResponseDTO> => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await apiClient.post('/api/BatchInventory/import', formData, {
+  const response = await apiClient.post('/api/BatchInventory/import-by-code', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -933,10 +933,10 @@ export const importBatchInventoriesFromExcel = async (
   return response as BatchInventoryImportResponseDTO;
 };
 
-// Download Excel Template for Batch Inventory
+// Download Excel Template for Batch Inventory (using ProductCode/ProductName)
 export const downloadBatchInventoryTemplate = async (): Promise<void> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/BatchInventory/import/template`, {
+    const response = await axios.get(`${API_BASE_URL}/api/BatchInventory/import-by-code/template`, {
       responseType: 'blob',
       headers: {
         Authorization: `Bearer ${localStorage.getItem('authToken')}`,
@@ -946,7 +946,7 @@ export const downloadBatchInventoryTemplate = async (): Promise<void> => {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'BatchInventory_Import_Template.xlsx');
+    link.setAttribute('download', 'BatchInventory_Import_ByCode_Template.xlsx');
     document.body.appendChild(link);
     link.click();
     link.remove();
