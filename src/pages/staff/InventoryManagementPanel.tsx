@@ -621,18 +621,6 @@ export const InventoryManagementPanel: React.FC = () => {
     }
   };
 
-  // Handle quality check
-  const handleQualityCheck = (item: BatchInventory) => {
-    setSelectedInventory(item);
-    const currentStatus = item.qualityCheckStatus as string;
-    setQualityCheckForm({
-      qualityCheckStatus: (currentStatus === 'Pending' || currentStatus === 'pending') ? 'Pending' : 
-                          (currentStatus === 'Passed' || currentStatus === 'passed') ? 'Passed' : 'Failed',
-      notes: item.notes || '',
-    });
-    setQualityCheckDialogOpen(true);
-  };
-
   // Handle quality check submit
   const handleQualityCheckSubmit = async () => {
     if (!selectedInventory) return;
@@ -786,27 +774,6 @@ export const InventoryManagementPanel: React.FC = () => {
     });
   };
 
-  const getQualityStatusBadge = (status: string) => {
-    const statusLower = (status || '').toLowerCase();
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      notrequired: "outline",
-      pending: "secondary",
-      passed: "default",
-      failed: "destructive",
-    };
-    const labels: Record<string, string> = {
-      notrequired: "Không yêu cầu",
-      pending: "Chờ kiểm tra",
-      passed: "Đạt",
-      failed: "Không đạt",
-    };
-    return (
-      <Badge variant={variants[statusLower] || "outline"}>
-        {labels[statusLower] || status}
-      </Badge>
-    );
-  };
-
   const getMovementTypeBadge = (type: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       Sale: "default",
@@ -921,6 +888,7 @@ export const InventoryManagementPanel: React.FC = () => {
                   <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
                     <li>Tải file template Excel để xem định dạng dữ liệu</li>
                     <li>Điền thông tin nhập kho vào file Excel theo template</li>
+                    <li><strong>Quan trọng:</strong> Sử dụng <strong>ProductCode</strong> để xác định sản phẩm</li>
                     <li>Đối với sản phẩm yêu cầu serial, nhập danh sách serial numbers trong cột SerialNumbers (phân cách bằng dấu phẩy)</li>
                     <li>Upload file Excel để import nhiều lô hàng cùng lúc</li>
                     <li>File Excel tối đa 1000 dòng mỗi lần import</li>
@@ -1063,12 +1031,9 @@ export const InventoryManagementPanel: React.FC = () => {
                   return (
                     <Card key={item.id}>
                       <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">
-                            {item.product?.name || item.productName || productInfo?.productName || productInfo?.name || `Sản phẩm #${item.productId}`}
-                          </CardTitle>
-                          {getQualityStatusBadge(item.qualityCheckStatus)}
-                        </div>
+                        <CardTitle className="text-lg">
+                          {item.product?.name || item.productName || productInfo?.productName || productInfo?.name || `Sản phẩm #${item.productId}`}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {/* Hình ảnh và thông tin sản phẩm */}
@@ -1171,14 +1136,6 @@ export const InventoryManagementPanel: React.FC = () => {
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           Chi tiết
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleQualityCheck(item)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Kiểm tra
                         </Button>
                         <Button
                           size="sm"
@@ -2173,10 +2130,6 @@ export const InventoryManagementPanel: React.FC = () => {
                     <p className="mt-1 text-sm text-gray-900">{selectedInventory.expiryDate}</p>
                   </div>
                 )}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Trạng thái kiểm tra</Label>
-                  <div className="mt-1">{getQualityStatusBadge(selectedInventory.qualityCheckStatus)}</div>
-                </div>
                 {selectedInventory.notes && (
                   <div className="col-span-2">
                     <Label className="text-sm font-medium text-gray-700">Ghi chú</Label>
@@ -2381,11 +2334,28 @@ export const InventoryManagementPanel: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Import nhập kho từ Excel</DialogTitle>
             <DialogDescription>
-              Upload file Excel để import nhiều lô hàng cùng lúc
+              Upload file Excel để import nhiều lô hàng cùng lúc. 
+              File Excel phải có cột <strong>ProductCode</strong> hoặc <strong>ProductName</strong>.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-2">Lưu ý quan trọng:</h4>
+                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    <li>File Excel phải có cột <strong>ProductCode</strong> để xác định sản phẩm</li>
+                    <li>Không cần nhập <strong>ProductId</strong> - hệ thống sẽ tự động tìm sản phẩm từ mã hoặc tên</li>
+                    <li>Nếu có nhiều sản phẩm cùng tên, vui lòng sử dụng <strong>ProductCode</strong> để xác định chính xác</li>
+                    <li>Tải template mẫu để xem định dạng đúng</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="excel-file">Chọn file Excel</Label>
               <Input
