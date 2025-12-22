@@ -26,7 +26,6 @@ import {
 import { getUserProfile } from "@/api/user"; // Import để check user profile
 import { parseProductsFromMessage } from "@/utils/parseChatProducts";
 import { ChatProductCarousel } from "@/components/ChatProductCarousel";
-import { toast } from "sonner";
 
 interface Message {
   id: string;
