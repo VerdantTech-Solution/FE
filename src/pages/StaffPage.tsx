@@ -30,10 +30,8 @@ import { BalanceManagement } from "./staff/BalanceManagement";
 import { ProductManagementPanel } from "./staff/ProductManagementPanel";
 import { PostManagementPanel } from "./staff/PostManagementPanel";
 import WarehousePanel from "./staff/WarehousePanel";
-import { StaffOverviewPage } from "./staff/StaffOverviewPage";
 
 type ViewKey =
-  | "overview"
   | "warehouse"
   | "inventory"
   | "users"
@@ -48,7 +46,7 @@ type ViewKey =
   | "posts";
 
 export const StaffPage: React.FC = () => {
-  const [selectedMenu, setSelectedMenu] = useState<ViewKey>("overview");
+  const [selectedMenu, setSelectedMenu] = useState<ViewKey>("warehouse");
   const [collapsed, setCollapsed] = useState(false);
   //const [, setStats] = useState<WarehouseStats>({ total: 0, pending: 0, approved: 0, rejected: 0 });
   
@@ -63,7 +61,10 @@ export const StaffPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <motion.div variants={sidebarVariants} initial="hidden" animate="visible">
-        <Sidebar className="fixed left-0 top-0 z-30" collapsed={collapsed}>
+        <Sidebar
+          className={`w-full ${collapsed ? "md:w-16" : "md:w-64"} md:fixed md:left-0 md:top-0 md:z-30 md:h-screen md:overflow-y-auto`}
+          collapsed={collapsed}
+        >
           <SidebarHeader className="mr-[100px]">
             <SidebarHeaderTitle className="pr-7">
               <div className="w-[60px] h-[70px] flex items-center justify-center overflow-hidden p-2">
@@ -79,7 +80,6 @@ export const StaffPage: React.FC = () => {
           <SidebarNav>
             <SidebarSection>
               <SidebarSectionTitle>Chính</SidebarSectionTitle>
-              <SidebarNavItem collapsed={collapsed} active={selectedMenu === "overview"} onClick={() => setSelectedMenu("overview")} icon={<Home className="w-5 h-5" />}>Tổng quan</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "warehouse"} onClick={() => setSelectedMenu("warehouse")} icon={<Home className="w-5 h-5" />}>Quản Lý Đơn Đăng Ký</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "inventory"} onClick={() => setSelectedMenu("inventory")} icon={<PackagePlus className="w-5 h-5" />}>Quản Lý Nhập Kho</SidebarNavItem>
               <SidebarNavItem collapsed={collapsed} active={selectedMenu === "products"} onClick={() => setSelectedMenu("products")} icon={<ShoppingBag className="w-5 h-5" />}>Quản Lý Sản Phẩm</SidebarNavItem>
@@ -111,9 +111,13 @@ export const StaffPage: React.FC = () => {
         </Sidebar>
       </motion.div>
 
-      <div className={collapsed ? "ml-16" : "ml-64"} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        className={`min-h-screen flex flex-col transition-[margin] duration-300 ${
+          collapsed ? "ml-0 md:ml-16" : "ml-0 md:ml-64"
+        }`}
+      >
         {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 flex-shrink-0">
+        <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 md:px-8 md:py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Staff Dashboard</h1>
@@ -138,10 +142,7 @@ export const StaffPage: React.FC = () => {
         </div>
 
         {/* Content */}
-        <div className="p-8 flex-1 overflow-y-auto">
-          {selectedMenu === "overview" && (
-            <StaffOverviewPage />
-          )}
+        <div className="p-4 md:p-8 flex-1 overflow-y-auto">
           {selectedMenu === "warehouse" && (
 <WarehousePanel />          )}
           {selectedMenu === "inventory" && (

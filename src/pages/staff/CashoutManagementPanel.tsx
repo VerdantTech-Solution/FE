@@ -2,19 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -32,18 +19,12 @@ import {
   Loader2,
   RefreshCw,
   User,
-  CheckCircle,
-  XCircle,
-  X,
   Zap,
 } from "lucide-react";
 import {
   getAllCashoutRequest,
-  processCashoutManual,
   type CashoutRequestData,
   type CashoutRequestsPage,
-  type ProcessCashoutManualRequest,
-  type ManualCashoutStatus,
 } from "@/api/wallet";
 import { usePayOSProcessing } from "./hooks/usePayOSProcessing";
 import {
@@ -124,30 +105,6 @@ export const CashoutManagementPanel: React.FC = () => {
   const [paginationMeta, setPaginationMeta] =
     useState<CashoutRequestsPage>(defaultPagination);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // Process dialog states
-  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<CashoutRequestData | null>(null);
-  const [processStatus, setProcessStatus] = useState<ManualCashoutStatus>('Completed');
-  const [gatewayPaymentId, setGatewayPaymentId] = useState('');
-  const [cancelReason, setCancelReason] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processError, setProcessError] = useState<string | null>(null);
-  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
-  
-  const selectedVendorId = useMemo(
-    () => selectedRequest?.vendorId || selectedRequest?.user?.id || null,
-    [selectedRequest]
-  );
-  const isGatewayPaymentRequired = processStatus === 'Completed';
-  const isCancelReasonRequired = processStatus === 'Failed' || processStatus === 'Cancelled';
-  const isGatewayPaymentValid = !isGatewayPaymentRequired || gatewayPaymentId.trim().length > 0;
-  const isCancelReasonValid = !isCancelReasonRequired || cancelReason.trim().length > 0;
-  const isManualProcessDisabled =
-    isProcessing ||
-    !selectedVendorId ||
-    !isGatewayPaymentValid ||
-    !isCancelReasonValid;
   
   // PayOS processing hook
   const payOSProcessing = usePayOSProcessing({
@@ -265,82 +222,6 @@ export const CashoutManagementPanel: React.FC = () => {
   const handleNextPage = () => {
     if (currentPage < paginationMeta.totalPages) {
       setCurrentPage((prev) => prev + 1);
-    }
-  };
-
-  const handleOpenProcessDialog = (request: CashoutRequestData) => {
-    setSelectedRequest(request);
-    setProcessStatus('Completed');
-    setGatewayPaymentId('');
-    setCancelReason('');
-    setProcessError(null);
-    setIsProcessDialogOpen(true);
-  };
-
-  const handleCloseProcessDialog = () => {
-    setIsProcessDialogOpen(false);
-    setSelectedRequest(null);
-    setProcessStatus('Completed');
-    setGatewayPaymentId('');
-    setCancelReason('');
-    setProcessError(null);
-  };
-
-  const handleProcessStatusChange = (value: ManualCashoutStatus) => {
-    setProcessStatus(value);
-    setGatewayPaymentId('');
-    setCancelReason('');
-    setProcessError(null);
-  };
-
-  const handleProcessCashout = async () => {
-    if (!selectedRequest) {
-      setProcessError('Không tìm thấy thông tin yêu cầu');
-      return;
-    }
-
-    if (!selectedVendorId) {
-      setProcessError('Không tìm thấy ID nhà cung cấp');
-      return;
-    }
-
-    if (isGatewayPaymentRequired && !isGatewayPaymentValid) {
-      setProcessError('Vui lòng nhập Gateway Payment ID cho trạng thái Completed');
-      return;
-    }
-
-    if (isCancelReasonRequired && !isCancelReasonValid) {
-      setProcessError('Vui lòng nhập lý do hủy cho trạng thái Failed/Cancelled');
-      return;
-    }
-
-    setIsProcessing(true);
-    setProcessError(null);
-
-    try {
-      const requestData: ProcessCashoutManualRequest = {
-        status: processStatus,
-        ...(processStatus === 'Completed' && { gatewayPaymentId: gatewayPaymentId.trim() }),
-        ...((processStatus === 'Failed' || processStatus === 'Cancelled') && { cancelReason: cancelReason.trim() }),
-      };
-
-      const response = await processCashoutManual(selectedVendorId, requestData);
-
-      if (response.status) {
-        handleCloseProcessDialog();
-        await fetchCashoutRequests(currentPage, pageSize, { skipLoading: true });
-        setIsSuccessDialogOpen(true);
-      } else {
-        const errorMessage = response.errors && response.errors.length > 0
-          ? response.errors.join(', ')
-          : 'Không thể xử lý yêu cầu rút tiền';
-        setProcessError(errorMessage);
-      }
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.errors?.[0] || 'Có lỗi xảy ra khi xử lý yêu cầu rút tiền';
-      setProcessError(errorMessage);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -587,15 +468,6 @@ export const CashoutManagementPanel: React.FC = () => {
                                 </>
                               )}
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenProcessDialog(request)}
-                              className="gap-1"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Thủ công
-                            </Button>
                           </div>
                         )}
                       </td>
@@ -640,211 +512,6 @@ export const CashoutManagementPanel: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Process Cashout AlertDialog */}
-      <AlertDialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
-        <AlertDialogContent className="sm:max-w-[500px]">
-          <AlertDialogHeader>
-            <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-7 h-7 text-green-600" />
-            </div>
-            <AlertDialogTitle className="text-xl font-bold text-center">
-              Xử lý yêu cầu rút tiền #{selectedRequest?.id}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              {selectedRequest && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Nhà cung cấp:</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {selectedRequest.vendor?.fullName || selectedRequest.user?.fullName || '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Số tiền:</span>
-                    <span className="text-sm font-semibold text-green-600">
-                      {formatCurrency(selectedRequest.amount)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">
-                Trạng thái xử lý <span className="text-red-500">*</span>
-              </Label>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  {
-                    value: "Completed" as ManualCashoutStatus,
-                    title: "Completed",
-                    description: "Đã thanh toán thành công",
-                    helper: "Bắt buộc nhập Gateway Payment ID",
-                    icon: CheckCircle,
-                    accent: "text-green-600",
-                  },
-                  {
-                    value: "Failed" as ManualCashoutStatus,
-                    title: "Failed",
-                    description: "Thanh toán thất bại",
-                    helper: "Bắt buộc nhập lý do hủy",
-                    icon: XCircle,
-                    accent: "text-red-600",
-                  },
-                  {
-                    value: "Cancelled" as ManualCashoutStatus,
-                    title: "Cancelled",
-                    description: "Hủy theo yêu cầu",
-                    helper: "Bắt buộc nhập lý do hủy",
-                    icon: X,
-                    accent: "text-gray-600",
-                  },
-                ].map((option) => {
-                  const Icon = option.icon;
-                  const isActive = processStatus === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleProcessStatusChange(option.value)}
-                      className={`flex flex-1 flex-col rounded-lg border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
-                        isActive
-                          ? "border-green-500 bg-green-50 shadow-sm"
-                          : "border-gray-200 bg-white hover:border-green-400"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon className={`h-4 w-4 ${option.accent}`} />
-                        <span className="font-semibold text-gray-900">
-                          {option.title}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-gray-600">
-                        {option.description}
-                      </p>
-                      <p className="mt-2 text-xs text-gray-500">
-                        {option.helper}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {processStatus === 'Completed' && (
-              <div className="space-y-2">
-                <Label htmlFor="gatewayPaymentId" className="text-sm font-medium">
-                  Gateway Payment ID <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="gatewayPaymentId"
-                  placeholder="Nhập Gateway Payment ID"
-                  value={gatewayPaymentId}
-                  aria-invalid={isGatewayPaymentRequired && !isGatewayPaymentValid}
-                  onChange={(e) => {
-                    setGatewayPaymentId(e.target.value);
-                    setProcessError(null);
-                  }}
-                />
-                <p
-                  className={`text-xs ${
-                    isGatewayPaymentValid ? 'text-gray-500' : 'text-red-500'
-                  }`}
-                >
-                  Mã thanh toán từ gateway (bắt buộc cho trạng thái Completed)
-                </p>
-              </div>
-            )}
-
-            {(processStatus === 'Failed' || processStatus === 'Cancelled') && (
-              <div className="space-y-2">
-                <Label htmlFor="cancelReason" className="text-sm font-medium">
-                  Lý do hủy <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="cancelReason"
-                  placeholder="Nhập lý do hủy yêu cầu rút tiền"
-                  value={cancelReason}
-                  aria-invalid={isCancelReasonRequired && !isCancelReasonValid}
-                  onChange={(e) => {
-                    setCancelReason(e.target.value);
-                    setProcessError(null);
-                  }}
-                  rows={3}
-                />
-                <p
-                  className={`text-xs ${
-                    isCancelReasonValid ? 'text-gray-500' : 'text-red-500'
-                  }`}
-                >
-                  Lý do hủy yêu cầu rút tiền (bắt buộc cho trạng thái Failed/Cancelled)
-                </p>
-              </div>
-            )}
-
-            {(processError || (!selectedVendorId && selectedRequest)) && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <div className="flex items-start space-x-2 text-red-600">
-                  <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm">
-                    {processError ||
-                      'Không tìm thấy ID nhà cung cấp hợp lệ cho yêu cầu này'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Hủy</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleProcessCashout}
-              disabled={isManualProcessDisabled}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Đang xử lý...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Xác nhận xử lý
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Success AlertDialog */}
-      <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
-        <AlertDialogContent className="sm:max-w-[400px]">
-          <AlertDialogHeader>
-            <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-7 h-7 text-green-600" />
-            </div>
-            <AlertDialogTitle className="text-xl font-bold text-center">
-              Thành công!
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              Yêu cầu rút tiền đã được xử lý thành công.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              onClick={() => setIsSuccessDialogOpen(false)}
-              className="bg-green-600 hover:bg-green-700 text-white w-full"
-            >
-              Đóng
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* PayOS Dialogs */}
       <PayOSConfirmDialog

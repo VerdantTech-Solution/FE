@@ -8,7 +8,6 @@ import {
   FileText,
   Building2,
   CreditCard,
-  User,
   Calendar,
   AlertCircle,
   RefreshCw,
@@ -30,17 +29,20 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Trash2 } from 'lucide-react';
+import { getSupportedBanks, type SupportedBank } from '@/api/vendorbankaccounts';
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('vi-VN', {
+  // Hiển thị theo múi giờ Việt Nam (UTC+7)
+  return date.toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 };
 
@@ -94,6 +96,31 @@ const CashoutRequestManagementPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [supportedBanks, setSupportedBanks] = useState<SupportedBank[]>([]);
+  const [banksLoading, setBanksLoading] = useState(false);
+
+  const getBankDisplayName = (code: string) => {
+    const bank = supportedBanks.find((b) => b.bin === code || b.code === code);
+    return bank?.shortName || bank?.name || code;
+  };
+
+  useEffect(() => {
+    const loadBanks = async () => {
+      try {
+        setBanksLoading(true);
+        const banks = await getSupportedBanks();
+        setSupportedBanks(banks);
+      } catch (err) {
+        console.error('Load supported banks error:', err);
+      } finally {
+        setBanksLoading(false);
+      }
+    };
+
+    if (supportedBanks.length === 0 && !banksLoading) {
+      loadBanks();
+    }
+  }, [supportedBanks.length, banksLoading]);
 
   const fetchCashoutRequest = async () => {
     if (!user?.id) {
@@ -174,21 +201,23 @@ const CashoutRequestManagementPage = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-gray-50 flex-col md:flex-row">
         <VendorSidebar />
-        <div className="flex-1 flex flex-col ml-64">
+        <div className="flex-1 flex flex-col md:ml-64">
           <VendorHeader
             title="Quản lý yêu cầu rút tiền"
             subtitle="Xem và theo dõi trạng thái yêu cầu rút tiền của bạn"
             showNotification={false}
           />
-          <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="flex justify-center mb-6">
-          <Spinner variant="circle-filled" size={60} className="text-green-600" />
-        </div>
-            <p className="text-gray-600">Đang tải thông tin yêu cầu rút tiền...</p>
-          </div>
+          <div className="flex-1 flex items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+            <div className="text-center max-w-md mx-auto">
+              <div className="flex justify-center mb-6">
+                <Spinner variant="circle-filled" size={60} className="text-green-600" />
+              </div>
+              <p className="text-gray-600">
+                Đang tải thông tin yêu cầu rút tiền...
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -196,10 +225,10 @@ const CashoutRequestManagementPage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 flex-col md:flex-row">
       <VendorSidebar />
       
-      <div className="flex-1 overflow-y-auto ml-64">
+      <div className="flex-1 overflow-y-auto md:ml-64">
         <VendorHeader
           title="Quản lý yêu cầu rút tiền"
           subtitle="Xem và theo dõi trạng thái yêu cầu rút tiền của bạn"
@@ -231,7 +260,7 @@ const CashoutRequestManagementPage = () => {
             </div>
           }
         />
-        <div className="p-8">
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
 
           {/* Error Message */}
           {error && (
@@ -285,18 +314,16 @@ const CashoutRequestManagementPage = () => {
                         <div className="flex items-center space-x-2 text-sm">
                           <Building2 className="w-4 h-4 text-gray-500" />
                           <span className="font-medium text-gray-700">Ngân hàng:</span>
-                          <span className="text-gray-900">{cashoutRequest.bankAccount.bankCode}</span>
+                          <span className="text-gray-900">
+                            {getBankDisplayName(cashoutRequest.bankAccount.bankCode)}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm">
                           <CreditCard className="w-4 h-4 text-gray-500" />
                           <span className="font-medium text-gray-700">Số tài khoản:</span>
                           <span className="text-gray-900 font-mono">{cashoutRequest.bankAccount.accountNumber}</span>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm">
-                          <User className="w-4 h-4 text-gray-500" />
-                          <span className="font-medium text-gray-700">Chủ tài khoản:</span>
-                          <span className="text-gray-900">{cashoutRequest.bankAccount.accountHolder}</span>
-                        </div>
+                       
                       </div>
                     </CardContent>
                   </Card>
