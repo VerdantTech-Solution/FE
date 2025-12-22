@@ -1,36 +1,46 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, History, Bot, User, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { useNavigate, useLocation } from 'react-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { 
-  sendChatbotMessage, 
-  getChatbotConversations, 
-  getChatbotMessages, 
-  createChatbotConversation, 
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  MessageCircle,
+  X,
+  Send,
+  History,
+  Bot,
+  User,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useNavigate, useLocation } from "react-router";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  sendChatbotMessage,
+  getChatbotConversations,
+  getChatbotMessages,
+  createChatbotConversation,
   deleteChatbotConversation, // <-- added
   //type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
   normalizeChatbotMessage,
-} from '@/api/chatbot';
-import { parseProductsFromMessage } from '@/utils/parseChatProducts';
-import { ChatProductCarousel } from '@/components/ChatProductCarousel';
+} from "@/api/chatbot";
+import { getUserProfile } from "@/api/user"; // Import để check user profile
+import { parseProductsFromMessage } from "@/utils/parseChatProducts";
+import { ChatProductCarousel } from "@/components/ChatProductCarousel";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'ai';
+  sender: "user" | "ai";
   timestamp: Date;
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Giới thiệu về nền tảng VerdantTech',
-  'Tôi muốn tư vấn canh tác bền vững',
-  'Tôi có thể liên hệ hỗ trợ như thế nào',
-  'Tôi muốn biết thêm về các chính sách của cửa hàng ? ',
-  'Phương thức thanh toán nào hiện đang được hỗ trợ?',
+  "Giới thiệu về nền tảng VerdantTech",
+  "Tôi muốn tư vấn canh tác bền vững",
+  "Tôi có thể liên hệ hỗ trợ như thế nào",
+  "Tôi muốn biết thêm về các chính sách của cửa hàng ? ",
+  "Phương thức thanh toán nào hiện đang được hỗ trợ?",
 ];
 
 export const ChatAIBubble = () => {
@@ -41,27 +51,27 @@ export const ChatAIBubble = () => {
 
   // Tạo key localStorage theo từng user để tránh user này thấy lịch sử chat của user khác
   const getStorageKeys = () => {
-    const userId = user?.id ?? 'guest';
+    const userId = user?.id ?? "guest";
     return {
       conversationsKey: `chatAI_conversations_${userId}`,
       currentConversationIdKey: `chatAI_currentConversationId_${userId}`,
       legacyHistoryKey: `chatAI_history_${userId}`,
     };
   };
-  
+
   // Ẩn chat button ở trang Login, SignUp, Vendor, Staff, Admin và ChatPage
   // Hoặc khi user có role Staff, Admin, Vendor (kể cả ở trang loading)
-  const shouldHideChat = 
-    location.pathname === '/login' || 
-    location.pathname === '/signup' ||
-    location.pathname === '/chat' ||
-    location.pathname.startsWith('/vendor') ||
-    location.pathname.startsWith('/staff') ||
-    location.pathname.startsWith('/admin') ||
-    user?.role === 'Staff' ||
-    user?.role === 'Admin' ||
-    user?.role === 'Vendor';
-  
+  const shouldHideChat =
+    location.pathname === "/login" ||
+    location.pathname === "/signup" ||
+    location.pathname === "/chat" ||
+    location.pathname.startsWith("/vendor") ||
+    location.pathname.startsWith("/staff") ||
+    location.pathname.startsWith("/admin") ||
+    user?.role === "Staff" ||
+    user?.role === "Admin" ||
+    user?.role === "Vendor";
+
   // Helper function to validate Date objects
   const isValidDate = (date: any): date is Date => {
     return date instanceof Date && !isNaN(date.getTime());
@@ -69,29 +79,34 @@ export const ChatAIBubble = () => {
 
   // Load current conversation from localStorage (theo từng user)
   const loadCurrentConversation = (): Message[] => {
-    const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
+    const { conversationsKey, currentConversationIdKey, legacyHistoryKey } =
+      getStorageKeys();
     try {
       const conversations = localStorage.getItem(conversationsKey);
       const currentId = localStorage.getItem(currentConversationIdKey);
-      
+
       if (conversations && currentId) {
         const parsed = JSON.parse(conversations);
         const currentConv = parsed.find((c: any) => c.id === currentId);
-        if (currentConv && currentConv.messages && Array.isArray(currentConv.messages)) {
+        if (
+          currentConv &&
+          currentConv.messages &&
+          Array.isArray(currentConv.messages)
+        ) {
           return currentConv.messages.map((msg: any) => {
             const timestamp = new Date(msg.timestamp);
             return {
               id: msg.id || Date.now().toString(),
               text: normalizeChatbotMessage(
-                msg.text || msg.messageText || msg.content || '',
+                msg.text || msg.messageText || msg.content || ""
               ),
-              sender: msg.sender || 'ai',
+              sender: msg.sender || "ai",
               timestamp: isValidDate(timestamp) ? timestamp : new Date(),
             };
           });
         }
       }
-      
+
       // Fallback to old format cho từng user để backward compatibility
       const saved = localStorage.getItem(legacyHistoryKey);
       if (saved) {
@@ -101,30 +116,32 @@ export const ChatAIBubble = () => {
             const timestamp = new Date(msg.timestamp);
             return {
               id: msg.id || Date.now().toString(),
-              text: msg.text || '',
-              sender: msg.sender || 'ai',
+              text: msg.text || "",
+              sender: msg.sender || "ai",
               timestamp: isValidDate(timestamp) ? timestamp : new Date(),
             };
           });
         }
       }
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      console.error("Error loading chat history:", error);
     }
     return [
       {
-        id: '1',
-        text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
-        sender: 'ai',
+        id: "1",
+        text: "Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?",
+        sender: "ai",
         timestamp: new Date(),
       },
     ];
   };
 
   const [messages, setMessages] = useState<Message[]>(loadCurrentConversation);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    number | null
+  >(null);
   const [_isLoadingConversation, setIsLoadingConversation] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -133,9 +150,9 @@ export const ChatAIBubble = () => {
   const adjustTextareaHeight = (el?: HTMLTextAreaElement | null) => {
     const ta = el ?? inputRef.current;
     if (!ta) return;
-    ta.style.height = 'auto';
+    ta.style.height = "auto";
     const max = 300; // px
-    ta.style.height = Math.min(ta.scrollHeight, max) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, max) + "px";
   };
 
   useEffect(() => {
@@ -162,31 +179,43 @@ export const ChatAIBubble = () => {
         setIsLoadingConversation(true);
         // Get the most recent conversation
         const conversationsResponse = await getChatbotConversations(1, 1);
-        
+
         if (conversationsResponse.items.length > 0) {
           const latestConv = conversationsResponse.items[0];
           setCurrentConversationId(latestConv.id);
-          
+
           // Update localStorage cache with conversation ID
           const { currentConversationIdKey } = getStorageKeys();
-          localStorage.setItem(currentConversationIdKey, latestConv.id.toString());
-          
+          localStorage.setItem(
+            currentConversationIdKey,
+            latestConv.id.toString()
+          );
+
           // Try to load messages from backend (but don't overwrite if we have cached messages)
           try {
-            const messagesResponse = await getChatbotMessages(latestConv.id, 1, 100);
+            const messagesResponse = await getChatbotMessages(
+              latestConv.id,
+              1,
+              100
+            );
             const backendMessages = messagesResponse.items;
-            
+
             // Convert backend messages to local format
-            const localMessages: Message[] = backendMessages.map((msg: BackendMessage) => {
-              const timestamp = new Date(msg.createdAt);
-              return {
-                id: msg.id.toString(),
-                text: normalizeChatbotMessage(msg.messageText || msg.content || ''),
-                sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
-                timestamp: isValidDate(timestamp) ? timestamp : new Date(),
-              };
-            });
-            
+            const localMessages: Message[] = backendMessages.map(
+              (msg: BackendMessage) => {
+                const timestamp = new Date(msg.createdAt);
+                return {
+                  id: msg.id.toString(),
+                  text: normalizeChatbotMessage(
+                    msg.messageText || msg.content || ""
+                  ),
+                  sender:
+                    msg.messageType?.toLowerCase() === "user" ? "user" : "ai",
+                  timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+                };
+              }
+            );
+
             // Only update if we have messages from backend
             if (localMessages.length > 0) {
               setMessages(localMessages);
@@ -195,45 +224,65 @@ export const ChatAIBubble = () => {
               try {
                 const saved = localStorage.getItem(conversationsKey);
                 const conversations = saved ? JSON.parse(saved) : [];
-                const existingConv = conversations.find((c: any) => c.id === latestConv.id.toString());
-                
+                const existingConv = conversations.find(
+                  (c: any) => c.id === latestConv.id.toString()
+                );
+
                 if (existingConv) {
                   existingConv.messages = localMessages;
                   existingConv.updatedAt = new Date();
                 } else {
                   conversations.push({
                     id: latestConv.id.toString(),
-                    title: latestConv.title || 'Cuộc trò chuyện mới',
+                    title: latestConv.title || "Cuộc trò chuyện mới",
                     messages: localMessages,
                     createdAt: new Date(latestConv.createdAt),
                     updatedAt: new Date(latestConv.updatedAt),
                   });
                 }
-                localStorage.setItem(conversationsKey, JSON.stringify(conversations));
+                localStorage.setItem(
+                  conversationsKey,
+                  JSON.stringify(conversations)
+                );
               } catch (error) {
-                console.error('Error saving to localStorage:', error);
+                console.error("Error saving to localStorage:", error);
               }
-            } else if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+            } else if (
+              cachedMessages.length === 0 ||
+              (cachedMessages.length === 1 && cachedMessages[0].id === "1")
+            ) {
               // No messages from backend and no cached messages (or only welcome), show welcome
               setMessages([getWelcomeMessage()]);
             }
           } catch (messagesError) {
-            console.error('Error loading messages from backend:', messagesError);
+            console.error(
+              "Error loading messages from backend:",
+              messagesError
+            );
             // Keep cached messages if available
-            if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+            if (
+              cachedMessages.length === 0 ||
+              (cachedMessages.length === 1 && cachedMessages[0].id === "1")
+            ) {
               setMessages([getWelcomeMessage()]);
             }
           }
         } else {
           // No conversations, show welcome message only if no cached messages
-          if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+          if (
+            cachedMessages.length === 0 ||
+            (cachedMessages.length === 1 && cachedMessages[0].id === "1")
+          ) {
             setMessages([getWelcomeMessage()]);
           }
         }
       } catch (error) {
-        console.error('Error loading conversation from backend:', error);
+        console.error("Error loading conversation from backend:", error);
         // Keep cached messages if available
-        if (cachedMessages.length === 0 || (cachedMessages.length === 1 && cachedMessages[0].id === '1')) {
+        if (
+          cachedMessages.length === 0 ||
+          (cachedMessages.length === 1 && cachedMessages[0].id === "1")
+        ) {
           const loadedMessages = loadCurrentConversation();
           setMessages(loadedMessages);
         }
@@ -249,10 +298,11 @@ export const ChatAIBubble = () => {
   useEffect(() => {
     if (messages.length > 1) {
       try {
-        const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
+        const { conversationsKey, currentConversationIdKey, legacyHistoryKey } =
+          getStorageKeys();
         const conversations = localStorage.getItem(conversationsKey);
         const currentId = localStorage.getItem(currentConversationIdKey);
-        
+
         if (conversations && currentId) {
           const parsed = JSON.parse(conversations);
           const updated = parsed.map((conv: any) => {
@@ -271,7 +321,7 @@ export const ChatAIBubble = () => {
           localStorage.setItem(legacyHistoryKey, JSON.stringify(messages));
         }
       } catch (error) {
-        console.error('Error saving chat history:', error);
+        console.error("Error saving chat history:", error);
       }
     }
   }, [messages]);
@@ -281,12 +331,12 @@ export const ChatAIBubble = () => {
     if (!container) return;
 
     const prefersReducedMotion = window.matchMedia
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false;
 
     container.scrollTo({
       top: container.scrollHeight,
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      behavior: prefersReducedMotion ? "auto" : "smooth",
     });
   };
 
@@ -302,36 +352,36 @@ export const ChatAIBubble = () => {
 
   const formatTime = (date: Date) => {
     if (!isValidDate(date)) {
-      return '';
+      return "";
     }
     try {
-      return new Intl.DateTimeFormat('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
+      return new Intl.DateTimeFormat("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
       }).format(date);
     } catch (error) {
-      console.error('Error formatting time:', error);
-      return '';
+      console.error("Error formatting time:", error);
+      return "";
     }
   };
 
   const formatDate = (date: Date) => {
     if (!isValidDate(date)) {
-      return '';
+      return "";
     }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Hôm nay';
+      return "Hôm nay";
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hôm qua';
+      return "Hôm qua";
     } else {
-      return new Intl.DateTimeFormat('vi-VN', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+      return new Intl.DateTimeFormat("vi-VN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       }).format(date);
     }
   };
@@ -347,9 +397,9 @@ export const ChatAIBubble = () => {
   }, {} as Record<string, Message[]>);
 
   const getWelcomeMessage = (): Message => ({
-    id: '1',
-    text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
-    sender: 'ai',
+    id: "1",
+    text: "Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?",
+    sender: "ai",
     timestamp: new Date(),
   });
 
@@ -359,12 +409,12 @@ export const ChatAIBubble = () => {
     const userMessage: Message = {
       id: Date.now().toString(),
       text: inputValue.trim(),
-      sender: 'user',
+      sender: "user",
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
+    setInputValue("");
     setIsTyping(true);
 
     let conversationId = currentConversationId;
@@ -373,23 +423,27 @@ export const ChatAIBubble = () => {
     try {
       // Create conversation if it doesn't exist
       if (!conversationId && user?.id) {
-        const title = userMessage.text.length > 30 
-          ? userMessage.text.substring(0, 30) + '...' 
-          : userMessage.text;
+        const title =
+          userMessage.text.length > 30
+            ? userMessage.text.substring(0, 30) + "..."
+            : userMessage.text;
         const newConversation = await createChatbotConversation(title);
         conversationId = newConversation.id;
         setCurrentConversationId(conversationId);
-        localStorage.setItem(currentConversationIdKey, conversationId.toString());
+        localStorage.setItem(
+          currentConversationIdKey,
+          conversationId.toString()
+        );
       }
 
       // Get AI response
       const sessionId = conversationId?.toString() || undefined;
       const aiText = await sendChatbotMessage(userMessage.text, sessionId);
-      
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: aiText,
-        sender: 'ai',
+        sender: "ai",
         timestamp: new Date(),
       };
 
@@ -401,23 +455,30 @@ export const ChatAIBubble = () => {
         try {
           const saved = localStorage.getItem(conversationsKey);
           const conversations = saved ? JSON.parse(saved) : [];
-          const existingConv = conversations.find((c: any) => c.id === conversationId?.toString());
-          
+          const existingConv = conversations.find(
+            (c: any) => c.id === conversationId?.toString()
+          );
+
           if (existingConv) {
             existingConv.messages = [...messages, userMessage, aiResponse];
             existingConv.updatedAt = new Date();
-            localStorage.setItem(conversationsKey, JSON.stringify(conversations));
+            localStorage.setItem(
+              conversationsKey,
+              JSON.stringify(conversations)
+            );
           }
         } catch (error) {
-          console.error('Error updating localStorage cache:', error);
+          console.error("Error updating localStorage cache:", error);
         }
       }
     } catch (error: any) {
-      console.error('Error sending chat message:', error);
+      console.error("Error sending chat message:", error);
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: error?.message || 'Xin lỗi, tôi chưa thể phản hồi ngay lúc này. Vui lòng thử lại sau.',
-        sender: 'ai',
+        text:
+          error?.message ||
+          "Xin lỗi, tôi chưa thể phản hồi ngay lúc này. Vui lòng thử lại sau.",
+        sender: "ai",
         timestamp: new Date(),
       };
 
@@ -436,7 +497,7 @@ export const ChatAIBubble = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -444,19 +505,20 @@ export const ChatAIBubble = () => {
 
   const handleClearHistory = async () => {
     const welcomeMessage: Message = {
-      id: '1',
-      text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
-      sender: 'ai',
+      id: "1",
+      text: "Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?",
+      sender: "ai",
       timestamp: new Date(),
     };
     setMessages([welcomeMessage]);
-    
+
     // Clear from conversations (theo từng user)
     try {
-      const { conversationsKey, currentConversationIdKey, legacyHistoryKey } = getStorageKeys();
+      const { conversationsKey, currentConversationIdKey, legacyHistoryKey } =
+        getStorageKeys();
       const conversations = localStorage.getItem(conversationsKey);
       const currentId = localStorage.getItem(currentConversationIdKey);
-      
+
       // Try to delete on backend if possible
       if (currentId && user?.id) {
         const convIdNum = parseInt(currentId);
@@ -472,12 +534,15 @@ export const ChatAIBubble = () => {
             localStorage.removeItem(currentConversationIdKey);
             return;
           } catch (err) {
-            console.error('Error deleting conversation on backend, will fallback to local clear:', err);
+            console.error(
+              "Error deleting conversation on backend, will fallback to local clear:",
+              err
+            );
             // continue to local-only fallback
           }
         }
       }
-      
+
       if (conversations && currentId) {
         const parsed = JSON.parse(conversations);
         const updated = parsed.map((conv: any) => {
@@ -495,7 +560,24 @@ export const ChatAIBubble = () => {
         localStorage.removeItem(legacyHistoryKey);
       }
     } catch (error) {
-      console.error('Error clearing history:', error);
+      console.error("Error clearing history:", error);
+    }
+  };
+
+  // Hàm xử lý khi click vào chat bubble - verify user trong background
+  const handleOpenChat = async () => {
+    // Mở chat ngay lập tức
+    setIsOpen(!isOpen);
+
+    // Verify user trong background (không block UI)
+    if (!isOpen && user?.id) {
+      try {
+        await getUserProfile();
+        console.log("User profile verified successfully");
+      } catch (error: any) {
+        console.warn("User verification failed, but chat still works:", error);
+        // Không hiển thị lỗi cho user, vẫn cho phép sử dụng chat
+      }
     }
   };
 
@@ -513,17 +595,17 @@ export const ChatAIBubble = () => {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
             className="fixed bottom-6 right-6 z-50 md:bottom-6 md:right-6 sm:bottom-4 sm:right-4"
           >
             <motion.button
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={handleOpenChat}
               className="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg hover:shadow-xl flex items-center justify-center text-white relative group"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
             >
               <MessageCircle className="w-6 h-6" />
-              
+
               {/* Pulse animation */}
               <motion.div
                 className="absolute inset-0 rounded-full bg-green-400"
@@ -554,7 +636,9 @@ export const ChatAIBubble = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold">Verdant AI</h3>
-                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
+                    <p className="text-xs text-green-100">
+                      Trợ lý tư vấn nông nghiệp bền vững
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -563,7 +647,7 @@ export const ChatAIBubble = () => {
                     size="sm"
                     onClick={() => {
                       setIsOpen(false);
-                      navigate('/chat');
+                      navigate("/chat");
                     }}
                     className="text-white hover:bg-white/20"
                     title="Xem lịch sử chat"
@@ -610,8 +694,8 @@ export const ChatAIBubble = () => {
                     {/* Messages for this date */}
                     {dateMessages.map((message) => {
                       // Parse products from AI messages
-                      const { products, textWithoutProducts } = 
-                        message.sender === 'ai' 
+                      const { products, textWithoutProducts } =
+                        message.sender === "ai"
                           ? parseProductsFromMessage(message.text)
                           : { products: [], textWithoutProducts: message.text };
 
@@ -620,21 +704,25 @@ export const ChatAIBubble = () => {
                           key={message.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`flex gap-4 ${
+                            message.sender === "user"
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
                         >
-                          {message.sender === 'ai' && (
+                          {message.sender === "ai" && (
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
                               <Bot className="w-5 h-5 text-white" />
                             </div>
                           )}
                           <div
                             className={`${
-                              message.sender === 'user'
-                                ? 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line'
-                                : 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line'
+                              message.sender === "user"
+                                ? "inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line"
+                                : "inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line"
                             }`}
                           >
-                            {message.sender === 'ai' && products.length > 0 ? (
+                            {message.sender === "ai" && products.length > 0 ? (
                               <div className="bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-200 w-full max-w-full overflow-hidden">
                                 {/* Text content if any */}
                                 {textWithoutProducts && (
@@ -652,14 +740,22 @@ export const ChatAIBubble = () => {
                               </div>
                             ) : (
                               <div>
-                                <p className="text-sm whitespace-pre-line break-words">{message.text}</p>
-                                <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-green-100' : 'text-gray-500'}`}>
+                                <p className="text-sm whitespace-pre-line break-words">
+                                  {message.text}
+                                </p>
+                                <p
+                                  className={`text-xs mt-1 ${
+                                    message.sender === "user"
+                                      ? "text-green-100"
+                                      : "text-gray-500"
+                                  }`}
+                                >
                                   {formatTime(message.timestamp)}
                                 </p>
                               </div>
                             )}
                           </div>
-                          {message.sender === 'user' && (
+                          {message.sender === "user" && (
                             <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
                               <User className="w-5 h-5 text-gray-600" />
                             </div>
@@ -684,17 +780,29 @@ export const ChatAIBubble = () => {
                         <motion.div
                           className="w-2 h-2 bg-gray-400 rounded-full"
                           animate={{ y: [0, -4, 0] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: 0,
+                          }}
                         />
                         <motion.div
                           className="w-2 h-2 bg-gray-400 rounded-full"
                           animate={{ y: [0, -4, 0] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: 0.2,
+                          }}
                         />
                         <motion.div
                           className="w-2 h-2 bg-gray-400 rounded-full"
                           animate={{ y: [0, -4, 0] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: 0.4,
+                          }}
                         />
                       </div>
                     </div>
@@ -714,17 +822,19 @@ export const ChatAIBubble = () => {
                       <span>Câu hỏi thường gặp:</span>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
-                      {SUGGESTED_QUESTIONS.slice(0, 4).map((question, index) => (
-                        <motion.button
-                          key={index}
-                          onClick={() => handleSuggestedQuestion(question)}
-                          className="text-left text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-green-50 hover:border-green-300 transition-colors text-gray-700"
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          {question}
-                        </motion.button>
-                      ))}
+                      {SUGGESTED_QUESTIONS.slice(0, 4).map(
+                        (question, index) => (
+                          <motion.button
+                            key={index}
+                            onClick={() => handleSuggestedQuestion(question)}
+                            className="text-left text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-green-50 hover:border-green-300 transition-colors text-gray-700"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            {question}
+                          </motion.button>
+                        )
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -760,7 +870,9 @@ export const ChatAIBubble = () => {
                         onClick={() => handleSuggestedQuestion(question)}
                         className="text-xs bg-gray-100 hover:bg-green-100 text-gray-600 px-2 py-1 rounded-full transition-colors"
                       >
-                        {question.length > 30 ? `${question.substring(0, 30)}...` : question}
+                        {question.length > 30
+                          ? `${question.substring(0, 30)}...`
+                          : question}
                       </button>
                     ))}
                   </div>
@@ -773,4 +885,3 @@ export const ChatAIBubble = () => {
     </>
   );
 };
-
