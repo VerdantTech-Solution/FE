@@ -16,9 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, AlertCircle } from "lucide-react";
+import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, AlertCircle, Download } from "lucide-react";
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
+import { exportAdminTransactions } from "@/api/admin-dashboard";
 // Dashboard API removed
 type OrderStatistics = {
   from?: string;
@@ -31,7 +32,7 @@ type OrderStatistics = {
   refunded?: number;
 };
 import { getIdentityNumbersWithMetadata, type IdentityNumberItem } from "@/api/export";
-import { formatVietnamDateTime } from "@/lib/utils";
+import { formatVietnamDateTime, parseApiDateTime } from "@/lib/utils";
 
 type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
 
@@ -106,6 +107,10 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState<string>("");
+  const [exportDateTo, setExportDateTo] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
   const [stats, setStats] = useState<OrderStats>({
     total: 0,
     paid: 0,
@@ -116,6 +121,43 @@ export const AdminOrderManagementPanel: React.FC = () => {
   });
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [isLoadingIdentityNumbers, setIsLoadingIdentityNumbers] = useState(false);
+  const [allOrders, setAllOrders] = useState<OrderWithCustomer[]>([]);
+  const [isLoadingAllOrders, setIsLoadingAllOrders] = useState(false);
+
+  // Fetch all orders for filtering
+  const fetchAllOrders = async (status?: OrderStatus) => {
+    try {
+      setIsLoadingAllOrders(true);
+      let allData: OrderWithCustomer[] = [];
+      let currentPageNum = 1;
+      let hasMore = true;
+      const fetchPageSize = 100;
+
+      while (hasMore) {
+        const response: GetAllOrdersResponse = await getAllOrders(
+          currentPageNum,
+          fetchPageSize,
+          status === "all" ? undefined : status
+        );
+
+        if (response.status && response.data && response.data.data) {
+          allData = [...allData, ...response.data.data];
+          hasMore = currentPageNum < response.data.totalPages;
+          currentPageNum++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setAllOrders(allData);
+      setCurrentPage(1);
+    } catch (err: any) {
+      console.error("Error fetching all orders:", err);
+      setAllOrders([]);
+    } finally {
+      setIsLoadingAllOrders(false);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -146,33 +188,18 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const fetchOrderStatistics = async () => {
     try {
       setIsLoadingStats(true);
-      const params: { from?: string; to?: string } = {};
-      if (dateFrom) params.from = dateFrom;
-      if (dateTo) params.to = dateTo;
+      // Fetch all orders for filtering
+      await fetchAllOrders(statusFilter === "all" ? undefined : statusFilter);
       
       // Dashboard API removed - functionality disabled
-      const response = { status: false, data: null };
-      
-      if (response.status && response.data) {
-        const statistics: OrderStatistics = response.data;
-        setStats({
-          total: statistics.total || 0,
-          paid: statistics.paid || 0,
-          shipped: statistics.shipped || 0,
-          cancelled: statistics.cancelled || 0,
-          delivered: statistics.delivered || 0,
-          refunded: statistics.refunded || 0,
-        });
-      } else {
-        setStats({
-          total: 0,
-          paid: 0,
-          shipped: 0,
-          cancelled: 0,
-          delivered: 0,
-          refunded: 0,
-        });
-      }
+      setStats({
+        total: 0,
+        paid: 0,
+        shipped: 0,
+        cancelled: 0,
+        delivered: 0,
+        refunded: 0,
+      });
     } catch (err: any) {
       console.error("Error fetching order statistics:", err);
       setStats({
@@ -603,6 +630,82 @@ export const AdminOrderManagementPanel: React.FC = () => {
     }
   };
 
+  const handleExportDialogOpen = () => {
+    // Initialize with default date range: 30 days ago to today
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    const formatDate = (date: Date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    setExportDateFrom(formatDate(thirtyDaysAgo));
+    setExportDateTo(formatDate(today));
+    setIsExportDialogOpen(true);
+  };
+
+  const handleExportTransactions = async () => {
+    if (!exportDateFrom || !exportDateTo) {
+      setErrorMessage("Vui lòng chọn cả ngày bắt đầu và ngày kết thúc");
+      setIsErrorDialogOpen(true);
+      return;
+    }
+
+    if (new Date(exportDateFrom) > new Date(exportDateTo)) {
+      setErrorMessage("Ngày bắt đầu không được sau ngày kết thúc");
+      setIsErrorDialogOpen(true);
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedEndDate = new Date(exportDateTo);
+    selectedEndDate.setHours(0, 0, 0, 0);
+
+    if (selectedEndDate > today) {
+      setErrorMessage("Ngày kết thúc không được vượt quá ngày hôm nay");
+      setIsErrorDialogOpen(true);
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const blob = await exportAdminTransactions(exportDateFrom, exportDateTo);
+      
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `GiaoDich_${exportDateFrom}_${exportDateTo}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setSuccessMessage("Xuất file Excel thành công!");
+      setIsSuccessDialogOpen(true);
+      setIsExportDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error exporting transactions:", error);
+      let errorMsg = "Có lỗi xảy ra khi xuất dữ liệu";
+      
+      if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMsg = error.response.data.errors.join("\n");
+      } else if (error?.message) {
+        errorMsg = error.message;
+      }
+      
+      setErrorMessage(errorMsg);
+      setIsErrorDialogOpen(true);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const getStatusSteps = (paymentMethod?: string) => {
     const allSteps = [
       { status: "Pending", label: "Chờ xử lý", icon: Clock },
@@ -628,6 +731,39 @@ export const AdminOrderManagementPanel: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
+    // Parse the date using helper that handles timezone correctly
+    if (!dateString) return '-';
+    
+    const date = parseApiDateTime(dateString);
+    
+    // Format in Vietnam timezone: HH:mm dd/mm/yyyy
+    const formatter = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour12: false,
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const hourIndex = parts.findIndex(p => p.type === 'hour');
+    const minuteIndex = parts.findIndex(p => p.type === 'minute');
+    const dayIndex = parts.findIndex(p => p.type === 'day');
+    const monthIndex = parts.findIndex(p => p.type === 'month');
+    const yearIndex = parts.findIndex(p => p.type === 'year');
+    
+    if (hourIndex >= 0 && minuteIndex >= 0 && dayIndex >= 0 && monthIndex >= 0 && yearIndex >= 0) {
+      const hour = parts[hourIndex].value;
+      const minute = parts[minuteIndex].value;
+      const day = parts[dayIndex].value;
+      const month = parts[monthIndex].value;
+      const year = parts[yearIndex].value;
+      
+      return `${hour}:${minute} ${day}/${month}/${year}`;
+    }
+    
     return formatVietnamDateTime(dateString);
   };
 
@@ -674,19 +810,52 @@ export const AdminOrderManagementPanel: React.FC = () => {
     return typeof images === "string" ? images : undefined;
   };
 
+  const allFilteredOrders = useMemo(() => {
+    let result = allOrders.length > 0 ? allOrders : orders;
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      result = result.filter((order) => order.status === statusFilter);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (order) =>
+          order.id.toString().includes(query) ||
+          order.customer.fullName.toLowerCase().includes(query) ||
+          order.customer.email.toLowerCase().includes(query) ||
+          order.trackingNumber?.toLowerCase().includes(query) ||
+          order.notes?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by date range
+    if (dateFrom || dateTo) {
+      result = result.filter((order) => {
+        const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
+        
+        if (dateFrom && orderDate < dateFrom) return false;
+        if (dateTo && orderDate > dateTo) return false;
+        
+        return true;
+      });
+    }
+
+    return result;
+  }, [allOrders, orders, statusFilter, searchQuery, dateFrom, dateTo]);
+
+  // Paginate filtered results
   const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return orders;
-    
-    const query = searchQuery.toLowerCase();
-    return orders.filter(
-      (order) =>
-        order.id.toString().includes(query) ||
-        order.customer.fullName.toLowerCase().includes(query) ||
-        order.customer.email.toLowerCase().includes(query) ||
-        order.trackingNumber?.toLowerCase().includes(query) ||
-        order.notes?.toLowerCase().includes(query)
-    );
-  }, [orders, searchQuery]);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return allFilteredOrders.slice(startIndex, endIndex);
+  }, [allFilteredOrders, currentPage, pageSize]);
+
+  // Calculate pagination based on filtered results
+  const filteredTotalRecords = allFilteredOrders.length;
+  const filteredTotalPages = Math.ceil(filteredTotalRecords / pageSize);
 
   return (
     <div>
@@ -697,8 +866,12 @@ export const AdminOrderManagementPanel: React.FC = () => {
           <p className="text-sm text-gray-500">Quản lý và theo dõi tất cả đơn hàng của khách hàng</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Package className="w-4 h-4" />
+          <Button 
+            onClick={handleExportDialogOpen}
+            variant="outline" 
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
             Xuất Excel
           </Button>
         </div>
@@ -950,10 +1123,10 @@ export const AdminOrderManagementPanel: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {!loading && !error && totalPages > 1 && (
+      {!loading && !error && filteredTotalPages > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            Hiển thị {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalRecords)} trong tổng số {totalRecords} đơn hàng
+            Hiển thị {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredTotalRecords)} trong tổng số {filteredTotalRecords} đơn hàng
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -964,7 +1137,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
             >
               Trước
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: filteredTotalPages }, (_, i) => i + 1).map((page) => (
               <Button
                 key={page}
                 variant={currentPage === page ? "default" : "outline"}
@@ -979,7 +1152,7 @@ export const AdminOrderManagementPanel: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === filteredTotalPages}
             >
               Sau
             </Button>
@@ -1605,9 +1778,91 @@ export const AdminOrderManagementPanel: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Export Transactions Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="w-5 h-5" />
+              Xuất dữ liệu giao dịch
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Chọn khoảng thời gian để xuất dữ liệu giao dịch thành file Excel.
+            </p>
+            
+            {/* From Date */}
+            <div>
+              <Label htmlFor="export-from" className="text-sm font-medium text-gray-700 mb-2 block">
+                Từ ngày
+              </Label>
+              <Input
+                id="export-from"
+                type="date"
+                value={exportDateFrom}
+                onChange={(e) => setExportDateFrom(e.target.value)}
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Mặc định: 30 ngày trước
+              </p>
+            </div>
+
+            {/* To Date */}
+            <div>
+              <Label htmlFor="export-to" className="text-sm font-medium text-gray-700 mb-2 block">
+                Đến ngày
+              </Label>
+              <Input
+                id="export-to"
+                type="date"
+                value={exportDateTo}
+                onChange={(e) => setExportDateTo(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Không được vượt quá ngày hôm nay
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={handleExportTransactions}
+                disabled={isExporting || !exportDateFrom || !exportDateTo}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Đang xuất...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Xuất Excel
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setIsExportDialogOpen(false)}
+                disabled={isExporting}
+                variant="outline"
+                className="flex-1"
+              >
+                Hủy
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
 
 export default AdminOrderManagementPanel;
 
