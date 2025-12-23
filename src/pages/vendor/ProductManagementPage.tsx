@@ -1,27 +1,50 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 
-import VendorSidebar from './VendorSidebar';
-import VendorHeader from './VendorHeader';
-import { useAuth } from '@/contexts/AuthContext';
+import VendorSidebar from "./VendorSidebar";
+import VendorHeader from "./VendorHeader";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   getProductsByVendor,
   getProductUpdateRequests,
   type Product,
   type PaginatedResponse,
   type ProductUpdateRequest,
-} from '@/api/product';
-import { getVendorProductStatistics, type ProductStatistics } from '@/api/vendordashboard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Package, Search, Eye, Filter, RefreshCcw, Pencil, ClipboardList, TrendingUp, AlertTriangle, BarChart3, ShoppingCart } from 'lucide-react';
-import { ProductUpdateRequestDialog } from '../staff/components/ProductUpdateRequestDialog';
+} from "@/api/product";
+import {
+  getVendorProductStatistics,
+  type ProductStatistics,
+} from "@/api/vendordashboard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Loader2,
+  Package,
+  Search,
+  Eye,
+  Filter,
+  RefreshCcw,
+  Pencil,
+  ClipboardList,
+  TrendingUp,
+  AlertTriangle,
+  BarChart3,
+  ShoppingCart,
+} from "lucide-react";
+import { ProductUpdateRequestDialog } from "../staff/components/ProductUpdateRequestDialog";
 
-const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+const currency = (v: number) =>
+  v.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
 
 const ProductManagementPage: React.FC = () => {
   const { user } = useAuth();
@@ -29,43 +52,60 @@ const ProductManagementPage: React.FC = () => {
 
   const vendorId = useMemo(() => {
     if (!user?.id) return null;
-    return typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+    return typeof user.id === "string" ? parseInt(user.id, 10) : user.id;
   }, [user]);
 
-  const [productsPaged, setProductsPaged] = useState<PaginatedResponse<Product> | null>(null);
+  const [productsPaged, setProductsPaged] =
+    useState<PaginatedResponse<Product> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
 
   // Product statistics
-  const [productStats, setProductStats] = useState<ProductStatistics | null>(null);
+  const [productStats, setProductStats] = useState<ProductStatistics | null>(
+    null
+  );
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'products' | 'update-requests'>('products');
+  const [activeTab, setActiveTab] = useState<"products" | "update-requests">(
+    "products"
+  );
 
   // Product update requests state
-  const [updateRequests, setUpdateRequests] = useState<ProductUpdateRequest[]>([]);
+  const [updateRequests, setUpdateRequests] = useState<ProductUpdateRequest[]>(
+    []
+  );
   const [updateRequestsLoading, setUpdateRequestsLoading] = useState(false);
-  const [updateRequestsError, setUpdateRequestsError] = useState<string | null>(null);
+  const [updateRequestsError, setUpdateRequestsError] = useState<string | null>(
+    null
+  );
   const [updateRequestsPage, setUpdateRequestsPage] = useState(1);
   const [updateRequestsPageSize] = useState(10);
-  const [updateRequestsTotalRecords, setUpdateRequestsTotalRecords] = useState(0);
-  const [updateStatusFilter, setUpdateStatusFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected'>('all');
+  const [updateRequestsTotalRecords, setUpdateRequestsTotalRecords] =
+    useState(0);
+  const [updateStatusFilter, setUpdateStatusFilter] = useState<
+    "all" | "Pending" | "Approved" | "Rejected"
+  >("all");
 
   // Dialog state for viewing update request detail
-  const [selectedRequest, setSelectedRequest] = useState<ProductUpdateRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] =
+    useState<ProductUpdateRequest | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const canLoad = vendorId !== null && !Number.isNaN(vendorId);
 
   const fetchProducts = async () => {
     if (!canLoad) {
-      setError('Không tìm thấy thông tin nhà cung cấp. Vui lòng đăng nhập lại.');
+      setError(
+        "Không tìm thấy thông tin nhà cung cấp. Vui lòng đăng nhập lại."
+      );
       return;
     }
 
@@ -76,12 +116,12 @@ const ProductManagementPage: React.FC = () => {
       setProductsPaged(resp);
     } catch (err: any) {
       const message =
-        err?.response?.data?.errors?.join(', ') ||
+        err?.response?.data?.errors?.join(", ") ||
         err?.response?.data?.message ||
         err?.message ||
-        'Không thể tải danh sách sản phẩm.';
+        "Không thể tải danh sách sản phẩm.";
       setError(message);
-      console.error('Error fetching vendor products:', err);
+      console.error("Error fetching vendor products:", err);
     } finally {
       setLoading(false);
     }
@@ -102,11 +142,11 @@ const ProductManagementPage: React.FC = () => {
         setProductStats(stats);
       } catch (err: any) {
         const errorMessage =
-          err?.response?.data?.errors?.join(', ') ||
+          err?.response?.data?.errors?.join(", ") ||
           err?.message ||
-          'Có lỗi xảy ra khi tải thống kê sản phẩm';
+          "Có lỗi xảy ra khi tải thống kê sản phẩm";
         setStatsError(errorMessage);
-        console.error('Error fetching product statistics:', err);
+        console.error("Error fetching product statistics:", err);
       } finally {
         setStatsLoading(false);
       }
@@ -117,7 +157,9 @@ const ProductManagementPage: React.FC = () => {
 
   const fetchUpdateRequests = async () => {
     if (!canLoad) {
-      setUpdateRequestsError('Không tìm thấy thông tin nhà cung cấp. Vui lòng đăng nhập lại.');
+      setUpdateRequestsError(
+        "Không tìm thấy thông tin nhà cung cấp. Vui lòng đăng nhập lại."
+      );
       return;
     }
 
@@ -125,7 +167,8 @@ const ProductManagementPage: React.FC = () => {
       setUpdateRequestsLoading(true);
       setUpdateRequestsError(null);
 
-      const statusParam = updateStatusFilter === 'all' ? undefined : updateStatusFilter;
+      const statusParam =
+        updateStatusFilter === "all" ? undefined : updateStatusFilter;
 
       const resp = await getProductUpdateRequests({
         page: updateRequestsPage,
@@ -138,23 +181,29 @@ const ProductManagementPage: React.FC = () => {
       setUpdateRequestsTotalRecords(resp.totalRecords || 0);
     } catch (err: any) {
       const message =
-        err?.response?.data?.errors?.join(', ') ||
+        err?.response?.data?.errors?.join(", ") ||
         err?.response?.data?.message ||
         err?.message ||
-        'Không thể tải danh sách yêu cầu cập nhật sản phẩm.';
+        "Không thể tải danh sách yêu cầu cập nhật sản phẩm.";
       setUpdateRequestsError(message);
-      console.error('Error fetching product update requests:', err);
+      console.error("Error fetching product update requests:", err);
     } finally {
       setUpdateRequestsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'update-requests') {
+    if (activeTab === "update-requests") {
       fetchUpdateRequests();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, vendorId, updateRequestsPage, updateRequestsPageSize, updateStatusFilter]);
+  }, [
+    activeTab,
+    vendorId,
+    updateRequestsPage,
+    updateRequestsPageSize,
+    updateStatusFilter,
+  ]);
 
   const allProducts: Product[] = useMemo(() => {
     if (!productsPaged?.data) return [];
@@ -167,13 +216,13 @@ const ProductManagementPage: React.FC = () => {
         (p) =>
           p.productName.toLowerCase().includes(q) ||
           p.productCode.toLowerCase().includes(q) ||
-          (p.description || '').toLowerCase().includes(q)
+          (p.description || "").toLowerCase().includes(q)
       );
     }
 
-    if (statusFilter === 'active') {
+    if (statusFilter === "active") {
       result = result.filter((p) => p.isActive === true);
-    } else if (statusFilter === 'inactive') {
+    } else if (statusFilter === "inactive") {
       result = result.filter((p) => p.isActive === false);
     }
 
@@ -191,22 +240,24 @@ const ProductManagementPage: React.FC = () => {
   const totalPages = productsPaged?.totalPages || 1;
 
   const updateRequestsTotalPages =
-    updateRequestsTotalRecords > 0 ? Math.ceil(updateRequestsTotalRecords / updateRequestsPageSize) : 1;
+    updateRequestsTotalRecords > 0
+      ? Math.ceil(updateRequestsTotalRecords / updateRequestsPageSize)
+      : 1;
 
   const renderUpdateRequestStatus = (status?: string) => {
-    const normalized = status || 'Unknown';
-    let variant: 'default' | 'secondary' | 'outline' = 'secondary';
+    const normalized = status || "Unknown";
+    let variant: "default" | "secondary" | "outline" = "secondary";
     let label = normalized;
 
-    if (normalized === 'Approved') {
-      variant = 'default';
-      label = 'Đã duyệt';
-    } else if (normalized === 'Rejected') {
-      variant = 'outline';
-      label = 'Từ chối';
-    } else if (normalized === 'Pending') {
-      variant = 'secondary';
-      label = 'Chờ duyệt';
+    if (normalized === "Approved") {
+      variant = "default";
+      label = "Đã duyệt";
+    } else if (normalized === "Rejected") {
+      variant = "outline";
+      label = "Từ chối";
+    } else if (normalized === "Pending") {
+      variant = "secondary";
+      label = "Chờ duyệt";
     }
 
     return <Badge variant={variant}>{label}</Badge>;
@@ -225,14 +276,15 @@ const ProductManagementPage: React.FC = () => {
         <VendorHeader
           title="Quản lý sản phẩm"
           subtitle="Quản lý sản phẩm và các yêu cầu cập nhật từ nhà cung cấp"
-          showNotification={false}
         />
 
         <div className="space-y-6 p-6">
           {/* Dashboard Statistics Section */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Thống kê sản phẩm</h2>
-            
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Thống kê sản phẩm
+            </h2>
+
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {/* Tổng sản phẩm */}
@@ -284,7 +336,8 @@ const ProductManagementPage: React.FC = () => {
                         {productStats?.activeProducts ?? 0}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {productStats?.inactiveProducts ?? 0} sản phẩm ngừng hoạt động
+                        {productStats?.inactiveProducts ?? 0} sản phẩm ngừng
+                        hoạt động
                       </p>
                     </>
                   )}
@@ -312,7 +365,8 @@ const ProductManagementPage: React.FC = () => {
                         {productStats?.outOfStockProducts ?? 0}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {productStats?.lowStockProducts ?? 0} sản phẩm sắp hết hàng
+                        {productStats?.lowStockProducts ?? 0} sản phẩm sắp hết
+                        hàng
                       </p>
                     </>
                   )}
@@ -337,7 +391,9 @@ const ProductManagementPage: React.FC = () => {
                   ) : (
                     <>
                       <p className="text-2xl font-bold text-gray-900">
-                        {productStats?.totalStockValue ? currency(productStats.totalStockValue) : "0 ₫"}
+                        {productStats?.totalStockValue
+                          ? currency(productStats.totalStockValue)
+                          : "0 ₫"}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         {productStats?.totalStockQuantity ?? 0} đơn vị tồn kho
@@ -349,47 +405,62 @@ const ProductManagementPage: React.FC = () => {
             </div>
 
             {/* Category Distribution */}
-            {productStats && productStats.categoryDistribution && productStats.categoryDistribution.length > 0 && (
-              <Card className="border border-gray-200 mb-6">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5 text-gray-600" />
-                    Phân bố sản phẩm theo danh mục
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {productStats.categoryDistribution.map((category: ProductStatistics['categoryDistribution'][0]) => (
-                      <div key={category.categoryId} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">
-                            {category.categoryName}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            {category.productCount} sản phẩm ({category.percentage.toFixed(1)}%)
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-gradient-to-r from-green-500 to-green-600 h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${category.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {productStats &&
+              productStats.categoryDistribution &&
+              productStats.categoryDistribution.length > 0 && (
+                <Card className="border border-gray-200 mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5 text-gray-600" />
+                      Phân bố sản phẩm theo danh mục
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {productStats.categoryDistribution.map(
+                        (
+                          category: ProductStatistics["categoryDistribution"][0]
+                        ) => (
+                          <div key={category.categoryId} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-700">
+                                {category.categoryName}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {category.productCount} sản phẩm (
+                                {category.percentage.toFixed(1)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                              <div
+                                className="bg-gradient-to-r from-green-500 to-green-600 h-2.5 rounded-full transition-all duration-300"
+                                style={{ width: `${category.percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
           </div>
 
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'products' | 'update-requests')}>
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) =>
+              setActiveTab(v as "products" | "update-requests")
+            }
+          >
             <TabsList className="mb-4">
               <TabsTrigger value="products" className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
                 Tất cả sản phẩm
               </TabsTrigger>
-              <TabsTrigger value="update-requests" className="flex items-center gap-2">
+              <TabsTrigger
+                value="update-requests"
+                className="flex items-center gap-2"
+              >
                 <ClipboardList className="w-4 h-4" />
                 Yêu cầu update sản phẩm
               </TabsTrigger>
@@ -416,7 +487,9 @@ const ProductManagementPage: React.FC = () => {
                     <div className="w-full sm:w-48">
                       <Select
                         value={statusFilter}
-                        onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}
+                        onValueChange={(v) =>
+                          setStatusFilter(v as "all" | "active" | "inactive")
+                        }
                       >
                         <SelectTrigger>
                           <Filter className="w-4 h-4 mr-2" />
@@ -429,7 +502,11 @@ const ProductManagementPage: React.FC = () => {
                       </Select>
                     </div>
 
-                    <Button variant="outline" onClick={fetchProducts} disabled={loading}>
+                    <Button
+                      variant="outline"
+                      onClick={fetchProducts}
+                      disabled={loading}
+                    >
                       {loading ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
@@ -443,7 +520,9 @@ const ProductManagementPage: React.FC = () => {
 
               {error && (
                 <Card className="border-red-200 bg-red-50">
-                  <CardContent className="pt-4 text-sm text-red-700">{error}</CardContent>
+                  <CardContent className="pt-4 text-sm text-red-700">
+                    {error}
+                  </CardContent>
                 </Card>
               )}
 
@@ -474,8 +553,10 @@ const ProductManagementPage: React.FC = () => {
                                 src={
                                   product.image ||
                                   product.publicUrl ||
-                                  (Array.isArray(product.images) && product.images.length > 0
-                                    ? (product.images[0] as any).imageUrl || (product.images[0] as any)
+                                  (Array.isArray(product.images) &&
+                                  product.images.length > 0
+                                    ? (product.images[0] as any).imageUrl ||
+                                      (product.images[0] as any)
                                     : undefined)
                                 }
                                 alt={product.productName}
@@ -497,18 +578,24 @@ const ProductManagementPage: React.FC = () => {
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-xs text-gray-500">
                               <span>Mã sản phẩm</span>
-                              <span className="font-medium text-gray-900">{product.productCode}</span>
+                              <span className="font-medium text-gray-900">
+                                {product.productCode}
+                              </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500">Giá bán</span>
+                              <span className="text-xs text-gray-500">
+                                Giá bán
+                              </span>
                               <span className="text-base font-semibold text-emerald-600">
                                 {currency(product.unitPrice)}
                               </span>
                             </div>
-                            {typeof product.stockQuantity === 'number' && (
+                            {typeof product.stockQuantity === "number" && (
                               <div className="flex items-center justify-between text-xs text-gray-500">
                                 <span>Tồn kho</span>
-                                <span className="font-medium text-gray-900">{product.stockQuantity}</span>
+                                <span className="font-medium text-gray-900">
+                                  {product.stockQuantity}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -555,7 +642,9 @@ const ProductManagementPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          onClick={() =>
+                            setPage((p) => Math.min(totalPages, p + 1))
+                          }
                           disabled={page === totalPages || loading}
                         >
                           Sau
@@ -580,7 +669,9 @@ const ProductManagementPage: React.FC = () => {
                       <Select
                         value={updateStatusFilter}
                         onValueChange={(v) =>
-                          setUpdateStatusFilter(v as 'all' | 'Pending' | 'Approved' | 'Rejected')
+                          setUpdateStatusFilter(
+                            v as "all" | "Pending" | "Approved" | "Rejected"
+                          )
                         }
                       >
                         <SelectTrigger className="w-44">
@@ -614,7 +705,9 @@ const ProductManagementPage: React.FC = () => {
 
               {updateRequestsError && (
                 <Card className="border-red-200 bg-red-50">
-                  <CardContent className="pt-4 text-sm text-red-700">{updateRequestsError}</CardContent>
+                  <CardContent className="pt-4 text-sm text-red-700">
+                    {updateRequestsError}
+                  </CardContent>
                 </Card>
               )}
 
@@ -638,17 +731,26 @@ const ProductManagementPage: React.FC = () => {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b text-xs text-gray-500">
-                              <th className="py-2 px-2 text-left">Mã yêu cầu</th>
+                              <th className="py-2 px-2 text-left">
+                                Mã yêu cầu
+                              </th>
                               <th className="py-2 px-2 text-left">Sản phẩm</th>
-                              <th className="py-2 px-2 text-left">Trạng thái</th>
+                              <th className="py-2 px-2 text-left">
+                                Trạng thái
+                              </th>
                               <th className="py-2 px-2 text-left">Ngày gửi</th>
-                              <th className="py-2 px-2 text-left">Ngày xử lý</th>
+                              <th className="py-2 px-2 text-left">
+                                Ngày xử lý
+                              </th>
                               <th className="py-2 px-2 text-right">Thao tác</th>
                             </tr>
                           </thead>
                           <tbody>
                             {updateRequests.map((req) => (
-                              <tr key={req.id} className="border-b last:border-0">
+                              <tr
+                                key={req.id}
+                                className="border-b last:border-0"
+                              >
                                 <td className="py-2 px-2 font-mono text-xs text-gray-700">
                                   #{req.id}
                                 </td>
@@ -660,7 +762,7 @@ const ProductManagementPage: React.FC = () => {
                                         `Sản phẩm #${req.productId}`}
                                     </span>
                                     <span className="text-xs text-gray-500">
-                                      Mã:{' '}
+                                      Mã:{" "}
                                       {req.productSnapshot?.productCode ||
                                         req.productCode ||
                                         req.productId}
@@ -672,17 +774,23 @@ const ProductManagementPage: React.FC = () => {
                                 </td>
                                 <td className="py-2 px-2 text-xs text-gray-700">
                                   {req.createdAt
-                                    ? new Date(req.createdAt).toLocaleString('vi-VN', {
-                                        timeZone: 'Asia/Ho_Chi_Minh',
-                                      })
-                                    : '—'}
+                                    ? new Date(req.createdAt).toLocaleString(
+                                        "vi-VN",
+                                        {
+                                          timeZone: "Asia/Ho_Chi_Minh",
+                                        }
+                                      )
+                                    : "—"}
                                 </td>
                                 <td className="py-2 px-2 text-xs text-gray-700">
                                   {req.processedAt
-                                    ? new Date(req.processedAt).toLocaleString('vi-VN', {
-                                        timeZone: 'Asia/Ho_Chi_Minh',
-                                      })
-                                    : '—'}
+                                    ? new Date(req.processedAt).toLocaleString(
+                                        "vi-VN",
+                                        {
+                                          timeZone: "Asia/Ho_Chi_Minh",
+                                        }
+                                      )
+                                    : "—"}
                                 </td>
                                 <td className="py-2 px-2 text-right">
                                   <Button
@@ -715,7 +823,9 @@ const ProductManagementPage: React.FC = () => {
                           onClick={() =>
                             setUpdateRequestsPage((p) => Math.max(1, p - 1))
                           }
-                          disabled={updateRequestsPage === 1 || updateRequestsLoading}
+                          disabled={
+                            updateRequestsPage === 1 || updateRequestsLoading
+                          }
                         >
                           Trước
                         </Button>
@@ -724,7 +834,7 @@ const ProductManagementPage: React.FC = () => {
                           size="sm"
                           onClick={() =>
                             setUpdateRequestsPage((p) =>
-                              Math.min(updateRequestsTotalPages, p + 1),
+                              Math.min(updateRequestsTotalPages, p + 1)
                             )
                           }
                           disabled={
@@ -755,4 +865,3 @@ const ProductManagementPage: React.FC = () => {
 };
 
 export default ProductManagementPage;
-

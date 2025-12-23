@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router';
-import { NotificationBell } from '@/components/NotificationBell';
+import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router";
+import { NotificationBell } from "@/components/NotificationBell";
+import { VendorChatBubble } from "./components/VendorChatBubble";
 
 interface VendorHeaderProps {
   title: string;
@@ -18,6 +19,11 @@ interface VendorHeaderProps {
    */
   showNotification?: boolean;
   /**
+   * Show chat AI bubble icon on the right.
+   * Defaults to true for vendor support.
+   */
+  showChat?: boolean;
+  /**
    * Override name displayed next to the avatar.
    * Falls back to current user full name or 'Nhà cung cấp'.
    */
@@ -29,6 +35,7 @@ export const VendorHeader = ({
   subtitle,
   rightContent,
   showNotification = true,
+  showChat = true,
   displayNameOverride,
 }: VendorHeaderProps) => {
   const { user, logout } = useAuth();
@@ -36,10 +43,10 @@ export const VendorHeader = ({
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate("/login");
   };
 
-  const displayName = displayNameOverride || user?.fullName || 'Nhà cung cấp';
+  const displayName = displayNameOverride || user?.fullName || "Nhà cung cấp";
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -52,6 +59,8 @@ export const VendorHeader = ({
           {rightContent}
 
           {showNotification && <NotificationBell />}
+
+          {showChat && <VendorChatBubble />}
 
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gray-300 rounded-full" />
@@ -74,4 +83,3 @@ export const VendorHeader = ({
 };
 
 export default VendorHeader;
-

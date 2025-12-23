@@ -1,10 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import VendorSidebar from './VendorSidebar';
-import VendorHeader from './VendorHeader';
-import { getVendorOrderStatistics, type OrderStatistics } from '@/api/vendordashboard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, ShoppingCart, Calendar, TrendingUp, AlertCircle, CheckCircle, XCircle, Package } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import VendorSidebar from "./VendorSidebar";
+import VendorHeader from "./VendorHeader";
+import {
+  getVendorOrderStatistics,
+  type OrderStatistics,
+} from "@/api/vendordashboard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  ShoppingCart,
+  Calendar,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Package,
+} from "lucide-react";
 
 const OrderManagementPage: React.FC = () => {
   const [orderStats, setOrderStats] = useState<OrderStatistics | null>(null);
@@ -16,11 +28,11 @@ const OrderManagementPage: React.FC = () => {
     const today = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    
+
     const formatDate = (date: Date) => {
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
 
@@ -39,11 +51,11 @@ const OrderManagementPage: React.FC = () => {
       setOrderStats(stats);
     } catch (err: any) {
       const errorMessage =
-        err?.response?.data?.errors?.join(', ') ||
+        err?.response?.data?.errors?.join(", ") ||
         err?.message ||
-        'Có lỗi xảy ra khi tải thống kê đơn hàng';
+        "Có lỗi xảy ra khi tải thống kê đơn hàng";
       setStatsError(errorMessage);
-      console.error('Error fetching order statistics:', err);
+      console.error("Error fetching order statistics:", err);
     } finally {
       setStatsLoading(false);
     }
@@ -54,47 +66,47 @@ const OrderManagementPage: React.FC = () => {
   }, []);
 
   const formatPercentage = (value: number) => {
-    if (value === null || value === undefined || isNaN(value)) return '0%';
+    if (value === null || value === undefined || isNaN(value)) return "0%";
     return `${value.toFixed(1)}%`;
   };
 
   const formatNumber = (value: number) => {
-    if (value === null || value === undefined || isNaN(value)) return '0';
-    return value.toLocaleString('vi-VN');
+    if (value === null || value === undefined || isNaN(value)) return "0";
+    return value.toLocaleString("vi-VN");
   };
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'delivered':
-        return 'default';
-      case 'cancelled':
-      case 'refunded':
-        return 'secondary';
+      case "delivered":
+        return "default";
+      case "cancelled":
+      case "refunded":
+        return "secondary";
       default:
-        return 'outline';
+        return "outline";
     }
   };
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending: 'Chờ xử lý',
-      processing: 'Đang xử lý',
-      paid: 'Đã thanh toán',
-      shipped: 'Đã giao hàng',
-      delivered: 'Đã hoàn thành',
-      cancelled: 'Đã hủy',
-      refunded: 'Đã hoàn tiền',
-      partialRefund: 'Hoàn tiền một phần',
+      pending: "Chờ xử lý",
+      processing: "Đang xử lý",
+      paid: "Đã thanh toán",
+      shipped: "Đã giao hàng",
+      delivered: "Đã hoàn thành",
+      cancelled: "Đã hủy",
+      refunded: "Đã hoàn tiền",
+      partialRefund: "Hoàn tiền một phần",
     };
     return labels[status] || status;
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'delivered':
+      case "delivered":
         return <CheckCircle className="w-4 h-4" />;
-      case 'cancelled':
-      case 'refunded':
+      case "cancelled":
+      case "refunded":
         return <XCircle className="w-4 h-4" />;
       default:
         return <Package className="w-4 h-4" />;
@@ -109,7 +121,6 @@ const OrderManagementPage: React.FC = () => {
         <VendorHeader
           title="Quản lý đơn hàng"
           subtitle="Thống kê và quản lý đơn hàng của bạn"
-          showNotification={false}
         />
 
         <div className="space-y-6 p-6">
@@ -255,7 +266,8 @@ const OrderManagementPage: React.FC = () => {
                   {formatNumber(orderStats.averageDeliveryDays)} ngày
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Thời gian trung bình từ khi đặt hàng đến khi giao hàng thành công
+                  Thời gian trung bình từ khi đặt hàng đến khi giao hàng thành
+                  công
                 </p>
               </CardContent>
             </Card>
@@ -272,22 +284,24 @@ const OrderManagementPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Object.entries(orderStats.ordersByStatus).map(([status, count]) => (
-                    <div
-                      key={status}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(status)}
-                        <span className="text-sm font-medium text-gray-700">
-                          {getStatusLabel(status)}
-                        </span>
+                  {Object.entries(orderStats.ordersByStatus).map(
+                    ([status, count]) => (
+                      <div
+                        key={status}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(status)}
+                          <span className="text-sm font-medium text-gray-700">
+                            {getStatusLabel(status)}
+                          </span>
+                        </div>
+                        <Badge variant={getStatusBadgeVariant(status)}>
+                          {formatNumber(count)}
+                        </Badge>
                       </div>
-                      <Badge variant={getStatusBadgeVariant(status)}>
-                        {formatNumber(count)}
-                      </Badge>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </CardContent>
             </Card>
