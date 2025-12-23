@@ -20,17 +20,6 @@ import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Lo
 import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
 import { getProductById } from "@/api/product";
 import { exportAdminTransactions } from "@/api/admin-dashboard";
-// Dashboard API removed
-type OrderStatistics = {
-  from?: string;
-  to?: string;
-  total?: number;
-  paid?: number;
-  shipped?: number;
-  cancelled?: number;
-  delivered?: number;
-  refunded?: number;
-};
 import { getIdentityNumbersWithMetadata, type IdentityNumberItem } from "@/api/export";
 import { formatVietnamDateTime, parseApiDateTime } from "@/lib/utils";
 
@@ -66,8 +55,6 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
   const [statusFilter, setStatusFilter] = useState<OrderStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -122,12 +109,10 @@ export const AdminOrderManagementPanel: React.FC = () => {
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [isLoadingIdentityNumbers, setIsLoadingIdentityNumbers] = useState(false);
   const [allOrders, setAllOrders] = useState<OrderWithCustomer[]>([]);
-  const [isLoadingAllOrders, setIsLoadingAllOrders] = useState(false);
 
   // Fetch all orders for filtering
   const fetchAllOrders = async (status?: OrderStatus) => {
     try {
-      setIsLoadingAllOrders(true);
       let allData: OrderWithCustomer[] = [];
       let currentPageNum = 1;
       let hasMore = true;
@@ -154,8 +139,6 @@ export const AdminOrderManagementPanel: React.FC = () => {
     } catch (err: any) {
       console.error("Error fetching all orders:", err);
       setAllOrders([]);
-    } finally {
-      setIsLoadingAllOrders(false);
     }
   };
 
@@ -171,8 +154,6 @@ export const AdminOrderManagementPanel: React.FC = () => {
       
       if (response.status) {
         setOrders(response.data.data);
-        setTotalPages(response.data.totalPages);
-        setTotalRecords(response.data.totalRecords);
       } else {
         setError(response.errors?.join(", ") || "Không thể tải dữ liệu đơn hàng");
       }
