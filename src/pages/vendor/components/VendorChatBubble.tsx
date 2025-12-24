@@ -36,7 +36,7 @@ import type { ProductInfo as ApiProductInfo } from "@/api/customerVendorConversa
 interface VendorMessage {
   id: number;
   text: string;
-  sender: 'customer' | 'vendor';
+  sender: "customer" | "vendor";
   timestamp: Date;
   isRead: boolean;
   images?: Array<{ id: number; imageUrl: string }>;
@@ -53,8 +53,13 @@ export const VendorChatBubble = () => {
   const [openChats, setOpenChats] = useState<OpenChatWindow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
-  const { connectionState, onMessage, joinConversation, leaveConversation, markAsRead } =
-    useChat();
+  const {
+    connectionState,
+    onMessage,
+    joinConversation,
+    leaveConversation,
+    markAsRead,
+  } = useChat();
 
   // Use ref to always have latest openChats value in callbacks
   const openChatsRef = useRef<OpenChatWindow[]>([]);
@@ -77,13 +82,25 @@ export const VendorChatBubble = () => {
   // Handle incoming SignalR message
   const handleNewMessage = useCallback(
     (chatMessage: ChatMessage) => {
-      console.log("[VendorChatBubble] Received message from SignalR:", chatMessage);
+      console.log(
+        "[VendorChatBubble] Received message from SignalR:",
+        chatMessage
+      );
 
       // Normalize senderType (can be enum number or string)
       const senderType = normalizeSenderType(chatMessage.senderType);
 
       if (!senderType) {
-        console.warn("[VendorChatBubble] Invalid senderType:", chatMessage.senderType);
+        console.warn(
+          "[VendorChatBubble] Invalid senderType:",
+          chatMessage.senderType
+        );
+        return;
+      }
+
+      // Skip messages sent by vendor (self) - already added when sent via API
+      if (senderType === "vendor") {
+        console.log("[VendorChatBubble] Skipping own message from SignalR");
         return;
       }
 
@@ -113,7 +130,9 @@ export const VendorChatBubble = () => {
 
       // Mark as read if this chat window is open (not minimized)
       const isWindowOpen = openChatsRef.current.some(
-        (chat) => chat.conversationId === chatMessage.conversationId && !chat.isMinimized
+        (chat) =>
+          chat.conversationId === chatMessage.conversationId &&
+          !chat.isMinimized
       );
       if (isWindowOpen) {
         markAsRead(chatMessage.conversationId).catch((err) =>
@@ -124,16 +143,20 @@ export const VendorChatBubble = () => {
       // Update conversation's last message and unread count
       setConversations((prev) => {
         // Check if conversation exists
-        const conversationExists = prev.some((c) => c.id === chatMessage.conversationId);
-        
+        const conversationExists = prev.some(
+          (c) => c.id === chatMessage.conversationId
+        );
+
         if (!conversationExists) {
           // Conversation doesn't exist yet - will be fetched on next refresh
-          console.log("[VendorChatBubble] New conversation detected, refreshing list...");
+          console.log(
+            "[VendorChatBubble] New conversation detected, refreshing list..."
+          );
           // Trigger a refetch (async, can't await here)
           getMyConversations(1, 50).then((response) => {
             if (response.status && response.data) {
-              const transformedConversations: Conversation[] = response.data.data.map(
-                (conv: ApiConversation) => ({
+              const transformedConversations: Conversation[] =
+                response.data.data.map((conv: ApiConversation) => ({
                   id: conv.id,
                   customerId: conv.customer?.id || 0,
                   customerName: conv.customer?.fullName || "Khách hàng",
@@ -145,14 +168,13 @@ export const VendorChatBubble = () => {
                   lastMessageTime: new Date(conv.lastMessageAt),
                   unreadCount: conv.id === chatMessage.conversationId ? 1 : 0,
                   isOnline: false,
-                })
-              );
+                }));
               setConversations(transformedConversations);
             }
           });
           return prev;
         }
-        
+
         const updated = prev.map((conv) => {
           if (conv.id === chatMessage.conversationId) {
             // Check if this chat window is currently open - use ref for latest value
@@ -182,15 +204,18 @@ export const VendorChatBubble = () => {
         return updated;
       });
     },
-    [] // No dependency on openChats - we use ref instead
+    [markAsRead] // No dependency on openChats - we use ref instead
   );
 
   // Subscribe to messages from ChatContext
   useEffect(() => {
-    console.log('[VendorChatBubble] Subscribing to messages, connection:', connectionState);
+    console.log(
+      "[VendorChatBubble] Subscribing to messages, connection:",
+      connectionState
+    );
     const unsubscribe = onMessage(handleNewMessage);
     return () => {
-      console.log('[VendorChatBubble] Unsubscribing from messages');
+      console.log("[VendorChatBubble] Unsubscribing from messages");
       unsubscribe();
     };
   }, [onMessage, handleNewMessage, connectionState]);
@@ -198,10 +223,11 @@ export const VendorChatBubble = () => {
   // Fetch conversations on mount to receive messages immediately
   useEffect(() => {
     if (user && connectionState === CONNECTION_STATES.Connected) {
-      console.log('[VendorChatBubble] Fetching conversations on mount/connect...');
+      console.log(
+        "[VendorChatBubble] Fetching conversations on mount/connect..."
+      );
       fetchConversations();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, connectionState]);
 
   // Messages are received automatically via SignalR broadcast
@@ -215,7 +241,11 @@ export const VendorChatBubble = () => {
       const response = await getMyConversations(1, 50);
 
       if (response.status && response.data) {
-        console.log('[VendorChatBubble] Loaded', response.data.data.length, 'conversations');
+        console.log(
+          "[VendorChatBubble] Loaded",
+          response.data.data.length,
+          "conversations"
+        );
         const transformedConversations: Conversation[] = response.data.data.map(
           (conv: ApiConversation) => ({
             id: conv.id,
@@ -423,17 +453,42 @@ export const VendorChatBubble = () => {
   );
 
   const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+    // Server trả về thời gian UTC, cần cộng 7 tiếng để ra giờ Việt Nam
+    const messageDate = new Date(date);
 
-    if (minutes < 1) return "Vừa xong";
-    if (minutes < 60) return `${minutes} phút`;
-    if (hours < 24) return `${hours} giờ`;
-    if (days < 7) return `${days} ngày`;
-    return date.toLocaleDateString("vi-VN");
+    // Lấy giờ hiện tại và cộng 7 tiếng
+    const now = new Date();
+    const nowVietnamHours = now.getHours() + 7;
+    const nowVietnam = new Date(now);
+    nowVietnam.setHours(nowVietnamHours);
+
+    // Lấy giờ tin nhắn và cộng 7 tiếng
+    const msgHours = messageDate.getHours() + 7;
+    const vietnamTime = new Date(messageDate);
+    vietnamTime.setHours(msgHours);
+
+    // Kiểm tra xem có cùng ngày không (theo giờ Việt Nam)
+    const isToday = nowVietnam.toDateString() === vietnamTime.toDateString();
+
+    // Kiểm tra có cùng năm không
+    const isSameYear = nowVietnam.getFullYear() === vietnamTime.getFullYear();
+
+    const hours = vietnamTime.getHours().toString().padStart(2, "0");
+    const minutes = vietnamTime.getMinutes().toString().padStart(2, "0");
+    const day = vietnamTime.getDate().toString().padStart(2, "0");
+    const month = (vietnamTime.getMonth() + 1).toString().padStart(2, "0");
+    const year = vietnamTime.getFullYear();
+
+    if (isToday) {
+      // Cùng ngày: chỉ hiển thị giờ:phút
+      return `${hours}:${minutes}`;
+    } else if (isSameYear) {
+      // Cùng năm: hiển thị giờ:phút ngày/tháng
+      return `${hours}:${minutes}, ${day}/${month}`;
+    } else {
+      // Khác năm: hiển thị đầy đủ
+      return `${hours}:${minutes}, ${day}/${month}/${year}`;
+    }
   };
 
   return (
@@ -639,6 +694,38 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Format time for messages in Vietnam timezone
+  const formatTime = (date: Date) => {
+    const messageDate = new Date(date);
+    const now = new Date();
+
+    // Cộng 7 tiếng để chuyển sang giờ Việt Nam
+    const msgHours = messageDate.getHours() + 7;
+    const vietnamTime = new Date(messageDate);
+    vietnamTime.setHours(msgHours);
+
+    const nowVietnamHours = now.getHours() + 7;
+    const nowVietnam = new Date(now);
+    nowVietnam.setHours(nowVietnamHours);
+
+    const isToday = nowVietnam.toDateString() === vietnamTime.toDateString();
+    const isSameYear = nowVietnam.getFullYear() === vietnamTime.getFullYear();
+
+    const hours = vietnamTime.getHours().toString().padStart(2, "0");
+    const minutes = vietnamTime.getMinutes().toString().padStart(2, "0");
+    const day = vietnamTime.getDate().toString().padStart(2, "0");
+    const month = (vietnamTime.getMonth() + 1).toString().padStart(2, "0");
+    const year = vietnamTime.getFullYear();
+
+    if (isToday) {
+      return `${hours}:${minutes}`;
+    } else if (isSameYear) {
+      return `${hours}:${minutes}, ${day}/${month}`;
+    } else {
+      return `${hours}:${minutes}, ${day}/${month}/${year}`;
+    }
+  };
+
   useEffect(() => {
     if (messagesContainerRef.current && !isMinimized) {
       messagesContainerRef.current.scrollTop =
@@ -838,6 +925,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       )}
                       <p className="whitespace-pre-wrap break-words">
                         {message.text}
+                      </p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          message.sender === "vendor"
+                            ? "text-blue-200"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {formatTime(message.timestamp)}
                       </p>
                     </div>
                   </div>

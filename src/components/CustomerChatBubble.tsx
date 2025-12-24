@@ -43,8 +43,13 @@ export const CustomerChatBubble = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { pendingRequest, clearPendingRequest } = useConversation();
   const { user } = useAuth();
-  const { connectionState, onMessage, joinConversation, leaveConversation, markAsRead } =
-    useChat();
+  const {
+    connectionState,
+    onMessage,
+    joinConversation,
+    leaveConversation,
+    markAsRead,
+  } = useChat();
 
   // Use ref to always have latest activeChatId value in callbacks
   const activeChatIdRef = useRef<number | null>(null);
@@ -62,17 +67,42 @@ export const CustomerChatBubble = () => {
   const [pendingProductId, setPendingProductId] = useState<number | undefined>(
     undefined
   );
+  const [pendingProductImage, setPendingProductImage] = useState<
+    string | undefined
+  >(undefined);
+  const [pendingProductPrice, setPendingProductPrice] = useState<
+    number | undefined
+  >(undefined);
+  const [pendingProductName, setPendingProductName] = useState<
+    string | undefined
+  >(undefined);
+  // Map to store product info by messageId for displaying in sent messages
+  const [productInfoMap, setProductInfoMap] = useState<
+    Record<number, { image?: string; price?: number; name?: string }>
+  >({});
 
   // Handle incoming SignalR message
   const handleNewMessage = useCallback(
     (chatMessage: ChatMessage) => {
-      console.log("[CustomerChatBubble] Received message from SignalR:", chatMessage);
+      console.log(
+        "[CustomerChatBubble] Received message from SignalR:",
+        chatMessage
+      );
 
       // Normalize senderType (can be enum number or string)
       const senderType = normalizeSenderType(chatMessage.senderType);
 
       if (!senderType) {
-        console.warn("[CustomerChatBubble] Invalid senderType:", chatMessage.senderType);
+        console.warn(
+          "[CustomerChatBubble] Invalid senderType:",
+          chatMessage.senderType
+        );
+        return;
+      }
+
+      // Skip messages sent by customer (self) - already added when sent via API
+      if (senderType === "customer") {
+        console.log("[CustomerChatBubble] Skipping own message from SignalR");
         return;
       }
 
@@ -107,15 +137,19 @@ export const CustomerChatBubble = () => {
       // Update conversation's last message and unread count
       setConversations((prev) => {
         // Check if conversation exists
-        const conversationExists = prev.some((c) => c.id === chatMessage.conversationId);
-        
+        const conversationExists = prev.some(
+          (c) => c.id === chatMessage.conversationId
+        );
+
         if (!conversationExists) {
           // Conversation doesn't exist yet - refetch
-          console.log("[CustomerChatBubble] New conversation detected, refreshing list...");
+          console.log(
+            "[CustomerChatBubble] New conversation detected, refreshing list..."
+          );
           getMyConversations(1, 50).then((response) => {
             if (response.status && response.data) {
-              const transformedConversations: Conversation[] = response.data.data.map(
-                (conv: ApiConversation) => ({
+              const transformedConversations: Conversation[] =
+                response.data.data.map((conv: ApiConversation) => ({
                   id: conv.id,
                   vendorId: conv.vendor!.id,
                   vendorName: conv.vendor!.fullName,
@@ -128,14 +162,13 @@ export const CustomerChatBubble = () => {
                   lastMessageTime: new Date(conv.lastMessageAt),
                   unreadCount: conv.id === chatMessage.conversationId ? 1 : 0,
                   isOnline: false,
-                })
-              );
+                }));
               setConversations(transformedConversations);
             }
           });
           return prev;
         }
-        
+
         const updated = prev.map((conv) => {
           if (conv.id === chatMessage.conversationId) {
             // Only increment unread if message is from vendor and conversation is not active
@@ -165,7 +198,10 @@ export const CustomerChatBubble = () => {
 
   // Subscribe to messages from ChatContext
   useEffect(() => {
-    console.log("[CustomerChatBubble] Subscribing to messages, connection:", connectionState);
+    console.log(
+      "[CustomerChatBubble] Subscribing to messages, connection:",
+      connectionState
+    );
     const unsubscribe = onMessage(handleNewMessage);
     return () => {
       console.log("[CustomerChatBubble] Unsubscribing from messages");
@@ -176,15 +212,17 @@ export const CustomerChatBubble = () => {
   // Fetch conversations on mount to receive messages immediately
   useEffect(() => {
     if (user && connectionState === CONNECTION_STATES.Connected) {
-      console.log('[CustomerChatBubble] Fetching conversations on mount/connect...');
+      console.log(
+        "[CustomerChatBubble] Fetching conversations on mount/connect..."
+      );
       fetchConversations();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, connectionState]);
 
   // Mark as read when chat is active
   useEffect(() => {
-    if (connectionState !== CONNECTION_STATES.Connected || !activeChatId) return;
+    if (connectionState !== CONNECTION_STATES.Connected || !activeChatId)
+      return;
     // Messages are received automatically via SignalR broadcast
   }, [activeChatId, connectionState]);
 
@@ -196,21 +234,67 @@ export const CustomerChatBubble = () => {
       const response = await getMyConversations(1, 50);
 
       if (response.status && response.data) {
-        console.log('[CustomerChatBubble] Loaded', response.data.data.length, 'conversations');
-        const transformedConversations: Conversation[] = response.data.data.map(
-          (conv: ApiConversation) => ({
-            id: conv.id,
-            vendorId: conv.vendor!.id,
-            vendorName: conv.vendor!.fullName,
-            vendorShopName: conv.vendor!.fullName,
-            vendorAvatar: conv.vendor!.avatarUrl,
-            lastMessage: "Nhấn để xem tin nhắn",
-            lastMessageTime: new Date(conv.lastMessageAt),
-            unreadCount: 0, // Will be calculated from messages
-            isOnline: false, // Can be enhanced with real-time status
+        console.log(
+          "[CustomerChatBubble] Loaded",
+          response.data.data.length,
+          "conversations"
+        );
+
+        // Fetch unread counts for each conversation
+        const conversationsWithUnread = await Promise.all(
+          response.data.data.map(async (conv: ApiConversation) => {
+            try {
+              // Fetch recent messages to count unread from vendor
+              const messagesResponse = await getConversationMessages(
+                conv.id,
+                1,
+                50
+              );
+              let unreadCount = 0;
+              let lastMessageText = "Nhấn để xem tin nhắn";
+
+              if (messagesResponse.status && messagesResponse.data?.data) {
+                // Count unread messages from vendor
+                unreadCount = messagesResponse.data.data.filter(
+                  (msg: ApiMessage) =>
+                    msg.senderType.toLowerCase() === "vendor" && !msg.isRead
+                ).length;
+
+                // Get last message
+                if (messagesResponse.data.data.length > 0) {
+                  lastMessageText = messagesResponse.data.data[0].messageText;
+                }
+              }
+
+              return {
+                id: conv.id,
+                vendorId: conv.vendor!.id,
+                vendorName: conv.vendor!.fullName,
+                vendorShopName: conv.vendor!.fullName,
+                vendorAvatar: conv.vendor!.avatarUrl,
+                lastMessage: lastMessageText,
+                lastMessageTime: new Date(conv.lastMessageAt),
+                unreadCount: unreadCount,
+                isOnline: false,
+              };
+            } catch {
+              // If fetch messages fails, return conversation with 0 unread
+              return {
+                id: conv.id,
+                vendorId: conv.vendor!.id,
+                vendorName: conv.vendor!.fullName,
+                vendorShopName: conv.vendor!.fullName,
+                vendorAvatar: conv.vendor!.avatarUrl,
+                lastMessage: "Nhấn để xem tin nhắn",
+                lastMessageTime: new Date(conv.lastMessageAt),
+                unreadCount: 0,
+                isOnline: false,
+              };
+            }
           })
         );
-        setConversations(transformedConversations);
+
+        setConversations(conversationsWithUnread);
       }
     } catch (err: unknown) {
       console.error("Error fetching conversations:", err);
@@ -342,7 +426,12 @@ export const CustomerChatBubble = () => {
   // Open conversation by vendorId (for ProductVendorChat integration)
   const handleOpenConversationByVendor = async (
     vendorId: number,
-    productInfo?: { productId: number; productName: string }
+    productInfo?: {
+      productId: number;
+      productName: string;
+      productImage?: string;
+      productPrice?: number;
+    }
   ) => {
     // Open chat list first
     setIsListOpen(true);
@@ -367,6 +456,9 @@ export const CustomerChatBubble = () => {
           `Xin chào, tôi muốn hỏi về sản phẩm "${productInfo.productName}"`
         );
         setPendingProductId(productInfo.productId);
+        setPendingProductImage(productInfo.productImage);
+        setPendingProductPrice(productInfo.productPrice);
+        setPendingProductName(productInfo.productName);
       }
     } else {
       // Create temporary conversation for immediate chat
@@ -393,6 +485,9 @@ export const CustomerChatBubble = () => {
           `Xin chào, tôi muốn hỏi về sản phẩm "${productInfo.productName}"`
         );
         setPendingProductId(productInfo.productId);
+        setPendingProductImage(productInfo.productImage);
+        setPendingProductPrice(productInfo.productPrice);
+        setPendingProductName(productInfo.productName);
       }
     }
   };
@@ -407,6 +502,9 @@ export const CustomerChatBubble = () => {
     setInputValue("");
     setSelectedImages([]);
     setPendingProductId(undefined);
+    setPendingProductImage(undefined);
+    setPendingProductPrice(undefined);
+    setPendingProductName(undefined);
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -459,6 +557,18 @@ export const CustomerChatBubble = () => {
           isRead: response.data.isRead,
           images: response.data.images,
         };
+
+        // Save product info if this is a product inquiry message
+        if (pendingProductId && pendingProductName) {
+          setProductInfoMap((prev) => ({
+            ...prev,
+            [response.data.id]: {
+              image: pendingProductImage,
+              price: pendingProductPrice,
+              name: pendingProductName,
+            },
+          }));
+        }
 
         // If this was a temporary conversation, replace it with real one
         if (isTemporaryConv && response.data.conversationId) {
@@ -523,6 +633,9 @@ export const CustomerChatBubble = () => {
         setInputValue("");
         setSelectedImages([]);
         setPendingProductId(undefined);
+        setPendingProductImage(undefined);
+        setPendingProductPrice(undefined);
+        setPendingProductName(undefined);
       }
     } catch (err: unknown) {
       console.error("Error sending message:", err);
@@ -554,17 +667,42 @@ export const CustomerChatBubble = () => {
   );
 
   const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+    // Server trả về thời gian UTC, cần cộng 7 tiếng để ra giờ Việt Nam
+    const messageDate = new Date(date);
 
-    if (minutes < 1) return "Vừa xong";
-    if (minutes < 60) return `${minutes} phút`;
-    if (hours < 24) return `${hours} giờ`;
-    if (days < 7) return `${days} ngày`;
-    return date.toLocaleDateString("vi-VN");
+    // Lấy giờ hiện tại và cộng 7 tiếng
+    const now = new Date();
+    const nowVietnamHours = now.getHours() + 7;
+    const nowVietnam = new Date(now);
+    nowVietnam.setHours(nowVietnamHours);
+
+    // Lấy giờ tin nhắn và cộng 7 tiếng
+    const msgHours = messageDate.getHours() + 7;
+    const vietnamTime = new Date(messageDate);
+    vietnamTime.setHours(msgHours);
+
+    // Kiểm tra xem có cùng ngày không (theo giờ Việt Nam)
+    const isToday = nowVietnam.toDateString() === vietnamTime.toDateString();
+
+    // Kiểm tra có cùng năm không
+    const isSameYear = nowVietnam.getFullYear() === vietnamTime.getFullYear();
+
+    const hours = vietnamTime.getHours().toString().padStart(2, "0");
+    const minutes = vietnamTime.getMinutes().toString().padStart(2, "0");
+    const day = vietnamTime.getDate().toString().padStart(2, "0");
+    const month = (vietnamTime.getMonth() + 1).toString().padStart(2, "0");
+    const year = vietnamTime.getFullYear();
+
+    if (isToday) {
+      // Cùng ngày: chỉ hiển thị giờ:phút
+      return `${hours}:${minutes}`;
+    } else if (isSameYear) {
+      // Cùng năm: hiển thị giờ:phút ngày/tháng
+      return `${hours}:${minutes}, ${day}/${month}`;
+    } else {
+      // Khác năm: hiển thị đầy đủ
+      return `${hours}:${minutes}, ${day}/${month}/${year}`;
+    }
   };
 
   // Detect and parse product inquiry message
@@ -867,28 +1005,68 @@ export const CustomerChatBubble = () => {
                                     {/* Product Inquiry Message - Special UI */}
                                     {productInquiry.isProductInquiry &&
                                     message.sender === "customer" ? (
-                                      <div className="max-w-[80%] bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-3 shadow-sm">
-                                        <div className="flex items-start gap-2.5 mb-2">
-                                          <div className="bg-green-600 rounded-full p-1.5 mt-0.5">
-                                            <Package className="w-4 h-4 text-white" />
-                                          </div>
-                                          <div className="flex-1">
-                                            <p className="text-sm text-gray-700 mb-1">
-                                              {productInquiry.greeting}
+                                      <div className="max-w-[85%] bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl overflow-hidden shadow-sm">
+                                        {/* Greeting text */}
+                                        <div className="px-3 pt-3 pb-2">
+                                          <div className="flex items-center gap-2">
+                                            <div className="bg-green-600 rounded-full p-1.5 flex-shrink-0">
+                                              <Package className="w-3.5 h-3.5 text-white" />
+                                            </div>
+                                            <p className="text-sm text-gray-700">
+                                              {productInquiry.greeting ||
+                                                "Xin chào, tôi"}
                                             </p>
-                                            <div className="bg-white rounded-lg px-3 py-2 border border-green-300">
-                                              <p className="text-xs text-green-700 font-medium mb-1">
-                                                SẢN PHẨM QUAN TÂM
-                                              </p>
-                                              <p className="text-sm font-semibold text-gray-900">
+                                          </div>
+                                        </div>
+
+                                        {/* Product Card */}
+                                        <div className="mx-2 mb-2 bg-white rounded-xl border border-green-200 overflow-hidden">
+                                          <div className="bg-green-600 px-3 py-1.5">
+                                            <p className="text-xs text-white font-semibold tracking-wide">
+                                              SẢN PHẨM QUAN TÂM
+                                            </p>
+                                          </div>
+                                          <div className="p-2.5 flex gap-3">
+                                            {productInfoMap[message.id]
+                                              ?.image ? (
+                                              <img
+                                                src={
+                                                  productInfoMap[message.id]
+                                                    .image
+                                                }
+                                                alt={productInquiry.productName}
+                                                className="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0"
+                                              />
+                                            ) : (
+                                              <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200 flex-shrink-0">
+                                                <Package className="w-7 h-7 text-green-500" />
+                                              </div>
+                                            )}
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                              <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight mb-1">
                                                 {productInquiry.productName}
                                               </p>
+                                              {productInfoMap[message.id]
+                                                ?.price && (
+                                                <p className="text-base font-bold text-green-600">
+                                                  {productInfoMap[
+                                                    message.id
+                                                  ].price?.toLocaleString(
+                                                    "vi-VN"
+                                                  )}
+                                                  đ
+                                                </p>
+                                              )}
                                             </div>
                                           </div>
                                         </div>
-                                        <p className="text-xs text-gray-500 text-right mt-1">
-                                          {formatTime(message.timestamp)}
-                                        </p>
+
+                                        {/* Timestamp */}
+                                        <div className="px-3 pb-2">
+                                          <p className="text-xs text-gray-400 text-right">
+                                            {formatTime(message.timestamp)}
+                                          </p>
+                                        </div>
                                       </div>
                                     ) : (
                                       /* Normal Message */
@@ -924,7 +1102,7 @@ export const CustomerChatBubble = () => {
                                         <p
                                           className={`text-xs mt-1 ${
                                             message.sender === "customer"
-                                              ? "text-green-100"
+                                              ? "text-green-200"
                                               : "text-gray-500"
                                           }`}
                                         >
@@ -940,6 +1118,52 @@ export const CustomerChatBubble = () => {
 
                           {/* Input */}
                           <div className="px-3 py-2.5 bg-white border-t border-gray-200">
+                            {/* Product Preview - Hiển thị khi có sản phẩm đang hỏi */}
+                            {pendingProductId && pendingProductName && (
+                              <div className="mb-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-2">
+                                <div className="flex items-center gap-2">
+                                  {pendingProductImage ? (
+                                    <img
+                                      src={pendingProductImage}
+                                      alt={pendingProductName}
+                                      className="w-12 h-12 object-cover rounded-lg border border-green-300"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                      <Package className="w-6 h-6 text-green-600" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-green-600 font-medium">
+                                      Đang hỏi về sản phẩm
+                                    </p>
+                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                      {pendingProductName}
+                                    </p>
+                                    {pendingProductPrice && (
+                                      <p className="text-sm font-bold text-green-600">
+                                        {pendingProductPrice.toLocaleString(
+                                          "vi-VN"
+                                        )}
+                                        đ
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setPendingProductId(undefined);
+                                      setPendingProductImage(undefined);
+                                      setPendingProductPrice(undefined);
+                                      setPendingProductName(undefined);
+                                      setInputValue("");
+                                    }}
+                                    className="p-1 hover:bg-green-100 rounded-full transition-colors"
+                                  >
+                                    <X className="w-4 h-4 text-gray-500" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                             {/* Image Preview */}
                             {selectedImages.length > 0 && (
                               <div className="mb-2 flex gap-2 overflow-x-auto pb-2">

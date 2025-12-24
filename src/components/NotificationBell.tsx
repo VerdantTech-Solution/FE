@@ -113,17 +113,6 @@ export const NotificationBell = () => {
             {/* Header */}
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">Thông báo</h3>
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-gray-600 hover:text-gray-900"
-                  onClick={markAllAsRead}
-                >
-                  <CheckCheck className="h-4 w-4 mr-1" />
-                  Đánh dấu tất cả đã đọc
-                </Button>
-              )}
             </div>
 
             {/* List */}

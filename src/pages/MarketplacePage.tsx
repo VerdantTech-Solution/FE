@@ -880,11 +880,13 @@ export const MarketplacePage = () => {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
             >
-              <Spinner
-                variant="circle-filled"
-                size={60}
-                className="text-green-600 mx-auto mb-4"
-              />
+              <div className="flex justify-center mb-6">
+                <Spinner
+                  variant="circle-filled"
+                  size={60}
+                  className="text-green-600 mx-auto"
+                />
+              </div>
               <h3 className="text-xl font-semibold text-gray-600 mb-2">
                 Đang tải sản phẩm...
               </h3>
@@ -1110,6 +1112,8 @@ export const MarketplacePage = () => {
                                       product.name || product.productName
                                     }
                                     productId={product.id}
+                                    productImage={product.image}
+                                    productPrice={product.price}
                                   />
                                 </>
                               )}
