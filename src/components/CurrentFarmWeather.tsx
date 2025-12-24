@@ -136,15 +136,15 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
           icon={<GaugeCircle className="h-4 w-4" />}
         />
         <StatCard
-          title="Khoảng Thời Gian"
+          title="Tần Suất Cập Nhật"
           value={`${currentWeather?.interval ?? '-'} phút`}
           subtitle="Cập nhật dữ liệu"
           icon={<Sun className="h-4 w-4" />}
         />
         <StatCard
-          title="Thời Gian"
+          title="Thời Điểm Đo"
           value={currentWeather?.time ? formatVietnamTime(currentWeather.time) : '-'}
-          subtitle="Thời điểm đo"
+          subtitle="Dữ liệu thời tiết"
           icon={<Sunrise className="h-4 w-4" />}
         />
       </div>
@@ -166,7 +166,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
           return (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-gray-700 text-sm">
-                <span>Độ sâu (0-1cm)</span>
+                <span>Lớp đất nông (0-1cm)</span>
                 <span className="font-semibold text-gray-900">{topSoil}%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -174,7 +174,7 @@ export const CurrentFarmWeather = ({ farmId }: { farmId: number }) => {
               </div>
 
               <div className="flex items-center justify-between text-gray-700 text-sm mt-3">
-                <span>Độ sâu (3-9cm)</span>
+                <span>Lớp đất sâu (3-9cm)</span>
                 <span className="font-semibold text-gray-900">{deepSoil}%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-800 overflow-hidden">

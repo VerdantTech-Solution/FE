@@ -301,13 +301,19 @@ export const AIAdvisoryDialog = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-[95vw] lg:max-w-[85vw] xl:max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-purple-600" />
-            AI Tư Vấn Tổng Quan Trang Trại
-          </DialogTitle>
-          <DialogDescription>
-            Phân tích và tư vấn dựa trên thông tin trang trại, khảo sát và dữ liệu đất
-          </DialogDescription>
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent mb-2">
+                AI Tư Vấn Tổng Quan Trang Trại
+              </DialogTitle>
+              <DialogDescription className="text-sm text-gray-600 leading-relaxed">
+                Phân tích và tư vấn dựa trên thông tin trang trại, khảo sát và dữ liệu đất
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="py-4">
@@ -339,78 +345,109 @@ export const AIAdvisoryDialog = ({
           ) : advisoryData ? (
             <div className="space-y-6">
               {/* Green Score */}
-              <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-green-600" />
-                    Điểm Xanh Trang Trại
-                  </h3>
-                  <div className="text-3xl font-bold text-green-600">{advisoryData.greenScore}/100</div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                  <div
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${advisoryData.greenScore}%` }}
-                  />
+              <div className="relative p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border border-green-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/10 to-emerald-400/10 rounded-full blur-3xl" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-md">
+                        <Sparkles className="h-5 w-5 text-white" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-800">Điểm Xanh Trang Trại</h3>
+                    </div>
+                    <div className="text-4xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                      {advisoryData.greenScore}/100
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200/50 rounded-full h-4 mb-2 shadow-inner">
+                    <div
+                      className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 h-4 rounded-full transition-all duration-700 shadow-md"
+                      style={{ width: `${advisoryData.greenScore}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    {advisoryData.greenScore >= 70 ? '🎉 Tuyệt vời!' : advisoryData.greenScore >= 50 ? '✨ Tốt' : '⚠️ Cần cải thiện'}
+                  </p>
                 </div>
               </div>
 
               {/* Overview */}
-              <div className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
-                  Tổng Quan
-                </h3>
-                <p className="text-gray-700 leading-relaxed">{advisoryData.overview}</p>
+              <div className="relative p-6 bg-gradient-to-br from-purple-50 via-violet-50 to-blue-50 border border-purple-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="absolute top-0 left-0 w-40 h-40 bg-gradient-to-br from-purple-400/10 to-blue-400/10 rounded-full blur-3xl" />
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-md">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">Tổng Quan</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed text-base">{advisoryData.overview}</p>
+                </div>
               </div>
 
               {/* Issues */}
               {advisoryData.issues && advisoryData.issues.length > 0 && (
-                <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-                  <h3 className="text-lg font-semibold text-red-800 mb-3 flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                    Vấn Đề Cần Quan Tâm
-                  </h3>
-                  <ul className="space-y-2">
-                    {advisoryData.issues.map((issue, index) => (
-                      <li key={index} className="flex items-start gap-2 text-gray-700">
-                        <span className="text-red-600 mt-1">•</span>
-                        <span>{issue}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="relative p-6 bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 border border-red-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="absolute bottom-0 right-0 w-40 h-40 bg-gradient-to-br from-red-400/10 to-orange-400/10 rounded-full blur-3xl" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-md">
+                        <AlertCircle className="h-5 w-5 text-white" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-800">Vấn Đề Cần Quan Tâm</h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {advisoryData.issues.map((issue, index) => (
+                        <li key={index} className="flex items-start gap-3 group">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-100 flex items-center justify-center mt-0.5 group-hover:bg-red-200 transition-colors">
+                            <span className="text-red-600 text-sm font-bold">!</span>
+                          </div>
+                          <span className="text-gray-700 leading-relaxed flex-1">{issue}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
 
               {/* Improvements */}
               {advisoryData.improvements && advisoryData.improvements.length > 0 && (
-                <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-blue-600" />
-                    Đề Xuất Cải Thiện
-                  </h3>
-                  <ul className="space-y-2">
-                    {advisoryData.improvements.map((improvement, index) => (
-                      <li key={index} className="flex items-start gap-2 text-gray-700">
-                        <CheckCircle2 className="h-4 w-4 text-blue-600 mt-1 flex-shrink-0" />
-                        <span>{improvement}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="relative p-6 bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50 border border-blue-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md">
+                        <TrendingUp className="h-5 w-5 text-white" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-800">Đề Xuất Cải Thiện</h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {advisoryData.improvements.map((improvement, index) => (
+                        <li key={index} className="flex items-start gap-3 group">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 group-hover:bg-blue-200 transition-colors">
+                            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <span className="text-gray-700 leading-relaxed flex-1">{improvement}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
 
               {/* Recommended Products */}
               {advisoryData.recommendedProducts && advisoryData.recommendedProducts.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Package className="h-5 w-5 text-purple-600" />
-                    Sản Phẩm Đề Xuất
-                  </h3>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
+                      <Package className="h-5 w-5 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">Sản Phẩm Đề Xuất</h3>
+                  </div>
                   {advisoryData.recommendedProducts.map((product, index) => (
                     <div
                       key={index}
-                      className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                      className="p-6 bg-white border-2 border-gray-100 rounded-xl shadow-sm hover:shadow-lg hover:border-purple-200 transition-all duration-300"
                     >
                       <div className="flex gap-4 mb-4">
                         {/* Product Image */}
