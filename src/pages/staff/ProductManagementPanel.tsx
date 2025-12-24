@@ -3,13 +3,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, Eye, Loader2, Filter, RefreshCcw } from "lucide-react";
-import { getAllProducts, getProductUpdateRequests, type Product, type ProductUpdateRequest } from "@/api/product";
+import { 
+  Search, 
+  Package, 
+  Eye, 
+  EyeOff, 
+  Loader2, 
+  Filter, 
+  RefreshCcw, 
+  Pencil 
+} from "lucide-react";
+import { 
+  getAllProducts, 
+  getProductUpdateRequests, 
+  updateProduct, 
+  type Product, 
+  type ProductUpdateRequest 
+} from "@/api/product";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductDetailDialog } from "./components/ProductDetailDialog";
 import { ProductUpdateRequestDialog } from "./components/ProductUpdateRequestDialog";
 import { getVendorById } from "@/api/vendor";
+import { toast } from "sonner";
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -24,7 +40,7 @@ export const ProductManagementPanel: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
 
-  // Update requests
+  // Update requests state
   const [updateRequests, setUpdateRequests] = useState<ProductUpdateRequest[]>([]);
   const [updateStatusFilter, setUpdateStatusFilter] = useState<string>("all");
   const [updateVendorId, setUpdateVendorId] = useState<string>("");
@@ -36,13 +52,14 @@ export const ProductManagementPanel: React.FC = () => {
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const [vendorNames, setVendorNames] = useState<Record<number, string>>({});
 
+  // Toggle visibility state
+  const [togglingVisibility, setTogglingVisibility] = useState<number | null>(null);
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError(null);
       const allProducts = await getAllProducts({ page: 1, pageSize: 1000 });
-      // Lọc chỉ lấy sản phẩm đã được duyệt (isActive có thể là true hoặc false, nhưng Product đã là approved)
-      // Vì Product là từ ProductRegistration đã được approved
       setProducts(allProducts);
     } catch (err: any) {
       const errorMessage = err?.response?.data?.errors?.join(", ") || err?.message || "Có lỗi xảy ra khi tải sản phẩm";
@@ -81,7 +98,6 @@ export const ProductManagementPanel: React.FC = () => {
     fetchUpdateRequests();
   }, [updatePage, updateStatusFilter, updateVendorId]);
 
-  // Load vendor names for rows (cache)
   useEffect(() => {
     const missingIds = updateRequests
       .map((r) => r.vendorId)
@@ -106,6 +122,33 @@ export const ProductManagementPanel: React.FC = () => {
     loadVendors();
   }, [updateRequests, vendorNames]);
 
+  const handleToggleProductVisibility = async (product: Product) => {
+    try {
+      setTogglingVisibility(product.id);
+      const newIsActive = !product.isActive;
+      
+      await updateProduct(product.id, {
+        isActive: newIsActive,
+      });
+
+      // Cập nhật trực tiếp vào state để UI thay đổi mượt mà
+      setProducts(prev => 
+        prev.map(p => p.id === product.id ? { ...p, isActive: newIsActive } : p)
+      );
+      
+      const message = newIsActive 
+        ? `Sản phẩm "${product.productName}" đã được hiển thị` 
+        : `Sản phẩm "${product.productName}" đã bị ẩn`;
+      
+      toast.success(message);
+    } catch (error: any) {
+      console.error("Error toggling product visibility:", error);
+      toast.error("Có lỗi xảy ra khi cập nhật trạng thái sản phẩm");
+    } finally {
+      setTogglingVisibility(null);
+    }
+  };
+
   const formatDate = (value?: string) => {
     if (!value) return "--";
     try {
@@ -118,7 +161,6 @@ export const ProductManagementPanel: React.FC = () => {
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -129,7 +171,6 @@ export const ProductManagementPanel: React.FC = () => {
       );
     }
 
-    // Filter by status
     if (statusFilter === "active") {
       filtered = filtered.filter((p) => p.isActive === true);
     } else if (statusFilter === "inactive") {
@@ -195,7 +236,6 @@ export const ProductManagementPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -233,7 +273,6 @@ export const ProductManagementPanel: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Error */}
           {error && (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="pt-6">
@@ -242,7 +281,6 @@ export const ProductManagementPanel: React.FC = () => {
             </Card>
           )}
 
-          {/* Products Grid */}
           {paginatedProducts.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center py-12">
@@ -256,7 +294,7 @@ export const ProductManagementPanel: React.FC = () => {
                 {paginatedProducts.map((product) => {
                   const imageUrl = getProductImageUrl(product.images);
                   return (
-                    <Card key={product.id} className="hover:shadow-lg transition-shadow">
+                    <Card key={product.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader className="pb-3">
                         <div className="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden mb-3">
                           {imageUrl ? (
@@ -275,14 +313,9 @@ export const ProductManagementPanel: React.FC = () => {
                           <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
                             {product.productName}
                           </CardTitle>
-                          <Badge
-                            variant={product.isActive ? "default" : "secondary"}
-                            className={product.isActive ? "bg-green-100 text-green-800" : ""}
-                          >
-                          </Badge>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent className="space-y-3 flex-1 flex flex-col justify-between">
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-500">Mã SP:</span>
@@ -297,34 +330,72 @@ export const ProductManagementPanel: React.FC = () => {
                           {product.stockQuantity !== undefined && (
                             <div className="flex justify-between">
                               <span className="text-gray-500">Tồn kho:</span>
-                              <span className="font-medium">{product.stockQuantity}</span>
-                            </div>
-                          )}
-                          {product.soldCount !== undefined && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Đã bán:</span>
-                              <span className="font-medium">{product.soldCount}</span>
+                              <span className="font-medium">{product.stockQuantity} sản phẩm</span>
                             </div>
                           )}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => handleViewDetails(product)}
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          Xem chi tiết
-                        </Button>
+
+                        <div className="space-y-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-center"
+                            onClick={() => handleViewDetails(product)}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Xem chi tiết
+                          </Button>
+
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full justify-center bg-slate-900 text-white hover:bg-black"
+                            onClick={() => {
+                              setSelectedProductId(product.id);
+                              setIsDetailDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Gửi yêu cầu sửa
+                          </Button>
+
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className={`w-full justify-center ${
+                              product.isActive 
+                                ? "bg-green-600 hover:bg-green-700 text-white" 
+                                : "bg-red-600 hover:bg-red-700 text-white"
+                            }`}
+                            onClick={() => handleToggleProductVisibility(product)}
+                            disabled={togglingVisibility === product.id}
+                          >
+                            {togglingVisibility === product.id ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Đang cập nhật...
+                              </>
+                            ) : product.isActive ? (
+                              <>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Đã hiện sản phẩm
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="mr-2 h-4 w-4" />
+                                Đã ẩn sản phẩm
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   );
                 })}
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mt-6">
                   <p className="text-sm text-gray-600">
                     Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, filteredProducts.length)} 
                     trong tổng số {filteredProducts.length} sản phẩm
@@ -368,14 +439,6 @@ export const ProductManagementPanel: React.FC = () => {
               )}
             </>
           )}
-
-          {/* Product Detail Dialog */}
-          <ProductDetailDialog
-            productId={selectedProductId}
-            open={isDetailDialogOpen}
-            onOpenChange={setIsDetailDialogOpen}
-            onProductUpdated={handleProductUpdated}
-          />
         </TabsContent>
 
         <TabsContent value="update-requests" className="space-y-4">
@@ -524,7 +587,6 @@ export const ProductManagementPanel: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Product Detail Dialog */}
       <ProductDetailDialog
         productId={selectedProductId}
         open={isDetailDialogOpen}
@@ -532,7 +594,6 @@ export const ProductManagementPanel: React.FC = () => {
         onProductUpdated={handleProductUpdated}
       />
 
-      {/* Update Request Detail Dialog */}
       <ProductUpdateRequestDialog
         open={isRequestDialogOpen}
         onOpenChange={setIsRequestDialogOpen}
@@ -545,4 +606,3 @@ export const ProductManagementPanel: React.FC = () => {
     </div>
   );
 };
-

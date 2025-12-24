@@ -420,7 +420,10 @@ const transformProductData = (apiProduct: any): Product => {
     warrantyMonths: apiProduct.warrantyMonths,
     energyEfficiencyRating: apiProduct.energyEfficiencyRating,
     // Map manualUrls từ API (có thể là manualUrls, manualUrl, hoặc manualPublicUrl)
-    manualUrls: apiProduct.manualUrls || apiProduct.manualUrl || apiProduct.manualPublicUrl || undefined
+    manualUrls: apiProduct.manualUrls || apiProduct.manualUrl || apiProduct.manualPublicUrl || undefined,
+    // Normalize isActive: default to true if not provided (API có thể không có field này)
+    // Chỉ set false khi API explicitly return false hoặc 0
+    isActive: apiProduct.isActive === false || apiProduct.isActive === 0 ? false : true
   };
 };
 
@@ -709,7 +712,7 @@ export const updateProduct = async (
       specifications: currentProduct.specifications,
       manualUrls: currentProduct.manualUrls,
       publicUrl: currentProduct.publicUrl,
-      warrantyMonths: currentProduct.warrantyMonths,
+      warrantyMonths: currentProduct.warrantyMonths && currentProduct.warrantyMonths > 0 ? currentProduct.warrantyMonths : 12,
       stockQuantity: data.stockQuantity !== undefined ? data.stockQuantity : currentProduct.stockQuantity,
       weightKg: currentProduct.weightKg,
       dimensionsCm: currentProduct.dimensionsCm,
@@ -719,14 +722,10 @@ export const updateProduct = async (
       ratingAverage: currentProduct.ratingAverage
     };
     
-    // Format payload theo API spec: { data: {...}, addImages: [], removeImagePublicIds: [] }
-    const payload: UpdateProductPayload = {
-      data: updateData,
-      addImages: [],
-      removeImagePublicIds: []
-    };
-    
-    const response = await apiClient.put(`/api/Product/${id}`, payload);
+    // Format payload - API yêu cầu Data field
+    const response = await apiClient.put(`/api/Product/${id}`, {
+      Data: updateData
+    });
     
     let productData = null;
     

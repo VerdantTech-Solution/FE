@@ -422,24 +422,6 @@ export const ProductDetailPage = () => {
               <span className="sm:hidden">Quay lại</span>
             </Button>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleToggleFavorite}
-                className="text-gray-600 hover:text-red-500 text-xs sm:text-sm"
-              >
-                <Heart className="w-4 h-4 sm:mr-1" />
-                <span className="hidden sm:inline">Yêu thích</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleContactVendor}
-                className="text-gray-600 hover:text-green-600 text-xs sm:text-sm"
-              >
-                <Phone className="w-4 h-4 sm:mr-1" />
-                <span className="hidden sm:inline">Liên hệ</span>
-              </Button>
             </div>
           </div>
         </div>
@@ -516,9 +498,6 @@ export const ProductDetailPage = () => {
                     {formattedAverageRating}/5 ({reviewCount || 0} đánh giá)
                   </span>
                 </div>
-              <Badge variant="outline" className="text-gray-600 border-gray-200">
-                {product.viewCount || 0} lượt xem
-              </Badge>
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   Mã: {product.productCode}
                 </Badge>
@@ -536,7 +515,7 @@ export const ProductDetailPage = () => {
                 <span className="text-3xl font-bold text-green-600">
                   {product.unitPrice?.toLocaleString('vi-VN')}₫
                 </span>
-                <span className="text-sm text-gray-500">/chiếc</span>
+                <span className="text-sm text-gray-500">/sản phẩm</span>
               </div>
               {product.discountPercentage > 0 && (
                 <div className="flex items-center space-x-2 mt-1">
@@ -652,13 +631,6 @@ export const ProductDetailPage = () => {
                     )}
                   </Button>
                 )}
-                <Button 
-                  variant="outline"
-                  onClick={handleToggleFavorite}
-                  className="px-4"
-                >
-                  <Heart className="w-4 h-4" />
-                </Button>
               </div>
             </div>
 
@@ -724,24 +696,6 @@ export const ProductDetailPage = () => {
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleContactVendor}
-                    className="flex-1"
-                  >
-                    <Phone className="w-4 h-4 mr-1" />
-                    Liên hệ
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleContactVendor}
-                    className="flex-1"
-                  >
-                    <Mail className="w-4 h-4 mr-1" />
-                    Hỗ trợ
-                  </Button>
                 </div>
               </div>
             </CardContent>
