@@ -289,7 +289,7 @@ const CO2Info: React.FC = () => {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button variant="default">
-                {records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Tạo bản ghi'}
+                {records && records.length > 0 ? 'Tạo bản ghi' : 'Tạo bản ghi'}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">

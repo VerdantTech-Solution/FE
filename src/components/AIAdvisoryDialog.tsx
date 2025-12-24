@@ -299,7 +299,7 @@ export const AIAdvisoryDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] lg:max-w-[85vw] xl:max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-purple-600" />
