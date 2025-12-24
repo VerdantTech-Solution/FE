@@ -23,7 +23,7 @@ import { SurveyFormDialog } from "@/components/SurveyFormDialog";
 import { AIAdvisoryDialog } from "@/components/AIAdvisoryDialog";
 import { getFarmProfileById, type FarmProfile } from "@/api/farm";
 import { getSurveyResponsesByFarmId, type SurveyResponseItem } from "@/api/survey";
-import { getSoilDataByFarmId, type SoilData } from "@/api/co2";
+import { getSoilDataByFarmId, getCO2DataByFarmId, type SoilData, type CO2Record } from "@/api/co2";
 import { getCurrentWeather, type CurrentWeatherData } from "@/api/weather";
 import { formatVietnamDate, formatVietnamDateTime } from "@/lib/utils";
 import {
@@ -100,6 +100,8 @@ const FarmDetailPage = () => {
   const [loadingSurvey, setLoadingSurvey] = useState<boolean>(false);
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [loadingSoil, setLoadingSoil] = useState<boolean>(false);
+  const [co2Records, setCo2Records] = useState<CO2Record[]>([]);
+  const [loadingCO2, setLoadingCO2] = useState<boolean>(false);
   const [weatherData, setWeatherData] = useState<CurrentWeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState<boolean>(false);
   const [showSurveyDialog, setShowSurveyDialog] = useState<boolean>(false);
@@ -139,6 +141,24 @@ const FarmDetailPage = () => {
       }
     };
     fetchSurveyResponses();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchCO2Data = async () => {
+      if (!id) return;
+      try {
+        setLoadingCO2(true);
+        const response = await getCO2DataByFarmId(Number(id));
+        if (response.status && response.data) {
+          setCo2Records(response.data);
+        }
+      } catch (e) {
+        console.error("Không thể tải dữ liệu CO2:", e);
+      } finally {
+        setLoadingCO2(false);
+      }
+    };
+    fetchCO2Data();
   }, [id]);
 
   useEffect(() => {
@@ -645,7 +665,7 @@ const FarmDetailPage = () => {
                       <div className="flex-1">
                         <p className="text-xs text-amber-700 font-medium">Dữ liệu hiện tại</p>
                         <p className="text-xs text-amber-600 mt-1">
-                          {surveyResponses.length > 0 ? `${surveyResponses.length} câu trả lời khảo sát` : 'Chưa có khảo sát'} • {soilData ? 'Có dữ liệu đất' : 'Chưa có dữ liệu đất'}
+                          {surveyResponses.length > 0 ? `${surveyResponses.length} câu trả lời khảo sát` : 'Chưa có khảo sát'} • {soilData ? 'Có dữ liệu đất' : 'Chưa có dữ liệu đất'} • {co2Records.length > 0 ? `${co2Records.length} bản ghi CO2` : 'Chưa có bản ghi CO2'}
                         </p>
                       </div>
                     </div>
