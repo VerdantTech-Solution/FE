@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Star,
   ShoppingCart,
-  Heart,
   MapPin,
   Truck,
   Shield,
@@ -37,7 +36,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getVendorById } from "@/api/vendor";
 import { FileText } from "lucide-react";
-import { useConversation } from "@/contexts/useConversation";
 
 // Helper function to get image URLs from product
 const getProductImages = (product: Product): string[] => {
@@ -162,7 +160,6 @@ export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { refreshCart } = useCart();
-  const { requestOpenConversation } = useConversation();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -339,24 +336,6 @@ export const ProductDetailPage = () => {
     } finally {
       setAddingToCart(false);
     }
-  };
-
-  const handleToggleFavorite = () => {
-    // TODO: Implement favorite functionality
-    console.log("Toggle favorite");
-  };
-
-  const handleContactVendor = () => {
-    if (!product?.vendorId) {
-      console.error("Vendor ID not found");
-      return;
-    }
-
-    // Mở chat với vendor thông qua ConversationContext
-    requestOpenConversation(product.vendorId, {
-      productId: parseInt(id || "0"),
-      productName: product.productName,
-    });
   };
 
   // Calculate review count and average rating from reviews array (same as original code)
