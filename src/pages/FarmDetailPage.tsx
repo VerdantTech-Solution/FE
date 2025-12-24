@@ -101,7 +101,6 @@ const FarmDetailPage = () => {
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [loadingSoil, setLoadingSoil] = useState<boolean>(false);
   const [co2Records, setCo2Records] = useState<CO2Record[]>([]);
-  const [loadingCO2, setLoadingCO2] = useState<boolean>(false);
   const [weatherData, setWeatherData] = useState<CurrentWeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState<boolean>(false);
   const [showSurveyDialog, setShowSurveyDialog] = useState<boolean>(false);
@@ -147,15 +146,12 @@ const FarmDetailPage = () => {
     const fetchCO2Data = async () => {
       if (!id) return;
       try {
-        setLoadingCO2(true);
         const response = await getCO2DataByFarmId(Number(id));
         if (response.status && response.data) {
           setCo2Records(response.data);
         }
       } catch (e) {
         console.error("Không thể tải dữ liệu CO2:", e);
-      } finally {
-        setLoadingCO2(false);
       }
     };
     fetchCO2Data();

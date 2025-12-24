@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, Trash2 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import type { Notification, NotificationReferenceType } from '@/types/notification.types';
 import { NOTIFICATION_REFERENCE_TYPES, CONNECTION_STATES } from '@/types/notification.types';
@@ -15,7 +15,6 @@ export const NotificationBell = () => {
     unreadCount,
     connectionState,
     markAsRead,
-    markAllAsRead,
     deleteNotification,
   } = useNotifications();
   const navigate = useNavigate();

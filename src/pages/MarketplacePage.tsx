@@ -33,7 +33,6 @@ import {
 import { addToCart } from "@/api/cart";
 import { toast } from "sonner";
 import { getProductReviewsByProductId } from "@/api/productReview";
-import { getProductUnitById } from "@/lib/productUnitMapper";
 import { ProductVendorChat } from "@/components/ProductVendorChat";
 
 // Animation variants
