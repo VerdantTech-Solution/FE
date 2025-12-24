@@ -55,7 +55,7 @@ export const RegisterProductByExcelPage = () => {
     code: string;
     name: string;
   }>>([]);
-  const [uploadManual, setUploadManual] = useState<File | null>(null);
+  const [uploadManuals, setUploadManuals] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadedRegistrations, setUploadedRegistrations] = useState<Set<number>>(new Set());
 
@@ -108,7 +108,7 @@ export const RegisterProductByExcelPage = () => {
     setUploadDialogOpen(true);
     setUploadImages([]);
     setUploadCertificates([{ file: null as any, code: '', name: '' }]);
-    setUploadManual(null);
+    setUploadManuals([]);
   };
 
   const addCertificate = () => {
@@ -119,6 +119,31 @@ export const RegisterProductByExcelPage = () => {
     if (uploadCertificates.length > 1) {
       setUploadCertificates(uploadCertificates.filter((_, i) => i !== index));
     }
+  };
+
+  const addManualFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    input.onchange = (e: any) => {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        const isValidFormat = 
+          file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ||
+          file.type === 'application/msword' || file.name.toLowerCase().endsWith('.doc') ||
+          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.toLowerCase().endsWith('.docx');
+        if (isValidFormat) {
+          setUploadManuals((prev) => [...prev, file]);
+        } else {
+          toast.error(`Tệp "${file.name}" không phải là file PDF/DOC/DOCX. Vui lòng chọn file hợp lệ.`);
+        }
+      }
+    };
+    input.click();
+  };
+
+  const removeManualFile = (index: number) => {
+    setUploadManuals(uploadManuals.filter((_, i) => i !== index));
   };
 
   const updateCertificate = (index: number, field: 'code' | 'name' | 'file', value: string | File | null) => {
@@ -155,11 +180,11 @@ export const RegisterProductByExcelPage = () => {
     // Validate certificates: phải có name và file cho mỗi certificate
     const validCertificates = uploadCertificates.filter(cert => cert.file && cert.name.trim());
     const invalidCertificates = uploadCertificates.filter(cert => 
-      !cert.file || !cert.name.trim()
+      (cert.file && !cert.name.trim()) || (!cert.file && cert.name.trim())
     );
     
     if (invalidCertificates.length > 0) {
-      toast.error('Vui lòng nhập đầy đủ tên chứng chỉ và chọn file cho tất cả chứng chỉ!');
+      toast.error('Vui lòng nhập đầy đủ tên chứng chỉ và tải file cho tất cả chứng chỉ!');
       return;
     }
     
@@ -168,8 +193,23 @@ export const RegisterProductByExcelPage = () => {
       return;
     }
     
-    if (!uploadManual) {
-      toast.error('Vui lòng upload file hướng dẫn sử dụng!');
+    if (uploadManuals.length === 0) {
+      toast.error('Vui lòng upload ít nhất 1 file hướng dẫn sử dụng!');
+      return;
+    }
+
+    // Validate manual files: chỉ cho phép PDF/DOC/DOCX
+    const invalidManualFiles = uploadManuals.filter(file => {
+      const isValidFormat = 
+        file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ||
+        file.type === 'application/msword' || file.name.toLowerCase().endsWith('.doc') ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.toLowerCase().endsWith('.docx');
+      return !isValidFormat;
+    });
+
+    if (invalidManualFiles.length > 0) {
+      const invalidFileNames = invalidManualFiles.map(f => f.name).join(', ');
+      toast.error(`Các file hướng dẫn không phải PDF/DOC/DOCX: ${invalidFileNames}. Vui lòng chỉ tải lên file hợp lệ.`);
       return;
     }
 
@@ -190,8 +230,10 @@ export const RegisterProductByExcelPage = () => {
         }))
       );
 
-      // Upload manual
-      await uploadProductRegistrationManual(registrationId, uploadManual);
+      // Upload manuals (one by one since API accepts single file)
+      for (const manualFile of uploadManuals) {
+        await uploadProductRegistrationManual(registrationId, manualFile);
+      }
 
       // Mark as uploaded
       setUploadedRegistrations(prev => new Set([...prev, registrationId]));
@@ -201,7 +243,7 @@ export const RegisterProductByExcelPage = () => {
       setSelectedRegistration(null);
       setUploadImages([]);
       setUploadCertificates([]);
-      setUploadManual(null);
+      setUploadManuals([]);
     } catch (error: any) {
       console.error('Error uploading files:', error);
       toast.error(error?.response?.data?.error || error?.message || 'Có lỗi xảy ra khi upload files');
@@ -284,10 +326,10 @@ export const RegisterProductByExcelPage = () => {
                       <h4 className="font-semibold text-blue-900 mb-2">Hướng dẫn sử dụng:</h4>
                       <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
                         <li>Tải file template Excel để xem định dạng dữ liệu</li>
-                        <li>Điền thông tin sản phẩm vào file Excel theo template</li>
+                        <li>Điền thông tin sản phẩm: CategoryId, ProposedProductCode, ProposedProductName, Description, UnitPrice, v.v.</li>
                         <li>Upload file Excel để import nhiều sản phẩm cùng lúc</li>
-                        <li><strong className="text-red-600">Bắt buộc:</strong> Sau khi import, phải upload đầy đủ ảnh, chứng chỉ và file hướng dẫn cho từng sản phẩm</li>
-                        <li>File Excel tối đa 1000 dòng mỗi lần import</li>
+                        <li><strong className="text-red-600">Bắt buộc sau khi import:</strong> Phải upload đầy đủ <span className="underline">ảnh sản phẩm, 1+ chứng chỉ (PDF) và file hướng dẫn (PDF)</span> cho từng sản phẩm</li>
+                        <li>Khi upload chứng chỉ, nhập tên chứng chỉ (bắt buộc) và mã chứng chỉ (tùy chọn) cho mỗi file</li>
                       </ul>
                     </div>
                   </div>
@@ -462,7 +504,7 @@ export const RegisterProductByExcelPage = () => {
 
       {/* Upload Files Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Upload files cho sản phẩm</DialogTitle>
             <DialogDescription>
@@ -470,36 +512,82 @@ export const RegisterProductByExcelPage = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="upload-images" className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Hình ảnh sản phẩm *
-              </Label>
-              <Input
-                id="upload-images"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  if (e.target.files) {
-                    setUploadImages(Array.from(e.target.files));
-                  }
-                }}
-                className="mt-2"
-              />
-              {uploadImages.length > 0 && (
-                <p className="text-sm text-gray-600 mt-2">
-                  Đã chọn {uploadImages.length} ảnh
-                </p>
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 sticky top-0">
+              <p className="text-sm text-orange-800">
+                <strong>Quy trình upload files:</strong> Bạn cần upload ảnh, chứng chỉ (1 hoặc nhiều), và file hướng dẫn cho mỗi sản phẩm. Tất cả đều là bắt buộc.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="upload-images" className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Hình ảnh sản phẩm <span className="text-red-500">*</span> (Tối đa 5 ảnh)
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e: any) => {
+                      if (e.target.files) {
+                        const newFiles = Array.from(e.target.files) as File[];
+                        const combined = [...uploadImages, ...newFiles].slice(0, 5);
+                        setUploadImages(combined);
+                        if (combined.length === 5) {
+                          toast.info('Đã đạt tối đa 5 ảnh');
+                        }
+                      }
+                    };
+                    input.click();
+                  }}
+                  disabled={uploadImages.length >= 5}
+                  className="h-8"
+                >
+                  <Plus size={16} className="mr-1" />
+                  Thêm ảnh
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">Tải lên 1-5 ảnh của sản phẩm (JPG, PNG, v.v.)</p>
+              {uploadImages.length > 0 ? (
+                <div className="space-y-2 mt-2">
+                  {uploadImages.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <ImageIcon className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                        <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setUploadImages(uploadImages.filter((_, i) => i !== index))}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                  <p className="text-xs text-gray-500 mt-2">{uploadImages.length}/5 ảnh</p>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-2">Chưa có ảnh nào được chọn</p>
               )}
             </div>
 
             <div className="space-y-4">
-              <Label className="flex items-center gap-2">
-                <FileCheck className="h-4 w-4" />
-                Chứng chỉ (PDF) *
-              </Label>
+              <div>
+                <Label className="flex items-center gap-2">
+                  <FileCheck className="h-4 w-4" />
+                  Chứng chỉ (PDF) <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-xs text-gray-500 mt-1 mb-2">Tải lên 1 hoặc nhiều file PDF chứng nhận chất lượng, an toàn, ISO, CE, v.v. Mỗi chứng chỉ cần có <strong>tên</strong> (bắt buộc) và <strong>mã</strong> (tùy chọn)</p>
+              </div>
               
               {/* Certificate list */}
               <div className="space-y-3">
@@ -508,32 +596,32 @@ export const RegisterProductByExcelPage = () => {
                     <div className="flex items-start gap-3">
                       <FileText className="h-5 w-5 text-blue-600 mt-1" />
                       <div className="flex-1 space-y-3">
-                        {/* Mã chứng chỉ */}
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-gray-700">
-                            Mã chứng chỉ (tùy chọn)
-                          </Label>
-                          <Input
-                            type="text"
-                            value={cert.code}
-                            onChange={(e) => updateCertificate(index, 'code', e.target.value)}
-                            placeholder="VD: CERT-2024-001"
-                            className="text-sm"
-                          />
-                        </div>
-                        
                         {/* Tên chứng chỉ */}
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-gray-700">
-                            Tên chứng chỉ <span className="text-red-500">*</span>
+                            Tên chứng chỉ <span className="text-red-500">*</span> (Bắt buộc)
                           </Label>
                           <Input
                             type="text"
                             value={cert.name}
                             onChange={(e) => updateCertificate(index, 'name', e.target.value)}
-                            placeholder="VD: Chứng nhận ISO 9001"
+                            placeholder="VD: ISO 9001:2015, CE Certification, RoHS, v.v."
                             className="text-sm"
                             required
+                          />
+                        </div>
+
+                        {/* Mã chứng chỉ */}
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-gray-700">
+                            Mã chứng chỉ (Tùy chọn)
+                          </Label>
+                          <Input
+                            type="text"
+                            value={cert.code}
+                            onChange={(e) => updateCertificate(index, 'code', e.target.value)}
+                            placeholder="VD: ISO-9001, CERT-2024-001, v.v."
+                            className="text-sm"
                           />
                         </div>
                         
@@ -598,39 +686,59 @@ export const RegisterProductByExcelPage = () => {
                   Thêm chứng chỉ
                 </Button>
               </div>
-              
-              <p className="text-sm text-gray-500">
-                Tải lên các file PDF chứng nhận chất lượng, an toàn, hoặc các chứng chỉ khác của sản phẩm. 
-                <span className="text-red-500 font-medium"> Mỗi chứng chỉ cần có tên và file.</span>
-              </p>
-            </div>
+                
+              </div>
 
-            <div>
-              <Label htmlFor="upload-manual" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                File hướng dẫn sử dụng (PDF) *
-              </Label>
-              <Input
-                id="upload-manual"
-                type="file"
-                accept=".pdf"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setUploadManual(e.target.files[0]);
-                  }
-                }}
-                className="mt-2"
-              />
-              {uploadManual && (
-                <p className="text-sm text-gray-600 mt-2">
-                  Đã chọn: {uploadManual.name}
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  File hướng dẫn sử dụng (PDF/DOC/DOCX) <span className="text-red-500">*</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addManualFile}
+                  className="h-8"
+                >
+                  <Plus size={16} className="mr-1" />
+                  Thêm file
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">Tải lên 1 hoặc nhiều file hướng dẫn sử dụng, bảo hành, hoặc thông tin sản phẩm (PDF, DOC, DOCX)</p>
+              {uploadManuals.length > 0 ? (
+                <div className="space-y-2 mt-2">
+                  {uploadManuals.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                        <span className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeManualFile(index)}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-2">Chưa có file nào được chọn</p>
               )}
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800">
-                <strong>Lưu ý:</strong> Bạn phải upload đầy đủ ít nhất 1 ảnh, 1 chứng chỉ và 1 file hướng dẫn để hoàn thành đăng ký sản phẩm.
+              <p className="text-sm text-yellow-800 space-y-1">
+                <div><strong>✓ Yêu cầu để hoàn thành:</strong></div>
+                <div>• 1-5 <strong>hình ảnh sản phẩm</strong></div>
+                <div>• 1 hoặc nhiều <strong>chứng chỉ (PDF)</strong> với tên chứng chỉ</div>
+                <div>• 1 hoặc nhiều <strong>file hướng dẫn (PDF/DOC/DOCX)</strong></div>
               </p>
             </div>
           </div>
@@ -644,7 +752,7 @@ export const RegisterProductByExcelPage = () => {
             </Button>
             <Button
               onClick={handleUploadFiles}
-              disabled={uploading || uploadImages.length === 0 || uploadCertificates.filter(c => c.file && c.name.trim()).length === 0 || !uploadManual}
+              disabled={uploading || uploadImages.length === 0 || uploadCertificates.filter(c => c.file && c.name.trim()).length === 0 || uploadManuals.length === 0}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {uploading ? (
