@@ -7,6 +7,8 @@ import App from "./App.tsx";
 import AuthProvider from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { ChatProvider } from "./contexts/ChatContext";
+import { ConversationProvider } from "./contexts/ConversationContext";
 import { Toaster } from "sonner";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { store } from "./state/store";
@@ -17,11 +19,17 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <AuthProvider>
           <NotificationProvider>
-            <CartProvider>
-              <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-                <App />
-              </GoogleOAuthProvider>
-            </CartProvider>
+            <ChatProvider>
+              <ConversationProvider>
+                <CartProvider>
+                  <GoogleOAuthProvider
+                    clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
+                  >
+                    <App />
+                  </GoogleOAuthProvider>
+                </CartProvider>
+              </ConversationProvider>
+            </ChatProvider>
           </NotificationProvider>
           <Toaster position="top-right" richColors />
         </AuthProvider>

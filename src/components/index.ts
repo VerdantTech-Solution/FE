@@ -22,3 +22,4 @@ export { default as HourlyFarmWeather } from './HourlyFarmWeather';
 export { default as CreateProductForm } from './CreateProductForm';
 export { default as RegisterProductForm } from './RegisterProductForm';
 export { default as ProductSpecifications } from './ProductSpecifications';
+export { CustomerChatBubble } from './CustomerChatBubble';

@@ -51,3 +51,5 @@ export * from './survey';
 
 // Export vendor dashboard API
 export * from './vendordashboard';
+// Export customer vendor conversation API
+export * from './customerVendorConversation';

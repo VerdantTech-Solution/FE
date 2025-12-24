@@ -1,28 +1,36 @@
-import { motion } from 'framer-motion';
-import { useState, useRef, useEffect } from 'react';
-import { Bot, User, Trash2, History, Send, Plus, MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { useNavigate } from 'react-router';
-import { 
-  sendChatbotMessage, 
-  getChatbotConversations, 
-  getChatbotMessages, 
-  createChatbotConversation, 
+import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import {
+  Bot,
+  User,
+  Trash2,
+  History,
+  Send,
+  Plus,
+  MessageSquare,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router";
+import {
+  sendChatbotMessage,
+  getChatbotConversations,
+  getChatbotMessages,
+  createChatbotConversation,
   deleteChatbotConversation, // <-- added
   type ChatbotConversation as BackendConversation,
   type ChatbotMessage as BackendMessage,
   normalizeChatbotMessage,
-} from '@/api/chatbot';
-import { parseProductsFromMessage } from '@/utils/parseChatProducts';
-import { ChatProductCarousel } from '@/components/ChatProductCarousel';
-import { useAuth } from '@/contexts/AuthContext';
+} from "@/api/chatbot";
+import { parseProductsFromMessage } from "@/utils/parseChatProducts";
+import { ChatProductCarousel } from "@/components/ChatProductCarousel";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'ai';
+  sender: "user" | "ai";
   timestamp: Date;
 }
 
@@ -35,18 +43,17 @@ interface Conversation {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Giới thiệu về nền tảng VerdantTech',
-  'Tôi muốn tư vấn canh tác bền vững',
-  'Tôi có thể liên hệ hỗ trợ như thế nào',
-  'Tôi muốn biết thêm về các chính sách của cửa hàng ? ',
-  'Phương thức thanh toán nào hiện đang được hỗ trợ?',
- 
+  "Giới thiệu về nền tảng VerdantTech",
+  "Tôi muốn tư vấn canh tác bền vững",
+  "Tôi có thể liên hệ hỗ trợ như thế nào",
+  "Tôi muốn biết thêm về các chính sách của cửa hàng ? ",
+  "Phương thức thanh toán nào hiện đang được hỗ trợ?",
 ];
 
 const getWelcomeMessage = (): Message => ({
-  id: '1',
-  text: 'Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?',
-  sender: 'ai',
+  id: "1",
+  text: "Xin chào! Tôi là Verdant AI. Tôi có thể giúp gì cho bạn hôm nay?",
+  sender: "ai",
   timestamp: new Date(),
 });
 
@@ -57,7 +64,7 @@ const isValidDate = (date: any): date is Date => {
 
 // Helper tạo key localStorage theo từng user
 const getStorageKeys = (userId?: number | string) => {
-  const key = userId ?? 'guest';
+  const key = userId ?? "guest";
   return {
     conversationsKey: `chatAI_conversations_${key}`,
     currentConversationIdKey: `chatAI_currentConversationId_${key}`,
@@ -81,7 +88,7 @@ const loadConversations = (userId?: number | string): Conversation[] => {
             return {
               ...msg,
               text: normalizeChatbotMessage(
-                msg.text || msg.messageText || msg.content || '',
+                msg.text || msg.messageText || msg.content || ""
               ),
               timestamp: isValidDate(timestamp) ? timestamp : new Date(),
             };
@@ -92,18 +99,21 @@ const loadConversations = (userId?: number | string): Conversation[] => {
       });
     }
   } catch (error) {
-    console.error('Error loading conversations:', error);
+    console.error("Error loading conversations:", error);
   }
   return [];
 };
 
 // Save conversations to localStorage (theo từng user)
-const saveConversations = (conversations: Conversation[], userId?: number | string) => {
+const saveConversations = (
+  conversations: Conversation[],
+  userId?: number | string
+) => {
   try {
     const { conversationsKey } = getStorageKeys(userId);
     localStorage.setItem(conversationsKey, JSON.stringify(conversations));
   } catch (error) {
-    console.error('Error saving conversations:', error);
+    console.error("Error saving conversations:", error);
   }
 };
 
@@ -114,7 +124,10 @@ const getCurrentConversationId = (userId?: number | string): string | null => {
 };
 
 // Set current conversation ID (theo từng user)
-const setCurrentConversationId = (id: string | null, userId?: number | string) => {
+const setCurrentConversationId = (
+  id: string | null,
+  userId?: number | string
+) => {
   const { currentConversationIdKey } = getStorageKeys(userId);
   if (id) {
     localStorage.setItem(currentConversationIdKey, id);
@@ -127,15 +140,15 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>(() =>
-    loadConversations(user?.id),
+    loadConversations(user?.id)
   );
-  const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(() =>
-    getCurrentConversationId(user?.id),
-  );
-  const [inputValue, setInputValue] = useState('');
+  const [currentConversationId, setCurrentConversationIdState] = useState<
+    string | null
+  >(() => getCurrentConversationId(user?.id));
+  const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editingTitle, setEditingTitle] = useState('');
+  const [editingTitle, setEditingTitle] = useState("");
   const [_isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [_isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -146,9 +159,9 @@ export const ChatPage = () => {
   const adjustTextareaHeight = (el?: HTMLTextAreaElement | null) => {
     const ta = el ?? inputRef.current;
     if (!ta) return;
-    ta.style.height = 'auto';
+    ta.style.height = "auto";
     const max = 300; // px
-    ta.style.height = Math.min(ta.scrollHeight, max) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, max) + "px";
   };
 
   useEffect(() => {
@@ -156,7 +169,9 @@ export const ChatPage = () => {
   }, [inputValue]);
 
   // Get current conversation
-  const currentConversation = conversations.find(c => c.id === currentConversationId);
+  const currentConversation = conversations.find(
+    (c) => c.id === currentConversationId
+  );
   const messages = currentConversation?.messages || [getWelcomeMessage()];
 
   // Load conversations from backend when user changes or on mount
@@ -167,7 +182,10 @@ export const ChatPage = () => {
         const loadedConversations = loadConversations(user?.id);
         setConversations(loadedConversations);
         const loadedCurrentId = getCurrentConversationId(user?.id);
-        if (loadedCurrentId && loadedConversations.find(c => c.id === loadedCurrentId)) {
+        if (
+          loadedCurrentId &&
+          loadedConversations.find((c) => c.id === loadedCurrentId)
+        ) {
           setCurrentConversationIdState(loadedCurrentId);
         }
         return;
@@ -177,36 +195,47 @@ export const ChatPage = () => {
       try {
         // fetch backend conversations (page 1, large pageSize)
         const resp = await getChatbotConversations(1, 100);
-        const backendItems = resp.items || [];
+        const backendItems = resp.data || [];
 
         // load cached local conversations to preserve messages
         const cachedConversations = loadConversations(user?.id);
 
-        const backendMapped: Conversation[] = backendItems.map((backendConv: BackendConversation) => {
-          const createdAt = new Date(backendConv.createdAt);
-          const updatedAt = new Date(backendConv.updatedAt);
-          const cachedConv = cachedConversations.find(c => c.id === backendConv.id.toString());
-          return {
-            id: backendConv.id.toString(),
-            title: backendConv.title || 'Cuộc trò chuyện',
-            messages: cachedConv?.messages || [],
-            createdAt: isValidDate(createdAt) ? createdAt : new Date(),
-            updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
-          };
-        });
+        const backendMapped: Conversation[] = backendItems.map(
+          (backendConv: BackendConversation) => {
+            const createdAt = new Date(backendConv.createdAt);
+            const updatedAt = new Date(backendConv.updatedAt);
+            const cachedConv = cachedConversations.find(
+              (c) => c.id === backendConv.id.toString()
+            );
+            return {
+              id: backendConv.id.toString(),
+              title: backendConv.title || "Cuộc trò chuyện",
+              messages: cachedConv?.messages || [],
+              createdAt: isValidDate(createdAt) ? createdAt : new Date(),
+              updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
+            };
+          }
+        );
 
         // include any local-only conversations not present in backend
-        const localOnly = cachedConversations.filter(cached => !backendMapped.find(b => b.id === cached.id));
+        const localOnly = cachedConversations.filter(
+          (cached) => !backendMapped.find((b) => b.id === cached.id)
+        );
         const allConversations = [...backendMapped, ...localOnly];
 
         // sort by updatedAt desc
-        allConversations.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+        allConversations.sort(
+          (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+        );
 
         setConversations(allConversations);
 
         // set current conversation id
         const loadedCurrentId = getCurrentConversationId(user?.id);
-        if (loadedCurrentId && allConversations.find(c => c.id === loadedCurrentId)) {
+        if (
+          loadedCurrentId &&
+          allConversations.find((c) => c.id === loadedCurrentId)
+        ) {
           setCurrentConversationIdState(loadedCurrentId);
         } else if (allConversations.length > 0) {
           setCurrentConversationIdState(allConversations[0].id);
@@ -219,12 +248,15 @@ export const ChatPage = () => {
         // persist merged result
         saveConversations(allConversations, user?.id);
       } catch (error) {
-        console.error('Error loading conversations from backend:', error);
+        console.error("Error loading conversations from backend:", error);
         // fallback to local cache
         const loadedConversations = loadConversations(user?.id);
         setConversations(loadedConversations);
         const loadedCurrentId = getCurrentConversationId(user?.id);
-        if (loadedCurrentId && loadedConversations.find(c => c.id === loadedCurrentId)) {
+        if (
+          loadedCurrentId &&
+          loadedConversations.find((c) => c.id === loadedCurrentId)
+        ) {
           setCurrentConversationIdState(loadedCurrentId);
         }
       } finally {
@@ -243,18 +275,20 @@ export const ChatPage = () => {
       }
 
       // Check if messages are already loaded
-      const conv = conversations.find(c => c.id === currentConversationId);
+      const conv = conversations.find((c) => c.id === currentConversationId);
       if (conv && conv.messages.length > 0) {
         return; // Already loaded
       }
 
       // First, try to load from localStorage for immediate display
       const loadedConversations = loadConversations(user?.id);
-      const localConv = loadedConversations.find(c => c.id === currentConversationId);
+      const localConv = loadedConversations.find(
+        (c) => c.id === currentConversationId
+      );
       if (localConv && localConv.messages.length > 0) {
-        setConversations(prev => {
-          const updated = prev.map(c => 
-            c.id === currentConversationId 
+        setConversations((prev) => {
+          const updated = prev.map((c) =>
+            c.id === currentConversationId
               ? { ...c, messages: localConv.messages }
               : c
           );
@@ -273,24 +307,28 @@ export const ChatPage = () => {
 
         // Try to load from backend to get latest messages
         const response = await getChatbotMessages(conversationIdNum, 1, 1000);
-        const backendMessages = response.items;
+        const backendMessages = response.data;
 
         // Convert backend messages to local format
-        const localMessages: Message[] = backendMessages.map((msg: BackendMessage) => {
-          const timestamp = new Date(msg.createdAt);
-          return {
-            id: msg.id.toString(),
-            text: normalizeChatbotMessage(msg.messageText || msg.content || ''),
-            sender: msg.messageType?.toLowerCase() === 'user' ? 'user' : 'ai',
-            timestamp: isValidDate(timestamp) ? timestamp : new Date(),
-          };
-        });
+        const localMessages: Message[] = backendMessages.map(
+          (msg: BackendMessage) => {
+            const timestamp = new Date(msg.createdAt);
+            return {
+              id: msg.id.toString(),
+              text: normalizeChatbotMessage(
+                msg.messageText || msg.content || ""
+              ),
+              sender: msg.messageType?.toLowerCase() === "user" ? "user" : "ai",
+              timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+            };
+          }
+        );
 
         // Update conversation with messages from backend (if available)
         if (localMessages.length > 0) {
-          setConversations(prev => {
-            const updated = prev.map(c => 
-              c.id === currentConversationId 
+          setConversations((prev) => {
+            const updated = prev.map((c) =>
+              c.id === currentConversationId
                 ? { ...c, messages: localMessages }
                 : c
             );
@@ -300,9 +338,9 @@ export const ChatPage = () => {
           });
         } else if (!localConv || localConv.messages.length === 0) {
           // No messages from backend and no local cache, show welcome
-          setConversations(prev => {
-            const updated = prev.map(c => 
-              c.id === currentConversationId 
+          setConversations((prev) => {
+            const updated = prev.map((c) =>
+              c.id === currentConversationId
                 ? { ...c, messages: [getWelcomeMessage()] }
                 : c
             );
@@ -311,14 +349,16 @@ export const ChatPage = () => {
           });
         }
       } catch (error) {
-        console.error('Error loading messages from backend:', error);
+        console.error("Error loading messages from backend:", error);
         // Fallback to localStorage - try to load from cache first
         const loadedConversations = loadConversations(user?.id);
-        const localConv = loadedConversations.find(c => c.id === currentConversationId);
+        const localConv = loadedConversations.find(
+          (c) => c.id === currentConversationId
+        );
         if (localConv && localConv.messages.length > 0) {
-          setConversations(prev => {
-            const updated = prev.map(c => 
-              c.id === currentConversationId 
+          setConversations((prev) => {
+            const updated = prev.map((c) =>
+              c.id === currentConversationId
                 ? { ...c, messages: localConv.messages }
                 : c
             );
@@ -328,9 +368,9 @@ export const ChatPage = () => {
           });
         } else {
           // If no local cache, at least show welcome message
-          setConversations(prev => {
-            const updated = prev.map(c => 
-              c.id === currentConversationId 
+          setConversations((prev) => {
+            const updated = prev.map((c) =>
+              c.id === currentConversationId
                 ? { ...c, messages: [getWelcomeMessage()] }
                 : c
             );
@@ -365,12 +405,12 @@ export const ChatPage = () => {
     if (!container) return;
 
     const prefersReducedMotion = window.matchMedia
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false;
 
     container.scrollTo({
       top: container.scrollHeight,
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      behavior: prefersReducedMotion ? "auto" : "smooth",
     });
   };
 
@@ -386,7 +426,7 @@ export const ChatPage = () => {
 
   const createConversation = (): Conversation => ({
     id: Date.now().toString(),
-    title: 'Cuộc trò chuyện mới',
+    title: "Cuộc trò chuyện mới",
     messages: [getWelcomeMessage()],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -395,7 +435,9 @@ export const ChatPage = () => {
   const handleCreateNewConversation = async () => {
     if (user?.id) {
       try {
-        const backendConv = await createChatbotConversation('Cuộc trò chuyện mới');
+        const backendConv = await createChatbotConversation(
+          "Cuộc trò chuyện mới"
+        );
         const createdAt = new Date(backendConv.createdAt);
         const updatedAt = new Date(backendConv.updatedAt);
         const newConversation: Conversation = {
@@ -409,7 +451,7 @@ export const ChatPage = () => {
         setCurrentConversationIdState(newConversation.id);
         setCurrentConversationId(newConversation.id, user?.id);
       } catch (error) {
-        console.error('Error creating conversation on backend:', error);
+        console.error("Error creating conversation on backend:", error);
         // Fallback to local
         const newConversation = createConversation();
         setConversations([newConversation, ...conversations]);
@@ -439,18 +481,21 @@ export const ChatPage = () => {
       try {
         await deleteChatbotConversation(idNum);
       } catch (err) {
-        console.error('Error deleting conversation on backend, fallback to local remove:', err);
+        console.error(
+          "Error deleting conversation on backend, fallback to local remove:",
+          err
+        );
         // continue to local removal so UI updates
       }
     }
 
-    const updated = conversations.filter(c => c.id !== id);
+    const updated = conversations.filter((c) => c.id !== id);
     setConversations(updated);
-    
+
     if (currentConversationId === id) {
       if (updated.length > 0) {
-        const mostRecent = [...updated].sort((a, b) => 
-          b.updatedAt.getTime() - a.updatedAt.getTime()
+        const mostRecent = [...updated].sort(
+          (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
         )[0];
         setCurrentConversationIdState(mostRecent.id);
         setCurrentConversationId(mostRecent.id, user?.id);
@@ -471,17 +516,24 @@ export const ChatPage = () => {
     const userMessage: Message = {
       id: Date.now().toString(),
       text: inputValue.trim(),
-      sender: 'user',
+      sender: "user",
       timestamp: new Date(),
     };
 
     // Update conversation title from first user message if it's still default
-    const conversation = conversations.find(c => c.id === currentConversationId);
-    let newTitle = conversation?.title || 'Cuộc trò chuyện mới';
-    if (conversation && conversation.title === 'Cuộc trò chuyện mới' && conversation.messages.length === 1) {
-      newTitle = userMessage.text.length > 30 
-        ? userMessage.text.substring(0, 30) + '...' 
-        : userMessage.text;
+    const conversation = conversations.find(
+      (c) => c.id === currentConversationId
+    );
+    let newTitle = conversation?.title || "Cuộc trò chuyện mới";
+    if (
+      conversation &&
+      conversation.title === "Cuộc trò chuyện mới" &&
+      conversation.messages.length === 1
+    ) {
+      newTitle =
+        userMessage.text.length > 30
+          ? userMessage.text.substring(0, 30) + "..."
+          : userMessage.text;
     }
 
     // Create conversation on backend if it's a new local conversation
@@ -496,21 +548,26 @@ export const ChatPage = () => {
         setCurrentConversationIdState(backendConv.id.toString());
         setCurrentConversationId(backendConv.id.toString(), user?.id);
         // Update conversations list
-        setConversations(prev => prev.map(conv => 
-          conv.id === conversationId 
-            ? { ...conv, id: backendConv.id.toString(), title: newTitle }
-            : conv
-        ));
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === conversationId
+              ? { ...conv, id: backendConv.id.toString(), title: newTitle }
+              : conv
+          )
+        );
       } catch (error) {
-        console.error('Error creating conversation on backend:', error);
+        console.error("Error creating conversation on backend:", error);
       }
     } else {
       backendConversationId = conversationIdNum;
     }
 
-    setConversations(prev => {
-      const updated = prev.map(conv => {
-        if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
+    setConversations((prev) => {
+      const updated = prev.map((conv) => {
+        if (
+          conv.id === conversationId ||
+          conv.id === backendConversationId?.toString()
+        ) {
           return {
             ...conv,
             messages: [...conv.messages, userMessage],
@@ -525,7 +582,7 @@ export const ChatPage = () => {
       return updated;
     });
 
-    setInputValue('');
+    setInputValue("");
     setIsTyping(true);
 
     try {
@@ -534,13 +591,16 @@ export const ChatPage = () => {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: aiText,
-        sender: 'ai',
+        sender: "ai",
         timestamp: new Date(),
       };
 
-      setConversations(prev => {
-        const updated = prev.map(conv => {
-          if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
+      setConversations((prev) => {
+        const updated = prev.map((conv) => {
+          if (
+            conv.id === conversationId ||
+            conv.id === backendConversationId?.toString()
+          ) {
             return {
               ...conv,
               messages: [...conv.messages, aiResponse],
@@ -558,14 +618,17 @@ export const ChatPage = () => {
         id: (Date.now() + 1).toString(),
         text:
           error?.message ||
-          'Xin lỗi, tôi chưa thể phản hồi ngay lúc này. Vui lòng thử lại sau.',
-        sender: 'ai',
+          "Xin lỗi, tôi chưa thể phản hồi ngay lúc này. Vui lòng thử lại sau.",
+        sender: "ai",
         timestamp: new Date(),
       };
 
-      setConversations(prev => {
-        const updated = prev.map(conv => {
-          if (conv.id === conversationId || conv.id === backendConversationId?.toString()) {
+      setConversations((prev) => {
+        const updated = prev.map((conv) => {
+          if (
+            conv.id === conversationId ||
+            conv.id === backendConversationId?.toString()
+          ) {
             return {
               ...conv,
               messages: [...conv.messages, aiResponse],
@@ -591,7 +654,7 @@ export const ChatPage = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -610,68 +673,70 @@ export const ChatPage = () => {
 
   const handleSaveTitle = () => {
     if (currentConversationId && editingTitle.trim()) {
-      setConversations(conversations.map(conv => {
-        if (conv.id === currentConversationId) {
-          return { ...conv, title: editingTitle.trim() };
-        }
-        return conv;
-      }));
+      setConversations(
+        conversations.map((conv) => {
+          if (conv.id === currentConversationId) {
+            return { ...conv, title: editingTitle.trim() };
+          }
+          return conv;
+        })
+      );
     }
     setIsEditingTitle(false);
   };
 
   const handleCancelEditTitle = () => {
     setIsEditingTitle(false);
-    setEditingTitle('');
+    setEditingTitle("");
   };
 
   const formatTime = (date: Date) => {
     if (!isValidDate(date)) {
-      return '';
+      return "";
     }
-    return new Intl.DateTimeFormat('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(date);
   };
 
   const formatDate = (date: Date) => {
     if (!isValidDate(date)) {
-      return '';
+      return "";
     }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Hôm nay';
+      return "Hôm nay";
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hôm qua';
+      return "Hôm qua";
     } else {
-      return new Intl.DateTimeFormat('vi-VN', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+      return new Intl.DateTimeFormat("vi-VN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       }).format(date);
     }
   };
 
   const formatConversationDate = (date: Date) => {
     if (!isValidDate(date)) {
-      return '';
+      return "";
     }
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Hôm nay';
+      return "Hôm nay";
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hôm qua';
+      return "Hôm qua";
     } else {
-      return new Intl.DateTimeFormat('vi-VN', {
-        day: 'numeric',
-        month: 'short',
+      return new Intl.DateTimeFormat("vi-VN", {
+        day: "numeric",
+        month: "short",
       }).format(date);
     }
   };
@@ -726,8 +791,8 @@ export const ChatPage = () => {
                       onClick={() => handleSelectConversation(conversation.id)}
                       className={`p-3 rounded-lg cursor-pointer transition-colors relative group ${
                         currentConversationId === conversation.id
-                          ? 'bg-green-100 border-2 border-green-500'
-                          : 'bg-white hover:bg-gray-50 border-2 border-transparent'
+                          ? "bg-green-100 border-2 border-green-500"
+                          : "bg-white hover:bg-gray-50 border-2 border-transparent"
                       }`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -742,12 +807,16 @@ export const ChatPage = () => {
                           </p>
                           {conversation.messages.length > 1 && (
                             <p className="text-xs text-gray-400 mt-1 truncate">
-                              {conversation.messages[conversation.messages.length - 1]?.text || ''}
+                              {conversation.messages[
+                                conversation.messages.length - 1
+                              ]?.text || ""}
                             </p>
                           )}
                         </div>
                         <button
-                          onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                          onClick={(e) =>
+                            handleDeleteConversation(conversation.id, e)
+                          }
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
                           title="Xóa cuộc trò chuyện"
                         >
@@ -777,8 +846,8 @@ export const ChatPage = () => {
                       value={editingTitle}
                       onChange={(e) => setEditingTitle(e.target.value)}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter') handleSaveTitle();
-                        if (e.key === 'Escape') handleCancelEditTitle();
+                        if (e.key === "Enter") handleSaveTitle();
+                        if (e.key === "Escape") handleCancelEditTitle();
                       }}
                       onBlur={handleSaveTitle}
                       className="bg-white/20 text-white border-white/30 focus:bg-white/30"
@@ -787,14 +856,16 @@ export const ChatPage = () => {
                   </div>
                 ) : (
                   <div>
-                    <h3 
+                    <h3
                       className="font-semibold cursor-pointer hover:underline"
                       onClick={handleStartEditTitle}
                       title="Click để đổi tên"
                     >
-                      {currentConversation?.title || 'Verdant AI'}
+                      {currentConversation?.title || "Verdant AI"}
                     </h3>
-                    <p className="text-xs text-green-100">Trợ lý tư vấn nông nghiệp bền vững</p>
+                    <p className="text-xs text-green-100">
+                      Trợ lý tư vấn nông nghiệp bền vững
+                    </p>
                   </div>
                 )}
               </div>
@@ -830,8 +901,8 @@ export const ChatPage = () => {
                 {/* Messages for this date */}
                 {dateMessages.map((message) => {
                   // Parse products from AI messages
-                  const { products, textWithoutProducts } = 
-                    message.sender === 'ai' 
+                  const { products, textWithoutProducts } =
+                    message.sender === "ai"
                       ? parseProductsFromMessage(message.text)
                       : { products: [], textWithoutProducts: message.text };
 
@@ -840,21 +911,25 @@ export const ChatPage = () => {
                       key={message.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-4 ${
+                        message.sender === "user"
+                          ? "justify-end"
+                          : "justify-start"
+                      }`}
                     >
-                      {message.sender === 'ai' && (
+                      {message.sender === "ai" && (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0">
                           <Bot className="w-5 h-5 text-white" />
                         </div>
                       )}
                       <div
                         className={`${
-                          message.sender === 'user'
-                            ? 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line'
-                            : 'inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line'
+                          message.sender === "user"
+                            ? "inline-block my-1 max-w-[75%] rounded-2xl px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white break-words whitespace-pre-line"
+                            : "inline-block my-1 max-w-[75%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 break-words whitespace-pre-line"
                         }`}
                       >
-                        {message.sender === 'ai' && products.length > 0 ? (
+                        {message.sender === "ai" && products.length > 0 ? (
                           <div className="bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-200 w-full max-w-full overflow-hidden">
                             {/* Text content if any */}
                             {textWithoutProducts && (
@@ -872,14 +947,22 @@ export const ChatPage = () => {
                           </div>
                         ) : (
                           <div>
-                            <p className="text-sm whitespace-pre-line break-words">{message.text}</p>
-                            <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-green-100' : 'text-gray-500'}`}>
+                            <p className="text-sm whitespace-pre-line break-words">
+                              {message.text}
+                            </p>
+                            <p
+                              className={`text-xs mt-1 ${
+                                message.sender === "user"
+                                  ? "text-green-100"
+                                  : "text-gray-500"
+                              }`}
+                            >
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
                         )}
                       </div>
-                      {message.sender === 'user' && (
+                      {message.sender === "user" && (
                         <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
                           <User className="w-5 h-5 text-gray-600" />
                         </div>
@@ -909,12 +992,20 @@ export const ChatPage = () => {
                     <motion.div
                       className="w-2 h-2 bg-gray-400 rounded-full"
                       animate={{ y: [0, -4, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                      transition={{
+                        duration: 0.6,
+                        repeat: Infinity,
+                        delay: 0.2,
+                      }}
                     />
                     <motion.div
                       className="w-2 h-2 bg-gray-400 rounded-full"
                       animate={{ y: [0, -4, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                      transition={{
+                        duration: 0.6,
+                        repeat: Infinity,
+                        delay: 0.4,
+                      }}
                     />
                   </div>
                 </div>
@@ -966,7 +1057,9 @@ export const ChatPage = () => {
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isTyping || !currentConversationId}
+                disabled={
+                  !inputValue.trim() || isTyping || !currentConversationId
+                }
                 className="h-10 w-10 p-0 rounded-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
               >
                 <Send className="w-4 h-4 text-white" />
@@ -980,7 +1073,9 @@ export const ChatPage = () => {
                     onClick={() => handleSuggestedQuestion(question)}
                     className="text-xs bg-gray-100 hover:bg-green-100 text-gray-600 px-2 py-1 rounded-full transition-colors"
                   >
-                    {question.length > 30 ? `${question.substring(0, 30)}...` : question}
+                    {question.length > 30
+                      ? `${question.substring(0, 30)}...`
+                      : question}
                   </button>
                 ))}
               </div>

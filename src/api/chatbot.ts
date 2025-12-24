@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { PaginatedResponse } from './product';
 
 const FALLBACK_ERROR_MESSAGE =
   'Xin lỗi, tôi chưa thể phản hồi ngay lúc này. Vui lòng thử lại sau ít phút.';
@@ -263,14 +264,6 @@ export interface ConversationApiResponse<T> {
   errors: string[];
 }
 
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
 const parseApiData = <T>(data: T | string): T => {
   if (typeof data === 'string') {
     try {
@@ -296,18 +289,18 @@ export const getChatbotConversations = async (
     }
     const data = parseApiData(response.data);
     if (Array.isArray(data)) {
-      return { items: data, totalCount: data.length, page: 1, pageSize: data.length, totalPages: 1 };
-    }
-    if (typeof data === 'object' && 'items' in data) {
-      return data as PaginatedResponse<ChatbotConversation>;
+      return { data: data, currentPage: 1, pageSize: data.length, totalPages: 1, totalRecords: data.length };
     }
     if (typeof data === 'object' && 'data' in data) {
-      const innerData = (data as any).data;
+      return data as PaginatedResponse<ChatbotConversation>;
+    }
+    if (typeof data === 'object' && 'items' in data) {
+      const innerData = (data as any).items;
       if (Array.isArray(innerData)) {
-        return { items: innerData, totalCount: innerData.length, page: 1, pageSize: innerData.length, totalPages: 1 };
+        return { data: innerData, currentPage: 1, pageSize: innerData.length, totalPages: 1, totalRecords: innerData.length };
       }
     }
-    return { items: [], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 };
+    return { data: [], currentPage: 1, pageSize: 10, totalPages: 0, totalRecords: 0 };
   } catch (error: any) {
     console.error('[Chatbot] Error fetching conversations:', error);
     throw new Error(error?.message || 'Không thể lấy danh sách cuộc hội thoại. Vui lòng thử lại sau.');
@@ -330,18 +323,18 @@ export const getChatbotMessages = async (
     }
     const data = parseApiData(response.data);
     if (Array.isArray(data)) {
-      return { items: data, totalCount: data.length, page: 1, pageSize: data.length, totalPages: 1 };
-    }
-    if (typeof data === 'object' && 'items' in data) {
-      return data as PaginatedResponse<ChatbotMessage>;
+      return { data: data, currentPage: 1, pageSize: data.length, totalPages: 1, totalRecords: data.length };
     }
     if (typeof data === 'object' && 'data' in data) {
-      const innerData = (data as any).data;
+      return data as PaginatedResponse<ChatbotMessage>;
+    }
+    if (typeof data === 'object' && 'items' in data) {
+      const innerData = (data as any).items;
       if (Array.isArray(innerData)) {
-        return { items: innerData, totalCount: innerData.length, page: 1, pageSize: innerData.length, totalPages: 1 };
+        return { data: innerData, currentPage: 1, pageSize: innerData.length, totalPages: 1, totalRecords: innerData.length };
       }
     }
-    return { items: [], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 };
+    return { data: [], currentPage: 1, pageSize: 10, totalPages: 0, totalRecords: 0 };
   } catch (error: any) {
     console.error('[Chatbot] Error fetching messages:', error);
     throw new Error(error?.message || 'Không thể lấy danh sách tin nhắn. Vui lòng thử lại sau.');
