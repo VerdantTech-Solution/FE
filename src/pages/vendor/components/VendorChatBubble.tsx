@@ -20,43 +20,27 @@ import {
   sendMessage as sendMessageApi,
   type Conversation as ApiConversation,
   type ConversationMessage as ApiMessage,
-  type ProductInfo,
 } from "@/api/customerVendorConversation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChat } from "@/contexts/ChatContext";
-import {
-  type ChatMessage,
-  CONNECTION_STATES,
-  normalizeSenderType,
-} from "@/services/chatSignalR";
+import type {
+  ChatMessage,
+  VendorConversation as Conversation,
+  ApiError,
+} from "@/types/chat";
+import { CONNECTION_STATES } from "@/types/chat";
+import { normalizeSenderType } from "@/services/chatHub";
+import type { ProductInfo as ApiProductInfo } from "@/api/customerVendorConversation";
 
-interface ApiError {
-  response?: {
-    data?: {
-      errors?: string[];
-    };
-  };
-}
-
-interface Message {
+// Extended Message type for vendor with product support
+interface VendorMessage {
   id: number;
   text: string;
-  sender: "vendor" | "customer";
+  sender: 'customer' | 'vendor';
   timestamp: Date;
   isRead: boolean;
   images?: Array<{ id: number; imageUrl: string }>;
-  product?: ProductInfo | null;
-}
-
-interface Conversation {
-  id: number;
-  customerId: number;
-  customerName: string;
-  customerAvatar: string | null;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  isOnline: boolean;
+  product?: ApiProductInfo | null;
 }
 
 interface OpenChatWindow {
@@ -69,12 +53,18 @@ export const VendorChatBubble = () => {
   const [openChats, setOpenChats] = useState<OpenChatWindow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
-  const { connectionState, onMessage, joinConversation, leaveConversation } =
+  const { connectionState, onMessage, joinConversation, leaveConversation, markAsRead } =
     useChat();
+
+  // Use ref to always have latest openChats value in callbacks
+  const openChatsRef = useRef<OpenChatWindow[]>([]);
+  useEffect(() => {
+    openChatsRef.current = openChats;
+  }, [openChats]);
 
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<Record<number, Message[]>>({});
+  const [messages, setMessages] = useState<Record<number, VendorMessage[]>>({});
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState<
     Record<number, boolean>
@@ -87,14 +77,17 @@ export const VendorChatBubble = () => {
   // Handle incoming SignalR message
   const handleNewMessage = useCallback(
     (chatMessage: ChatMessage) => {
+      console.log("[VendorChatBubble] Received message from SignalR:", chatMessage);
+
       // Normalize senderType (can be enum number or string)
       const senderType = normalizeSenderType(chatMessage.senderType);
 
       if (!senderType) {
+        console.warn("[VendorChatBubble] Invalid senderType:", chatMessage.senderType);
         return;
       }
 
-      const newMessage: Message = {
+      const newMessage: VendorMessage = {
         id: chatMessage.id,
         text: chatMessage.messageText,
         sender: senderType,
@@ -102,7 +95,7 @@ export const VendorChatBubble = () => {
         isRead: chatMessage.isRead,
         images: chatMessage.images,
         product:
-          (chatMessage as ChatMessage & { product?: ProductInfo | null })
+          (chatMessage as ChatMessage & { product?: ApiProductInfo | null })
             .product || null,
       };
 
@@ -118,12 +111,52 @@ export const VendorChatBubble = () => {
         };
       });
 
+      // Mark as read if this chat window is open (not minimized)
+      const isWindowOpen = openChatsRef.current.some(
+        (chat) => chat.conversationId === chatMessage.conversationId && !chat.isMinimized
+      );
+      if (isWindowOpen) {
+        markAsRead(chatMessage.conversationId).catch((err) =>
+          console.warn("[VendorChatBubble] markAsRead failed:", err)
+        );
+      }
+
       // Update conversation's last message and unread count
       setConversations((prev) => {
+        // Check if conversation exists
+        const conversationExists = prev.some((c) => c.id === chatMessage.conversationId);
+        
+        if (!conversationExists) {
+          // Conversation doesn't exist yet - will be fetched on next refresh
+          console.log("[VendorChatBubble] New conversation detected, refreshing list...");
+          // Trigger a refetch (async, can't await here)
+          getMyConversations(1, 50).then((response) => {
+            if (response.status && response.data) {
+              const transformedConversations: Conversation[] = response.data.data.map(
+                (conv: ApiConversation) => ({
+                  id: conv.id,
+                  customerId: conv.customer?.id || 0,
+                  customerName: conv.customer?.fullName || "Khách hàng",
+                  customerAvatar: conv.customer?.avatarUrl || null,
+                  lastMessage:
+                    conv.id === chatMessage.conversationId
+                      ? chatMessage.messageText
+                      : "Nhấn để xem tin nhắn",
+                  lastMessageTime: new Date(conv.lastMessageAt),
+                  unreadCount: conv.id === chatMessage.conversationId ? 1 : 0,
+                  isOnline: false,
+                })
+              );
+              setConversations(transformedConversations);
+            }
+          });
+          return prev;
+        }
+        
         const updated = prev.map((conv) => {
           if (conv.id === chatMessage.conversationId) {
-            // Check if this chat window is currently open
-            const isWindowOpen = openChats.some(
+            // Check if this chat window is currently open - use ref for latest value
+            const isWindowOpen = openChatsRef.current.some(
               (chat) =>
                 chat.conversationId === chatMessage.conversationId &&
                 !chat.isMinimized
@@ -149,31 +182,30 @@ export const VendorChatBubble = () => {
         return updated;
       });
     },
-    [openChats]
+    [] // No dependency on openChats - we use ref instead
   );
 
   // Subscribe to messages from ChatContext
   useEffect(() => {
+    console.log('[VendorChatBubble] Subscribing to messages, connection:', connectionState);
     const unsubscribe = onMessage(handleNewMessage);
     return () => {
+      console.log('[VendorChatBubble] Unsubscribing from messages');
       unsubscribe();
     };
-  }, [onMessage, handleNewMessage]);
+  }, [onMessage, handleNewMessage, connectionState]);
 
-  // Join conversations when they are opened
+  // Fetch conversations on mount to receive messages immediately
   useEffect(() => {
-    if (connectionState !== CONNECTION_STATES.Connected) return;
+    if (user && connectionState === CONNECTION_STATES.Connected) {
+      console.log('[VendorChatBubble] Fetching conversations on mount/connect...');
+      fetchConversations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, connectionState]);
 
-    openChats.forEach((chat) => {
-      joinConversation(chat.conversationId);
-    });
-
-    return () => {
-      openChats.forEach((chat) => {
-        leaveConversation(chat.conversationId);
-      });
-    };
-  }, [openChats, connectionState, joinConversation, leaveConversation]);
+  // Messages are received automatically via SignalR broadcast
+  // No need for explicit join/leave
 
   // Fetch conversations from API
   const fetchConversations = async () => {
@@ -183,6 +215,7 @@ export const VendorChatBubble = () => {
       const response = await getMyConversations(1, 50);
 
       if (response.status && response.data) {
+        console.log('[VendorChatBubble] Loaded', response.data.data.length, 'conversations');
         const transformedConversations: Conversation[] = response.data.data.map(
           (conv: ApiConversation) => ({
             id: conv.id,
@@ -215,7 +248,7 @@ export const VendorChatBubble = () => {
       const response = await getConversationMessages(conversationId, 1, 50);
 
       if (response.status && response.data) {
-        const transformedMessages: Message[] = response.data.data
+        const transformedMessages: VendorMessage[] = response.data.data
           .map((msg: ApiMessage) => ({
             id: msg.id,
             text: msg.messageText,
@@ -268,6 +301,11 @@ export const VendorChatBubble = () => {
       )
     );
 
+    // Join hub group for realtime
+    joinConversation(conversationId).catch((err) =>
+      console.warn("[VendorChatBubble] joinConversation failed:", err)
+    );
+
     if (openChats.some((chat) => chat.conversationId === conversationId)) {
       setOpenChats((prev) =>
         prev.map((chat) =>
@@ -284,6 +322,11 @@ export const VendorChatBubble = () => {
       await fetchMessages(conversationId);
     }
 
+    // Mark as read for this conversation
+    markAsRead(conversationId).catch((err) =>
+      console.warn("[VendorChatBubble] markAsRead failed:", err)
+    );
+
     setOpenChats((prev) => {
       const newChat = { conversationId, isMinimized: false };
       if (prev.length >= 3) {
@@ -294,6 +337,9 @@ export const VendorChatBubble = () => {
   };
 
   const handleCloseChat = (conversationId: number) => {
+    leaveConversation(conversationId).catch((err) =>
+      console.warn("[VendorChatBubble] leaveConversation failed:", err)
+    );
     setOpenChats((prev) =>
       prev.filter((chat) => chat.conversationId !== conversationId)
     );
@@ -333,7 +379,7 @@ export const VendorChatBubble = () => {
       );
 
       if (response.status && response.data) {
-        const newMessage: Message = {
+        const newMessage: VendorMessage = {
           id: response.data.id,
           text: response.data.messageText,
           sender: "vendor",
@@ -569,7 +615,7 @@ export const VendorChatBubble = () => {
 // Individual Chat Window Component
 interface ChatWindowProps {
   conversation: Conversation;
-  messages: Message[];
+  messages: VendorMessage[];
   isMinimized: boolean;
   isLoading: boolean;
   isSending: boolean;

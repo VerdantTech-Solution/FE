@@ -1,3 +1,9 @@
+/**
+ * ChatContext - Context Provider cho Chat real-time
+ * 
+ * Cung cấp kết nối SignalR và các phương thức chat cho toàn bộ ứng dụng
+ */
+
 import {
   createContext,
   useCallback,
@@ -8,38 +14,28 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import * as signalR from "@microsoft/signalr";
 import type {
   ChatMessage,
   ConnectionState,
   ChatMessageCallback,
-} from "@/services/chatSignalR";
-import { CONNECTION_STATES, normalizeSenderType } from "@/services/chatSignalR";
+  TypingIndicatorCallback,
+} from "@/types/chat";
+import { CONNECTION_STATES } from "@/types/chat";
+import { chatHubService, normalizeSenderType } from "@/services/chatHub";
 import { useAuth } from "./AuthContext";
-import { API_BASE_URL } from "@/api/apiClient";
-
-const DEFAULT_SIGNALR_PATH = "/hubs/chat";
-
-// Typing indicator interface
-export interface TypingIndicator {
-  conversationId: number;
-  senderId: number;
-  senderName: string;
-}
-
-export type TypingIndicatorCallback = (indicator: TypingIndicator) => void;
 
 interface ChatContextType {
   connectionState: ConnectionState;
   isConnected: boolean;
+  joinConversation: (conversationId: number) => Promise<void>;
+  leaveConversation: (conversationId: number) => Promise<void>;
+  sendMessage: (conversationId: number, text: string, recipientUserId?: string) => Promise<void>;
   onMessage: (callback: ChatMessageCallback) => () => void;
   onTypingIndicator: (callback: TypingIndicatorCallback) => () => void;
   sendTypingIndicator: (
     conversationId: number,
     recipientUserId: string
   ) => Promise<void>;
-  joinConversation: (conversationId: number) => Promise<void>;
-  leaveConversation: (conversationId: number) => Promise<void>;
   markAsRead: (conversationId: number) => Promise<void>;
 }
 
@@ -60,272 +56,129 @@ interface ChatProviderProps {
 
 export const ChatProvider = ({ children }: ChatProviderProps) => {
   const { isAuthenticated } = useAuth();
-  const connectionRef = useRef<signalR.HubConnection | null>(null);
-  const messageListenersRef = useRef<ChatMessageCallback[]>([]);
-  const typingListenersRef = useRef<TypingIndicatorCallback[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     CONNECTION_STATES.Disconnected
   );
-  const supportsJoinLeaveRef = useRef<boolean>(true);
   const isConnectingRef = useRef<boolean>(false);
 
+  // Kết nối/ngắt kết nối dựa trên authentication
   useEffect(() => {
+    // Ngắt kết nối nếu chưa xác thực
     if (!isAuthenticated) {
-      if (connectionRef.current) {
-        connectionRef.current.stop();
-        connectionRef.current = null;
-      }
-      setConnectionState(CONNECTION_STATES.Disconnected);
+      console.log("[ChatContext] User not authenticated, disconnecting...");
+      chatHubService.disconnect();
       return;
     }
 
-    // Prevent multiple connection attempts
-    if (isConnectingRef.current) {
-      return;
-    }
-
-    // Already connected
-    if (connectionRef.current?.state === signalR.HubConnectionState.Connected) {
+    // Tránh kết nối nhiều lần
+    if (isConnectingRef.current || chatHubService.isConnected()) {
+      console.log("[ChatContext] Already connected or connecting, skipping...");
       return;
     }
 
     const token = localStorage.getItem("authToken");
     if (!token) {
+      console.warn("[ChatContext] No auth token found");
       return;
     }
 
-    // Build hub URL
-    const envHubUrl = import.meta.env.VITE_CHAT_SIGNALR_HUB_URL?.trim();
-    const hubUrl =
-      envHubUrl || `${API_BASE_URL.replace(/\/+$/, "")}${DEFAULT_SIGNALR_PATH}`;
-
+    console.log("[ChatContext] Starting connection to ChatHub...");
     isConnectingRef.current = true;
 
-    // Create connection - support both WebSockets and ServerSentEvents
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl, {
-        accessTokenFactory: () => token,
-        skipNegotiation: false,
-        transport:
-          signalR.HttpTransportType.WebSockets |
-          signalR.HttpTransportType.ServerSentEvents,
+    // Kết nối đến ChatHub
+    chatHubService
+      .connect(token)
+      .then(() => {
+        console.log("[ChatContext] ✅ Successfully connected to ChatHub");
       })
-      .withAutomaticReconnect({
-        nextRetryDelayInMilliseconds: (context) => {
-          if (context.previousRetryCount === 0) return 0;
-          if (context.previousRetryCount === 1) return 2000;
-          if (context.previousRetryCount === 2) return 10000;
-          return 30000;
-        },
+      .catch((error) => {
+        console.error("[ChatContext] Failed to connect:", error);
       })
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    connectionRef.current = connection;
-
-    // Event: Nhận tin nhắn mới
-    connection.on("ReceiveMessage", (message: ChatMessage) => {
-      const normalizedSenderType = normalizeSenderType(message.senderType);
-      const normalizedMessage: ChatMessage = {
-        ...message,
-        senderType: normalizedSenderType || message.senderType,
-      };
-
-      messageListenersRef.current.forEach((listener) => {
-        try {
-          listener(normalizedMessage);
-        } catch (err) {
-          console.error("[ChatContext] Error in message listener:", err);
-        }
-      });
-    });
-
-    // Event: Nhận typing indicator
-    connection.on("ReceiveTypingIndicator", (indicator: TypingIndicator) => {
-      typingListenersRef.current.forEach((handler) => {
-        try {
-          handler(indicator);
-        } catch (err) {
-          console.error("[ChatContext] Error in typing handler:", err);
-        }
-      });
-    });
-
-    connection.on("Error", (errorMessage: string) => {
-      console.error("[ChatContext] Server error:", errorMessage);
-    });
-
-    connection.onreconnecting(() => {
-      setConnectionState(CONNECTION_STATES.Reconnecting);
-    });
-
-    connection.onreconnected(() => {
-      setConnectionState(CONNECTION_STATES.Connected);
-    });
-
-    connection.onclose(() => {
-      setConnectionState(CONNECTION_STATES.Disconnected);
-      isConnectingRef.current = false;
-    });
-
-    // Start connection
-    setConnectionState(CONNECTION_STATES.Connecting);
-    connection
-      .start()
-      .then(async () => {
+      .finally(() => {
         isConnectingRef.current = false;
-        setConnectionState(CONNECTION_STATES.Connected);
-
-        // Test connection with Ping (optional)
-        try {
-          await connection.invoke<string>("Ping");
-        } catch {
-          // Ping not supported by server
-        }
-      })
-      .catch(() => {
-        isConnectingRef.current = false;
-        setConnectionState(CONNECTION_STATES.Disconnected);
       });
 
+    // Cleanup khi unmount
     return () => {
       isConnectingRef.current = false;
-      if (connectionRef.current) {
-        connectionRef.current.stop();
-        connectionRef.current = null;
-      }
     };
   }, [isAuthenticated]);
 
+  // Theo dõi thay đổi trạng thái kết nối
+  useEffect(() => {
+    const unsubscribe = chatHubService.onConnectionStateChange((state) => {
+      setConnectionState(state);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Đăng ký lắng nghe tin nhắn
   const onMessage = useCallback((callback: ChatMessageCallback) => {
-    messageListenersRef.current.push(callback);
-
-    return () => {
-      messageListenersRef.current = messageListenersRef.current.filter(
-        (l) => l !== callback
-      );
-    };
+    return chatHubService.onMessage((message) => {
+      // Chuẩn hóa senderType trước khi gửi cho callback
+      const normalizedSenderType = normalizeSenderType(message.senderType);
+      const normalizedMessage: ChatMessage = {
+        ...message,
+        senderType: normalizedSenderType === "customer" ? "Customer" : "Vendor",
+      };
+      callback(normalizedMessage);
+    });
   }, []);
 
+  // Đăng ký lắng nghe typing indicator
   const onTypingIndicator = useCallback((callback: TypingIndicatorCallback) => {
-    typingListenersRef.current.push(callback);
-
-    return () => {
-      typingListenersRef.current = typingListenersRef.current.filter(
-        (h) => h !== callback
-      );
-    };
+    return chatHubService.onTypingIndicator(callback);
   }, []);
 
+  // Gửi typing indicator
   const sendTypingIndicator = useCallback(
     async (conversationId: number, recipientUserId: string) => {
-      const connection = connectionRef.current;
-      if (
-        !connection ||
-        connection.state !== signalR.HubConnectionState.Connected
-      ) {
-        return;
-      }
-
-      try {
-        await connection.invoke(
-          "SendTypingIndicator",
-          conversationId,
-          recipientUserId
-        );
-      } catch {
-        // Error sending typing indicator
-      }
+      await chatHubService.sendTypingIndicator(conversationId, recipientUserId);
     },
     []
   );
 
+  // Đánh dấu tin nhắn đã đọc
+  const markAsRead = useCallback(async (conversationId: number) => {
+    await chatHubService.markAsRead(conversationId);
+  }, []);
+
   const joinConversation = useCallback(async (conversationId: number) => {
-    const connection = connectionRef.current;
-    if (
-      !connection ||
-      connection.state !== signalR.HubConnectionState.Connected
-    ) {
-      return;
-    }
-
-    if (!supportsJoinLeaveRef.current) {
-      return;
-    }
-
-    try {
-      await connection.invoke("JoinConversation", conversationId);
-    } catch (err) {
-      const error = err as Error;
-      if (
-        error.message?.includes("Method does not exist") ||
-        error.message?.includes("does not exist")
-      ) {
-        supportsJoinLeaveRef.current = false;
-      }
-    }
+    await chatHubService.joinConversation(conversationId);
   }, []);
 
   const leaveConversation = useCallback(async (conversationId: number) => {
-    const connection = connectionRef.current;
-    if (
-      !connection ||
-      connection.state !== signalR.HubConnectionState.Connected
-    ) {
-      return;
-    }
-
-    if (!supportsJoinLeaveRef.current) {
-      return;
-    }
-
-    try {
-      await connection.invoke("LeaveConversation", conversationId);
-    } catch (err) {
-      const error = err as Error;
-      if (
-        error.message?.includes("Method does not exist") ||
-        error.message?.includes("does not exist")
-      ) {
-        supportsJoinLeaveRef.current = false;
-      }
-    }
+    await chatHubService.leaveConversation(conversationId);
   }, []);
 
-  const markAsRead = useCallback(async (conversationId: number) => {
-    const connection = connectionRef.current;
-    if (
-      !connection ||
-      connection.state !== signalR.HubConnectionState.Connected
-    ) {
-      return;
-    }
-
-    try {
-      await connection.invoke("MarkAsRead", conversationId);
-    } catch {
-      // Error marking as read
-    }
-  }, []);
+  const sendMessage = useCallback(
+    async (conversationId: number, text: string, recipientUserId?: string) => {
+      await chatHubService.sendMessage(conversationId, text, recipientUserId);
+    },
+    []
+  );
 
   const value = useMemo<ChatContextType>(
     () => ({
       connectionState,
       isConnected: connectionState === CONNECTION_STATES.Connected,
+      joinConversation,
+      leaveConversation,
+      sendMessage,
       onMessage,
       onTypingIndicator,
       sendTypingIndicator,
-      joinConversation,
-      leaveConversation,
       markAsRead,
     }),
     [
       connectionState,
+      joinConversation,
+      leaveConversation,
+      sendMessage,
       onMessage,
       onTypingIndicator,
       sendTypingIndicator,
-      joinConversation,
-      leaveConversation,
       markAsRead,
     ]
   );

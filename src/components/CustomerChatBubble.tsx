@@ -24,40 +24,14 @@ import {
 import { useConversation } from "@/contexts/useConversation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChat } from "@/contexts/ChatContext";
-import {
-  type ChatMessage,
-  CONNECTION_STATES,
-  normalizeSenderType,
-} from "@/services/chatSignalR";
-
-interface ApiError {
-  response?: {
-    data?: {
-      errors?: string[];
-    };
-  };
-}
-
-interface Message {
-  id: number;
-  text: string;
-  sender: "customer" | "vendor";
-  timestamp: Date;
-  isRead: boolean;
-  images?: Array<{ id: number; imageUrl: string }>;
-}
-
-interface Conversation {
-  id: number;
-  vendorId: number;
-  vendorName: string;
-  vendorShopName: string;
-  vendorAvatar: string | null;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  isOnline: boolean;
-}
+import type {
+  ChatMessage,
+  CustomerConversation as Conversation,
+  NormalizedMessage as Message,
+  ApiError,
+} from "@/types/chat";
+import { CONNECTION_STATES } from "@/types/chat";
+import { normalizeSenderType } from "@/services/chatHub";
 
 export const CustomerChatBubble = () => {
   const [isListOpen, setIsListOpen] = useState(false);
@@ -69,8 +43,14 @@ export const CustomerChatBubble = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { pendingRequest, clearPendingRequest } = useConversation();
   const { user } = useAuth();
-  const { connectionState, onMessage, joinConversation, leaveConversation } =
+  const { connectionState, onMessage, joinConversation, leaveConversation, markAsRead } =
     useChat();
+
+  // Use ref to always have latest activeChatId value in callbacks
+  const activeChatIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
 
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -86,10 +66,13 @@ export const CustomerChatBubble = () => {
   // Handle incoming SignalR message
   const handleNewMessage = useCallback(
     (chatMessage: ChatMessage) => {
+      console.log("[CustomerChatBubble] Received message from SignalR:", chatMessage);
+
       // Normalize senderType (can be enum number or string)
       const senderType = normalizeSenderType(chatMessage.senderType);
 
       if (!senderType) {
+        console.warn("[CustomerChatBubble] Invalid senderType:", chatMessage.senderType);
         return;
       }
 
@@ -114,14 +97,52 @@ export const CustomerChatBubble = () => {
         };
       });
 
+      // If user is viewing this conversation, mark as read
+      if (activeChatIdRef.current === chatMessage.conversationId) {
+        markAsRead(chatMessage.conversationId).catch((err) =>
+          console.warn("[CustomerChatBubble] markAsRead failed:", err)
+        );
+      }
+
       // Update conversation's last message and unread count
       setConversations((prev) => {
+        // Check if conversation exists
+        const conversationExists = prev.some((c) => c.id === chatMessage.conversationId);
+        
+        if (!conversationExists) {
+          // Conversation doesn't exist yet - refetch
+          console.log("[CustomerChatBubble] New conversation detected, refreshing list...");
+          getMyConversations(1, 50).then((response) => {
+            if (response.status && response.data) {
+              const transformedConversations: Conversation[] = response.data.data.map(
+                (conv: ApiConversation) => ({
+                  id: conv.id,
+                  vendorId: conv.vendor!.id,
+                  vendorName: conv.vendor!.fullName,
+                  vendorShopName: conv.vendor!.fullName,
+                  vendorAvatar: conv.vendor!.avatarUrl,
+                  lastMessage:
+                    conv.id === chatMessage.conversationId
+                      ? chatMessage.messageText
+                      : "Nhấn để xem tin nhắn",
+                  lastMessageTime: new Date(conv.lastMessageAt),
+                  unreadCount: conv.id === chatMessage.conversationId ? 1 : 0,
+                  isOnline: false,
+                })
+              );
+              setConversations(transformedConversations);
+            }
+          });
+          return prev;
+        }
+        
         const updated = prev.map((conv) => {
           if (conv.id === chatMessage.conversationId) {
             // Only increment unread if message is from vendor and conversation is not active
+            // Use ref for latest value to avoid stale closure
             const shouldIncrementUnread =
               senderType === "vendor" &&
-              activeChatId !== chatMessage.conversationId;
+              activeChatIdRef.current !== chatMessage.conversationId;
 
             const newUnreadCount = shouldIncrementUnread
               ? conv.unreadCount + 1
@@ -139,31 +160,33 @@ export const CustomerChatBubble = () => {
         return updated;
       });
     },
-    [activeChatId]
+    [markAsRead] // markAsRead stable from context
   );
 
   // Subscribe to messages from ChatContext
   useEffect(() => {
+    console.log("[CustomerChatBubble] Subscribing to messages, connection:", connectionState);
     const unsubscribe = onMessage(handleNewMessage);
     return () => {
+      console.log("[CustomerChatBubble] Unsubscribing from messages");
       unsubscribe();
     };
-  }, [onMessage, handleNewMessage]);
+  }, [onMessage, handleNewMessage, connectionState]);
 
-  // Join/Leave conversation when activeChatId changes
+  // Fetch conversations on mount to receive messages immediately
   useEffect(() => {
-    if (connectionState !== CONNECTION_STATES.Connected) return;
-
-    if (activeChatId) {
-      joinConversation(activeChatId);
+    if (user && connectionState === CONNECTION_STATES.Connected) {
+      console.log('[CustomerChatBubble] Fetching conversations on mount/connect...');
+      fetchConversations();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, connectionState]);
 
-    return () => {
-      if (activeChatId) {
-        leaveConversation(activeChatId);
-      }
-    };
-  }, [activeChatId, connectionState, joinConversation, leaveConversation]);
+  // Mark as read when chat is active
+  useEffect(() => {
+    if (connectionState !== CONNECTION_STATES.Connected || !activeChatId) return;
+    // Messages are received automatically via SignalR broadcast
+  }, [activeChatId, connectionState]);
 
   // Fetch conversations
   const fetchConversations = async () => {
@@ -173,6 +196,7 @@ export const CustomerChatBubble = () => {
       const response = await getMyConversations(1, 50);
 
       if (response.status && response.data) {
+        console.log('[CustomerChatBubble] Loaded', response.data.data.length, 'conversations');
         const transformedConversations: Conversation[] = response.data.data.map(
           (conv: ApiConversation) => ({
             id: conv.id,
@@ -273,6 +297,18 @@ export const CustomerChatBubble = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingRequest]);
 
+  // Rời nhóm khi unmount để backend dọn dẹp
+  useEffect(() => {
+    return () => {
+      const current = activeChatIdRef.current;
+      if (current) {
+        leaveConversation(current).catch(() =>
+          console.warn("[CustomerChatBubble] leaveConversation cleanup failed")
+        );
+      }
+    };
+  }, [leaveConversation]);
+
   const handleOpenChat = async (
     conversationId: number,
     forceRefresh = false
@@ -291,6 +327,16 @@ export const CustomerChatBubble = () => {
     if (!messages[conversationId] || forceRefresh) {
       await fetchMessages(conversationId);
     }
+
+    // Join hub group if available
+    joinConversation(conversationId).catch((err) =>
+      console.warn("[CustomerChatBubble] joinConversation failed:", err)
+    );
+
+    // Mark as read immediately
+    markAsRead(conversationId).catch((err) =>
+      console.warn("[CustomerChatBubble] markAsRead failed:", err)
+    );
   };
 
   // Open conversation by vendorId (for ProductVendorChat integration)
@@ -352,6 +398,11 @@ export const CustomerChatBubble = () => {
   };
 
   const handleBackToList = () => {
+    if (activeChatId) {
+      leaveConversation(activeChatId).catch((err) =>
+        console.warn("[CustomerChatBubble] leaveConversation failed:", err)
+      );
+    }
     setActiveChatId(null);
     setInputValue("");
     setSelectedImages([]);
@@ -442,11 +493,12 @@ export const CustomerChatBubble = () => {
           // Switch to real conversation
           setActiveChatId(realConversationId);
 
-          // Join real conversation in SignalR
-          if (connectionState === CONNECTION_STATES.Connected) {
-            leaveConversation(activeChatId);
-            joinConversation(realConversationId);
-          }
+          // Join real conversation group after creation
+          joinConversation(realConversationId).catch((err) =>
+            console.warn("[CustomerChatBubble] joinConversation failed:", err)
+          );
+
+          // Messages will be received automatically via SignalR broadcast
         } else {
           // Normal case - existing conversation
           setMessages((prev) => ({
