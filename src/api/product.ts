@@ -1506,6 +1506,78 @@ export const getMediaLinks = async (
   return [];
 };
 
+// API lấy danh sách certificates của một product
+export const getProductCertificatesByProductId = async (
+  productId: number,
+  page: number = 1,
+  pageSize: number = 100
+): Promise<Certificate[]> => {
+  try {
+    const response = await apiClient.get(`/api/ProductCertificate/by-product/${productId}`, {
+      params: { page, pageSize }
+    });
+    
+    // apiClient đã unwrap response.data do interceptor
+    // Response có cấu trúc PagedResponse với Data field
+    if (response && typeof response === 'object') {
+      // Nếu response có Data field (PagedResponse)
+      if ('data' in response && Array.isArray((response as any).data)) {
+        const certificates = (response as any).data as any[];
+        return certificates.map((cert: any) => ({
+          id: cert.id || cert.Id,
+          productId: cert.productId || cert.ProductId || productId,
+          registrationId: cert.registrationId || cert.RegistrationId || 0,
+          certificationCode: cert.certificationCode || cert.CertificationCode || '',
+          certificationName: cert.certificationName || cert.CertificationName || `Chứng chỉ ${cert.id || cert.Id}`,
+          status: (cert.status || cert.Status || 'Pending') as 'Pending' | 'Approved' | 'Rejected',
+          rejectionReason: cert.rejectionReason || cert.RejectionReason,
+          uploadedAt: cert.uploadedAt || cert.UploadedAt || new Date().toISOString(),
+          verifiedAt: cert.verifiedAt || cert.VerifiedAt,
+          verifiedBy: cert.verifiedBy || cert.VerifiedBy,
+          createdAt: cert.createdAt || cert.CreatedAt || new Date().toISOString(),
+          updatedAt: cert.updatedAt || cert.UpdatedAt || new Date().toISOString(),
+          files: (cert.files || cert.Files || []).map((file: any) => ({
+            id: file.id || file.Id || 0,
+            imagePublicId: file.imagePublicId || file.ImagePublicId || '',
+            imageUrl: file.imageUrl || file.ImageUrl || '',
+            purpose: file.purpose || file.Purpose || 'ProductCertificatePdf',
+            sortOrder: file.sortOrder || file.SortOrder || 0
+          }))
+        })) as Certificate[];
+      }
+      // Nếu response là array trực tiếp
+      if (Array.isArray(response)) {
+        return response.map((cert: any) => ({
+          id: cert.id || cert.Id,
+          productId: cert.productId || cert.ProductId || productId,
+          registrationId: cert.registrationId || cert.RegistrationId || 0,
+          certificationCode: cert.certificationCode || cert.CertificationCode || '',
+          certificationName: cert.certificationName || cert.CertificationName || `Chứng chỉ ${cert.id || cert.Id}`,
+          status: (cert.status || cert.Status || 'Pending') as 'Pending' | 'Approved' | 'Rejected',
+          rejectionReason: cert.rejectionReason || cert.RejectionReason,
+          uploadedAt: cert.uploadedAt || cert.UploadedAt || new Date().toISOString(),
+          verifiedAt: cert.verifiedAt || cert.VerifiedAt,
+          verifiedBy: cert.verifiedBy || cert.VerifiedBy,
+          createdAt: cert.createdAt || cert.CreatedAt || new Date().toISOString(),
+          updatedAt: cert.updatedAt || cert.UpdatedAt || new Date().toISOString(),
+          files: (cert.files || cert.Files || []).map((file: any) => ({
+            id: file.id || file.Id || 0,
+            imagePublicId: file.imagePublicId || file.ImagePublicId || '',
+            imageUrl: file.imageUrl || file.ImageUrl || '',
+            purpose: file.purpose || file.Purpose || 'ProductCertificatePdf',
+            sortOrder: file.sortOrder || file.SortOrder || 0
+          }))
+        })) as Certificate[];
+      }
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Get product certificates by product ID error:', error);
+    return [];
+  }
+};
+
 // Interface for updating product registration status
 export interface UpdateProductRegistrationStatusRequest {
   id: number;

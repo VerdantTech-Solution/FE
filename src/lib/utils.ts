@@ -6,6 +6,22 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Parse API datetime string and ensure proper timezone handling
+ * If the string doesn't have timezone info, assume it's UTC
+ */
+export function parseApiDateTime(dateString: string | null | undefined): Date {
+  if (!dateString) return new Date();
+  
+  // If string doesn't have timezone indicator (Z, +, -), add Z to mark as UTC
+  let normalizedString = dateString.trim();
+  if (!normalizedString.match(/[Z+-]\d{2}:\d{2}$/) && !normalizedString.endsWith('Z')) {
+    normalizedString += 'Z';
+  }
+  
+  return new Date(normalizedString);
+}
+
+/**
  * Format date/time to Vietnam timezone (Asia/Ho_Chi_Minh, UTC+7)
  */
 export function formatToVietnamTime(
@@ -14,7 +30,13 @@ export function formatToVietnamTime(
 ): string {
   if (!date) return '-';
   
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  let dateObj: Date;
+  
+  if (typeof date === 'string') {
+    dateObj = parseApiDateTime(date);
+  } else {
+    dateObj = date;
+  }
   
   if (isNaN(dateObj.getTime())) return '-';
   

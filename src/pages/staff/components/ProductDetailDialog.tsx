@@ -11,7 +11,7 @@ import {
   Package, 
   Star, 
   DollarSign, 
-  MessageSquare, 
+  MessageSquare,
   Loader2, 
   Award,
   CheckCircle2,
@@ -27,7 +27,8 @@ import {
   type Product,
   getMediaLinks,
   type Certificate,
-  getProductRegistrations
+  getProductRegistrations,
+  getProductCertificatesByProductId
 } from "@/api/product";
 import { 
   getProductReviewsByProductId, 
@@ -75,6 +76,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("info");
 
   // Commission rate form
   const [commissionRate, setCommissionRate] = useState<number>(0);
@@ -88,6 +90,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     if (open && productId) {
       loadProductDetails();
       loadReviews();
+      setActiveTab("info"); // Reset tab về "info" khi mở dialog
     } else {
       // Reset state when dialog closes
       setProduct(null);
@@ -96,6 +99,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setCommissionRate(0);
       setUnitPrice(0);
       setError(null);
+      setActiveTab("info");
     }
   }, [open, productId]);
 
@@ -115,51 +119,20 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
       // Load certificates for this product
       try {
-        // Method 1: Tìm ProductRegistration ban đầu của product này để lấy certificates
-        // Vì Product được tạo từ ProductRegistration đã approved
-        const registrations = await getProductRegistrations();
-        const relatedRegistration = registrations.find(
-          reg => reg.proposedProductCode === productData.productCode && 
-                 reg.status === 'Approved'
-        );
-        
-        if (relatedRegistration && relatedRegistration.certificates && relatedRegistration.certificates.length > 0) {
-          // Load media links cho mỗi certificate nếu files rỗng
-          const certificatesWithFiles = await Promise.all(
-            relatedRegistration.certificates.map(async (cert) => {
-              if (cert.files && cert.files.length > 0) {
-                return cert; // Đã có files, dùng luôn
-              }
-              // Nếu files rỗng, thử fetch từ media links với owner_type = 'product_certificates'
-              try {
-                const mediaLinks = await getMediaLinks('product_certificates', cert.id);
-                const certLinks = mediaLinks.filter(link => 
-                  link.purpose === 'ProductCertificatePdf' ||
-                  link.purpose === 'productcertificatepdf' ||
-                  link.purpose === 'certificatepdf' ||
-                  link.purpose?.toLowerCase().includes('cert')
-                );
-                return {
-                  ...cert,
-                  files: certLinks.map(link => ({
-                    id: link.id,
-                    imagePublicId: link.imagePublicId,
-                    imageUrl: link.imageUrl,
-                    purpose: link.purpose || 'ProductCertificatePdf',
-                    sortOrder: link.sortOrder || 0
-                  }))
-                };
-              } catch (err) {
-                console.log(`Could not fetch files for certificate ${cert.id}:`, err);
-                return cert; // Giữ nguyên nếu không fetch được
-              }
-            })
-          );
-          setCertificates(certificatesWithFiles);
+        // Sử dụng API chính thức để lấy certificates theo productId
+        const productCertificates = await getProductCertificatesByProductId(productId);
+        if (productCertificates && productCertificates.length > 0) {
+          setCertificates(productCertificates);
         } else {
-          // Method 2: Fallback - thử lấy từ media links với product_registrations
-          // Tìm registration ID từ product code
+          // Fallback: Thử tìm từ ProductRegistration nếu không có certificates trực tiếp
+          const registrations = await getProductRegistrations();
+          const relatedRegistration = registrations.find(
+            reg => reg.proposedProductCode === productData.productCode && 
+                   reg.status === 'Approved'
+          );
+          
           if (relatedRegistration) {
+            // Thử lấy từ media links với product_registrations
             try {
               const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
               const certLinks = mediaLinks.filter(link => 
@@ -285,9 +258,56 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
   if (!productId) return null;
 
+  // Wrapper để ngăn onOpenChange khi click vào bên trong dialog
+  const handleOpenChange = (newOpen: boolean) => {
+    // Chỉ cho phép đóng dialog, không cho phép mở lại khi đã mở
+    // Nếu dialog đang mở và user click vào bên trong, không làm gì cả
+    if (open && newOpen) {
+      // Dialog đã mở và đang cố mở lại -> bỏ qua (có thể do click vào tab)
+      return;
+    }
+    // Chỉ cho phép đóng dialog
+    if (!newOpen) {
+      onOpenChange(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col">
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
+      <DialogContent 
+        className="max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col"
+        onInteractOutside={(e) => {
+          // Chỉ đóng dialog khi click vào overlay, không đóng khi click vào content bên trong
+          const target = e.target as HTMLElement;
+          const dialogContent = e.currentTarget as HTMLElement;
+          if (target && dialogContent && dialogContent.contains(target)) {
+            e.preventDefault();
+          }
+        }}
+        onOpenAutoFocus={(e) => {
+          // Ngăn auto focus khi mở dialog
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={() => {
+          // Cho phép đóng bằng ESC
+        }}
+        onPointerDownOutside={(e) => {
+          // Ngăn đóng dialog khi click vào bên trong content
+          const target = e.target as HTMLElement;
+          const dialogContent = e.currentTarget as HTMLElement;
+          if (target && dialogContent && dialogContent.contains(target)) {
+            e.preventDefault();
+          }
+        }}
+        onPointerDown={(e) => {
+          // Ngăn event bubble
+          e.stopPropagation();
+        }}
+        onClick={(e) => {
+          // Ngăn event bubble
+          e.stopPropagation();
+        }}
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="text-2xl">Chi tiết sản phẩm</DialogTitle>
           <DialogDescription>
@@ -305,13 +325,118 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
             <p className="text-red-600">{error}</p>
           </div>
         ) : product ? (
-          <div className="overflow-y-auto px-6 py-4 flex-1 min-h-0">
-            <Tabs defaultValue="info" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
-                <TabsTrigger value="info" className="text-base font-semibold">Thông tin</TabsTrigger>
-                <TabsTrigger value="certificates" className="text-base font-semibold">Chứng chỉ ({certificates.length})</TabsTrigger>
-                <TabsTrigger value="reviews" className="text-base font-semibold">Đánh giá ({reviews.length})</TabsTrigger>
-              </TabsList>
+          <div 
+            className="overflow-y-auto px-6 py-4 flex-1 min-h-0"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+            >
+              <Tabs 
+                value={activeTab} 
+                onValueChange={(value) => {
+                  setActiveTab(value);
+                }} 
+                className="w-full"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+              >
+            <TabsList 
+              className="grid w-full grid-cols-3 mb-6 h-12"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+            >
+              <TabsTrigger 
+                value="info" 
+                className="text-base font-semibold"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setActiveTab("info");
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+              >
+                Thông tin
+              </TabsTrigger>
+              <TabsTrigger 
+                value="certificates" 
+                className="text-base font-semibold"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setActiveTab("certificates");
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+              >
+                Chứng chỉ
+              </TabsTrigger>
+              <TabsTrigger 
+                value="reviews" 
+                className="text-base font-semibold"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setActiveTab("reviews");
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+              >
+                Đánh giá
+              </TabsTrigger>
+            </TabsList>
 
               {/* Info Tab */}
               <TabsContent value="info" className="space-y-6 mt-0">
@@ -377,10 +502,16 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                         </div>
                       </div>
                     )}
-                    {product.warrantyMonths && (
+                    {product.warrantyMonths !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Bảo hành:</span>
-                        <span className="font-medium">{product.warrantyMonths} tháng</span>
+                        {product.warrantyMonths > 0 ? (
+                          <>
+                            <span className="text-gray-600">Thời gian bảo hành:</span>
+                            <span className="font-medium">{product.warrantyMonths} tháng</span>
+                          </>
+                        ) : (
+                          <span className="font-medium text-gray-500">Sản phẩm không được bảo hành</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -505,89 +636,89 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
                   {/* Reviews Tab */}
                   <TabsContent value="reviews" className="space-y-4 mt-0">
-              {loadingReviews ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-green-600" />
-                </div>
-              ) : reviews.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Chưa có đánh giá nào</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <Card key={review.id}>
-                      <CardContent className="pt-6">
-                        <div className="space-y-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="flex items-center gap-1">
-                                  {renderStars(review.rating)}
-                                </div>
-                                <span className="text-sm font-medium text-gray-700">
-                                  {review.rating}/5
-                                </span>
-                              </div>
-                              {review.customer && (
-                                <p className="text-sm text-gray-600 mb-1">
-                                  {review.customer.fullName || `Khách hàng #${review.customer.id}`}
-                                </p>
-                              )}
-                              <p className="text-xs text-gray-500">
-                                {formatDate(review.createdAt)}
-                              </p>
-                            </div>
-                          </div>
+                    {loadingReviews ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-6 h-6 animate-spin text-green-600" />
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div className="text-center py-12">
+                        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">Chưa có đánh giá nào</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {reviews.map((review) => (
+                            <Card key={review.id}>
+                              <CardContent className="pt-6">
+                                <div className="space-y-4">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center gap-1">
+                                          {renderStars(review.rating)}
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700">
+                                          {review.rating}/5
+                                        </span>
+                                      </div>
+                                      {review.customer && (
+                                        <p className="text-sm text-gray-600 mb-1">
+                                          {review.customer.fullName || `Khách hàng #${review.customer.id}`}
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-gray-500">
+                                        {formatDate(review.createdAt)}
+                                      </p>
+                                    </div>
+                                  </div>
 
-                          {review.comment && (
-                            <div className="bg-gray-50 rounded-lg p-3">
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                                {review.comment}
-                              </p>
-                            </div>
-                          )}
+                                  {review.comment && (
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                                        {review.comment}
+                                      </p>
+                                    </div>
+                                  )}
 
-                          {review.images && review.images.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {review.images.map((img, idx) => (
-                                <img
-                                  key={idx}
-                                  src={img.imageUrl}
-                                  alt={`Review image ${idx + 1}`}
-                                  className="w-20 h-20 object-cover rounded-md border"
-                                />
-                              ))}
-                            </div>
-                          )}
+                                  {review.images && review.images.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {review.images.map((img, idx) => (
+                                        <img
+                                          key={idx}
+                                          src={img.imageUrl}
+                                          alt={`Review image ${idx + 1}`}
+                                          className="w-20 h-20 object-cover rounded-md border"
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
 
-                          {(review as ProductReviewWithReply).reply && (
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                              <div className="flex items-start gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1">
-                                  <p className="text-xs font-medium text-green-800 mb-1">
-                                    Phản hồi từ staff:
-                                  </p>
-                                  <p className="text-sm text-green-700 whitespace-pre-wrap">
-                                    {(review as ProductReviewWithReply).reply}
-                                  </p>
-                                  {(review as ProductReviewWithReply).repliedAt && (
-                                    <p className="text-xs text-green-600 mt-1">
-                                      {formatDate((review as ProductReviewWithReply).repliedAt!)}
-                                    </p>
+                                  {(review as ProductReviewWithReply).reply && (
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                      <div className="flex items-start gap-2">
+                                        <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <p className="text-xs font-medium text-green-800 mb-1">
+                                            Phản hồi từ staff:
+                                          </p>
+                                          <p className="text-sm text-green-700 whitespace-pre-wrap">
+                                            {(review as ProductReviewWithReply).reply}
+                                          </p>
+                                          {(review as ProductReviewWithReply).repliedAt && (
+                                            <p className="text-xs text-green-600 mt-1">
+                                              {formatDate((review as ProductReviewWithReply).repliedAt!)}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
-                              </div>
-                            </div>
-                          )}
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                      )}
                   </TabsContent>
 
               {/* Certificates Tab */}
@@ -707,6 +838,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                 )}
               </TabsContent>
             </Tabs>
+            </div>
           </div>
         ) : null}
       </DialogContent>

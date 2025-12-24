@@ -365,7 +365,7 @@ const VendorProductUpdatePage = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Specifications (JSON)</label>
+                <label className="text-sm font-medium text-gray-700">Thông số kỹ thuật</label>
                 <Textarea
                   value={form.specifications}
                   placeholder='Ví dụ: {"Màu":"Vàng","Công suất":"100W"}'
