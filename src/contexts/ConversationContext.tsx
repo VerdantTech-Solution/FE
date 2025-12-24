@@ -1,13 +1,17 @@
 import React, { createContext, useState, useCallback } from "react";
 
+interface ProductInfo {
+  productId: number;
+  productName: string;
+  productImage?: string;
+  productPrice?: number;
+}
+
 interface ConversationContextType {
   // Request to open a conversation with a vendor
   requestOpenConversation: (
     vendorId: number,
-    productInfo?: {
-      productId: number;
-      productName: string;
-    }
+    productInfo?: ProductInfo
   ) => void;
 
   // Get the pending conversation request
@@ -19,10 +23,7 @@ interface ConversationContextType {
 
 interface ConversationRequest {
   vendorId: number;
-  productInfo?: {
-    productId: number;
-    productName: string;
-  };
+  productInfo?: ProductInfo;
   timestamp: number;
 }
 
@@ -37,10 +38,7 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<ConversationRequest | null>(null);
 
   const requestOpenConversation = useCallback(
-    (
-      vendorId: number,
-      productInfo?: { productId: number; productName: string }
-    ) => {
+    (vendorId: number, productInfo?: ProductInfo) => {
       setPendingRequest({
         vendorId,
         productInfo,

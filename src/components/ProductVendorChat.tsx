@@ -13,12 +13,16 @@ interface ProductVendorChatProps {
   };
   productName: string;
   productId: number;
+  productImage?: string;
+  productPrice?: number;
 }
 
 export const ProductVendorChat = ({
   vendor,
   productName,
   productId,
+  productImage,
+  productPrice,
 }: ProductVendorChatProps) => {
   const { requestOpenConversation } = useConversation();
 
@@ -38,6 +42,8 @@ export const ProductVendorChat = ({
     requestOpenConversation(vendor.id, {
       productId,
       productName,
+      productImage,
+      productPrice,
     });
 
     toast.success(`Đang mở chat với ${vendor.shopName}...`, {
