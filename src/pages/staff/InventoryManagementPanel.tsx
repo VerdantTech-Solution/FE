@@ -48,7 +48,6 @@ import {
 import { getIdentityNumbersByProductId, type IdentityNumberItem } from "@/api/export";
 import { getAllProducts, getAllProductCategories, getProductRegistrations, type Product, type ProductCategory, type ProductRegistration } from "@/api/product";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getProductUnitById } from "@/lib/productUnitMapper";
 
 export const InventoryManagementPanel: React.FC = () => {
   const { user } = useAuth();
@@ -1074,7 +1073,7 @@ export const InventoryManagementPanel: React.FC = () => {
                                   {productInfo.stockQuantity !== undefined && (
                                     <div>
                                       <p className="text-xs text-gray-500">Tồn kho</p>
-                                      <p className="font-medium">{productInfo.stockQuantity} {getProductUnitById(productInfo.categoryId, categories)}</p>
+                                      <p className="font-medium">{productInfo.stockQuantity} sản phẩm</p>
                                     </div>
                                   )}
                                 </div>
@@ -1095,7 +1094,7 @@ export const InventoryManagementPanel: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-gray-500">Số lượng</p>
-                          <p className="font-medium">{item.quantity} {getProductUnitById(productInfo?.categoryId, categories)}</p>
+                          <p className="font-medium">{item.quantity} sản phẩm</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Giá vốn</p>
@@ -1371,7 +1370,7 @@ export const InventoryManagementPanel: React.FC = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-gray-500">Số lượng</p>
-                            <p className="font-medium">{item.quantity ?? 1} {getProductUnitById((fallbackProduct || productInfo as any)?.categoryId, categories)}</p>
+                            <p className="font-medium">{item.quantity ?? 1} sản phẩm</p>
                           </div>
                           {(item.productSerial || item.productSerialNumber) && (
                             <div>
@@ -1856,7 +1855,6 @@ export const InventoryManagementPanel: React.FC = () => {
               const serialOptions = identityItems.filter(identity => identity.serialNumber);
               const lotOptions = identityItems.filter(identity => identity.lotNumber);
               const selectedLotInfo = lotOptions.find(lot => lot.lotNumber === item.lotNumber);
-              const exportProductInfo = products.find(p => p.id === item.productId);
               return (
                 <Card key={index} className="p-4">
                   <div className="flex items-center justify-between mb-4">
@@ -1994,7 +1992,7 @@ export const InventoryManagementPanel: React.FC = () => {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label>Số lượng ({getProductUnitById(exportProductInfo?.categoryId, categories)}) *</Label>
+                        <Label>Số lượng (sản phẩm) *</Label>
                         <Input
                           type="number"
                           min={1}
@@ -2094,7 +2092,6 @@ export const InventoryManagementPanel: React.FC = () => {
           {selectedInventory && (
             <div className="space-y-4 py-4">
               {(() => {
-                const selectedProductInfo = products.find(p => p.id === selectedInventory.productId);
                 return (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -2117,7 +2114,7 @@ export const InventoryManagementPanel: React.FC = () => {
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-700">Số lượng</Label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedInventory.quantity} {getProductUnitById(selectedProductInfo?.categoryId, categories)}</p>
+                      <p className="mt-1 text-sm text-gray-900">{selectedInventory.quantity} sản phẩm</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-700">Giá vốn</Label>

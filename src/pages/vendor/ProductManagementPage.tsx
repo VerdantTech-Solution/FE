@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
 import VendorSidebar from "./VendorSidebar";
 import VendorHeader from "./VendorHeader";
@@ -7,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   getProductsByVendor,
   getProductUpdateRequests,
+  updateProduct,
   type Product,
   type PaginatedResponse,
   type ProductUpdateRequest,
@@ -32,6 +34,7 @@ import {
   Package,
   Search,
   Eye,
+  EyeOff,
   Filter,
   RefreshCcw,
   Pencil,
@@ -98,6 +101,9 @@ const ProductManagementPage: React.FC = () => {
   const [selectedRequest, setSelectedRequest] =
     useState<ProductUpdateRequest | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Toggle visibility state
+  const [togglingVisibility, setTogglingVisibility] = useState<number | null>(null);
 
   const canLoad = vendorId !== null && !Number.isNaN(vendorId);
 
@@ -235,6 +241,35 @@ const ProductManagementPage: React.FC = () => {
 
   const handleUpdateProduct = (productId: number) => {
     navigate(`/vendor/products/${productId}/update`);
+  };
+
+  const handleToggleProductVisibility = async (product: Product) => {
+    try {
+      setTogglingVisibility(product.id);
+      const newIsActive = !product.isActive;
+      
+      await updateProduct(product.id, {
+        isActive: newIsActive,
+      });
+
+      // Refetch products để đảm bảo UI update
+      await fetchProducts();
+      
+      const message = newIsActive 
+        ? `Sản phẩm "${product.productName}" đã được hiển thị` 
+        : `Sản phẩm "${product.productName}" đã bị ẩn`;
+      
+      toast.success(message, { duration: 3000 });
+    } catch (error: any) {
+      console.error("Error toggling product visibility:", error);
+      const errorMessage = 
+        error?.response?.data?.message || 
+        error?.message || 
+        "Có lỗi xảy ra khi cập nhật trạng thái sản phẩm";
+      toast.error(errorMessage, { duration: 3000 });
+    } finally {
+      setTogglingVisibility(null);
+    }
   };
 
   const totalPages = productsPaged?.totalPages || 1;
@@ -618,6 +653,34 @@ const ProductManagementPage: React.FC = () => {
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               Gửi yêu cầu sửa
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className={`w-full justify-center ${
+                                product.isActive 
+                                  ? "bg-green-600 hover:bg-green-700 text-white" 
+                                  : "bg-red-600 hover:bg-red-700 text-white"
+                              }`}
+                              onClick={() => handleToggleProductVisibility(product)}
+                              disabled={togglingVisibility === product.id}
+                            >
+                              {togglingVisibility === product.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Đang cập nhật...
+                                </>
+                              ) : product.isActive ? (
+                                <>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Đã hiện sản phẩm
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="mr-2 h-4 w-4" />
+                                  Đã ẩn sản phẩm
+                                </>
+                              )}
                             </Button>
                           </div>
                         </CardContent>

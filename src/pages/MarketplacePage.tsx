@@ -478,6 +478,11 @@ export const MarketplacePage = () => {
 
   // Filter products
   const filteredProducts = products.filter((product) => {
+    // Filter by isActive status - chỉ hiện sản phẩm đang hoạt động
+    if (!product.isActive) {
+      return false;
+    }
+
     // Filter by categoryId
     const matchesCategory =
       selectedCategory === "all" || product.categoryId === selectedCategory;
@@ -1044,13 +1049,6 @@ export const MarketplacePage = () => {
                                     {product.price?.toLocaleString("vi-VN")}đ
                                   </span>
                                 )}
-                                <span className="text-gray-500">
-                                  /
-                                  {getProductUnitById(
-                                    product.categoryId,
-                                    categories
-                                  )}
-                                </span>
                               </div>
                             </div>
 
