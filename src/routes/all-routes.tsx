@@ -1,5 +1,29 @@
 import { PATH_NAMES } from "@/constants";
-import { HomePage, LoginPage, MarketplacePage, ProductDetailPage, SignUpPage, AboutPage, ProfilePage, CartPage, FarmList, MapAreaPage, StaffPage, CreateFarmPage, FarmDetailPage, PreviewOrderPage, PayOSCancelPage, PayOSReturnPage, TicketPage, ChatPage, ForumPage, ForumDetailPage, TermsPage, PrivacyPolicyPage, RefundPolicyPage } from "@/pages";
+import {
+  HomePage,
+  LoginPage,
+  MarketplacePage,
+  ProductDetailPage,
+  SignUpPage,
+  AboutPage,
+  ProfilePage,
+  CartPage,
+  FarmList,
+  MapAreaPage,
+  StaffPage,
+  CreateFarmPage,
+  FarmDetailPage,
+  PreviewOrderPage,
+  PayOSCancelPage,
+  PayOSReturnPage,
+  TicketPage,
+  ChatPage,
+  ForumPage,
+  ForumDetailPage,
+  TermsPage,
+  PrivacyPolicyPage,
+  RefundPolicyPage,
+} from "@/pages";
 import OrderHistoryPage from "@/pages/OrderHistoryPage";
 import UpdateFarmPage from "@/pages/UpdateFarmPage";
 
@@ -8,7 +32,10 @@ export const allRoutes = [
   { path: PATH_NAMES.LOGIN, component: <LoginPage /> },
   { path: PATH_NAMES.SIGNUP, component: <SignUpPage /> },
   { path: PATH_NAMES.MARKETPLACE, component: <MarketplacePage /> },
-  { path: `${PATH_NAMES.PRODUCT_DETAIL}/:id`, component: <ProductDetailPage /> },
+  {
+    path: `${PATH_NAMES.PRODUCT_DETAIL}/:id`,
+    component: <ProductDetailPage />,
+  },
   { path: PATH_NAMES.ABOUT, component: <AboutPage /> },
   // { path: PATH_NAMES.ADMIN, component: <AdminPage /> }, // Moved to routes.tsx as /admin/*
   { path: PATH_NAMES.PROFILE, component: <ProfilePage /> },
@@ -26,7 +53,7 @@ export const allRoutes = [
   { path: PATH_NAMES.TICKET, component: <TicketPage /> },
   { path: PATH_NAMES.FORUM, component: <ForumPage /> },
   { path: `${PATH_NAMES.FORUM_DETAIL}/:id`, component: <ForumDetailPage /> },
-  { path: '/chat', component: <ChatPage /> },
+  { path: "/chat", component: <ChatPage /> },
   { path: PATH_NAMES.TERMS, component: <TermsPage /> },
   { path: PATH_NAMES.PRIVACY, component: <PrivacyPolicyPage /> },
   { path: PATH_NAMES.REFUND_POLICY, component: <RefundPolicyPage /> },

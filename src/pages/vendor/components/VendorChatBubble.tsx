@@ -1,29 +1,50 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Search, Minus } from "lucide-react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  Search,
+  Minus,
+  Loader2,
+  Wifi,
+  WifiOff,
+  ImageIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  getMyConversations,
+  getConversationMessages,
+  sendMessage as sendMessageApi,
+  type Conversation as ApiConversation,
+  type ConversationMessage as ApiMessage,
+} from "@/api/customerVendorConversation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useChat } from "@/contexts/ChatContext";
+import type {
+  ChatMessage,
+  VendorConversation as Conversation,
+  ApiError,
+} from "@/types/chat";
+import { CONNECTION_STATES } from "@/types/chat";
+import { normalizeSenderType } from "@/services/chatHub";
+import type { ProductInfo as ApiProductInfo } from "@/api/customerVendorConversation";
 
-interface Message {
-  id: string;
+// Extended Message type for vendor with product support
+interface VendorMessage {
+  id: number;
   text: string;
-  sender: "vendor" | "customer";
+  sender: 'customer' | 'vendor';
   timestamp: Date;
-}
-
-interface Conversation {
-  id: string;
-  customerId: string;
-  customerName: string;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  isOnline: boolean;
+  isRead: boolean;
+  images?: Array<{ id: number; imageUrl: string }>;
+  product?: ApiProductInfo | null;
 }
 
 interface OpenChatWindow {
-  conversationId: string;
+  conversationId: number;
   isMinimized: boolean;
 }
 
@@ -31,113 +52,258 @@ export const VendorChatBubble = () => {
   const [isListOpen, setIsListOpen] = useState(false);
   const [openChats, setOpenChats] = useState<OpenChatWindow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const { user } = useAuth();
+  const { connectionState, onMessage, joinConversation, leaveConversation, markAsRead } =
+    useChat();
 
-  // Mock data
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "1",
-      customerId: "c1",
-      customerName: "Nguyễn Văn An",
-      lastMessage: "Sản phẩm của bạn có còn hàng không?",
-      lastMessageTime: new Date(Date.now() - 5 * 60000),
-      unreadCount: 2,
-      isOnline: true,
-    },
-    {
-      id: "2",
-      customerId: "c2",
-      customerName: "Trần Thị Bình",
-      lastMessage: "Cảm ơn bạn, tôi sẽ đặt hàng ngay!",
-      lastMessageTime: new Date(Date.now() - 30 * 60000),
-      unreadCount: 0,
-      isOnline: false,
-    },
-    {
-      id: "3",
-      customerId: "c3",
-      customerName: "Lê Hoàng Nam",
-      lastMessage: "Khi nào thì giao hàng?",
-      lastMessageTime: new Date(Date.now() - 2 * 60 * 60000),
-      unreadCount: 1,
-      isOnline: true,
-    },
-    {
-      id: "4",
-      customerId: "c4",
-      customerName: "Phạm Minh Châu",
-      lastMessage: "Shop có giao hàng nhanh không?",
-      lastMessageTime: new Date(Date.now() - 5 * 60 * 60000),
-      unreadCount: 0,
-      isOnline: false,
-    },
-  ]);
+  // Use ref to always have latest openChats value in callbacks
+  const openChatsRef = useRef<OpenChatWindow[]>([]);
+  useEffect(() => {
+    openChatsRef.current = openChats;
+  }, [openChats]);
 
-  const [messages, setMessages] = useState<Record<string, Message[]>>({
-    "1": [
-      {
-        id: "m1",
-        text: "Xin chào, tôi muốn hỏi về sản phẩm phân bón hữu cơ",
-        sender: "customer",
-        timestamp: new Date(Date.now() - 10 * 60000),
-      },
-      {
-        id: "m2",
-        text: "Xin chào! Vâng, chúng tôi có nhiều loại phân bón hữu cơ chất lượng cao. Bạn cần loại nào?",
-        sender: "vendor",
-        timestamp: new Date(Date.now() - 8 * 60000),
-      },
-      {
-        id: "m3",
-        text: "Sản phẩm của bạn có còn hàng không?",
-        sender: "customer",
-        timestamp: new Date(Date.now() - 5 * 60000),
-      },
-    ],
-    "2": [
-      {
-        id: "m4",
-        text: "Giá sản phẩm này bao nhiêu vậy shop?",
-        sender: "customer",
-        timestamp: new Date(Date.now() - 60 * 60000),
-      },
-      {
-        id: "m5",
-        text: "Giá là 250.000đ cho 5kg ạ. Hiện đang có khuyến mãi giảm 10% nếu mua từ 3 gói trở lên!",
-        sender: "vendor",
-        timestamp: new Date(Date.now() - 45 * 60000),
-      },
-      {
-        id: "m6",
-        text: "Cảm ơn bạn, tôi sẽ đặt hàng ngay!",
-        sender: "customer",
-        timestamp: new Date(Date.now() - 30 * 60000),
-      },
-    ],
-    "3": [
-      {
-        id: "m7",
-        text: "Khi nào thì giao hàng?",
-        sender: "customer",
-        timestamp: new Date(Date.now() - 2 * 60 * 60000),
-      },
-    ],
-    "4": [
-      {
-        id: "m8",
-        text: "Shop có giao hàng nhanh không?",
-        sender: "customer",
-        timestamp: new Date(Date.now() - 5 * 60 * 60000),
-      },
-    ],
-  });
+  // State
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Record<number, VendorMessage[]>>({});
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<
+    Record<number, boolean>
+  >({});
+  const [isSendingMessage, setIsSendingMessage] = useState<
+    Record<number, boolean>
+  >({});
+  const [error, setError] = useState<string | null>(null);
 
-  const handleOpenChat = (conversationId: string) => {
+  // Handle incoming SignalR message
+  const handleNewMessage = useCallback(
+    (chatMessage: ChatMessage) => {
+      console.log("[VendorChatBubble] Received message from SignalR:", chatMessage);
+
+      // Normalize senderType (can be enum number or string)
+      const senderType = normalizeSenderType(chatMessage.senderType);
+
+      if (!senderType) {
+        console.warn("[VendorChatBubble] Invalid senderType:", chatMessage.senderType);
+        return;
+      }
+
+      const newMessage: VendorMessage = {
+        id: chatMessage.id,
+        text: chatMessage.messageText,
+        sender: senderType,
+        timestamp: new Date(chatMessage.createdAt),
+        isRead: chatMessage.isRead,
+        images: chatMessage.images,
+        product:
+          (chatMessage as ChatMessage & { product?: ApiProductInfo | null })
+            .product || null,
+      };
+
+      setMessages((prev) => {
+        const conversationMessages = prev[chatMessage.conversationId] || [];
+        // Check if message already exists
+        if (conversationMessages.some((m) => m.id === newMessage.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [chatMessage.conversationId]: [...conversationMessages, newMessage],
+        };
+      });
+
+      // Mark as read if this chat window is open (not minimized)
+      const isWindowOpen = openChatsRef.current.some(
+        (chat) => chat.conversationId === chatMessage.conversationId && !chat.isMinimized
+      );
+      if (isWindowOpen) {
+        markAsRead(chatMessage.conversationId).catch((err) =>
+          console.warn("[VendorChatBubble] markAsRead failed:", err)
+        );
+      }
+
+      // Update conversation's last message and unread count
+      setConversations((prev) => {
+        // Check if conversation exists
+        const conversationExists = prev.some((c) => c.id === chatMessage.conversationId);
+        
+        if (!conversationExists) {
+          // Conversation doesn't exist yet - will be fetched on next refresh
+          console.log("[VendorChatBubble] New conversation detected, refreshing list...");
+          // Trigger a refetch (async, can't await here)
+          getMyConversations(1, 50).then((response) => {
+            if (response.status && response.data) {
+              const transformedConversations: Conversation[] = response.data.data.map(
+                (conv: ApiConversation) => ({
+                  id: conv.id,
+                  customerId: conv.customer?.id || 0,
+                  customerName: conv.customer?.fullName || "Khách hàng",
+                  customerAvatar: conv.customer?.avatarUrl || null,
+                  lastMessage:
+                    conv.id === chatMessage.conversationId
+                      ? chatMessage.messageText
+                      : "Nhấn để xem tin nhắn",
+                  lastMessageTime: new Date(conv.lastMessageAt),
+                  unreadCount: conv.id === chatMessage.conversationId ? 1 : 0,
+                  isOnline: false,
+                })
+              );
+              setConversations(transformedConversations);
+            }
+          });
+          return prev;
+        }
+        
+        const updated = prev.map((conv) => {
+          if (conv.id === chatMessage.conversationId) {
+            // Check if this chat window is currently open - use ref for latest value
+            const isWindowOpen = openChatsRef.current.some(
+              (chat) =>
+                chat.conversationId === chatMessage.conversationId &&
+                !chat.isMinimized
+            );
+
+            // Only increment unread if message is from customer and window is not open
+            const shouldIncrementUnread =
+              senderType === "customer" && !isWindowOpen;
+
+            const newUnreadCount = shouldIncrementUnread
+              ? conv.unreadCount + 1
+              : conv.unreadCount;
+
+            return {
+              ...conv,
+              lastMessage: chatMessage.messageText,
+              lastMessageTime: new Date(chatMessage.createdAt),
+              unreadCount: newUnreadCount,
+            };
+          }
+          return conv;
+        });
+        return updated;
+      });
+    },
+    [] // No dependency on openChats - we use ref instead
+  );
+
+  // Subscribe to messages from ChatContext
+  useEffect(() => {
+    console.log('[VendorChatBubble] Subscribing to messages, connection:', connectionState);
+    const unsubscribe = onMessage(handleNewMessage);
+    return () => {
+      console.log('[VendorChatBubble] Unsubscribing from messages');
+      unsubscribe();
+    };
+  }, [onMessage, handleNewMessage, connectionState]);
+
+  // Fetch conversations on mount to receive messages immediately
+  useEffect(() => {
+    if (user && connectionState === CONNECTION_STATES.Connected) {
+      console.log('[VendorChatBubble] Fetching conversations on mount/connect...');
+      fetchConversations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, connectionState]);
+
+  // Messages are received automatically via SignalR broadcast
+  // No need for explicit join/leave
+
+  // Fetch conversations from API
+  const fetchConversations = async () => {
+    try {
+      setIsLoadingConversations(true);
+      setError(null);
+      const response = await getMyConversations(1, 50);
+
+      if (response.status && response.data) {
+        console.log('[VendorChatBubble] Loaded', response.data.data.length, 'conversations');
+        const transformedConversations: Conversation[] = response.data.data.map(
+          (conv: ApiConversation) => ({
+            id: conv.id,
+            customerId: conv.customer?.id || 0,
+            customerName: conv.customer?.fullName || "Khách hàng",
+            customerAvatar: conv.customer?.avatarUrl || null,
+            lastMessage: "Nhấn để xem tin nhắn",
+            lastMessageTime: new Date(conv.lastMessageAt),
+            unreadCount: 0,
+            isOnline: false,
+          })
+        );
+        setConversations(transformedConversations);
+      }
+    } catch (err: unknown) {
+      console.error("Error fetching conversations:", err);
+      setError(
+        (err as ApiError)?.response?.data?.errors?.[0] ||
+          "Không thể tải tin nhắn"
+      );
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  // Fetch messages for a conversation
+  const fetchMessages = async (conversationId: number) => {
+    try {
+      setIsLoadingMessages((prev) => ({ ...prev, [conversationId]: true }));
+      const response = await getConversationMessages(conversationId, 1, 50);
+
+      if (response.status && response.data) {
+        const transformedMessages: VendorMessage[] = response.data.data
+          .map((msg: ApiMessage) => ({
+            id: msg.id,
+            text: msg.messageText,
+            sender: msg.senderType.toLowerCase() as "customer" | "vendor",
+            timestamp: new Date(msg.createdAt),
+            isRead: msg.isRead,
+            images: msg.images,
+            product: msg.product,
+          }))
+          .reverse();
+
+        setMessages((prev) => ({
+          ...prev,
+          [conversationId]: transformedMessages,
+        }));
+
+        // Update last message in conversation
+        if (transformedMessages.length > 0) {
+          const lastMsg = transformedMessages[transformedMessages.length - 1];
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === conversationId
+                ? { ...conv, lastMessage: lastMsg.text }
+                : conv
+            )
+          );
+        }
+      }
+    } catch (err: unknown) {
+      console.error("Error fetching messages:", err);
+    } finally {
+      setIsLoadingMessages((prev) => ({ ...prev, [conversationId]: false }));
+    }
+  };
+
+  // Load conversations when list opens
+  useEffect(() => {
+    if (isListOpen && conversations.length === 0) {
+      fetchConversations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListOpen]);
+
+  const handleOpenChat = async (conversationId: number) => {
     setIsListOpen(false);
 
     setConversations((prev) =>
       prev.map((conv) =>
         conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
       )
+    );
+
+    // Join hub group for realtime
+    joinConversation(conversationId).catch((err) =>
+      console.warn("[VendorChatBubble] joinConversation failed:", err)
     );
 
     if (openChats.some((chat) => chat.conversationId === conversationId)) {
@@ -151,6 +317,16 @@ export const VendorChatBubble = () => {
       return;
     }
 
+    // Fetch messages if not already loaded
+    if (!messages[conversationId]) {
+      await fetchMessages(conversationId);
+    }
+
+    // Mark as read for this conversation
+    markAsRead(conversationId).catch((err) =>
+      console.warn("[VendorChatBubble] markAsRead failed:", err)
+    );
+
     setOpenChats((prev) => {
       const newChat = { conversationId, isMinimized: false };
       if (prev.length >= 3) {
@@ -160,13 +336,16 @@ export const VendorChatBubble = () => {
     });
   };
 
-  const handleCloseChat = (conversationId: string) => {
+  const handleCloseChat = (conversationId: number) => {
+    leaveConversation(conversationId).catch((err) =>
+      console.warn("[VendorChatBubble] leaveConversation failed:", err)
+    );
     setOpenChats((prev) =>
       prev.filter((chat) => chat.conversationId !== conversationId)
     );
   };
 
-  const handleToggleMinimize = (conversationId: string) => {
+  const handleToggleMinimize = (conversationId: number) => {
     setOpenChats((prev) =>
       prev.map((chat) =>
         chat.conversationId === conversationId
@@ -174,6 +353,64 @@ export const VendorChatBubble = () => {
           : chat
       )
     );
+  };
+
+  const handleSendMessage = async (
+    conversationId: number,
+    text: string,
+    images?: File[]
+  ) => {
+    const trimmed = text.trim();
+    if (!trimmed && (!images || images.length === 0)) return;
+    if (!user?.id) return;
+
+    // Find the conversation to get customerId
+    const conversation = conversations.find((c) => c.id === conversationId);
+    if (!conversation) return;
+
+    try {
+      setIsSendingMessage((prev) => ({ ...prev, [conversationId]: true }));
+      const response = await sendMessageApi(
+        conversation.customerId,
+        Number(user.id),
+        trimmed || "📷",
+        undefined, // productId
+        images
+      );
+
+      if (response.status && response.data) {
+        const newMessage: VendorMessage = {
+          id: response.data.id,
+          text: response.data.messageText,
+          sender: "vendor",
+          timestamp: new Date(response.data.createdAt),
+          isRead: response.data.isRead,
+          images: response.data.images,
+          product: response.data.product,
+        };
+
+        setMessages((prev) => ({
+          ...prev,
+          [conversationId]: [...(prev[conversationId] || []), newMessage],
+        }));
+
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === conversationId
+              ? {
+                  ...conv,
+                  lastMessage: trimmed,
+                  lastMessageTime: new Date(),
+                }
+              : conv
+          )
+        );
+      }
+    } catch (err: unknown) {
+      console.error("Error sending message:", err);
+    } finally {
+      setIsSendingMessage((prev) => ({ ...prev, [conversationId]: false }));
+    }
   };
 
   const filteredConversations = conversations.filter((conv) =>
@@ -209,6 +446,10 @@ export const VendorChatBubble = () => {
         aria-label="Tin nhắn khách hàng"
       >
         <MessageCircle className="h-6 w-6" />
+        {/* Connection indicator */}
+        {connectionState === CONNECTION_STATES.Connected && (
+          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full" />
+        )}
         {totalUnread > 0 && (
           <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">
             {totalUnread > 99 ? "99+" : totalUnread}
@@ -229,7 +470,20 @@ export const VendorChatBubble = () => {
             <Card className="w-[360px] h-[480px] flex flex-col shadow-2xl border border-gray-200 rounded-lg overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-200 bg-white">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-xl text-gray-900">Tin nhắn</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-xl text-gray-900">
+                      Tin nhắn
+                    </h3>
+                    {/* Connection status indicator */}
+                    {connectionState === CONNECTION_STATES.Connected ? (
+                      <Wifi className="w-4 h-4 text-green-500" />
+                    ) : connectionState === CONNECTION_STATES.Connecting ||
+                      connectionState === CONNECTION_STATES.Reconnecting ? (
+                      <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
+                    ) : (
+                      <WifiOff className="w-4 h-4 text-gray-400" />
+                    )}
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -251,7 +505,25 @@ export const VendorChatBubble = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {filteredConversations.length === 0 ? (
+                {isLoadingConversations ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4">
+                    <Loader2 className="w-8 h-8 mb-2 animate-spin" />
+                    <p className="text-sm">Đang tải...</p>
+                  </div>
+                ) : error ? (
+                  <div className="flex flex-col items-center justify-center h-full text-red-500 px-4">
+                    <MessageCircle className="w-12 h-12 mb-2" />
+                    <p className="text-sm text-center">{error}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchConversations}
+                      className="mt-2"
+                    >
+                      Thử lại
+                    </Button>
+                  </div>
+                ) : filteredConversations.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4">
                     <MessageCircle className="w-12 h-12 mb-2" />
                     <p className="text-sm text-center">
@@ -326,34 +598,13 @@ export const VendorChatBubble = () => {
             }
             messages={messages[chat.conversationId] || []}
             isMinimized={chat.isMinimized}
+            isLoading={isLoadingMessages[chat.conversationId] || false}
+            isSending={isSendingMessage[chat.conversationId] || false}
             onClose={() => handleCloseChat(chat.conversationId)}
             onToggleMinimize={() => handleToggleMinimize(chat.conversationId)}
-            onSendMessage={(text) => {
-              const newMessage: Message = {
-                id: `m-${Date.now()}`,
-                text,
-                sender: "vendor",
-                timestamp: new Date(),
-              };
-              setMessages((prev) => ({
-                ...prev,
-                [chat.conversationId]: [
-                  ...(prev[chat.conversationId] || []),
-                  newMessage,
-                ],
-              }));
-              setConversations((prev) =>
-                prev.map((conv) =>
-                  conv.id === chat.conversationId
-                    ? {
-                        ...conv,
-                        lastMessage: text,
-                        lastMessageTime: new Date(),
-                      }
-                    : conv
-                )
-              );
-            }}
+            onSendMessage={(text, images) =>
+              handleSendMessage(chat.conversationId, text, images)
+            }
           />
         ))}
       </div>
@@ -364,23 +615,29 @@ export const VendorChatBubble = () => {
 // Individual Chat Window Component
 interface ChatWindowProps {
   conversation: Conversation;
-  messages: Message[];
+  messages: VendorMessage[];
   isMinimized: boolean;
+  isLoading: boolean;
+  isSending: boolean;
   onClose: () => void;
   onToggleMinimize: () => void;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, images?: File[]) => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   conversation,
   messages,
   isMinimized,
+  isLoading,
+  isSending,
   onClose,
   onToggleMinimize,
   onSendMessage,
 }) => {
   const [inputValue, setInputValue] = useState("");
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (messagesContainerRef.current && !isMinimized) {
@@ -391,9 +648,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleSend = () => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    onSendMessage(trimmed);
+    if (!trimmed && selectedImages.length === 0) return;
+    onSendMessage(
+      trimmed || "📷",
+      selectedImages.length > 0 ? selectedImages : undefined
+    );
     setInputValue("");
+    setSelectedImages([]);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + selectedImages.length > 3) {
+      return;
+    }
+    setSelectedImages((prev) => [...prev, ...files].slice(0, 3));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -468,45 +744,162 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               ref={messagesContainerRef}
               className="h-[350px] overflow-y-auto px-3 py-3 space-y-2 bg-gray-50"
             >
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-2 ${
-                    message.sender === "vendor" ? "flex-row-reverse" : ""
-                  }`}
-                >
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                multiple
+                onChange={handleImageSelect}
+              />
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  <p className="text-sm">Chưa có tin nhắn</p>
+                </div>
+              ) : (
+                messages.map((message) => (
                   <div
-                    className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${
-                      message.sender === "vendor"
-                        ? "bg-blue-600 text-white rounded-br-sm"
-                        : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
+                    key={message.id}
+                    className={`flex gap-2 ${
+                      message.sender === "vendor" ? "flex-row-reverse" : ""
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words">
-                      {message.text}
-                    </p>
+                    <div
+                      className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${
+                        message.sender === "vendor"
+                          ? "bg-blue-600 text-white rounded-br-sm"
+                          : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
+                      }`}
+                    >
+                      {message.product && (
+                        <div className="mb-2 bg-white rounded-lg overflow-hidden border border-gray-200">
+                          <div className="p-2 space-y-1.5">
+                            <div className="flex items-start gap-2">
+                              {message.product.images &&
+                                message.product.images.length > 0 && (
+                                  <img
+                                    src={
+                                      (
+                                        message.product.images[0] as {
+                                          imageUrl?: string;
+                                        }
+                                      )?.imageUrl || ""
+                                    }
+                                    alt={message.product.productName}
+                                    className="w-16 h-16 object-cover rounded flex-shrink-0"
+                                  />
+                                )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                                  {message.product.productName}
+                                </h4>
+                                <p className="text-lg font-bold text-green-600 mt-1">
+                                  {message.product.unitPrice.toLocaleString(
+                                    "vi-VN"
+                                  )}
+                                  ₫
+                                </p>
+                              </div>
+                            </div>
+                            {message.product.description && (
+                              <p className="text-xs text-gray-600 line-clamp-2">
+                                {message.product.description}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-xs pt-1">
+                              <span className="text-gray-500">
+                                Kho: {message.product.stockQuantity}
+                              </span>
+                              <span className="text-yellow-600">
+                                ⭐ {message.product.ratingAverage.toFixed(1)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {message.images && message.images.length > 0 && (
+                        <div className="mb-2 space-y-1">
+                          {message.images.map((img) => (
+                            <img
+                              key={img.id}
+                              src={img.imageUrl}
+                              alt="Attachment"
+                              className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90"
+                              onClick={() =>
+                                window.open(img.imageUrl, "_blank")
+                              }
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <p className="whitespace-pre-wrap break-words">
+                        {message.text}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Input */}
             <div className="px-3 py-2.5 bg-white border-t border-gray-200">
+              {/* Image Preview */}
+              {selectedImages.length > 0 && (
+                <div className="mb-2 flex gap-2 overflow-x-auto pb-2">
+                  {selectedImages.map((file, index) => (
+                    <div key={index} className="relative flex-shrink-0">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`Preview ${index + 1}`}
+                        className="h-20 w-20 object-cover rounded-lg border border-gray-300"
+                      />
+                      <button
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2 items-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full h-8 w-8 p-0"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={selectedImages.length >= 3}
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </Button>
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Aa"
+                  disabled={isSending}
                   className="flex-1 text-sm border-gray-300 rounded-full focus:ring-blue-500 h-9"
                 />
                 <Button
                   onClick={handleSend}
-                  disabled={!inputValue.trim()}
+                  disabled={
+                    (!inputValue.trim() && selectedImages.length === 0) ||
+                    isSending
+                  }
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white rounded-full h-8 w-8 p-0 flex items-center justify-center flex-shrink-0"
                 >
-                  <Send className="w-4 h-4" />
+                  {isSending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>

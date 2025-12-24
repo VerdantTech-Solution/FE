@@ -307,6 +307,7 @@ export interface Product {
   location?: string;
   delivery?: string;
   image?: string;
+  vendorName?: string;
 }
 
 export interface ProductResponse {
