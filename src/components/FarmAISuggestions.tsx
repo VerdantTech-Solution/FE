@@ -119,15 +119,14 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
   return (
     <div className="mt-4 space-y-4">
       <Card className="border border-dashed border-emerald-200 bg-emerald-50/40">
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-2">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-amber-500" />
               AI Gợi ý thông minh
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
-              Nhận khuyến nghị nông nghiệp từ AI dựa trên dữ liệu thời tiết và trang trại của bạn. Vui lòng cung cấp số liệu CO2 trước khi yêu cầu gợi ý.
-            </p>
+            {!hasRequested && <p className="text-sm text-gray-600 mt-2">Phân tích đất, thời tiết và khí thải để đề xuất hành động.</p>}
+            {!farmId && <p className="text-sm text-red-700 mt-2">Vui lòng chọn trang trại trước.</p>}
           </div>
           <Button
             onClick={fetchAISuggestions}
@@ -139,23 +138,9 @@ export const FarmAISuggestions = ({ farmId }: FarmAISuggestionsProps) => {
             AI gợi ý canh tác
           </Button>
         </CardHeader>
-        {(!hasRequested || !farmId || lastUpdated) && (
-          <CardContent className="space-y-3 text-sm text-gray-600">
-            {!hasRequested && (
-              <div className="rounded-lg border border-emerald-200/70 bg-white/70 p-3">
-                Nhấn nút để AI phân tích đất, thời tiết và khí thải nhằm đề xuất hành động phù hợp nhất.
-              </div>
-            )}
-            {!farmId && (
-              <div className="rounded-lg border border-red-200 bg-red-50/80 p-3 text-red-700">
-                Vui lòng chọn trang trại trước khi yêu cầu gợi ý.
-              </div>
-            )}
-            {lastUpdated && (
-              <div className="text-xs text-emerald-700">
-                Cập nhật lần cuối: {lastUpdated.toLocaleString()}
-              </div>
-            )}
+        {lastUpdated && (
+          <CardContent className="text-xs text-emerald-700 py-2">
+            Cập nhật lần cuối: {lastUpdated.toLocaleString()}
           </CardContent>
         )}
       </Card>

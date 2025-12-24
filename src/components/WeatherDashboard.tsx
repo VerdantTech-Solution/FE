@@ -190,7 +190,15 @@ export const WeatherDashboard = ({ farmId }: WeatherDashboardProps) => {
                       borderRadius: "8px",
                       boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                     }}
-                    formatter={(value: number) => [`${value.toFixed(1)}°C`, ""]}
+                    formatter={(value: number, name: string) => {
+                      if (name === "Nhiệt độ cao nhất") {
+                        return [`${value.toFixed(1)}°C`, "Nhiệt độ cao nhất"];
+                      }
+                      if (name === "Nhiệt độ thấp nhất") {
+                        return [`${value.toFixed(1)}°C`, "Nhiệt độ thấp nhất"];
+                      }
+                      return [`${value.toFixed(1)}°C`, name];
+                    }}
                     labelFormatter={(label) => `Ngày ${label}`}
                   />
                   <Legend />
@@ -306,10 +314,16 @@ export const WeatherDashboard = ({ farmId }: WeatherDashboardProps) => {
                     boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                   }}
                   formatter={(value: number, name: string) => {
-                    if (name === "temperatureMax" || name === "temperatureMin") {
-                      return [`${value.toFixed(1)}°C`, name === "temperatureMax" ? "Nhiệt độ cao nhất" : "Nhiệt độ thấp nhất"];
+                    if (name === "Nhiệt độ cao nhất") {
+                      return [`${value.toFixed(1)}°C`, "Nhiệt độ cao nhất"];
                     }
-                    return [`${value.toFixed(1)} mm`, "Lượng mưa"];
+                    if (name === "Nhiệt độ thấp nhất") {
+                      return [`${value.toFixed(1)}°C`, "Nhiệt độ thấp nhất"];
+                    }
+                    if (name === "Lượng mưa") {
+                      return [`${value.toFixed(1)} mm`, "Lượng mưa"];
+                    }
+                    return [value, name];
                   }}
                   labelFormatter={(label) => `Ngày ${label}`}
                 />

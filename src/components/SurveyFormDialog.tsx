@@ -108,7 +108,7 @@ export const SurveyFormDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] lg:max-w-[85vw] xl:max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Làm Khảo Sát Trang Trại</DialogTitle>
           <DialogDescription>
