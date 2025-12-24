@@ -72,6 +72,10 @@ const CO2Info: React.FC = () => {
   const [ureaFertilizer, setUreaFertilizer] = useState<number | ''>('');
   const [phosphateFertilizer, setPhosphateFertilizer] = useState<number | ''>('');
   
+  // Date validation errors
+  const [startDateError, setStartDateError] = useState<string>('');
+  const [endDateError, setEndDateError] = useState<string>('');
+  
 
   const oneYearAfterStartStr = useMemo(() => {
     const base = measurementStartDate || yesterdayStr;
@@ -83,11 +87,61 @@ const CO2Info: React.FC = () => {
     return `${yyyy}-${mm}-${dd}`;
   }, [measurementStartDate, yesterdayStr]);
 
+  // Validate start date
+  const handleStartDateChange = (value: string) => {
+    setMeasurementStartDate(value);
+    const selectedDate = new Date(`${value}T00:00:00`);
+    const today = new Date(`${todayStr}T00:00:00`);
+    
+    if (selectedDate > today) {
+      setStartDateError('Không được chọn ngày trong tương lai');
+    } else {
+      setStartDateError('');
+    }
+    
+    // Validate end date if already set
+    if (measurementEndDate) {
+      const endDate = new Date(`${measurementEndDate}T00:00:00`);
+      const oneYearLater = new Date(selectedDate);
+      oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+      
+      if (endDate > oneYearLater) {
+        setEndDateError('Không được vượt quá 1 năm kể từ ngày bắt đầu');
+      } else if (endDate <= selectedDate) {
+        setEndDateError('Ngày kết thúc phải sau ngày bắt đầu');
+      } else {
+        setEndDateError('');
+      }
+    }
+  };
+  
+  // Validate end date
+  const handleEndDateChange = (value: string) => {
+    setMeasurementEndDate(value);
+    const selectedDate = new Date(`${value}T00:00:00`);
+    const today = new Date(`${todayStr}T00:00:00`);
+    const startDate = new Date(`${measurementStartDate || yesterdayStr}T00:00:00`);
+    const oneYearLater = new Date(startDate);
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    
+    if (selectedDate > today) {
+      setEndDateError('Không được chọn ngày trong tương lai');
+    } else if (selectedDate > oneYearLater) {
+      setEndDateError('Không được vượt quá 1 năm kể từ ngày bắt đầu');
+    } else if (selectedDate <= startDate) {
+      setEndDateError('Ngày kết thúc phải sau ngày bắt đầu');
+    } else {
+      setEndDateError('');
+    }
+  };
+
   // Khởi tạo mặc định khi mở dialog lần đầu
   React.useEffect(() => {
     if (open) {
       setMeasurementStartDate(prev => prev || yesterdayStr);
       setMeasurementEndDate(prev => prev || todayStr);
+      setStartDateError('');
+      setEndDateError('');
     }
   }, [open, yesterdayStr, todayStr]);
 
@@ -289,16 +343,18 @@ const CO2Info: React.FC = () => {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button variant="default">
-                {records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Tạo bản ghi'}
+                {records && records.length > 0 ? 'Tạo bản ghi' : 'Tạo bản ghi'}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Bản ghi CO2 Footprint cho trang trại'}</DialogTitle>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-xl">{records && records.length > 0 ? 'Thêm bản ghi CO2 mới' : 'Bản ghi CO2 Footprint cho trang trại'}</DialogTitle>
+              <p className="text-sm text-gray-500">Nhập đầy đủ thông tin để tính toán lượng phát thải CO₂ của trang trại</p>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <Label className="mb-1 block">Ghi chú</Label>
+            <div className="space-y-6 pt-2">
+              {/* Ghi chú */}
+              <div className="md:col-span-2 space-y-2">
+                <Label className="text-sm font-medium">Ghi chú</Label>
                 <Input
                   type="text"
                   placeholder="Ghi chú cho lần đo"
@@ -307,108 +363,141 @@ const CO2Info: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <Label className="mb-1 block">Ngày bắt đầu</Label>
-                <Input
-                  type="date"
-                  value={measurementStartDate || yesterdayStr}
-                  min="1900-01-01"
-                  max={todayStr}
-                  onChange={(e) => setMeasurementStartDate(e.target.value)}
-                />
-                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác. Không được chọn ngày trong tương lai.</span>
-              </div>
-              <div>
-                <Label className="mb-1 block">Ngày kết thúc</Label>
-                <Input
-                  type="date"
-                  value={measurementEndDate || todayStr}
-                  min="1900-01-01"
-                  max={todayStr}
-                  onChange={(e) => setMeasurementEndDate(e.target.value)}
-                />
-                <span className="text-[12px] text-gray-500">Có thể chọn ngày ở các tháng/năm khác, kể cả ngày trong quá khứ. Không được chọn ngày trong tương lai và không vượt quá 1 năm kể từ ngày bắt đầu.</span>
+              {/* Thời gian đo */}
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b">📅 Khoảng thời gian đo</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Ngày bắt đầu</Label>
+                    <Input
+                      type="date"
+                      value={measurementStartDate || yesterdayStr}
+                      min="1900-01-01"
+                      max={todayStr}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
+                      className={startDateError ? 'border-red-500' : ''}
+                    />
+                    {startDateError && (
+                      <span className="text-xs text-red-600">{startDateError}</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Ngày kết thúc</Label>
+                    <Input
+                      type="date"
+                      value={measurementEndDate || todayStr}
+                      min="1900-01-01"
+                      max={todayStr}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                      className={endDateError ? 'border-red-500' : ''}
+                    />
+                    {endDateError && (
+                      <span className="text-xs text-red-600">{endDateError}</span>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              
+              {/* Năng lượng */}
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b">⚡ Năng lượng tiêu thụ</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Điện (kWh)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={electricityKwh}
+                      onChange={(e) => setElectricityKwh(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Xăng (lít)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={gasolineLiters}
+                      onChange={(e) => setGasolineLiters(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Dầu diesel (lít)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={dieselLiters}
+                      onChange={(e) => setDieselLiters(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
 
-              <div>
-                <Label className="mb-1 block">Điện (kWh)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={electricityKwh}
-                  onChange={(e) => setElectricityKwh(e.target.value === '' ? '' : Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Xăng (lít)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={gasolineLiters}
-                  onChange={(e) => setGasolineLiters(e.target.value === '' ? '' : Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Dầu diesel (lít)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={dieselLiters}
-                  onChange={(e) => setDieselLiters(e.target.value === '' ? '' : Number(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <Label className="mb-1 block">Phân hữu cơ (kg)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={organicFertilizer}
-                  onChange={(e) => setOrganicFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Phân NPK (kg)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={npkFertilizer}
-                  onChange={(e) => setNpkFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Phân urê (kg)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={ureaFertilizer}
-                  onChange={(e) => setUreaFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Phân lân (kg)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={phosphateFertilizer}
-                  onChange={(e) => setPhosphateFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
-                />
+              {/* Phân bón */}
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b">🌱 Phân bón sử dụng</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium min-h-[20px]">Hữu cơ (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={organicFertilizer}
+                      onChange={(e) => setOrganicFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium min-h-[20px]">NPK (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={npkFertilizer}
+                      onChange={(e) => setNpkFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium min-h-[20px]">Urê (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={ureaFertilizer}
+                      onChange={(e) => setUreaFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium min-h-[20px]">Lân (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={phosphateFertilizer}
+                      onChange={(e) => setPhosphateFertilizer(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-            <DialogFooter>
-              <div className="flex items-center gap-3 w-full justify-between">
+            <DialogFooter className="mt-6 pt-4 border-t">
+              <div className="flex items-center gap-3 w-full justify-end">
                 {submitMessage && (
-                  <span className="text-sm text-gray-600">{submitMessage}</span>
+                  <span className="text-sm text-gray-600 mr-auto">{submitMessage}</span>
                 )}
+                <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+                  Hủy
+                </Button>
                 <Button onClick={handleCreateFootprint} disabled={submitting}>
                   {submitting ? 'Đang tạo...' : 'Lưu bản ghi'}
                 </Button>
@@ -598,7 +687,7 @@ const CO2Info: React.FC = () => {
                 </div>
 
                 {/* Chi tiết CO2 cho từng lần đo */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-gray-700">
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 font-semibold text-gray-900">
                       <Factory className="h-3.5 w-3.5 text-red-500" />
@@ -622,7 +711,18 @@ const CO2Info: React.FC = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 font-semibold text-gray-900">
                       <Leaf className="h-3.5 w-3.5 text-emerald-600" />
-                      <span>Đất & Thời tiết</span>
+                      <span>Phân bón</span>
+                    </div>
+                    <div>Hữu cơ: <span className="font-semibold">{record.fertilizer?.organicFertilizer ?? '—'}</span> kg</div>
+                    <div>NPK: <span className="font-semibold">{record.fertilizer?.npkFertilizer ?? '—'}</span> kg</div>
+                    <div>Urê: <span className="font-semibold">{record.fertilizer?.ureaFertilizer ?? '—'}</span> kg</div>
+                    <div>Lân: <span className="font-semibold">{record.fertilizer?.phosphateFertilizer ?? '—'}</span> kg</div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-gray-900">
+                      <Droplets className="h-3.5 w-3.5 text-sky-600" />
+                      <span>Đất & Lượng mưa</span>
                     </div>
                     <div>
                       Cát/Sét/Limon:{" "}

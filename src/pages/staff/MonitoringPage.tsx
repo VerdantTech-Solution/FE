@@ -550,7 +550,7 @@ export const MonitoringPage: React.FC = () => {
                             {product.stockQuantity !== undefined && (
                               <div className="flex justify-between">
                                 <span className="text-gray-500">Tồn kho:</span>
-                                <span className="font-medium">{product.stockQuantity}</span>
+                                <span className="font-medium">{product.stockQuantity} sản phẩm</span>
                               </div>
                             )}
                             {product.soldCount !== undefined && (
