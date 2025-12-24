@@ -179,8 +179,8 @@ export const ChatAIBubble = () => {
         // Get the most recent conversation
         const conversationsResponse = await getChatbotConversations(1, 1);
 
-        if (conversationsResponse.items.length > 0) {
-          const latestConv = conversationsResponse.items[0];
+        if (conversationsResponse.data.length > 0) {
+          const latestConv = conversationsResponse.data[0];
           setCurrentConversationId(latestConv.id);
 
           // Update localStorage cache with conversation ID
@@ -197,7 +197,7 @@ export const ChatAIBubble = () => {
               1,
               100
             );
-            const backendMessages = messagesResponse.items;
+            const backendMessages = messagesResponse.data;
 
             // Convert backend messages to local format
             const localMessages: Message[] = backendMessages.map(
