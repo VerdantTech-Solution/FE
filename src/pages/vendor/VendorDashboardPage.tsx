@@ -1,60 +1,144 @@
 import { useEffect, useState, useMemo } from "react";
+import { useSearchParams, useNavigate } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { VendorHeader } from "./VendorHeader";
 import VendorSidebar from "./VendorSidebar";
-import { 
-  getVendorDashboardOverview, 
+import {
+  getVendorDashboardOverview,
   getVendorRevenue,
   getVendorDailyRevenue,
   type VendorDashboardOverview,
   type VendorRevenueData,
-  type DailyRevenueData
+  type DailyRevenueData,
 } from "@/api/vendordashboard";
-import { Loader2, TrendingUp, TrendingDown, Star, Package, CreditCard, ShoppingBag, Calendar } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  Star,
+  Package,
+  CreditCard,
+  ShoppingBag,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Crown,
+  X,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const VendorDashboardPage = () => {
-  const [overview, setOverview] = useState<VendorDashboardOverview | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [overview, setOverview] = useState<VendorDashboardOverview | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Payment notification state
+  const [paymentStatus, setPaymentStatus] = useState<
+    "success" | "cancelled" | null
+  >(null);
+  const [paymentAmount, setPaymentAmount] = useState<string | null>(null);
+  const [orderCode, setOrderCode] = useState<string | null>(null);
+
   // Revenue statistics state
-  const [revenueData, setRevenueData] = useState<VendorRevenueData | null>(null);
+  const [revenueData, setRevenueData] = useState<VendorRevenueData | null>(
+    null
+  );
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [revenueError, setRevenueError] = useState<string | null>(null);
-  const [selectedRange, setSelectedRange] = useState<'7days' | '30days' | 'custom'>('7days');
-  
+  const [selectedRange, setSelectedRange] = useState<
+    "7days" | "30days" | "custom"
+  >("7days");
+
   // Chart data state
-  const [dailyRevenueData, setDailyRevenueData] = useState<DailyRevenueData | null>(null);
+  const [dailyRevenueData, setDailyRevenueData] =
+    useState<DailyRevenueData | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
-  
+
   // Date range state - default to last 7 days
-  const getDateRange = (range: '7days' | '30days') => {
+  const getDateRange = (range: "7days" | "30days") => {
     const now = new Date();
-    let from: Date, to: Date = new Date(now);
+    let from: Date,
+      to: Date = new Date(now);
 
     switch (range) {
-      case '7days':
+      case "7days":
         from = new Date(now);
         from.setDate(now.getDate() - 7);
         break;
-      case '30days':
+      case "30days":
         from = new Date(now);
         from.setDate(now.getDate() - 30);
         break;
     }
 
     return {
-      from: from.toISOString().split('T')[0],
-      to: to.toISOString().split('T')[0],
+      from: from.toISOString().split("T")[0],
+      to: to.toISOString().split("T")[0],
     };
   };
 
-  const [dateRange, setDateRange] = useState(getDateRange('7days'));
-  const [customDateRange, setCustomDateRange] = useState({ from: '', to: '' });
+  const [dateRange, setDateRange] = useState(getDateRange("7days"));
+  const [customDateRange, setCustomDateRange] = useState({ from: "", to: "" });
+
+  // Check for payment status in URL params
+  useEffect(() => {
+    const payment = searchParams.get("payment");
+    const amount = searchParams.get("amount");
+    const code =
+      searchParams.get("orderCode") || searchParams.get("order_code");
+
+    if (payment === "success") {
+      setPaymentStatus("success");
+      setPaymentAmount(amount);
+      setOrderCode(code);
+      // Clear the URL params after reading
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("payment");
+      newParams.delete("amount");
+      newParams.delete("orderCode");
+      newParams.delete("order_code");
+      newParams.delete("description");
+      newParams.delete("id");
+      newParams.delete("cancel");
+      newParams.delete("status");
+      setSearchParams(newParams, { replace: true });
+    } else if (payment === "cancelled") {
+      setPaymentStatus("cancelled");
+      setOrderCode(code);
+      // Clear the URL params after reading
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("payment");
+      newParams.delete("orderCode");
+      newParams.delete("order_code");
+      newParams.delete("description");
+      newParams.delete("id");
+      newParams.delete("cancel");
+      newParams.delete("status");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const dismissPaymentNotification = () => {
+    setPaymentStatus(null);
+    setPaymentAmount(null);
+    setOrderCode(null);
+  };
 
   useEffect(() => {
     const fetchOverview = async () => {
@@ -76,7 +160,7 @@ const VendorDashboardPage = () => {
   useEffect(() => {
     const fetchRevenue = async () => {
       if (!dateRange.from || !dateRange.to) return;
-      
+
       try {
         setRevenueLoading(true);
         setRevenueError(null);
@@ -113,10 +197,9 @@ const VendorDashboardPage = () => {
     fetchChartData();
   }, [dateRange.from, dateRange.to, selectedRange]);
 
-
-  const handleRangeChange = (range: '7days' | '30days' | 'custom') => {
+  const handleRangeChange = (range: "7days" | "30days" | "custom") => {
     setSelectedRange(range);
-    if (range === 'custom') {
+    if (range === "custom") {
       // Keep current custom dates if they exist, otherwise use current month
       if (customDateRange.from && customDateRange.to) {
         setDateRange({
@@ -128,8 +211,8 @@ const VendorDashboardPage = () => {
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         const newRange = {
-          from: firstDay.toISOString().split('T')[0],
-          to: lastDay.toISOString().split('T')[0],
+          from: firstDay.toISOString().split("T")[0],
+          to: lastDay.toISOString().split("T")[0],
         };
         setCustomDateRange(newRange);
         setDateRange(newRange);
@@ -140,11 +223,15 @@ const VendorDashboardPage = () => {
     }
   };
 
-  const handleCustomDateChange = (field: 'from' | 'to', value: string) => {
+  const handleCustomDateChange = (field: "from" | "to", value: string) => {
     const newCustomRange = { ...customDateRange, [field]: value };
     setCustomDateRange(newCustomRange);
-    
-    if (selectedRange === 'custom' && newCustomRange.from && newCustomRange.to) {
+
+    if (
+      selectedRange === "custom" &&
+      newCustomRange.from &&
+      newCustomRange.to
+    ) {
       setDateRange({
         from: newCustomRange.from,
         to: newCustomRange.to,
@@ -156,12 +243,15 @@ const VendorDashboardPage = () => {
   const chartData = useMemo(() => {
     if (dailyRevenueData && dailyRevenueData.dailyRevenues.length > 0) {
       // Format daily data for chart
-      return dailyRevenueData.dailyRevenues.map(item => {
+      return dailyRevenueData.dailyRevenues.map((item) => {
         const date = new Date(item.date);
         // Calculate commission from gross and net
         const commission = item.grossRevenue - item.netRevenue;
         return {
-          date: date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' }),
+          date: date.toLocaleDateString("vi-VN", {
+            month: "short",
+            day: "numeric",
+          }),
           gross: item.grossRevenue,
           net: item.netRevenue,
           commission: commission,
@@ -177,7 +267,10 @@ const VendorDashboardPage = () => {
     if (value === undefined || value === null || isNaN(value)) {
       return "0 ₫";
     }
-    return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+    return value.toLocaleString("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    });
   };
 
   const formatNumber = (value: number | undefined | null) => {
@@ -198,6 +291,122 @@ const VendorDashboardPage = () => {
         />
 
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
+          {/* Payment Success Notification */}
+          {paymentStatus === "success" && (
+            <Card className="border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-green-800 mb-1">
+                        Đăng ký gói duy trì thành công!
+                      </h3>
+                      <p className="text-green-700 mb-2">
+                        Cảm ơn bạn! Subscription của bạn đã được kích hoạt thành
+                        công.
+                      </p>
+                      {orderCode && (
+                        <p className="text-sm text-green-600">
+                          Mã giao dịch:{" "}
+                          <span className="font-semibold">#{orderCode}</span>
+                        </p>
+                      )}
+                      {paymentAmount && (
+                        <p className="text-lg font-bold text-green-800 mt-2">
+                          {parseInt(paymentAmount).toLocaleString("vi-VN", {
+                            style: "currency",
+                            currency: "VND",
+                          })}
+                        </p>
+                      )}
+                      <div className="flex gap-3 mt-4">
+                        <Button
+                          size="sm"
+                          onClick={() => navigate("/vendor/subscription")}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Crown className="w-4 h-4 mr-2" />
+                          Xem gói của tôi
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={dismissPaymentNotification}
+                          className="border-green-300 text-green-700 hover:bg-green-100"
+                        >
+                          Đóng
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={dismissPaymentNotification}
+                    className="text-green-600 hover:text-green-800 p-1"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Payment Cancelled Notification */}
+          {paymentStatus === "cancelled" && (
+            <Card className="border-2 border-red-300 bg-gradient-to-r from-red-50 to-orange-50 shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
+                      <XCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-red-800 mb-1">
+                        Thanh toán đã bị hủy
+                      </h3>
+                      <p className="text-red-700 mb-2">
+                        Bạn đã hủy quá trình thanh toán subscription. Gói chưa
+                        được kích hoạt.
+                      </p>
+                      {orderCode && (
+                        <p className="text-sm text-red-600">
+                          Mã giao dịch:{" "}
+                          <span className="font-semibold">{orderCode}</span>
+                        </p>
+                      )}
+                      <div className="flex gap-3 mt-4">
+                        <Button
+                          size="sm"
+                          onClick={() => navigate("/vendor/subscription")}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Thử lại đăng ký
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={dismissPaymentNotification}
+                          className="border-red-300 text-red-700 hover:bg-red-100"
+                        >
+                          Đóng
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={dismissPaymentNotification}
+                    className="text-red-600 hover:text-red-800 p-1"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {error && (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="pt-4 text-red-600 text-sm">
@@ -260,9 +469,11 @@ const VendorDashboardPage = () => {
                     <div className="flex items-baseline justify-between">
                       <div>
                         <p className="text-2xl font-bold text-gray-900">
-                          {overview.averageRating !== undefined && overview.averageRating !== null 
-                            ? overview.averageRating.toFixed(2) 
-                            : "0.00"} / 5
+                          {overview.averageRating !== undefined &&
+                          overview.averageRating !== null
+                            ? overview.averageRating.toFixed(2)
+                            : "0.00"}{" "}
+                          / 5
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {formatNumber(overview.totalReviews)} lượt đánh giá
@@ -293,7 +504,8 @@ const VendorDashboardPage = () => {
                           {formatCurrency(overview.totalRevenueThisMonth)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Tháng trước: {formatCurrency(overview.totalRevenueLastMonth)}
+                          Tháng trước:{" "}
+                          {formatCurrency(overview.totalRevenueLastMonth)}
                         </p>
                       </div>
                       <div
@@ -304,9 +516,11 @@ const VendorDashboardPage = () => {
                         }`}
                       >
                         {(overview.revenueGrowthPercent ?? 0) >= 0 ? "+" : ""}
-                        {overview.revenueGrowthPercent !== undefined && overview.revenueGrowthPercent !== null
+                        {overview.revenueGrowthPercent !== undefined &&
+                        overview.revenueGrowthPercent !== null
                           ? overview.revenueGrowthPercent.toFixed(2)
-                          : "0.00"}%
+                          : "0.00"}
+                        %
                       </div>
                     </div>
                   </CardContent>
@@ -330,7 +544,8 @@ const VendorDashboardPage = () => {
                           {formatNumber(overview.totalOrdersThisMonth)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Tháng trước: {formatNumber(overview.totalOrdersLastMonth)} đơn
+                          Tháng trước:{" "}
+                          {formatNumber(overview.totalOrdersLastMonth)} đơn
                         </p>
                       </div>
                       <div
@@ -341,9 +556,11 @@ const VendorDashboardPage = () => {
                         }`}
                       >
                         {(overview.orderGrowthPercent ?? 0) >= 0 ? "+" : ""}
-                        {overview.orderGrowthPercent !== undefined && overview.orderGrowthPercent !== null
+                        {overview.orderGrowthPercent !== undefined &&
+                        overview.orderGrowthPercent !== null
                           ? overview.orderGrowthPercent.toFixed(2)
-                          : "0.00"}%
+                          : "0.00"}
+                        %
                       </div>
                     </div>
                   </CardContent>
@@ -396,13 +613,17 @@ const VendorDashboardPage = () => {
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Đơn đăng ký sản phẩm</p>
+                        <p className="text-sm text-gray-600">
+                          Đơn đăng ký sản phẩm
+                        </p>
                         <p className="text-lg font-semibold text-gray-900">
                           {formatNumber(overview.pendingProductRegistrations)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Yêu cầu cập nhật</p>
+                        <p className="text-sm text-gray-600">
+                          Yêu cầu cập nhật
+                        </p>
                         <p className="text-lg font-semibold text-gray-900">
                           {formatNumber(overview.pendingProductUpdateRequests)}
                         </p>
@@ -421,51 +642,55 @@ const VendorDashboardPage = () => {
                         Tổng doanh thu
                       </CardTitle>
                       <p className="text-sm text-gray-400">
-                        {selectedRange === '7days' && 'Tổng cho 7 ngày qua'}
-                        {selectedRange === '30days' && 'Tổng cho 30 ngày qua'}
-                        {selectedRange === 'custom' && 'Tổng cho khoảng thời gian đã chọn'}
+                        {selectedRange === "7days" && "Tổng cho 7 ngày qua"}
+                        {selectedRange === "30days" && "Tổng cho 30 ngày qua"}
+                        {selectedRange === "custom" &&
+                          "Tổng cho khoảng thời gian đã chọn"}
                       </p>
                     </div>
                     <div className="flex gap-1 bg-gray-800 p-1 rounded-lg">
                       <button
-                        onClick={() => handleRangeChange('30days')}
+                        onClick={() => handleRangeChange("30days")}
                         className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                          selectedRange === '30days'
-                            ? 'bg-gray-700 text-white'
-                            : 'text-gray-400 hover:text-white'
+                          selectedRange === "30days"
+                            ? "bg-gray-700 text-white"
+                            : "text-gray-400 hover:text-white"
                         }`}
                       >
                         30 ngày
                       </button>
                       <button
-                        onClick={() => handleRangeChange('7days')}
+                        onClick={() => handleRangeChange("7days")}
                         className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                          selectedRange === '7days'
-                            ? 'bg-gray-700 text-white'
-                            : 'text-gray-400 hover:text-white'
+                          selectedRange === "7days"
+                            ? "bg-gray-700 text-white"
+                            : "text-gray-400 hover:text-white"
                         }`}
                       >
                         7 ngày
                       </button>
                       <button
-                        onClick={() => handleRangeChange('custom')}
+                        onClick={() => handleRangeChange("custom")}
                         className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                          selectedRange === 'custom'
-                            ? 'bg-gray-700 text-white'
-                            : 'text-gray-400 hover:text-white'
+                          selectedRange === "custom"
+                            ? "bg-gray-700 text-white"
+                            : "text-gray-400 hover:text-white"
                         }`}
                       >
                         Tùy chọn
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Custom Date Range Picker */}
-                  {selectedRange === 'custom' && (
+                  {selectedRange === "custom" && (
                     <div className="flex flex-col sm:flex-row gap-4 pt-2 border-t border-gray-700">
                       <div className="flex-1 grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="custom-from-date" className="text-gray-300 text-sm">
+                          <Label
+                            htmlFor="custom-from-date"
+                            className="text-gray-300 text-sm"
+                          >
                             Từ ngày
                           </Label>
                           <div className="relative">
@@ -474,14 +699,19 @@ const VendorDashboardPage = () => {
                               id="custom-from-date"
                               type="date"
                               value={customDateRange.from || dateRange.from}
-                              onChange={(e) => handleCustomDateChange('from', e.target.value)}
+                              onChange={(e) =>
+                                handleCustomDateChange("from", e.target.value)
+                              }
                               className="pl-10 bg-gray-800 border-gray-700 text-white"
                               max={customDateRange.to || dateRange.to}
                             />
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="custom-to-date" className="text-gray-300 text-sm">
+                          <Label
+                            htmlFor="custom-to-date"
+                            className="text-gray-300 text-sm"
+                          >
                             Đến ngày
                           </Label>
                           <div className="relative">
@@ -490,10 +720,12 @@ const VendorDashboardPage = () => {
                               id="custom-to-date"
                               type="date"
                               value={customDateRange.to || dateRange.to}
-                              onChange={(e) => handleCustomDateChange('to', e.target.value)}
+                              onChange={(e) =>
+                                handleCustomDateChange("to", e.target.value)
+                              }
                               className="pl-10 bg-gray-800 border-gray-700 text-white"
                               min={customDateRange.from || dateRange.from}
-                              max={new Date().toISOString().split('T')[0]}
+                              max={new Date().toISOString().split("T")[0]}
                             />
                           </div>
                         </div>
@@ -526,36 +758,79 @@ const VendorDashboardPage = () => {
                       ) : chartData.length > 0 ? (
                         <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <AreaChart
+                              data={chartData}
+                              margin={{
+                                top: 10,
+                                right: 10,
+                                left: 0,
+                                bottom: 0,
+                              }}
+                            >
                               <defs>
-                                <linearGradient id="colorGross" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                <linearGradient
+                                  id="colorGross"
+                                  x1="0"
+                                  y1="0"
+                                  x2="0"
+                                  y2="1"
+                                >
+                                  <stop
+                                    offset="5%"
+                                    stopColor="#3b82f6"
+                                    stopOpacity={0.3}
+                                  />
+                                  <stop
+                                    offset="95%"
+                                    stopColor="#3b82f6"
+                                    stopOpacity={0}
+                                  />
                                 </linearGradient>
-                                <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                <linearGradient
+                                  id="colorNet"
+                                  x1="0"
+                                  y1="0"
+                                  x2="0"
+                                  y2="1"
+                                >
+                                  <stop
+                                    offset="5%"
+                                    stopColor="#10b981"
+                                    stopOpacity={0.3}
+                                  />
+                                  <stop
+                                    offset="95%"
+                                    stopColor="#10b981"
+                                    stopOpacity={0}
+                                  />
                                 </linearGradient>
                               </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                              <XAxis 
-                                dataKey="date" 
-                                stroke="#9ca3af"
-                                style={{ fontSize: '12px' }}
+                              <CartesianGrid
+                                strokeDasharray="3 3"
+                                stroke="#374151"
                               />
-                              <YAxis 
+                              <XAxis
+                                dataKey="date"
                                 stroke="#9ca3af"
-                                style={{ fontSize: '12px' }}
-                                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                                style={{ fontSize: "12px" }}
                               />
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: '#1f2937', 
-                                  border: '1px solid #374151',
-                                  borderRadius: '8px',
-                                  color: '#fff'
+                              <YAxis
+                                stroke="#9ca3af"
+                                style={{ fontSize: "12px" }}
+                                tickFormatter={(value) =>
+                                  `${(value / 1000).toFixed(0)}k`
+                                }
+                              />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "#1f2937",
+                                  border: "1px solid #374151",
+                                  borderRadius: "8px",
+                                  color: "#fff",
                                 }}
-                                formatter={(value: number) => formatCurrency(value)}
+                                formatter={(value: number) =>
+                                  formatCurrency(value)
+                                }
                               />
                               <Area
                                 type="monotone"
@@ -585,10 +860,14 @@ const VendorDashboardPage = () => {
                       {/* Statistics Cards */}
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <div>
-                          <p className="text-xs text-gray-400 mb-1">Tổng doanh thu</p>
+                          <p className="text-xs text-gray-400 mb-1">
+                            Tổng doanh thu
+                          </p>
                           <p className="text-xl font-bold text-white">
                             {formatCurrency(
-                              dailyRevenueData?.totalGrossRevenue ?? revenueData?.totalGrossRevenue ?? 0
+                              dailyRevenueData?.totalGrossRevenue ??
+                                revenueData?.totalGrossRevenue ??
+                                0
                             )}
                           </p>
                         </div>
@@ -596,35 +875,48 @@ const VendorDashboardPage = () => {
                           <p className="text-xs text-gray-400 mb-1">Hoa hồng</p>
                           <p className="text-xl font-bold text-amber-400">
                             {formatCurrency(
-                              dailyRevenueData 
-                                ? (dailyRevenueData.totalGrossRevenue - dailyRevenueData.totalNetRevenue)
-                                : (revenueData?.totalCommission ?? 0)
+                              dailyRevenueData
+                                ? dailyRevenueData.totalGrossRevenue -
+                                    dailyRevenueData.totalNetRevenue
+                                : revenueData?.totalCommission ?? 0
                             )}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 mb-1">Doanh thu thực</p>
+                          <p className="text-xs text-gray-400 mb-1">
+                            Doanh thu thực
+                          </p>
                           <p className="text-xl font-bold text-green-400">
                             {formatCurrency(
-                              dailyRevenueData?.totalNetRevenue ?? revenueData?.totalNetRevenue ?? 0
+                              dailyRevenueData?.totalNetRevenue ??
+                                revenueData?.totalNetRevenue ??
+                                0
                             )}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 mb-1">Tổng đơn hàng</p>
+                          <p className="text-xs text-gray-400 mb-1">
+                            Tổng đơn hàng
+                          </p>
                           <p className="text-xl font-bold text-white">
                             {formatNumber(
-                              dailyRevenueData?.totalOrders ?? revenueData?.totalOrders ?? 0
+                              dailyRevenueData?.totalOrders ??
+                                revenueData?.totalOrders ??
+                                0
                             )}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 mb-1">Giá trị TB/đơn</p>
+                          <p className="text-xs text-gray-400 mb-1">
+                            Giá trị TB/đơn
+                          </p>
                           <p className="text-xl font-bold text-white">
                             {formatCurrency(
-                              dailyRevenueData && dailyRevenueData.totalOrders > 0
-                                ? dailyRevenueData.totalGrossRevenue / dailyRevenueData.totalOrders
-                                : (revenueData?.averageOrderValue ?? 0)
+                              dailyRevenueData &&
+                                dailyRevenueData.totalOrders > 0
+                                ? dailyRevenueData.totalGrossRevenue /
+                                    dailyRevenueData.totalOrders
+                                : revenueData?.averageOrderValue ?? 0
                             )}
                           </p>
                         </div>
@@ -646,4 +938,3 @@ const VendorDashboardPage = () => {
 };
 
 export default VendorDashboardPage;
-

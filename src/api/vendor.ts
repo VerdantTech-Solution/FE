@@ -28,6 +28,7 @@ export interface VendorProfileResponse {
   taxCode: string;
   avatarUrl: string;
   status: string;
+  subscriptionActive: boolean;
   companyName: string;
   slug: string;
   businessRegistrationNumber: string;

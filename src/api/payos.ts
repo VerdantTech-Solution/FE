@@ -129,3 +129,148 @@ export const createPayOSLink = async (
   }
 };
 
+// ===== SUBSCRIPTION API =====
+
+export type SubscriptionType = '6MONTHS' | '12MONTHS';
+
+export interface SubscriptionPaymentInfo {
+  bin: string;
+  accountNumber: string;
+  amount: number;
+  description: string;
+  orderCode: number;
+  currency: string;
+  paymentLinkId: string;
+  status: string;
+  expiredAt: string | null;
+  checkoutUrl: string;
+  qrCode: string;
+}
+
+export interface CreateSubscriptionResponse {
+  status: boolean;
+  statusCode: string;
+  data: SubscriptionPaymentInfo;
+  errors: string[];
+}
+
+/**
+ * Create a subscription payment for vendor
+ * @param vendorUserId The vendor user ID
+ * @param type Subscription type: "6MONTHS" or "12MONTHS"
+ * @param price The subscription price
+ * @param returnUrl URL to redirect after successful payment
+ * @param cancelUrl URL to redirect after cancelled payment
+ */
+export const createSubscription = async (
+  vendorUserId: number,
+  type: SubscriptionType,
+  price: number,
+  returnUrl?: string,
+  cancelUrl?: string
+): Promise<CreateSubscriptionResponse> => {
+  console.log('[PayOS] Creating subscription:', { vendorUserId, type, price, returnUrl, cancelUrl });
+  
+  try {
+    const params: Record<string, unknown> = {
+      vendorUserId,
+      type,
+      price
+    };
+    
+    // Add return/cancel URLs if provided
+    if (returnUrl) params.returnUrl = returnUrl;
+    if (cancelUrl) params.cancelUrl = cancelUrl;
+    
+    const response = await apiClient.post<CreateSubscriptionResponse>(
+      `/api/PayOS/create-subscription`,
+      null,
+      { params }
+    );
+    
+    console.log('[PayOS] Subscription response:', response);
+    return response as unknown as CreateSubscriptionResponse;
+  } catch (error) {
+    console.error('[PayOS] Subscription error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Redirect to PayOS subscription payment page
+ * @param vendorUserId The vendor user ID
+ * @param type Subscription type: "6MONTHS" or "12MONTHS"
+ * @param price The subscription price
+ */
+export const redirectToSubscriptionPayment = async (
+  vendorUserId: number,
+  type: SubscriptionType,
+  price: number
+): Promise<void> => {
+  try {
+    // Build vendor-specific return and cancel URLs
+    const baseUrl = window.location.origin;
+    const returnUrl = `${baseUrl}/payos/return?description=${type}`;
+    const cancelUrl = `${baseUrl}/payos/cancel?description=${type}`;
+    
+    const response = await createSubscription(vendorUserId, type, price, returnUrl, cancelUrl);
+    
+    if (response.status && response.data?.checkoutUrl) {
+      console.log('[PayOS] Redirecting to subscription payment:', response.data.checkoutUrl);
+      window.location.href = response.data.checkoutUrl;
+    } else {
+      throw new Error('Không nhận được link thanh toán subscription từ API');
+    }
+  } catch (error) {
+    console.error('[PayOS] Error creating subscription payment:', error);
+    throw error;
+  }
+};
+
+// ===== VENDOR SUBSCRIPTION STATUS API =====
+
+export interface VendorSubscription {
+  id: number;
+  vendorId: number;
+  type: SubscriptionType;
+  startDate: string;
+  endDate: string;
+  status: 'Active' | 'Expired' | 'Cancelled';
+  amount: number;
+  createdAt: string;
+}
+
+export interface VendorSubscriptionResponse {
+  status: boolean;
+  statusCode: string;
+  data: VendorSubscription | null;
+  errors: string[];
+}
+
+/**
+ * Get current subscription status for a vendor
+ * @param vendorUserId The vendor user ID
+ */
+export const getVendorSubscription = async (
+  vendorUserId: number
+): Promise<VendorSubscriptionResponse> => {
+  try {
+    const response = await apiClient.get<VendorSubscriptionResponse>(
+      `/api/PayOS/subscription/${vendorUserId}`
+    );
+    return response as unknown as VendorSubscriptionResponse;
+  } catch (error: any) {
+    // If 404, return null subscription (no active subscription)
+    if (error?.response?.status === 404 || error?.status === 404) {
+      return {
+        status: true,
+        statusCode: 'OK',
+        data: null,
+        errors: []
+      };
+    }
+    console.error('[PayOS] Get subscription error:', error);
+    throw error;
+  }
+};
+

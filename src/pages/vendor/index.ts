@@ -16,3 +16,7 @@ export { default as CashoutHistoryPage } from './CashoutHistoryPage';
 
 export { default as OrderManagementPage } from './OrderManagementPage';
 
+export { default as VendorSubscriptionPage } from './VendorSubscriptionPage';
+
+
+

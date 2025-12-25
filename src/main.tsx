@@ -9,6 +9,7 @@ import { CartProvider } from "./contexts/CartContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ConversationProvider } from "./contexts/ConversationContext";
+import { VendorProvider } from "./contexts/VendorContext";
 import { Toaster } from "sonner";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { store } from "./state/store";
@@ -22,11 +23,13 @@ createRoot(document.getElementById("root")!).render(
             <ChatProvider>
               <ConversationProvider>
                 <CartProvider>
-                  <GoogleOAuthProvider
-                    clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
-                  >
-                    <App />
-                  </GoogleOAuthProvider>
+                  <VendorProvider>
+                    <GoogleOAuthProvider
+                      clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
+                    >
+                      <App />
+                    </GoogleOAuthProvider>
+                  </VendorProvider>
                 </CartProvider>
               </ConversationProvider>
             </ChatProvider>
