@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, Eye, Loader2, Filter } from "lucide-react";
-import { getAllProducts, type Product } from "@/api/product";
+import { Search, Package, Eye,EyeOff, Loader2, Filter } from "lucide-react";
+import { getAllProducts, type Product ,updateProduct} from "@/api/product";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductDetailDialog } from "./components/ProductDetailDialog";
+import { toast } from "sonner";
 
 const currency = (v: number) => v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -20,6 +21,7 @@ export const AdminProductManagementPanel: React.FC = () => {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  const [togglingVisibility, setTogglingVisibility] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -41,6 +43,32 @@ export const AdminProductManagementPanel: React.FC = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+const handleToggleProductVisibility = async (product: Product) => {
+    try {
+      setTogglingVisibility(product.id);
+      const newIsActive = !product.isActive;
+      
+      await updateProduct(product.id, {
+        isActive: newIsActive,
+      });
+
+      // Cập nhật trực tiếp vào state để UI thay đổi mượt mà
+      setProducts(prev => 
+        prev.map(p => p.id === product.id ? { ...p, isActive: newIsActive } : p)
+      );
+      
+      const message = newIsActive 
+        ? `Sản phẩm "${product.productName}" đã được hiển thị` 
+        : `Sản phẩm "${product.productName}" đã bị ẩn`;
+      
+      toast.success(message);
+    } catch (error: any) {
+      console.error("Error toggling product visibility:", error);
+      toast.error("Có lỗi xảy ra khi cập nhật trạng thái sản phẩm");
+    } finally {
+      setTogglingVisibility(null);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
     let filtered = products;
@@ -199,7 +227,6 @@ export const AdminProductManagementPanel: React.FC = () => {
                         variant={product.isActive ? "default" : "secondary"}
                         className={product.isActive ? "bg-green-100 text-green-800" : ""}
                       >
-                        {product.isActive ? "Hoạt động" : "Ngừng"}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -218,7 +245,7 @@ export const AdminProductManagementPanel: React.FC = () => {
                       {product.stockQuantity !== undefined && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Tồn kho:</span>
-                          <span className="font-medium">{product.stockQuantity}</span>
+                          <span className="font-medium">{product.stockQuantity} sản phẩm</span>
                         </div>
                       )}
                       {product.soldCount !== undefined && (
@@ -237,6 +264,34 @@ export const AdminProductManagementPanel: React.FC = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       Xem chi tiết
                     </Button>
+                                   <Button
+                            variant="default"
+                            size="sm"
+                            className={`w-full justify-center ${
+                              product.isActive 
+                                ? "bg-green-600 hover:bg-green-700 text-white" 
+                                : "bg-red-600 hover:bg-red-700 text-white"
+                            }`}
+                            onClick={() => handleToggleProductVisibility(product)}
+                            disabled={togglingVisibility === product.id}
+                          >
+                            {togglingVisibility === product.id ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Đang cập nhật...
+                              </>
+                            ) : product.isActive ? (
+                              <>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Đã hiện sản phẩm
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="mr-2 h-4 w-4" />
+                                Đã ẩn sản phẩm
+                              </>
+                            )}
+                          </Button>
                   </CardContent>
                 </Card>
               );

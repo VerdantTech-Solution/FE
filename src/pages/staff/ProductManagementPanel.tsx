@@ -10,8 +10,7 @@ import {
   EyeOff, 
   Loader2, 
   Filter, 
-  RefreshCcw, 
-  Pencil 
+  RefreshCcw,  
 } from "lucide-react";
 import { 
   getAllProducts, 
@@ -346,7 +345,7 @@ export const ProductManagementPanel: React.FC = () => {
                             Xem chi tiết
                           </Button>
 
-                          <Button
+                          {/* <Button
                             variant="default"
                             size="sm"
                             className="w-full justify-center bg-slate-900 text-white hover:bg-black"
@@ -357,7 +356,7 @@ export const ProductManagementPanel: React.FC = () => {
                           >
                             <Pencil className="w-4 h-4 mr-2" />
                             Gửi yêu cầu sửa
-                          </Button>
+                          </Button> */}
 
                           <Button
                             variant="default"
