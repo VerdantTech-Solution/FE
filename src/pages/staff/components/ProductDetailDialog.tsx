@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -275,7 +274,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
       <DialogContent 
-        className="max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col"
+        className="sm:max-w-6xl max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col"
         onInteractOutside={(e) => {
           // Chỉ đóng dialog khi click vào overlay, không đóng khi click vào content bên trong
           const target = e.target as HTMLElement;
@@ -440,8 +439,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
               {/* Info Tab */}
               <TabsContent value="info" className="space-y-6 mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1">
                   <div className="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden mb-4">
                     {getProductImageUrl(product.images) ? (
                       <img
@@ -456,64 +455,66 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{product.productName}</h3>
-                    <p className="text-sm text-gray-500">Mã: {product.productCode}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Giá:</span>
-                      <span className="font-semibold text-green-600 text-lg">
-                        {currency(product.unitPrice)}
-                      </span>
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900">{product.productName}</h3>
+                      <p className="text-sm text-gray-500">Mã: {product.productCode}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Trạng thái:</span>
-                      <Badge
-                        variant={product.isActive ? "default" : "secondary"}
-                        className={product.isActive ? "bg-green-100 text-green-800" : ""}
-                      >
-                        {product.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Hoa hồng hiện tại:</span>
-                      <span className="font-medium">{product.commissionRate.toFixed(2)}%</span>
-                    </div>
-                    {product.stockQuantity !== undefined && (
+                    <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Tồn kho:</span>
-                        <span className="font-medium">{product.stockQuantity}</span>
+                        <span className="text-gray-600">Giá:</span>
+                        <span className="font-semibold text-green-600 text-lg">
+                          {currency(product.unitPrice)}
+                        </span>
                       </div>
-                    )}
-                    {product.soldCount !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Đã bán:</span>
-                        <span className="font-medium">{product.soldCount}</span>
+                        <span className="text-gray-600">Trạng thái:</span>
+                        <Badge
+                          variant={product.isActive ? "default" : "secondary"}
+                          className={product.isActive ? "bg-green-100 text-green-800" : ""}
+                        >
+                          {product.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
+                        </Badge>
                       </div>
-                    )}
-                    {product.ratingAverage !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Đánh giá:</span>
-                        <div className="flex items-center gap-1">
-                          {renderStars(product.ratingAverage)}
-                          <span className="ml-1 font-medium">{product.ratingAverage.toFixed(1)}/5</span>
+                        <span className="text-gray-600">Hoa hồng hiện tại:</span>
+                        <span className="font-medium">{product.commissionRate.toFixed(2)}%</span>
+                      </div>
+                      {product.stockQuantity !== undefined && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tồn kho:</span>
+                          <span className="font-medium">{product.stockQuantity}</span>
                         </div>
-                      </div>
-                    )}
-                    {product.warrantyMonths !== undefined && (
-                      <div className="flex justify-between">
-                        {product.warrantyMonths > 0 ? (
-                          <>
-                            <span className="text-gray-600">Thời gian bảo hành:</span>
-                            <span className="font-medium">{product.warrantyMonths} tháng</span>
-                          </>
-                        ) : (
-                          <span className="font-medium text-gray-500">Sản phẩm không được bảo hành</span>
-                        )}
-                      </div>
-                    )}
+                      )}
+                      {product.soldCount !== undefined && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Đã bán:</span>
+                          <span className="font-medium">{product.soldCount}</span>
+                        </div>
+                      )}
+                      {product.ratingAverage !== undefined && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Đánh giá:</span>
+                          <div className="flex items-center gap-1">
+                            {renderStars(product.ratingAverage)}
+                            <span className="ml-1 font-medium">{product.ratingAverage.toFixed(1)}/5</span>
+                          </div>
+                        </div>
+                      )}
+                      {product.warrantyMonths !== undefined && (
+                        <div className="flex justify-between">
+                          {product.warrantyMonths > 0 ? (
+                            <>
+                              <span className="text-gray-600">Thời gian bảo hành:</span>
+                              <span className="font-medium">{product.warrantyMonths} tháng</span>
+                            </>
+                          ) : (
+                            <span className="font-medium text-gray-500">Sản phẩm không được bảo hành</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -539,99 +540,85 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                 </div>
               )}
 
-              <Separator />
+              <Separator className="my-4" />
 
-              {/* Commission Rate Update */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    <h4 className="font-semibold text-gray-900">Cập nhật hoa hồng</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Commission Rate Update */}
+                <div className="border rounded-lg p-4 bg-gray-50/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    <h4 className="font-semibold text-gray-900 text-sm">Cập nhật hoa hồng</h4>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <div className="flex-1">
-                      <Label htmlFor="commissionRate">Hoa hồng (%)</Label>
                       <Input
                         id="commissionRate"
                         type="number"
                         min="0"
                         max="100"
                         step="0.1"
+                        className="h-9 text-sm"
                         value={commissionRate}
                         onChange={(e) => setCommissionRate(Number(e.target.value))}
-                        placeholder="Nhập % hoa hồng"
+                        placeholder="% hoa hồng"
                       />
                     </div>
-                    <div className="flex items-end">
-                      <Button
-                        onClick={handleUpdateCommission}
-                        disabled={updatingCommission}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {updatingCommission ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Đang cập nhật...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Cập nhật
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={handleUpdateCommission}
+                      disabled={updatingCommission}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 h-9 px-3"
+                    >
+                      {updatingCommission ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Lưu
+                        </>
+                      )}
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Separator />
-
-              {/* Unit Price Update */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <DollarSign className="w-5 h-5 text-blue-600" />
-                    <h4 className="font-semibold text-gray-900">Cập nhật giá sản phẩm</h4>
+                {/* Unit Price Update */}
+                <div className="border rounded-lg p-4 bg-gray-50/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <DollarSign className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-semibold text-gray-900 text-sm">Cập nhật giá</h4>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 items-start">
                     <div className="flex-1">
-                      <Label htmlFor="unitPrice">Giá sản phẩm (VNĐ)</Label>
                       <Input
                         id="unitPrice"
                         type="number"
                         min="0"
                         step="1000"
+                        className="h-9 text-sm"
                         value={unitPrice}
                         onChange={(e) => setUnitPrice(Number(e.target.value))}
-                        placeholder="Nhập giá sản phẩm"
+                        placeholder="Giá sản phẩm"
                       />
+                      <p className="text-[10px] text-gray-500 mt-1 truncate">Hiện tại: {currency(product.unitPrice)}</p>
                     </div>
-                    <div className="flex items-end">
-                      <Button
-                        onClick={handleUpdatePrice}
-                        disabled={updatingPrice}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {updatingPrice ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Đang cập nhật...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Cập nhật
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={handleUpdatePrice}
+                      disabled={updatingPrice}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 h-9 px-3"
+                    >
+                      {updatingPrice ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Lưu
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Giá hiện tại: {currency(product.unitPrice)}
-                  </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </TabsContent>
 
                   {/* Reviews Tab */}

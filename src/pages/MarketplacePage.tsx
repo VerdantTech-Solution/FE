@@ -16,8 +16,6 @@ import {
   Star,
   ShoppingCart,
   Heart,
-  MapPin,
-  Truck,
   ChevronDown,
   Menu,
   ChevronLeft,
@@ -962,16 +960,6 @@ export const MarketplacePage = () => {
 
                               {/* Product Info Grid */}
                               <div className="space-y-2 mb-3">
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                  <MapPin className="w-4 h-4 flex-shrink-0" />
-                                  <span className="truncate">
-                                    {product.location}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                  <Truck className="w-4 h-4 flex-shrink-0" />
-                                  <span>Giao hàng: {product.delivery}</span>
-                                </div>
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                   <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
                                   <span>
