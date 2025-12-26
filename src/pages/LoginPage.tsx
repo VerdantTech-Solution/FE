@@ -406,6 +406,7 @@ export const LoginPage = () => {
                 {/* Forgot Password */}
                 <div className="flex justify-end items-center pt-1">
                   <button 
+                    type="button"
                     onClick={() => navigate('/forgot-password')}
                     className="text-xs text-green-600 hover:text-green-700 hover:underline font-medium"
                   >
