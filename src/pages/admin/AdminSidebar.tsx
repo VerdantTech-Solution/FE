@@ -1,6 +1,6 @@
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate, useLocation } from "react-router";
 import logo2 from "@/assets/logo2.jpg";
-import { 
+import {
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -11,8 +11,9 @@ import {
   Warehouse,
   BookOpen,
   FolderTree,
-  Shield
-} from 'lucide-react';
+  Shield,
+  ArrowLeftRight,
+} from "lucide-react";
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
@@ -23,68 +24,74 @@ const AdminSidebar = () => {
       id: "dashboard",
       label: "Tổng quan",
       icon: LayoutDashboard,
-      path: "/admin"
+      path: "/admin",
     },
     {
       id: "warehouse",
       label: "Quản lý đơn đăng ký",
       icon: Warehouse,
-      path: "/admin/warehouse"
+      path: "/admin/warehouse",
     },
     {
       id: "products",
       label: "Quản lý sản phẩm",
       icon: Package,
-      path: "/admin/products"
+      path: "/admin/products",
     },
     {
       id: "users",
       label: "Quản lý người dùng",
       icon: Users,
-      path: "/admin/users"
+      path: "/admin/users",
     },
     {
       id: "orders",
       label: "Quản lý đơn hàng",
       icon: ShoppingCart,
-      path: "/admin/orders"
+      path: "/admin/orders",
     },
     {
       id: "posts",
       label: "Quản lý bài viết",
       icon: BookOpen,
-      path: "/admin/posts"
+      path: "/admin/posts",
     },
     {
       id: "categories",
       label: "Quản lý danh mục",
       icon: FolderTree,
-      path: "/admin/categories"
+      path: "/admin/categories",
     },
     {
       id: "balance",
       label: "Quản lý số dư",
       icon: CreditCard,
-      path: "/admin/balance"
+      path: "/admin/balance",
     },
     {
       id: "cashout",
       label: "Quản lý rút tiền",
       icon: FileText,
-      path: "/admin/cashout"
+      path: "/admin/cashout",
     },
     {
       id: "support",
       label: "Quản lý hỗ trợ",
       icon: MessageSquare,
-      path: "/admin/support"
+      path: "/admin/support",
     },
     {
       id: "vendors",
       label: "Quản lý nhà cung cấp",
       icon: Shield,
-      path: "/admin/vendors"
-    }
+      path: "/admin/vendors",
+    },
+    {
+      id: "transactions",
+      label: "Các giao dịch",
+      icon: ArrowLeftRight,
+      path: "/admin/transactions",
+    },
   ];
 
   const handleNavigation = (path: string) => {
@@ -104,9 +111,9 @@ const AdminSidebar = () => {
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
-            <img 
+            <img
               src={logo2}
-              alt="VerdantTech Logo" 
+              alt="VerdantTech Logo"
               className="w-full h-full object-contain"
             />
           </div>
@@ -123,15 +130,15 @@ const AdminSidebar = () => {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
-            
+
             return (
               <li key={item.id}>
                 <button
                   onClick={() => handleNavigation(item.path)}
                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                    active 
-                      ? 'bg-green-50 text-green-700 border border-green-200' 
-                      : 'text-gray-600 hover:bg-gray-50'
+                    active
+                      ? "bg-green-50 text-green-700 border border-green-200"
+                      : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   <Icon size={20} />
@@ -147,4 +154,3 @@ const AdminSidebar = () => {
 };
 
 export default AdminSidebar;
-

@@ -982,3 +982,58 @@ export const exportAdminTransactions = async (
   return response as unknown as Blob;
 };
 
+// ==================== TRANSACTIONS ====================
+
+/**
+ * Transaction data structure
+ */
+export interface AdminTransaction {
+  transactionId: number;
+  transactionType: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  description: string;
+  performer: string;
+  processor: string;
+}
+
+export interface AdminTransactionsResponse {
+  data: AdminTransaction[];
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+/**
+ * Lấy danh sách giao dịch với phân trang
+ * GET /api/admin-dashboard/transactions
+ */
+export const getAdminTransactions = async (
+  from: string,
+  to: string,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<AdminTransactionsResponse> => {
+  const response = await apiClient.get<AdminTransactionsResponse>(
+    "/api/admin-dashboard/transactions",
+    {
+      params: {
+        from,
+        to,
+        page,
+        pageSize,
+      },
+    }
+  );
+
+  if (!response.data) {
+    throw new Error("Dữ liệu giao dịch rỗng.");
+  }
+
+  return response.data;
+};
+

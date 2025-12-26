@@ -26,6 +26,10 @@ import {
   type CashoutRequestData,
   type CashoutRequestsPage,
 } from "@/api/wallet";
+import {
+  getSupportedBanks,
+  type SupportedBank,
+} from "@/api/vendorbankaccounts";
 import { usePayOSProcessing } from "./hooks/usePayOSProcessing";
 import {
   PayOSConfirmDialog,
@@ -51,9 +55,9 @@ const formatDateTime = (value?: string) => {
 
 const getStatusBadgeClass = (status?: string) => {
   if (!status) return "bg-yellow-100 text-yellow-700";
-  
+
   const normalizedStatus = status.toLowerCase();
-  
+
   switch (normalizedStatus) {
     case "completed":
       return "bg-green-100 text-green-700";
@@ -105,7 +109,8 @@ export const CashoutManagementPanel: React.FC = () => {
   const [paginationMeta, setPaginationMeta] =
     useState<CashoutRequestsPage>(defaultPagination);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+  const [banks, setBanks] = useState<SupportedBank[]>([]);
+
   // PayOS processing hook
   const payOSProcessing = usePayOSProcessing({
     onSuccess: () => {
@@ -147,7 +152,8 @@ export const CashoutManagementPanel: React.FC = () => {
           });
         } else {
           // Nếu không có data hoặc status false
-          const errorMessage = response?.errors?.[0] || "Không thể tải danh sách yêu cầu rút tiền";
+          const errorMessage =
+            response?.errors?.[0] || "Không thể tải danh sách yêu cầu rút tiền";
           setError(errorMessage);
           setRequests([]);
           setPaginationMeta((prev) => ({
@@ -180,6 +186,18 @@ export const CashoutManagementPanel: React.FC = () => {
   );
 
   useEffect(() => {
+    const fetchBanks = async () => {
+      try {
+        const bankList = await getSupportedBanks();
+        setBanks(bankList);
+      } catch (err) {
+        console.error("Failed to fetch banks:", err);
+      }
+    };
+    fetchBanks();
+  }, []);
+
+  useEffect(() => {
     fetchCashoutRequests(currentPage, pageSize);
   }, [currentPage, pageSize, fetchCashoutRequests]);
 
@@ -188,14 +206,20 @@ export const CashoutManagementPanel: React.FC = () => {
     [requests]
   );
 
-  const pendingCount = useMemo(
-    () => pendingRequests.length,
-    [pendingRequests]
-  );
+  const pendingCount = useMemo(() => pendingRequests.length, [pendingRequests]);
 
   const totalPendingAmount = useMemo(
     () => pendingRequests.reduce((sum, item) => sum + (item.amount || 0), 0),
     [pendingRequests]
+  );
+
+  const getBankName = useCallback(
+    (bankCode?: string) => {
+      if (!bankCode) return "—";
+      const bank = banks.find((b) => b.bin === bankCode || b.code === bankCode);
+      return bank ? bank.shortName || bank.name : bankCode;
+    },
+    [banks]
   );
 
   const handleRefresh = async () => {
@@ -225,7 +249,6 @@ export const CashoutManagementPanel: React.FC = () => {
     }
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -234,7 +257,8 @@ export const CashoutManagementPanel: React.FC = () => {
             Quản lý yêu cầu rút tiền
           </h2>
           <p className="text-sm text-gray-500">
-            Xem và xử lý danh sách yêu cầu rút tiền đang chờ duyệt của nhà cung cấp
+            Xem và xử lý danh sách yêu cầu rút tiền đang chờ duyệt của nhà cung
+            cấp
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -396,9 +420,9 @@ export const CashoutManagementPanel: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-700">
                         <div className="flex flex-col gap-1">
-                          <span className="flex items-center gap-2 text-gray-900">
+                          <span className="flex items-center gap-2 text-gray-900 font-medium">
                             <Building2 className="h-4 w-4 text-gray-400" />
-                            {request.bankAccount?.bankCode || "—"}
+                            {getBankName(request.bankAccount?.bankCode)}
                           </span>
                           <span className="flex items-center gap-2 text-gray-600">
                             <CreditCard className="h-4 w-4 text-gray-400" />
@@ -447,29 +471,40 @@ export const CashoutManagementPanel: React.FC = () => {
                         </Badge>
                       </td>
                       <td className="px-4 py-4 text-sm">
-                        {isPendingStatus(request.status) && (request.vendorId || request.user?.id) && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => payOSProcessing.handleOpenPayOSConfirmDialog(request)}
-                              disabled={payOSProcessing.isProcessingPayOS && payOSProcessing.processingPayOSId === request.id}
-                              className="gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                            >
-                              {payOSProcessing.isProcessingPayOS && payOSProcessing.processingPayOSId === request.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Đang xử lý...
-                                </>
-                              ) : (
-                                <>
-                                  <Zap className="h-4 w-4" />
-                                  PayOS
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
+                        {isPendingStatus(request.status) &&
+                          (request.vendorId || request.user?.id) && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  payOSProcessing.handleOpenPayOSConfirmDialog(
+                                    request
+                                  )
+                                }
+                                disabled={
+                                  payOSProcessing.isProcessingPayOS &&
+                                  payOSProcessing.processingPayOSId ===
+                                    request.id
+                                }
+                                className="gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                              >
+                                {payOSProcessing.isProcessingPayOS &&
+                                payOSProcessing.processingPayOSId ===
+                                  request.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Đang xử lý...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="h-4 w-4" />
+                                    PayOS
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -541,4 +576,3 @@ export const CashoutManagementPanel: React.FC = () => {
 };
 
 export default CashoutManagementPanel;
-
