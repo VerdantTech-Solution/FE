@@ -896,7 +896,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                           }
                         }}
                       >
-                        Xem chi tiết sản phẩm →
+                        {/* Xem chi tiết sản phẩm → */}
                       </Button>
                     )}
                   </div>
@@ -905,10 +905,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({ onStatsChange })
                   <Label className="text-sm font-medium text-gray-700">Giá</Label>
                   <p className="mt-1 text-sm text-gray-900 font-semibold">{formatPrice(selectedRegistrationDetail.unitPrice)}</p>
                 </div>
-                <div>
+                {/* <div>
                   <Label className="text-sm font-medium text-gray-700">Danh mục</Label>
-                  <p className="mt-1 text-sm text-gray-900">Category {selectedRegistrationDetail.categoryId}</p>
-                </div>
+                  <p className="mt-1 text-sm text-gray-900"> {selectedRegistrationDetail.categoryId}</p>
+                </div> */}
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Bảo hành</Label>
                   <p className="mt-1 text-sm text-gray-900">{selectedRegistrationDetail.warrantyMonths} tháng</p>

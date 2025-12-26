@@ -352,11 +352,13 @@ export const ProductDetailPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Spinner
-            variant="circle-filled"
-            size={60}
-            className="text-green-600 mx-auto mb-4"
-          />
+     <div className="flex justify-center mb-6">
+            <Spinner 
+              variant="circle-filled" 
+              size={60} 
+              className="text-green-600 mx-auto"
+            />
+          </div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
             Đang tải thông tin sản phẩm...
           </h2>

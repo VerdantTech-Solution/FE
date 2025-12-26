@@ -27,7 +27,8 @@ import {
   getMediaLinks,
   type Certificate,
   getProductRegistrations,
-  getProductCertificatesByProductId
+  getProductCertificatesByProductId,
+  getProductRegistrationById
 } from "@/api/product";
 import { 
   getProductReviewsByProductId, 
@@ -119,8 +120,47 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       // Load certificates for this product
       try {
         // Sử dụng API chính thức để lấy certificates theo productId
-        const productCertificates = await getProductCertificatesByProductId(productId);
+        let productCertificates = await getProductCertificatesByProductId(productId);
+        
         if (productCertificates && productCertificates.length > 0) {
+          // Logic tương tự RegistrationManagementPage: Check và load files cho certificates nếu thiếu
+          productCertificates = await Promise.all(
+            productCertificates.map(async (cert) => {
+              if (cert.files && cert.files.length > 0) {
+                return cert; // Đã có files
+              }
+              
+              // Nếu files rỗng, fetch từ media links
+              try {
+                const mediaLinks = await getMediaLinks('product_certificates', cert.id);
+                const certLinks = mediaLinks.filter(link => 
+                  link.purpose === 'ProductCertificatePdf' ||
+                  link.purpose === 'productcertificatepdf' ||
+                  link.purpose === 'certificatepdf' ||
+                  link.purpose === 'certificate' ||
+                  link.purpose?.toLowerCase().includes('cert')
+                );
+                
+                if (certLinks.length > 0) {
+                  return {
+                    ...cert,
+                    files: certLinks.map(link => ({
+                      id: link.id,
+                      imagePublicId: link.imagePublicId,
+                      imageUrl: link.imageUrl,
+                      purpose: link.purpose || 'ProductCertificatePdf',
+                      sortOrder: link.sortOrder || 0
+                    }))
+                  };
+                }
+                return cert;
+              } catch (err) {
+                console.log(`Could not fetch files for certificate ${cert.id}:`, err);
+                return cert;
+              }
+            })
+          );
+          
           setCertificates(productCertificates);
         } else {
           // Fallback: Thử tìm từ ProductRegistration nếu không có certificates trực tiếp
@@ -131,44 +171,139 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           );
           
           if (relatedRegistration) {
-            // Thử lấy từ media links với product_registrations
             try {
-              const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
-              const certLinks = mediaLinks.filter(link => 
-                link.purpose === 'ProductCertificatePdf' ||
-                link.purpose === 'productcertificatepdf' ||
-                link.purpose === 'certificatepdf' ||
-                link.purpose === 'certificate' || 
-                link.purpose?.toLowerCase().includes('cert')
-              );
-              
-              if (certLinks.length > 0) {
-                // Tạo certificates từ media links
-                const certNames = relatedRegistration.certificationName || [];
-                const certCodes = relatedRegistration.certificationCode || [];
-                setCertificates(certLinks.map((link, idx) => ({
-                  id: idx,
-                  productId: productId,
-                  registrationId: relatedRegistration.id,
-                  certificationCode: certCodes[idx] || '',
-                  certificationName: certNames[idx] || `Chứng chỉ ${idx + 1}`,
-                  status: 'Pending' as const,
-                  uploadedAt: new Date().toISOString(),
-                  verifiedAt: undefined,
-                  verifiedBy: undefined,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                  files: [{
-                    id: link.id,
-                    imagePublicId: link.imagePublicId,
-                    imageUrl: link.imageUrl,
-                    purpose: link.purpose || 'ProductCertificatePdf',
-                    sortOrder: link.sortOrder || 0
-                  }]
-                })));
+              // Lấy chi tiết registration để có thông tin certificates đầy đủ nhất
+              const detail = await getProductRegistrationById(relatedRegistration.id);
+              let finalCertificates: Certificate[] = [];
+
+              // Logic giống RegistrationManagementPage
+              if (detail.certificates && detail.certificates.length > 0) {
+                finalCertificates = await Promise.all(
+                  detail.certificates.map(async (cert) => {
+                    if (cert.files && cert.files.length > 0) {
+                      return cert;
+                    }
+                    try {
+                      const mediaLinks = await getMediaLinks('product_certificates', cert.id);
+                      const certLinks = mediaLinks.filter(link => 
+                        link.purpose === 'ProductCertificatePdf' ||
+                        link.purpose === 'productcertificatepdf' ||
+                        link.purpose === 'certificatepdf' ||
+                        link.purpose === 'certificate' || 
+                        link.purpose?.toLowerCase().includes('cert')
+                      );
+                      
+                      if (certLinks.length > 0) {
+                        return {
+                          ...cert,
+                          files: certLinks.map(link => ({
+                            id: link.id,
+                            imagePublicId: link.imagePublicId,
+                            imageUrl: link.imageUrl,
+                            purpose: link.purpose || 'ProductCertificatePdf',
+                            sortOrder: link.sortOrder || 0
+                          }))
+                        };
+                      }
+                      return cert;
+                    } catch (err) {
+                      console.log(`Could not fetch files for certificate ${cert.id}:`, err);
+                      return cert;
+                    }
+                  })
+                );
+              } else {
+                // Fallback 1: Arrays
+                if (detail.certificationName && Array.isArray(detail.certificationName) && detail.certificationName.length > 0) {
+                  const certNames = detail.certificationName;
+                  const certCodes = detail.certificationCode && Array.isArray(detail.certificationCode) 
+                    ? detail.certificationCode 
+                    : [];
+                  
+                  if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
+                    finalCertificates = certNames.map((name, idx) => ({
+                      id: idx,
+                      productId: productId,
+                      registrationId: relatedRegistration.id,
+                      certificationCode: certCodes[idx] || '',
+                      certificationName: name,
+                      status: 'Pending' as const,
+                      uploadedAt: new Date().toISOString(),
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                      files: detail.certificateFiles ? detail.certificateFiles.filter((_, fileIdx) => fileIdx === idx) : []
+                    }));
+                  } else {
+                    finalCertificates = certNames.map((name, idx) => ({
+                      id: idx,
+                      productId: productId,
+                      registrationId: relatedRegistration.id,
+                      certificationCode: certCodes[idx] || '',
+                      certificationName: name,
+                      status: 'Pending' as const,
+                      uploadedAt: new Date().toISOString(),
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                      files: []
+                    }));
+                  }
+                }
+                // Fallback 2: certificateFiles only
+                else if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
+                  finalCertificates = [{
+                    id: 0,
+                    productId: productId,
+                    registrationId: relatedRegistration.id,
+                    certificationCode: '',
+                    certificationName: 'Chứng chỉ',
+                    status: 'Pending' as const,
+                    uploadedAt: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    files: detail.certificateFiles
+                  }];
+                }
+                // Fallback 3: media links (như cũ)
+                else {
+                  try {
+                    const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
+                    const certLinks = mediaLinks.filter(link => 
+                      link.purpose === 'ProductCertificatePdf' ||
+                      link.purpose === 'productcertificatepdf' ||
+                      link.purpose === 'certificatepdf' ||
+                      link.purpose === 'certificate' || 
+                      link.purpose?.toLowerCase().includes('cert')
+                    );
+                    
+                    if (certLinks.length > 0) {
+                      finalCertificates = [{
+                        id: 0,
+                        productId: productId,
+                        registrationId: relatedRegistration.id,
+                        certificationCode: '',
+                        certificationName: 'Chứng chỉ từ media links',
+                        status: 'Pending' as const,
+                        uploadedAt: new Date().toISOString(),
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        files: certLinks.map(link => ({
+                          id: link.id,
+                          imagePublicId: link.imagePublicId,
+                          imageUrl: link.imageUrl,
+                          purpose: link.purpose || 'ProductCertificatePdf',
+                          sortOrder: link.sortOrder || 0
+                        }))
+                      }];
+                    }
+                  } catch (mediaErr) {
+                    console.log('Could not fetch certificates from media links:', mediaErr);
+                  }
+                }
               }
+              
+              setCertificates(finalCertificates);
             } catch (err) {
-              console.log('Could not load certificates from media links:', err);
+              console.log('Could not load registration detail:', err);
             }
           }
         }
@@ -736,19 +871,19 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                                     <span className="font-medium">Mã:</span> {cert.certificationCode}
                                   </p>
                                 )}
-                                {(cert.status === 'Approved' || cert.status === 'Rejected') && (
+                                {(cert.status === 'Approved' || cert.status === 'Verified' || cert.status === 'Rejected') && (
                                   <div className="ml-7 mt-2">
                                     <Badge 
                                       variant={
-                                        cert.status === 'Approved' ? 'default' : 
+                                        cert.status === 'Approved' || cert.status === 'Verified' ? 'default' : 
                                         'destructive'
                                       }
                                       className={
-                                        cert.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                        cert.status === 'Approved' || cert.status === 'Verified' ? 'bg-green-100 text-green-800' :
                                         'bg-red-100 text-red-800'
                                       }
                                     >
-                                      {cert.status === 'Approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                                      {cert.status === 'Approved' || cert.status === 'Verified' ? 'Đã xác minh' : 'Đã từ chối'}
                                     </Badge>
                                   </div>
                                 )}
