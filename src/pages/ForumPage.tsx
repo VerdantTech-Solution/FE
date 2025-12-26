@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  MessageSquare, 
-  ChevronRight, 
+import {
+  MessageSquare,
+  ChevronRight,
   BookOpen,
   Users,
   TrendingUp,
@@ -15,13 +15,9 @@ import {
   Loader2,
   FolderOpen,
 } from "lucide-react";
-import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { 
-  getForumPosts, 
-  getForumCategories,
-  type ForumPost
-} from '@/api/forum';
-import { PATH_NAMES } from '@/constants';
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import { getForumPosts, getForumCategories, type ForumPost } from "@/api/forum";
+import { PATH_NAMES } from "@/constants";
 
 // Animation variants
 const fadeInVariants = {
@@ -31,9 +27,9 @@ const fadeInVariants = {
     y: 0,
     transition: {
       duration: 0.6,
-      ease: [0.25, 0.46, 0.45, 0.94] as const
-    }
-  }
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
+  },
 };
 
 const staggerVariants = {
@@ -42,9 +38,9 @@ const staggerVariants = {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
-      delayChildren: 0.2
-    }
-  }
+      delayChildren: 0.2,
+    },
+  },
 };
 
 const cardVariants = {
@@ -55,12 +51,12 @@ const cardVariants = {
     y: 0,
     transition: {
       duration: 0.5,
-      ease: [0.25, 0.46, 0.45, 0.94] as const
-    }
-  }
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
+  },
 };
 
-const getCoverImage = (images?: ForumPost['images']): string | null => {
+const getCoverImage = (images?: ForumPost["images"]): string | null => {
   if (!Array.isArray(images) || images.length === 0) {
     return null;
   }
@@ -99,11 +95,11 @@ export const ForumPage = () => {
         setTotalPages(response.data.totalPages);
         setTotalRecords(response.data.totalRecords);
       } else {
-        setError(response.errors?.[0] || 'Không thể tải danh sách bài viết');
+        setError(response.errors?.[0] || "Không thể tải danh sách bài viết");
       }
     } catch (err: any) {
-      console.error('Error fetching forum posts:', err);
-      setError(err?.message || 'Đã xảy ra lỗi khi tải danh sách bài viết');
+      console.error("Error fetching forum posts:", err);
+      setError(err?.message || "Đã xảy ra lỗi khi tải danh sách bài viết");
     } finally {
       setLoading(false);
       setPageLoading(false);
@@ -117,7 +113,7 @@ export const ForumPage = () => {
         pageSize: 50,
       });
     } catch (err: any) {
-      console.error('Error fetching forum categories:', err);
+      console.error("Error fetching forum categories:", err);
     }
   };
 
@@ -129,7 +125,7 @@ export const ForumPage = () => {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages && !loading) {
       fetchPosts(newPage);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -139,22 +135,26 @@ export const ForumPage = () => {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <Spinner 
-              variant="circle-filled" 
-              size={60} 
+            <Spinner
+              variant="circle-filled"
+              size={60}
               className="text-green-600 mx-auto"
             />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-3">
             Đang tải diễn đàn
           </h2>
-          <p className="text-gray-600 mb-6">
-            Chuẩn bị danh sách bài viết...
-          </p>
+          <p className="text-gray-600 mb-6">Chuẩn bị danh sách bài viết...</p>
           <div className="flex items-center justify-center space-x-2">
             <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div
+              className="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+              style={{ animationDelay: "0.1s" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+              style={{ animationDelay: "0.2s" }}
+            ></div>
           </div>
         </div>
       </div>
@@ -162,13 +162,13 @@ export const ForumPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50 pt-20">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
       {/* Hero Section */}
       <motion.div
         initial="hidden"
         animate="visible"
         variants={fadeInVariants}
-        className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white py-16 md:py-24 relative overflow-hidden"
+        className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white pt-36 pb-16 md:pt-44 md:pb-24 relative overflow-hidden"
       >
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-10">
@@ -187,7 +187,7 @@ export const ForumPage = () => {
               <MessageSquare className="w-14 h-14 text-white" />
             </div>
           </motion.div>
-          
+
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -196,16 +196,17 @@ export const ForumPage = () => {
           >
             Diễn Đàn Nông Nghiệp
           </motion.h1>
-          
+
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             className="text-base sm:text-lg md:text-xl text-green-100 max-w-3xl mx-auto leading-relaxed mb-6 sm:mb-8 px-4"
           >
-            Nơi chia sẻ kiến thức, kinh nghiệm và kết nối cộng đồng nông dân Việt Nam
+            Nơi chia sẻ kiến thức, kinh nghiệm và kết nối cộng đồng nông dân
+            Việt Nam
           </motion.p>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -214,15 +215,17 @@ export const ForumPage = () => {
           >
             <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
               <Users className="w-5 h-5" />
-              <span className="text-sm font-semibold">{totalRecords} Bài viết</span>
+              <span className="text-sm font-semibold">
+                {totalRecords} Bài viết
+              </span>
             </div>
             <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
               <TrendingUp className="w-5 h-5" />
-              <span className="text-sm font-semibold">Cộng đồng phát triển</span>
+              <span className="text-sm font-semibold">
+                Cộng đồng phát triển
+              </span>
             </div>
           </motion.div>
-          
-        
         </div>
       </motion.div>
 
@@ -237,8 +240,16 @@ export const ForumPage = () => {
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <svg
+                  className="h-5 w-5 text-red-500"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div className="ml-3">
@@ -317,13 +328,15 @@ export const ForumPage = () => {
                       whileTap={{ scale: 0.98 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <Card 
+                      <Card
                         className="h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-white/90 backdrop-blur-sm group cursor-pointer overflow-hidden relative"
-                        onClick={() => navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`)}
+                        onClick={() =>
+                          navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`)
+                        }
                       >
                         {/* Decorative gradient background */}
                         <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full -mr-20 -mt-20 opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
-                        
+
                         <CardHeader className="relative pb-4">
                           {coverImage && (
                             <div className="mb-4 rounded-2xl overflow-hidden bg-gray-100 aspect-[4/3]">
@@ -342,23 +355,24 @@ export const ForumPage = () => {
                             {post.title}
                           </CardTitle>
                         </CardHeader>
-                        
+
                         <CardContent className="relative">
                           <div className="mb-4 min-h-[4rem] flex items-center">
                             <p className="text-gray-400 text-sm italic">
                               Nội dung sẽ hiển thị khi xem chi tiết.
                             </p>
                           </div>
-                          
+
                           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                           
                             <Button
                               variant="ghost"
                               size="sm"
                               className="text-green-600 hover:text-green-700 hover:bg-green-50 group-hover:translate-x-1 transition-all duration-300"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`${PATH_NAMES.FORUM_DETAIL}/${post.id}`);
+                                navigate(
+                                  `${PATH_NAMES.FORUM_DETAIL}/${post.id}`
+                                );
                               }}
                             >
                               Xem chi tiết
@@ -409,7 +423,9 @@ export const ForumPage = () => {
                       return (
                         <Button
                           key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
+                          variant={
+                            currentPage === pageNum ? "default" : "outline"
+                          }
                           size="lg"
                           onClick={() => handlePageChange(pageNum)}
                           disabled={loading}
@@ -441,7 +457,16 @@ export const ForumPage = () => {
                 {totalRecords > 0 && (
                   <div className="text-center text-gray-600 text-sm">
                     <p>
-                      Trang <span className="font-semibold text-green-600">{currentPage}</span> / <span className="font-semibold">{totalPages}</span> • Tổng cộng <span className="font-semibold text-green-600">{totalRecords}</span> bài viết
+                      Trang{" "}
+                      <span className="font-semibold text-green-600">
+                        {currentPage}
+                      </span>{" "}
+                      / <span className="font-semibold">{totalPages}</span> •
+                      Tổng cộng{" "}
+                      <span className="font-semibold text-green-600">
+                        {totalRecords}
+                      </span>{" "}
+                      bài viết
                     </p>
                   </div>
                 )}
@@ -455,4 +480,3 @@ export const ForumPage = () => {
     </div>
   );
 };
-

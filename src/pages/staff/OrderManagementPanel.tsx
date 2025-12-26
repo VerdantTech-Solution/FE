@@ -1,11 +1,22 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -16,32 +27,63 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Eye, Package, DollarSign, MapPin, Truck, CheckCircle, Clock, Loader2, XCircle, AlertCircle } from "lucide-react";
-import { getAllOrders, getOrderById, updateOrderStatus, shipOrder, type OrderWithCustomer, type GetAllOrdersResponse, type ShipOrderItem } from "@/api/order";
+import {
+  Search,
+  Eye,
+  Package,
+  DollarSign,
+  MapPin,
+  Truck,
+  CheckCircle,
+  Clock,
+  Loader2,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
+import {
+  getAllOrders,
+  getOrderById,
+  updateOrderStatus,
+  shipOrder,
+  type OrderWithCustomer,
+  type GetAllOrdersResponse,
+  type ShipOrderItem,
+} from "@/api/order";
 import { getProductById } from "@/api/product";
-// Dashboard API removed
-type OrderStatistics = {
-  from?: string;
-  to?: string;
-  total?: number;
-  paid?: number;
-  shipped?: number;
-  cancelled?: number;
-  delivered?: number;
-  refunded?: number;
-};
-import { getIdentityNumbersWithMetadata, type IdentityNumberItem } from "@/api/export";
+import {
+  getAdminOrderStatistics,
+  type AdminOrderStatistics,
+} from "@/api/admin-dashboard";
+import {
+  getIdentityNumbersWithMetadata,
+  type IdentityNumberItem,
+} from "@/api/export";
 import { formatVietnamDateTime } from "@/lib/utils";
 
-type OrderStatus = "Pending" | "Paid" | "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "all";
+type OrderStatus =
+  | "Pending"
+  | "Paid"
+  | "Confirmed"
+  | "Processing"
+  | "Shipped"
+  | "Delivered"
+  | "Cancelled"
+  | "Refunded"
+  | "all";
 
 interface OrderStats {
   total: number;
+  pending: number;
+  processing: number;
   paid: number;
   shipped: number;
   cancelled: number;
   delivered: number;
   refunded: number;
+  fulfillmentRate: number;
+  cancellationRate: number;
+  refundRate: number;
+  averageDeliveryDays: number;
 }
 
 type ShipItemForm = {
@@ -69,29 +111,31 @@ export const OrderManagementPanel: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [statusFilter, setStatusFilter] = useState<OrderStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Set default date range: from start of current year to today
   const getDefaultDateRange = () => {
     const today = new Date();
     const startOfYear = new Date(today.getFullYear(), 0, 1);
-    
+
     const formatDate = (date: Date) => {
       const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
       return `${yyyy}-${mm}-${dd}`;
     };
-    
+
     return {
       from: formatDate(startOfYear),
       to: formatDate(today),
     };
   };
-  
+
   const defaultDateRange = getDefaultDateRange();
   const [dateFrom, setDateFrom] = useState<string>(defaultDateRange.from);
   const [dateTo, setDateTo] = useState<string>(defaultDateRange.to);
-  const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(
+    null
+  );
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -108,14 +152,21 @@ export const OrderManagementPanel: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [stats, setStats] = useState<OrderStats>({
     total: 0,
+    pending: 0,
+    processing: 0,
     paid: 0,
     shipped: 0,
     cancelled: 0,
     delivered: 0,
     refunded: 0,
+    fulfillmentRate: 0,
+    cancellationRate: 0,
+    refundRate: 0,
+    averageDeliveryDays: 0,
   });
   const [isLoadingStats, setIsLoadingStats] = useState(false);
-  const [isLoadingIdentityNumbers, setIsLoadingIdentityNumbers] = useState(false);
+  const [isLoadingIdentityNumbers, setIsLoadingIdentityNumbers] =
+    useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -126,16 +177,21 @@ export const OrderManagementPanel: React.FC = () => {
         pageSize,
         statusFilter === "all" ? undefined : statusFilter
       );
-      
+
       if (response.status) {
         setOrders(response.data.data);
         setTotalPages(response.data.totalPages);
         setTotalRecords(response.data.totalRecords);
       } else {
-        setError(response.errors?.join(", ") || "Không thể tải dữ liệu đơn hàng");
+        setError(
+          response.errors?.join(", ") || "Không thể tải dữ liệu đơn hàng"
+        );
       }
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.errors?.join(", ") || err?.message || "Có lỗi xảy ra khi tải đơn hàng";
+      const errorMessage =
+        err?.response?.data?.errors?.join(", ") ||
+        err?.message ||
+        "Có lỗi xảy ra khi tải đơn hàng";
       setError(errorMessage);
       console.error("Error fetching orders:", err);
     } finally {
@@ -146,42 +202,42 @@ export const OrderManagementPanel: React.FC = () => {
   const fetchOrderStatistics = async () => {
     try {
       setIsLoadingStats(true);
-      const params: { from?: string; to?: string } = {};
-      if (dateFrom) params.from = dateFrom;
-      if (dateTo) params.to = dateTo;
-      
-      // Dashboard API removed - functionality disabled
-      const response = { status: false, data: null };
-      
-      if (response.status && response.data) {
-        const statistics: OrderStatistics = response.data;
-        setStats({
-          total: statistics.total || 0,
-          paid: statistics.paid || 0,
-          shipped: statistics.shipped || 0,
-          cancelled: statistics.cancelled || 0,
-          delivered: statistics.delivered || 0,
-          refunded: statistics.refunded || 0,
-        });
-      } else {
-        setStats({
-          total: 0,
-          paid: 0,
-          shipped: 0,
-          cancelled: 0,
-          delivered: 0,
-          refunded: 0,
-        });
-      }
+
+      // Call the real API to get order statistics
+      const statistics: AdminOrderStatistics = await getAdminOrderStatistics(
+        dateFrom,
+        dateTo
+      );
+
+      setStats({
+        total: statistics.totalOrders || 0,
+        pending: statistics.ordersByStatus?.pending || 0,
+        processing: statistics.ordersByStatus?.processing || 0,
+        paid: statistics.ordersByStatus?.paid || 0,
+        shipped: statistics.ordersByStatus?.shipped || 0,
+        cancelled: statistics.ordersByStatus?.cancelled || 0,
+        delivered: statistics.ordersByStatus?.delivered || 0,
+        refunded: statistics.ordersByStatus?.refunded || 0,
+        fulfillmentRate: statistics.fulfillmentRate || 0,
+        cancellationRate: statistics.cancellationRate || 0,
+        refundRate: statistics.refundRate || 0,
+        averageDeliveryDays: statistics.averageDeliveryDays || 0,
+      });
     } catch (err: any) {
       console.error("Error fetching order statistics:", err);
       setStats({
         total: 0,
+        pending: 0,
+        processing: 0,
         paid: 0,
         shipped: 0,
         cancelled: 0,
         delivered: 0,
         refunded: 0,
+        fulfillmentRate: 0,
+        cancellationRate: 0,
+        refundRate: 0,
+        averageDeliveryDays: 0,
       });
     } finally {
       setIsLoadingStats(false);
@@ -196,7 +252,6 @@ export const OrderManagementPanel: React.FC = () => {
     fetchOrderStatistics();
   }, []);
 
-
   // Helper function to get display status based on payment method
   const getDisplayStatus = (status: string, paymentMethod?: string): string => {
     // Với Banking: Nếu status là "Pending", hiển thị như "Paid" (vì Banking phải thanh toán trước)
@@ -210,7 +265,10 @@ export const OrderManagementPanel: React.FC = () => {
   useEffect(() => {
     if (selectedOrder) {
       // Map status để hiển thị đúng cho Banking
-      const displayStatus = getDisplayStatus(selectedOrder.status, selectedOrder.orderPaymentMethod);
+      const displayStatus = getDisplayStatus(
+        selectedOrder.status,
+        selectedOrder.orderPaymentMethod
+      );
       setNewStatus(displayStatus);
       setShowCancelReason(false);
       setCancelReason("");
@@ -219,22 +277,22 @@ export const OrderManagementPanel: React.FC = () => {
 
   const handleViewOrder = async (order: OrderWithCustomer) => {
     setIsDetailDialogOpen(true);
-    
+
     // Show basic info first with safe defaults
     setSelectedOrder({
       ...order,
-      address: order.address || {} as any,
-      customer: order.customer || {} as any,
-      orderDetails: order.orderDetails || []
+      address: order.address || ({} as any),
+      customer: order.customer || ({} as any),
+      orderDetails: order.orderDetails || [],
     });
-    
+
     // Fetch full order details from API
     setIsLoadingOrderDetails(true);
     try {
       console.log("Fetching order details for order ID:", order.id);
       const response = await getOrderById(order.id);
       console.log("Order details response:", response);
-      
+
       if (response.status && response.data) {
         setSelectedOrder(response.data); // Update with full details
       } else {
@@ -260,7 +318,11 @@ export const OrderManagementPanel: React.FC = () => {
     if (!selectedOrder || !newStatus) return;
 
     // Với Banking: Nếu status hiện tại là "Pending" và chọn "Paid", không cần update (vì đã đúng)
-    if (selectedOrder.orderPaymentMethod === "Banking" && selectedOrder.status === "Pending" && newStatus === "Paid") {
+    if (
+      selectedOrder.orderPaymentMethod === "Banking" &&
+      selectedOrder.status === "Pending" &&
+      newStatus === "Paid"
+    ) {
       // Không cần update, chỉ cần refresh để hiển thị đúng
       await fetchOrders();
       if (selectedOrder) {
@@ -288,24 +350,24 @@ export const OrderManagementPanel: React.FC = () => {
       console.log("Sending payload:", payload);
       const response = await updateOrderStatus(selectedOrder.id, payload);
       console.log("Response:", response);
-      
+
       if (response.status) {
         // Refresh the order details
         const orderResponse = await getOrderById(selectedOrder.id);
         if (orderResponse.status && orderResponse.data) {
           setSelectedOrder(orderResponse.data);
         }
-        
+
         // Refresh the list
         await fetchOrders();
-        
+
         // Refresh statistics
         await fetchOrderStatistics();
-        
+
         setShowCancelReason(false);
         setCancelReason("");
         setNewStatus("");
-        
+
         // Show success dialog
         setSuccessMessage("Cập nhật trạng thái đơn hàng thành công!");
         setIsSuccessDialogOpen(true);
@@ -313,9 +375,10 @@ export const OrderManagementPanel: React.FC = () => {
         console.error("Failed to update order status:", response);
         // Get detailed error message from API response
         const errorMessages = response.errors || [];
-        const apiErrorMessage = errorMessages.length > 0 
-          ? errorMessages.join("\n") 
-          : `Lỗi: ${response.statusCode || 'Unknown'}`;
+        const apiErrorMessage =
+          errorMessages.length > 0
+            ? errorMessages.join("\n")
+            : `Lỗi: ${response.statusCode || "Unknown"}`;
         setErrorMessage(apiErrorMessage);
         setIsErrorDialogOpen(true);
       }
@@ -323,10 +386,13 @@ export const OrderManagementPanel: React.FC = () => {
       console.error("Error updating order status:", error);
       // Extract detailed error message from various possible formats
       let apiErrorMessage = "Có lỗi xảy ra khi cập nhật trạng thái đơn hàng";
-      
+
       if (error?.errors && Array.isArray(error.errors)) {
         apiErrorMessage = error.errors.join("\n");
-      } else if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+      } else if (
+        error?.response?.data?.errors &&
+        Array.isArray(error.response.data.errors)
+      ) {
         apiErrorMessage = error.response.data.errors.join("\n");
       } else if (error?.response?.data?.errors?.[0]) {
         apiErrorMessage = error.response.data.errors[0];
@@ -335,9 +401,11 @@ export const OrderManagementPanel: React.FC = () => {
       } else if (error?.message) {
         apiErrorMessage = error.message;
       } else if (error?.statusCode) {
-        apiErrorMessage = `Lỗi ${error.statusCode}: ${error.errors?.[0] || 'Không thể cập nhật trạng thái đơn hàng'}`;
+        apiErrorMessage = `Lỗi ${error.statusCode}: ${
+          error.errors?.[0] || "Không thể cập nhật trạng thái đơn hàng"
+        }`;
       }
-      
+
       setErrorMessage(apiErrorMessage);
       setIsErrorDialogOpen(true);
     } finally {
@@ -351,7 +419,11 @@ export const OrderManagementPanel: React.FC = () => {
       setShowCancelReason(true);
     } else if (value === "Shipped") {
       // Open ship dialog if order is not already shipped
-      if (selectedOrder && selectedOrder.status !== "Shipped" && selectedOrder.status !== "Delivered") {
+      if (
+        selectedOrder &&
+        selectedOrder.status !== "Shipped" &&
+        selectedOrder.status !== "Delivered"
+      ) {
         handleOpenShipDialog();
         return;
       }
@@ -363,22 +435,25 @@ export const OrderManagementPanel: React.FC = () => {
 
   const handleOpenShipDialog = async () => {
     if (!selectedOrder || !selectedOrder.orderDetails) return;
-    
+
     setIsLoadingIdentityNumbers(true);
     setShipFormError("");
-    
+
     try {
       // Fetch categoryId and identity numbers for each product
       const itemGroups = await Promise.all(
         selectedOrder.orderDetails.map(async (detail) => {
           let categoryId = detail.product.categoryId;
-          
+
           if (!categoryId) {
             try {
               const product = await getProductById(detail.product.id);
               categoryId = product.categoryId;
             } catch (error) {
-              console.error(`Failed to fetch category for product ${detail.product.id}:`, error);
+              console.error(
+                `Failed to fetch category for product ${detail.product.id}:`,
+                error
+              );
             }
           }
 
@@ -386,19 +461,27 @@ export const OrderManagementPanel: React.FC = () => {
           let availableIdentityNumbers: IdentityNumberItem[] = [];
           let hasSerialNumbers = false;
           try {
-            const { items, metadata } = await getIdentityNumbersWithMetadata(detail.product.id);
+            const { items, metadata } = await getIdentityNumbersWithMetadata(
+              detail.product.id
+            );
             availableIdentityNumbers = items;
             hasSerialNumbers = metadata.hasSerialNumbers;
-            console.log(`Identity numbers for product ${detail.product.id}:`, availableIdentityNumbers);
+            console.log(
+              `Identity numbers for product ${detail.product.id}:`,
+              availableIdentityNumbers
+            );
             console.log(`Has serial numbers:`, hasSerialNumbers);
           } catch (error) {
-            console.error(`Failed to fetch identity numbers for product ${detail.product.id}:`, error);
+            console.error(
+              `Failed to fetch identity numbers for product ${detail.product.id}:`,
+              error
+            );
           }
 
           // Use metadata to determine if serial numbers are required
           // If hasSerialNumbers is true (lotNumberInfo === null), then serial numbers are required
           const requiresSerial = hasSerialNumbers;
-          
+
           if (requiresSerial) {
             return Array.from({ length: detail.quantity }).map((_, idx) => ({
               id: `${detail.id}-${idx}`,
@@ -415,7 +498,7 @@ export const OrderManagementPanel: React.FC = () => {
               hasSerialNumbers,
             }));
           }
-          
+
           return [
             {
               id: `${detail.id}`,
@@ -434,7 +517,7 @@ export const OrderManagementPanel: React.FC = () => {
           ];
         })
       );
-      
+
       setShipItems(itemGroups.flat());
       setIsShipDialogOpen(true);
     } catch (error) {
@@ -454,7 +537,6 @@ export const OrderManagementPanel: React.FC = () => {
     }
   };
 
-
   const handleShipOrder = async () => {
     if (!selectedOrder) return;
 
@@ -466,7 +548,11 @@ export const OrderManagementPanel: React.FC = () => {
 
       if (!lotNumber) {
         setShipFormError(
-          `Sản phẩm "${item.productName}"${requiresSerial ? ` (mục ${item.entryNumber}/${item.totalQuantity})` : ""} đang thiếu số lô.`
+          `Sản phẩm "${item.productName}"${
+            requiresSerial
+              ? ` (mục ${item.entryNumber}/${item.totalQuantity})`
+              : ""
+          } đang thiếu số lô.`
         );
         return;
       }
@@ -513,61 +599,70 @@ export const OrderManagementPanel: React.FC = () => {
       }, {} as Record<number, typeof shipItems>);
 
       // Build payload in new format and check for duplicates
-      const payload: ShipOrderItem[] = Object.entries(groupedByOrderDetail).map(([orderDetailId, items]) => {
-        const requiresSerial = items[0].hasSerialNumbers ?? false;
-        
-        // Check for duplicate serial numbers within the same orderDetailId
-        if (requiresSerial) {
-          const serialNumbers = items
-            .map(item => item.serialNumber?.trim())
-            .filter(Boolean) as string[];
-          const uniqueSerialNumbers = new Set(serialNumbers);
-          
-          if (serialNumbers.length !== uniqueSerialNumbers.size) {
-            const duplicates = serialNumbers.filter((serial, index) => serialNumbers.indexOf(serial) !== index);
-            throw new Error(
-              `Số seri bị trùng lặp trong cùng một đơn hàng chi tiết #${orderDetailId}: ${[...new Set(duplicates)].join(", ")}`
-            );
-          }
-        }
+      const payload: ShipOrderItem[] = Object.entries(groupedByOrderDetail).map(
+        ([orderDetailId, items]) => {
+          const requiresSerial = items[0].hasSerialNumbers ?? false;
 
-        const identityNumbers = items.map(item => {
-          const identityNumber: any = {
-            lotNumber: item.lotNumber.trim(),
-            quantity: item.quantity,
+          // Check for duplicate serial numbers within the same orderDetailId
+          if (requiresSerial) {
+            const serialNumbers = items
+              .map((item) => item.serialNumber?.trim())
+              .filter(Boolean) as string[];
+            const uniqueSerialNumbers = new Set(serialNumbers);
+
+            if (serialNumbers.length !== uniqueSerialNumbers.size) {
+              const duplicates = serialNumbers.filter(
+                (serial, index) => serialNumbers.indexOf(serial) !== index
+              );
+              throw new Error(
+                `Số seri bị trùng lặp trong cùng một đơn hàng chi tiết #${orderDetailId}: ${[
+                  ...new Set(duplicates),
+                ].join(", ")}`
+              );
+            }
+          }
+
+          const identityNumbers = items.map((item) => {
+            const identityNumber: any = {
+              lotNumber: item.lotNumber.trim(),
+              quantity: item.quantity,
+            };
+            if (requiresSerial && item.serialNumber) {
+              identityNumber.serialNumber = item.serialNumber.trim();
+            }
+            return identityNumber;
+          });
+
+          return {
+            orderDetailId: Number(orderDetailId),
+            identityNumbers,
           };
-          if (requiresSerial && item.serialNumber) {
-            identityNumber.serialNumber = item.serialNumber.trim();
-          }
-          return identityNumber;
-        });
+        }
+      );
 
-        return {
-          orderDetailId: Number(orderDetailId),
-          identityNumbers,
-        };
-      });
-
-      console.log("Shipping order with payload:", JSON.stringify(payload, null, 2));
+      console.log(
+        "Shipping order with payload:",
+        JSON.stringify(payload, null, 2)
+      );
       console.log("Ship items before grouping:", shipItems);
       const response = await shipOrder(selectedOrder.id, payload);
       console.log("Ship order response:", response);
-      
+
       if (response.status) {
         // Refresh the order details
         const orderResponse = await getOrderById(selectedOrder.id);
         if (orderResponse.status && orderResponse.data) {
           setSelectedOrder(orderResponse.data);
         }
-        
+
         // Refresh the list
         await fetchOrders();
-        
+
         // Refresh statistics
         await fetchOrderStatistics();
-        
+
         handleShipDialogChange(false);
-        
+
         // Show success dialog
         setSuccessMessage("Đã gửi đơn hàng thành công!");
         setIsSuccessDialogOpen(true);
@@ -575,9 +670,10 @@ export const OrderManagementPanel: React.FC = () => {
         console.error("Failed to ship order:", response);
         // Get detailed error message from API response
         const errorMessages = response.errors || [];
-        const apiErrorMessage = errorMessages.length > 0 
-          ? errorMessages.join("\n") 
-          : `Lỗi: ${response.statusCode || 'Unknown'}`;
+        const apiErrorMessage =
+          errorMessages.length > 0
+            ? errorMessages.join("\n")
+            : `Lỗi: ${response.statusCode || "Unknown"}`;
         setShipFormError(apiErrorMessage);
         setErrorMessage(apiErrorMessage);
         setIsErrorDialogOpen(true);
@@ -586,10 +682,13 @@ export const OrderManagementPanel: React.FC = () => {
       console.error("Error shipping order:", error);
       // Extract detailed error message from various possible formats
       let apiErrorMessage = "Có lỗi xảy ra khi gửi đơn hàng";
-      
+
       if (error?.errors && Array.isArray(error.errors)) {
         apiErrorMessage = error.errors.join("\n");
-      } else if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+      } else if (
+        error?.response?.data?.errors &&
+        Array.isArray(error.response.data.errors)
+      ) {
         apiErrorMessage = error.response.data.errors.join("\n");
       } else if (error?.response?.data?.errors?.[0]) {
         apiErrorMessage = error.response.data.errors[0];
@@ -598,9 +697,11 @@ export const OrderManagementPanel: React.FC = () => {
       } else if (error?.message) {
         apiErrorMessage = error.message;
       } else if (error?.statusCode) {
-        apiErrorMessage = `Lỗi ${error.statusCode}: ${error.errors?.[0] || 'Không thể gửi đơn hàng'}`;
+        apiErrorMessage = `Lỗi ${error.statusCode}: ${
+          error.errors?.[0] || "Không thể gửi đơn hàng"
+        }`;
       }
-      
+
       setShipFormError(apiErrorMessage);
       setErrorMessage(apiErrorMessage);
       setIsErrorDialogOpen(true);
@@ -617,12 +718,12 @@ export const OrderManagementPanel: React.FC = () => {
       { status: "Shipped", label: "Đã gửi", icon: Truck },
       { status: "Delivered", label: "Đã nhận", icon: CheckCircle },
     ];
-    
+
     // Nếu là COD, bỏ bước "Đã thanh toán"
     if (paymentMethod === "COD") {
-      return allSteps.filter(step => step.status !== "Paid");
+      return allSteps.filter((step) => step.status !== "Paid");
     }
-    
+
     return allSteps;
   };
 
@@ -653,8 +754,9 @@ export const OrderManagementPanel: React.FC = () => {
 
   const getStatusBadge = (status: string, paymentMethod?: string) => {
     // Với Banking: Nếu status là "Pending", hiển thị như "Paid" (vì Banking phải thanh toán trước)
-    const displayStatus = paymentMethod === "Banking" && status === "Pending" ? "Paid" : status;
-    
+    const displayStatus =
+      paymentMethod === "Banking" && status === "Pending" ? "Paid" : status;
+
     const statusConfig: Record<string, { bg: string; text: string }> = {
       Pending: { bg: "bg-yellow-100", text: "text-yellow-700" },
       Paid: { bg: "bg-blue-100", text: "text-blue-700" },
@@ -667,12 +769,16 @@ export const OrderManagementPanel: React.FC = () => {
     };
 
     const config = statusConfig[displayStatus] || statusConfig.Pending;
-    return <Badge className={`${config.bg} ${config.text} border-0`}>{getStatusDisplayName(displayStatus)}</Badge>;
+    return (
+      <Badge className={`${config.bg} ${config.text} border-0`}>
+        {getStatusDisplayName(displayStatus)}
+      </Badge>
+    );
   };
 
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return orders;
-    
+
     const query = searchQuery.toLowerCase();
     return orders.filter(
       (order) =>
@@ -690,37 +796,44 @@ export const OrderManagementPanel: React.FC = () => {
       const first = images[0];
       if (!first) return undefined;
       if (typeof first === "object" && first !== null) {
-        if ("imageUrl" in first && typeof first.imageUrl === "string") return first.imageUrl;
+        if ("imageUrl" in first && typeof first.imageUrl === "string")
+          return first.imageUrl;
         if ("url" in first && typeof first.url === "string") return first.url;
-        if ("image" in first && typeof first.image === "string") return first.image;
+        if ("image" in first && typeof first.image === "string")
+          return first.image;
       }
       return typeof first === "string" ? first : undefined;
     }
     if (typeof images === "object" && images !== null) {
-      if ("imageUrl" in images && typeof images.imageUrl === "string") return images.imageUrl;
+      if ("imageUrl" in images && typeof images.imageUrl === "string")
+        return images.imageUrl;
       if ("url" in images && typeof images.url === "string") return images.url;
-      if ("image" in images && typeof images.image === "string") return images.image;
+      if ("image" in images && typeof images.image === "string")
+        return images.image;
     }
     return typeof images === "string" ? images : undefined;
   };
 
   // Helper function to get current status index based on payment method
-  const getCurrentStatusIndex = (order: OrderWithCustomer | null, steps: ReturnType<typeof getStatusSteps>) => {
+  const getCurrentStatusIndex = (
+    order: OrderWithCustomer | null,
+    steps: ReturnType<typeof getStatusSteps>
+  ) => {
     if (!order) return -1;
-    
+
     const orderStatus = order.status;
     const paymentMethod = order.orderPaymentMethod;
-    
+
     // Với Banking: Nếu status là "Pending", map sang "Paid" (vì Banking phải thanh toán trước)
     if (paymentMethod === "Banking" && orderStatus === "Pending") {
       return steps.findIndex((s) => s.status === "Paid");
     }
-    
+
     // Nếu là COD và status là "Paid", map sang "Processing" (bỏ qua bước Paid)
     if (paymentMethod === "COD" && orderStatus === "Paid") {
       return steps.findIndex((s) => s.status === "Processing");
     }
-    
+
     return steps.findIndex((s) => s.status === orderStatus);
   };
 
@@ -729,8 +842,12 @@ export const OrderManagementPanel: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Quản lý đơn hàng</h2>
-          <p className="text-sm text-gray-500">Quản lý và theo dõi tất cả đơn hàng của khách hàng</p>
+          <h2 className="text-2xl font-semibold text-gray-900">
+            Quản lý đơn hàng
+          </h2>
+          <p className="text-sm text-gray-500">
+            Quản lý và theo dõi tất cả đơn hàng của khách hàng
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2">
@@ -741,81 +858,156 @@ export const OrderManagementPanel: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 mb-6">
         {/* Total Orders */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-blue-600">
-            <Package className="h-20 w-20" />
+            <Package className="h-16 w-16" />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Tổng đơn hàng</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.total}</p>
-            </div>
+          <div>
+            <p className="text-xs text-gray-500">Tổng đơn hàng</p>
+            <p className="text-2xl font-bold tracking-tight">
+              {isLoadingStats ? "..." : stats.total}
+            </p>
+          </div>
+        </Card>
+
+        {/* Pending */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-yellow-600">
+            <Clock className="h-16 w-16" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Chờ xử lý</p>
+            <p className="text-2xl font-bold tracking-tight text-yellow-600">
+              {isLoadingStats ? "..." : stats.pending}
+            </p>
+          </div>
+        </Card>
+
+        {/* Processing */}
+        <Card className="p-4 relative overflow-hidden">
+          <div className="absolute right-[-10px] top-[-10px] opacity-10 text-orange-600">
+            <Loader2 className="h-16 w-16" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Đang xử lý</p>
+            <p className="text-2xl font-bold tracking-tight text-orange-600">
+              {isLoadingStats ? "..." : stats.processing}
+            </p>
           </div>
         </Card>
 
         {/* Paid */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-blue-600">
-            <DollarSign className="h-20 w-20" />
+            <DollarSign className="h-16 w-16" />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Đã thanh toán</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.paid}</p>
-            </div>
+          <div>
+            <p className="text-xs text-gray-500">Đã thanh toán</p>
+            <p className="text-2xl font-bold tracking-tight text-blue-600">
+              {isLoadingStats ? "..." : stats.paid}
+            </p>
           </div>
         </Card>
 
         {/* Shipped */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-cyan-600">
-            <Truck className="h-20 w-20" />
+            <Truck className="h-16 w-16" />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Đã gửi</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.shipped}</p>
-            </div>
+          <div>
+            <p className="text-xs text-gray-500">Đã gửi</p>
+            <p className="text-2xl font-bold tracking-tight text-cyan-600">
+              {isLoadingStats ? "..." : stats.shipped}
+            </p>
           </div>
         </Card>
 
         {/* Delivered */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-green-600">
-            <CheckCircle className="h-20 w-20" />
+            <CheckCircle className="h-16 w-16" />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Đã giao</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.delivered}</p>
-            </div>
+          <div>
+            <p className="text-xs text-gray-500">Đã giao</p>
+            <p className="text-2xl font-bold tracking-tight text-green-600">
+              {isLoadingStats ? "..." : stats.delivered}
+            </p>
           </div>
         </Card>
 
         {/* Cancelled */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-red-600">
-            <XCircle className="h-20 w-20" />
+            <XCircle className="h-16 w-16" />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Đã hủy</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.cancelled}</p>
-            </div>
+          <div>
+            <p className="text-xs text-gray-500">Đã hủy</p>
+            <p className="text-2xl font-bold tracking-tight text-red-600">
+              {isLoadingStats ? "..." : stats.cancelled}
+            </p>
           </div>
         </Card>
 
         {/* Refunded */}
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute right-[-10px] top-[-10px] opacity-10 text-gray-600">
-            <AlertCircle className="h-20 w-20" />
+            <AlertCircle className="h-16 w-16" />
           </div>
+          <div>
+            <p className="text-xs text-gray-500">Đã hoàn tiền</p>
+            <p className="text-2xl font-bold tracking-tight text-gray-600">
+              {isLoadingStats ? "..." : stats.refunded}
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Performance Stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Đã hoàn tiền</p>
-              <p className="text-3xl font-bold tracking-tight">{stats.refunded}</p>
+              <p className="text-sm text-gray-500">Tỷ lệ hoàn thành</p>
+              <p className="text-2xl font-bold tracking-tight text-green-600">
+                {isLoadingStats
+                  ? "..."
+                  : `${stats.fulfillmentRate.toFixed(1)}%`}
+              </p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Tỷ lệ hủy đơn</p>
+              <p className="text-2xl font-bold tracking-tight text-red-600">
+                {isLoadingStats
+                  ? "..."
+                  : `${stats.cancellationRate.toFixed(1)}%`}
+              </p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+              <XCircle className="h-6 w-6 text-red-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Thời gian giao hàng TB</p>
+              <p className="text-2xl font-bold tracking-tight text-blue-600">
+                {isLoadingStats ? "..." : `${stats.averageDeliveryDays} ngày`}
+              </p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <Truck className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </Card>
@@ -823,7 +1015,9 @@ export const OrderManagementPanel: React.FC = () => {
 
       {/* Filter block */}
       <Card className="mb-6">
-        <div className="p-4 border-b text-sm font-medium text-gray-700">Bộ lọc và tìm kiếm</div>
+        <div className="p-4 border-b text-sm font-medium text-gray-700">
+          Bộ lọc và tìm kiếm
+        </div>
         <div className="p-4 space-y-4">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="relative">
@@ -835,7 +1029,10 @@ export const OrderManagementPanel: React.FC = () => {
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             </div>
-            <Select value={statusFilter} onValueChange={(v) => handleStatusChange(v as OrderStatus)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => handleStatusChange(v as OrderStatus)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Tất cả trạng thái" />
               </SelectTrigger>
@@ -866,7 +1063,10 @@ export const OrderManagementPanel: React.FC = () => {
           </div>
           <div className="grid gap-3 md:grid-cols-4 border-t pt-4">
             <div>
-              <Label htmlFor="date-from" className="text-sm font-medium text-gray-700 mb-2 block">
+              <Label
+                htmlFor="date-from"
+                className="text-sm font-medium text-gray-700 mb-2 block"
+              >
                 Từ ngày
               </Label>
               <Input
@@ -878,7 +1078,10 @@ export const OrderManagementPanel: React.FC = () => {
               />
             </div>
             <div>
-              <Label htmlFor="date-to" className="text-sm font-medium text-gray-700 mb-2 block">
+              <Label
+                htmlFor="date-to"
+                className="text-sm font-medium text-gray-700 mb-2 block"
+              >
                 Đến ngày
               </Label>
               <Input
@@ -926,7 +1129,10 @@ export const OrderManagementPanel: React.FC = () => {
         ) : error ? (
           <div className="p-6 text-center text-red-600">
             <p>{error}</p>
-            <Button onClick={fetchOrders} className="mt-4 bg-red-600 hover:bg-red-700">
+            <Button
+              onClick={fetchOrders}
+              className="mt-4 bg-red-600 hover:bg-red-700"
+            >
               Thử lại
             </Button>
           </div>
@@ -947,15 +1153,25 @@ export const OrderManagementPanel: React.FC = () => {
               >
                 <div className="col-span-2">
                   <div className="font-medium text-gray-900">#{order.id}</div>
-                  <div className="text-xs text-gray-500">{order.trackingNumber || "Chưa có mã"}</div>
+                  <div className="text-xs text-gray-500">
+                    {order.trackingNumber || "Chưa có mã"}
+                  </div>
                 </div>
                 <div className="col-span-3">
-                  <div className="font-medium text-gray-900">{order.customer.fullName}</div>
-                  <div className="text-xs text-gray-500">{order.customer.email}</div>
+                  <div className="font-medium text-gray-900">
+                    {order.customer.fullName}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {order.customer.email}
+                  </div>
                 </div>
-                <div className="col-span-2">{getStatusBadge(order.status, order.orderPaymentMethod)}</div>
                 <div className="col-span-2">
-                  <div className="font-semibold text-gray-900">{formatPrice(order.totalAmount)}</div>
+                  {getStatusBadge(order.status, order.orderPaymentMethod)}
+                </div>
+                <div className="col-span-2">
+                  <div className="font-semibold text-gray-900">
+                    {formatPrice(order.totalAmount)}
+                  </div>
                   <div className="text-xs text-gray-500">
                     {order.orderPaymentMethod}
                   </div>
@@ -989,7 +1205,9 @@ export const OrderManagementPanel: React.FC = () => {
       {!loading && !error && totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            Hiển thị {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalRecords)} trong tổng số {totalRecords} đơn hàng
+            Hiển thị {(currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, totalRecords)} trong tổng số{" "}
+            {totalRecords} đơn hàng
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -1000,17 +1218,64 @@ export const OrderManagementPanel: React.FC = () => {
             >
               Trước
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePageChange(page)}
-                className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : ""}
-              >
-                {page}
-              </Button>
-            ))}
+            {(() => {
+              const pages: (number | string)[] = [];
+              const maxVisiblePages = 5;
+
+              if (totalPages <= maxVisiblePages + 2) {
+                // Show all pages if total is small
+                for (let i = 1; i <= totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                // Always show first page
+                pages.push(1);
+
+                if (currentPage > 3) {
+                  pages.push("...");
+                }
+
+                // Show pages around current page
+                const start = Math.max(2, currentPage - 1);
+                const end = Math.min(totalPages - 1, currentPage + 1);
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(i);
+                }
+
+                if (currentPage < totalPages - 2) {
+                  pages.push("...");
+                }
+
+                // Always show last page
+                pages.push(totalPages);
+              }
+
+              return pages.map((page, index) =>
+                page === "..." ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="px-2 text-gray-500"
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(page as number)}
+                    className={
+                      currentPage === page
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : ""
+                    }
+                  >
+                    {page}
+                  </Button>
+                )
+              );
+            })()}
             <Button
               variant="outline"
               size="sm"
@@ -1043,23 +1308,35 @@ export const OrderManagementPanel: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="text-gray-500">Tên khách hàng:</span>
-                      <p className="font-medium">{selectedOrder.customer.fullName || "N/A"}</p>
+                      <p className="font-medium">
+                        {selectedOrder.customer.fullName || "N/A"}
+                      </p>
                     </div>
                     <div>
                       <span className="text-gray-500">Email:</span>
-                      <p className="font-medium">{selectedOrder.customer.email || "N/A"}</p>
+                      <p className="font-medium">
+                        {selectedOrder.customer.email || "N/A"}
+                      </p>
                     </div>
                     <div>
                       <span className="text-gray-500">Số điện thoại:</span>
-                      <p className="font-medium">{selectedOrder.customer.phoneNumber || "N/A"}</p>
+                      <p className="font-medium">
+                        {selectedOrder.customer.phoneNumber || "N/A"}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-gray-500">Trạng thái xác minh:</span>
+                      <span className="text-gray-500">
+                        Trạng thái xác minh:
+                      </span>
                       <p className="font-medium">
                         {selectedOrder.customer.isVerified ? (
-                          <Badge className="bg-green-100 text-green-700">Đã xác minh</Badge>
+                          <Badge className="bg-green-100 text-green-700">
+                            Đã xác minh
+                          </Badge>
                         ) : (
-                          <Badge className="bg-yellow-100 text-yellow-700">Chưa xác minh</Badge>
+                          <Badge className="bg-yellow-100 text-yellow-700">
+                            Chưa xác minh
+                          </Badge>
                         )}
                       </p>
                     </div>
@@ -1076,58 +1353,83 @@ export const OrderManagementPanel: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-500">Trạng thái:</span>
-                    <p>{getStatusBadge(selectedOrder.status, selectedOrder.orderPaymentMethod)}</p>
+                    <p>
+                      {getStatusBadge(
+                        selectedOrder.status,
+                        selectedOrder.orderPaymentMethod
+                      )}
+                    </p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Phương thức thanh toán:</span>
-                    <p className="font-medium">{selectedOrder.orderPaymentMethod}</p>
+                    <span className="text-gray-500">
+                      Phương thức thanh toán:
+                    </span>
+                    <p className="font-medium">
+                      {selectedOrder.orderPaymentMethod}
+                    </p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Phương thức vận chuyển:</span>
-                    <p className="font-medium">{selectedOrder.shippingMethod}</p>
+                    <span className="text-gray-500">
+                      Phương thức vận chuyển:
+                    </span>
+                    <p className="font-medium">
+                      {selectedOrder.shippingMethod}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-500">Mã vận đơn:</span>
-                    <p className="font-medium">{selectedOrder.trackingNumber || "Chưa có"}</p>
+                    <p className="font-medium">
+                      {selectedOrder.trackingNumber || "Chưa có"}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-500">Ngày tạo:</span>
-                    <p className="font-medium">{formatDate(selectedOrder.createdAt)}</p>
+                    <p className="font-medium">
+                      {formatDate(selectedOrder.createdAt)}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-500">Cập nhật lần cuối:</span>
-                    <p className="font-medium">{formatDate(selectedOrder.updatedAt)}</p>
+                    <p className="font-medium">
+                      {formatDate(selectedOrder.updatedAt)}
+                    </p>
                   </div>
                 </div>
               </Card>
 
               {/* Cancelled Order Info */}
-              {selectedOrder.status === "Cancelled" && (selectedOrder.cancelledReason || selectedOrder.cancelledAt) && (
-                <Card className="p-4 border-red-200 bg-red-50">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-red-700">
-                    <XCircle className="w-5 h-5" />
-                    Thông tin hủy đơn hàng
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    {selectedOrder.cancelledReason && (
-                      <div>
-                        <span className="text-gray-600 font-medium">Lý do hủy:</span>
-                        <p className="text-gray-900 mt-1 p-2 bg-white rounded border border-red-200">
-                          {selectedOrder.cancelledReason}
-                        </p>
-                      </div>
-                    )}
-                    {selectedOrder.cancelledAt && (
-                      <div>
-                        <span className="text-gray-600 font-medium">Thời gian hủy:</span>
-                        <p className="text-gray-900 font-medium mt-1">
-                          {formatDate(selectedOrder.cancelledAt)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              )}
+              {selectedOrder.status === "Cancelled" &&
+                (selectedOrder.cancelledReason ||
+                  selectedOrder.cancelledAt) && (
+                  <Card className="p-4 border-red-200 bg-red-50">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2 text-red-700">
+                      <XCircle className="w-5 h-5" />
+                      Thông tin hủy đơn hàng
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      {selectedOrder.cancelledReason && (
+                        <div>
+                          <span className="text-gray-600 font-medium">
+                            Lý do hủy:
+                          </span>
+                          <p className="text-gray-900 mt-1 p-2 bg-white rounded border border-red-200">
+                            {selectedOrder.cancelledReason}
+                          </p>
+                        </div>
+                      )}
+                      {selectedOrder.cancelledAt && (
+                        <div>
+                          <span className="text-gray-600 font-medium">
+                            Thời gian hủy:
+                          </span>
+                          <p className="text-gray-900 font-medium mt-1">
+                            {formatDate(selectedOrder.cancelledAt)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )}
 
               {/* Status Step Indicator */}
               <Card className="p-5 shadow-sm border border-slate-100 bg-gradient-to-br from-white to-slate-50">
@@ -1141,44 +1443,60 @@ export const OrderManagementPanel: React.FC = () => {
                   </p>
                 </div>
                 <div className="relative pt-2">
-                  <div className="absolute left-8 right-8 top-[34px] h-0.5 bg-slate-200" aria-hidden />
+                  <div
+                    className="absolute left-8 right-8 top-[34px] h-0.5 bg-slate-200"
+                    aria-hidden
+                  />
                   <div className="flex items-center justify-between gap-2">
                     {(() => {
-                      const statusSteps = getStatusSteps(selectedOrder?.orderPaymentMethod);
-                      const currentStatusIndex = getCurrentStatusIndex(selectedOrder, statusSteps);
+                      const statusSteps = getStatusSteps(
+                        selectedOrder?.orderPaymentMethod
+                      );
+                      const currentStatusIndex = getCurrentStatusIndex(
+                        selectedOrder,
+                        statusSteps
+                      );
                       return statusSteps.map((step, index, arr) => {
                         const isCompleted = index < currentStatusIndex;
-                        const isCurrent = index === currentStatusIndex || (currentStatusIndex === -1 && index === 0);
-                      const Icon = step.icon;
-                      const stateClass = isCompleted
-                        ? "bg-green-500 text-white shadow-lg shadow-green-100"
-                        : isCurrent
+                        const isCurrent =
+                          index === currentStatusIndex ||
+                          (currentStatusIndex === -1 && index === 0);
+                        const Icon = step.icon;
+                        const stateClass = isCompleted
+                          ? "bg-green-500 text-white shadow-lg shadow-green-100"
+                          : isCurrent
                           ? "bg-blue-600 text-white ring-4 ring-blue-100"
                           : "bg-slate-100 text-slate-400";
 
-                      return (
-                        <div
-                          key={step.status}
-                          className={`flex flex-1 flex-col items-center gap-2 text-center ${index !== arr.length - 1 ? "pr-2" : ""}`}
-                        >
+                        return (
                           <div
-                            className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 ${stateClass}`}
+                            key={step.status}
+                            className={`flex flex-1 flex-col items-center gap-2 text-center ${
+                              index !== arr.length - 1 ? "pr-2" : ""
+                            }`}
                           >
-                            <Icon className="w-6 h-6" />
-                          </div>
-                          <div className="space-y-1">
-                            <p
-                              className={`text-sm font-medium ${
-                                isCompleted || isCurrent ? "text-slate-900" : "text-slate-500"
-                              }`}
+                            <div
+                              className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 ${stateClass}`}
                             >
-                              {step.label}
-                            </p>
-                            <p className="text-xs text-slate-400">{getStatusDisplayName(step.status)}</p>
+                              <Icon className="w-6 h-6" />
+                            </div>
+                            <div className="space-y-1">
+                              <p
+                                className={`text-sm font-medium ${
+                                  isCompleted || isCurrent
+                                    ? "text-slate-900"
+                                    : "text-slate-500"
+                                }`}
+                              >
+                                {step.label}
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                {getStatusDisplayName(step.status)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    });
+                        );
+                      });
                     })()}
                   </div>
                 </div>
@@ -1187,14 +1505,25 @@ export const OrderManagementPanel: React.FC = () => {
               {/* Update Status Control */}
               <Card className="overflow-hidden border border-blue-100 shadow-sm">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
-                  <h3 className="font-semibold text-base">Cập nhật trạng thái</h3>
+                  <h3 className="font-semibold text-base">
+                    Cập nhật trạng thái
+                  </h3>
                   <p className="text-xs text-blue-50">
                     Chuyển đổi trạng thái theo tiến trình thực tế của đơn hàng
                   </p>
                 </div>
                 <div className="p-4 space-y-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Select value={newStatus || getDisplayStatus(selectedOrder.status, selectedOrder.orderPaymentMethod)} onValueChange={handleNewStatusChange}>
+                    <Select
+                      value={
+                        newStatus ||
+                        getDisplayStatus(
+                          selectedOrder.status,
+                          selectedOrder.orderPaymentMethod
+                        )
+                      }
+                      onValueChange={handleNewStatusChange}
+                    >
                       <SelectTrigger className="w-full sm:w-[220px] border-slate-200 focus:ring-blue-200">
                         <SelectValue placeholder="Chọn trạng thái" />
                       </SelectTrigger>
@@ -1205,7 +1534,9 @@ export const OrderManagementPanel: React.FC = () => {
                         {selectedOrder.orderPaymentMethod !== "COD" && (
                           <SelectItem value="Paid">Đã thanh toán</SelectItem>
                         )}
-                        <SelectItem value="Processing">Đang đóng gói</SelectItem>
+                        <SelectItem value="Processing">
+                          Đang đóng gói
+                        </SelectItem>
                         <SelectItem value="Shipped">Đã gửi</SelectItem>
                         <SelectItem value="Delivered">Đã nhận</SelectItem>
                         <SelectItem value="Cancelled">Hủy đơn hàng</SelectItem>
@@ -1214,15 +1545,24 @@ export const OrderManagementPanel: React.FC = () => {
                     </Select>
                     <Button
                       onClick={handleUpdateStatus}
-                      disabled={!newStatus || isUpdatingStatus || newStatus === getDisplayStatus(selectedOrder.status, selectedOrder.orderPaymentMethod)}
+                      disabled={
+                        !newStatus ||
+                        isUpdatingStatus ||
+                        newStatus ===
+                          getDisplayStatus(
+                            selectedOrder.status,
+                            selectedOrder.orderPaymentMethod
+                          )
+                      }
                       className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto shadow-sm"
                     >
                       {isUpdatingStatus ? "Đang xử lý..." : "Cập nhật"}
                     </Button>
                   </div>
                   <div className="rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-blue-700">
-                    Chọn trạng thái mới phù hợp với tiến trình xử lý. Với trạng thái hủy, vui lòng cung cấp thêm
-                    lý do để thông báo lại cho khách hàng.
+                    Chọn trạng thái mới phù hợp với tiến trình xử lý. Với trạng
+                    thái hủy, vui lòng cung cấp thêm lý do để thông báo lại cho
+                    khách hàng.
                   </div>
 
                   {showCancelReason && (
@@ -1269,13 +1609,18 @@ export const OrderManagementPanel: React.FC = () => {
                     Địa chỉ giao hàng
                   </h3>
                   <div className="text-sm">
-                    <p className="font-medium">{selectedOrder.address.locationAddress || "Chưa có địa chỉ"}</p>
+                    <p className="font-medium">
+                      {selectedOrder.address.locationAddress ||
+                        "Chưa có địa chỉ"}
+                    </p>
                     <p className="text-gray-600">
                       {[
                         selectedOrder.address.commune,
                         selectedOrder.address.district,
-                        selectedOrder.address.province
-                      ].filter(Boolean).join(", ") || "Chưa có thông tin"}
+                        selectedOrder.address.province,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Chưa có thông tin"}
                     </p>
                   </div>
                 </Card>
@@ -1290,13 +1635,19 @@ export const OrderManagementPanel: React.FC = () => {
                 {isLoadingOrderDetails ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-2 text-gray-600">Đang tải sản phẩm...</span>
+                    <span className="ml-2 text-gray-600">
+                      Đang tải sản phẩm...
+                    </span>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {selectedOrder.orderDetails && selectedOrder.orderDetails.length > 0 ? (
+                    {selectedOrder.orderDetails &&
+                    selectedOrder.orderDetails.length > 0 ? (
                       selectedOrder.orderDetails.map((item) => (
-                        <div key={item.id} className="flex items-start gap-4 border-b pb-3 last:border-0">
+                        <div
+                          key={item.id}
+                          className="flex items-start gap-4 border-b pb-3 last:border-0"
+                        >
                           {/* Product Image */}
                           <div className="w-20 h-20 rounded-md overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-50">
                             {getProductImageUrl(item.product.images) ? (
@@ -1312,10 +1663,16 @@ export const OrderManagementPanel: React.FC = () => {
                             )}
                           </div>
                           <div className="flex-1">
-                            <p className="font-medium text-gray-900">{item.product.productName}</p>
-                            <p className="text-xs text-gray-500">Mã sản phẩm: {item.product.productCode}</p>
+                            <p className="font-medium text-gray-900">
+                              {item.product.productName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Mã sản phẩm: {item.product.productCode}
+                            </p>
                             {item.product.description && (
-                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.product.description}</p>
+                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                {item.product.description}
+                              </p>
                             )}
                             {item.product.warrantyMonths && (
                               <p className="text-xs text-green-600 mt-1">
@@ -1324,14 +1681,22 @@ export const OrderManagementPanel: React.FC = () => {
                             )}
                           </div>
                           <div className="text-right min-w-[100px]">
-                            <p className="font-medium text-gray-900">{formatPrice(item.unitPrice)}</p>
-                            <p className="text-xs text-gray-500">Số lượng: x{item.quantity}</p>
+                            <p className="font-medium text-gray-900">
+                              {formatPrice(item.unitPrice)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Số lượng: x{item.quantity}
+                            </p>
                             {item.discountAmount > 0 && (
-                              <p className="text-xs text-green-600">Giảm: -{formatPrice(item.discountAmount)}</p>
+                              <p className="text-xs text-green-600">
+                                Giảm: -{formatPrice(item.discountAmount)}
+                              </p>
                             )}
                           </div>
                           <div className="text-right min-w-[120px]">
-                            <p className="font-semibold text-gray-900">{formatPrice(item.subtotal)}</p>
+                            <p className="font-semibold text-gray-900">
+                              {formatPrice(item.subtotal)}
+                            </p>
                             <p className="text-xs text-gray-400">Tổng</p>
                           </div>
                         </div>
@@ -1372,7 +1737,9 @@ export const OrderManagementPanel: React.FC = () => {
                   </div>
                   <div className="flex justify-between pt-2 border-t border-gray-300">
                     <span className="text-lg font-bold">Tổng cộng:</span>
-                    <span className="text-lg font-bold">{formatPrice(selectedOrder.totalAmount)}</span>
+                    <span className="text-lg font-bold">
+                      {formatPrice(selectedOrder.totalAmount)}
+                    </span>
                   </div>
                 </div>
               </Card>
@@ -1405,12 +1772,15 @@ export const OrderManagementPanel: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <p className="text-sm text-gray-600">
-              Vui lòng chọn số lô và số seri (nếu có) từ danh sách có sẵn trong kho cho từng sản phẩm.
+              Vui lòng chọn số lô và số seri (nếu có) từ danh sách có sẵn trong
+              kho cho từng sản phẩm.
             </p>
             {isLoadingIdentityNumbers && (
               <div className="flex items-center justify-center py-4">
                 <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="ml-2 text-sm text-gray-600">Đang tải danh sách số lô/số seri...</span>
+                <span className="ml-2 text-sm text-gray-600">
+                  Đang tải danh sách số lô/số seri...
+                </span>
               </div>
             )}
             {shipFormError && (
@@ -1423,7 +1793,7 @@ export const OrderManagementPanel: React.FC = () => {
               {shipItems.map((item, index) => {
                 const hasSerialNumbers = item.hasSerialNumbers ?? false;
                 const identityNumbers = item.availableIdentityNumbers || [];
-                
+
                 // Get unique lot numbers (for non-machinery products or to filter serials)
                 const lotNumbers = Array.from(
                   new Set(
@@ -1432,24 +1802,33 @@ export const OrderManagementPanel: React.FC = () => {
                       .map((id) => id.lotNumber!)
                   )
                 );
-                
+
                 // Get serial numbers filtered by selected lot number (if has serial numbers)
-                const availableSerials = hasSerialNumbers && item.lotNumber
-                  ? identityNumbers.filter(
-                      (id) => id.serialNumber && id.lotNumber === item.lotNumber
-                    )
-                  : identityNumbers.filter((id) => id.serialNumber);
-                
+                const availableSerials =
+                  hasSerialNumbers && item.lotNumber
+                    ? identityNumbers.filter(
+                        (id) =>
+                          id.serialNumber && id.lotNumber === item.lotNumber
+                      )
+                    : identityNumbers.filter((id) => id.serialNumber);
+
                 return (
                   <Card key={item.id} className="p-4">
                     <div className="space-y-3">
                       <div>
-                        <h4 className="font-medium text-gray-900">{item.productName}</h4>
+                        <h4 className="font-medium text-gray-900">
+                          {item.productName}
+                        </h4>
                         <div className="text-xs text-gray-500 space-y-1">
                           <p>Mã chi tiết đơn hàng: #{item.orderDetailId}</p>
-                          {item.categoryId && <p>Category ID: {item.categoryId}</p>}
+                          {item.categoryId && (
+                            <p>Category ID: {item.categoryId}</p>
+                          )}
                           {hasSerialNumbers ? (
-                            <p>Mục {item.entryNumber}/{item.totalQuantity} (yêu cầu số seri)</p>
+                            <p>
+                              Mục {item.entryNumber}/{item.totalQuantity} (yêu
+                              cầu số seri)
+                            </p>
                           ) : (
                             <p>Tổng số lượng trong đơn: {item.totalQuantity}</p>
                           )}
@@ -1464,11 +1843,13 @@ export const OrderManagementPanel: React.FC = () => {
                           onValueChange={(value) => {
                             setShipItems((prev) => {
                               const updated = [...prev];
-                              updated[index] = { 
-                                ...updated[index], 
+                              updated[index] = {
+                                ...updated[index],
                                 lotNumber: value,
                                 // Clear serial number when lot number changes (if has serial numbers)
-                                serialNumber: hasSerialNumbers ? "" : updated[index].serialNumber
+                                serialNumber: hasSerialNumbers
+                                  ? ""
+                                  : updated[index].serialNumber,
                               };
                               return updated;
                             });
@@ -1481,12 +1862,15 @@ export const OrderManagementPanel: React.FC = () => {
                           <SelectContent>
                             {lotNumbers.length > 0 ? (
                               lotNumbers.map((lotNum) => {
-                                const lotItem = identityNumbers.find((id) => id.lotNumber === lotNum);
+                                const lotItem = identityNumbers.find(
+                                  (id) => id.lotNumber === lotNum
+                                );
                                 const quantity = lotItem?.remainingQuantity;
                                 return (
                                   <SelectItem key={lotNum} value={lotNum}>
                                     {lotNum}
-                                    {quantity !== undefined && ` (Còn lại: ${quantity})`}
+                                    {quantity !== undefined &&
+                                      ` (Còn lại: ${quantity})`}
                                   </SelectItem>
                                 );
                               })
@@ -1497,11 +1881,13 @@ export const OrderManagementPanel: React.FC = () => {
                             )}
                           </SelectContent>
                         </Select>
-                        {lotNumbers.length === 0 && identityNumbers.length === 0 && (
-                          <p className="text-xs text-amber-600">
-                            ⚠️ Không có số lô có sẵn trong kho cho sản phẩm này
-                          </p>
-                        )}
+                        {lotNumbers.length === 0 &&
+                          identityNumbers.length === 0 && (
+                            <p className="text-xs text-amber-600">
+                              ⚠️ Không có số lô có sẵn trong kho cho sản phẩm
+                              này
+                            </p>
+                          )}
                       </div>
                       {hasSerialNumbers && (
                         <div className="grid gap-2">
@@ -1513,7 +1899,10 @@ export const OrderManagementPanel: React.FC = () => {
                             onValueChange={(value) => {
                               setShipItems((prev) => {
                                 const updated = [...prev];
-                                updated[index] = { ...updated[index], serialNumber: value };
+                                updated[index] = {
+                                  ...updated[index],
+                                  serialNumber: value,
+                                };
                                 return updated;
                               });
                               if (shipFormError) setShipFormError("");
@@ -1521,22 +1910,29 @@ export const OrderManagementPanel: React.FC = () => {
                             disabled={!item.lotNumber}
                           >
                             <SelectTrigger id={`serial-${item.id}`}>
-                              <SelectValue placeholder={item.lotNumber ? "Chọn số seri" : "Chọn số lô trước"} />
+                              <SelectValue
+                                placeholder={
+                                  item.lotNumber
+                                    ? "Chọn số seri"
+                                    : "Chọn số lô trước"
+                                }
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {availableSerials.length > 0 ? (
                                 availableSerials.map((id) => {
                                   // Check if this serial number is already selected by another item with the same orderDetailId
                                   const isAlreadySelected = shipItems.some(
-                                    (otherItem) => 
-                                      otherItem.orderDetailId === item.orderDetailId &&
+                                    (otherItem) =>
+                                      otherItem.orderDetailId ===
+                                        item.orderDetailId &&
                                       otherItem.id !== item.id &&
                                       otherItem.serialNumber === id.serialNumber
                                   );
-                                  
+
                                   return (
-                                    <SelectItem 
-                                      key={id.serialNumber} 
+                                    <SelectItem
+                                      key={id.serialNumber}
                                       value={id.serialNumber!}
                                       disabled={isAlreadySelected}
                                     >
@@ -1548,7 +1944,7 @@ export const OrderManagementPanel: React.FC = () => {
                                 })
                               ) : (
                                 <SelectItem value="none" disabled>
-                                  {item.lotNumber 
+                                  {item.lotNumber
                                     ? "Không có số seri có sẵn cho lô này"
                                     : "Vui lòng chọn số lô trước"}
                                 </SelectItem>
@@ -1557,7 +1953,8 @@ export const OrderManagementPanel: React.FC = () => {
                           </Select>
                           {!item.lotNumber && (
                             <p className="text-xs text-gray-500">
-                              Vui lòng chọn số lô trước để hiển thị danh sách số seri
+                              Vui lòng chọn số lô trước để hiển thị danh sách số
+                              seri
                             </p>
                           )}
                           {item.lotNumber && availableSerials.length === 0 && (
@@ -1566,14 +1963,16 @@ export const OrderManagementPanel: React.FC = () => {
                             </p>
                           )}
                           <p className="text-xs text-gray-500">
-                            Số lượng mỗi mục cố định 1 vì sản phẩm yêu cầu số seri riêng.
+                            Số lượng mỗi mục cố định 1 vì sản phẩm yêu cầu số
+                            seri riêng.
                           </p>
                         </div>
                       )}
                       {!hasSerialNumbers && (
                         <div className="grid gap-2">
                           <Label htmlFor={`quantity-${item.id}`}>
-                            Số lượng cần gửi <span className="text-red-500">*</span>
+                            Số lượng cần gửi{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
                           <Input
                             id={`quantity-${item.id}`}
@@ -1584,11 +1983,17 @@ export const OrderManagementPanel: React.FC = () => {
                             onChange={(e) => {
                               const rawValue = Number(e.target.value);
                               const nextQuantity = Number.isFinite(rawValue)
-                                ? Math.min(Math.max(Math.floor(rawValue), 1), item.totalQuantity)
+                                ? Math.min(
+                                    Math.max(Math.floor(rawValue), 1),
+                                    item.totalQuantity
+                                  )
                                 : 1;
                               setShipItems((prev) => {
                                 const updated = [...prev];
-                                updated[index] = { ...updated[index], quantity: nextQuantity };
+                                updated[index] = {
+                                  ...updated[index],
+                                  quantity: nextQuantity,
+                                };
                                 return updated;
                               });
                               if (shipFormError) setShipFormError("");
@@ -1628,7 +2033,10 @@ export const OrderManagementPanel: React.FC = () => {
       </Dialog>
 
       {/* Success AlertDialog */}
-      <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+      <AlertDialog
+        open={isSuccessDialogOpen}
+        onOpenChange={setIsSuccessDialogOpen}
+      >
         <AlertDialogContent className="sm:max-w-[400px]">
           <AlertDialogHeader>
             <div className="mx-auto mb-4 w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
@@ -1691,4 +2099,3 @@ export const OrderManagementPanel: React.FC = () => {
 };
 
 export default OrderManagementPanel;
-
