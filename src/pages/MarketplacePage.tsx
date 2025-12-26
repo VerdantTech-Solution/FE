@@ -568,14 +568,14 @@ export const MarketplacePage = () => {
 
   return (
     <motion.div
-      className="min-h-screen bg-gray-50 pt-20"
+      className="min-h-screen bg-gray-50"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
     >
       {/* Header Section */}
       <motion.div
-        className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-8 sm:py-12 lg:py-16"
+        className="bg-gradient-to-r from-green-600 to-emerald-700 text-white pt-28 pb-8 sm:pt-32 sm:pb-12 lg:pt-36 lg:pb-16"
         variants={itemVariants}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
