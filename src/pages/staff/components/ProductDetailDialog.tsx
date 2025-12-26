@@ -90,9 +90,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     if (open && productId) {
       loadProductDetails();
       loadReviews();
-      setActiveTab("info"); // Reset tab về "info" khi mở dialog
+      setActiveTab("info");
     } else {
-      // Reset state when dialog closes
       setProduct(null);
       setCertificates([]);
       setReviews([]);
@@ -110,27 +109,21 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setLoading(true);
       setError(null);
 
-      // Load product
       const productData = await getProductById(productId);
       setProduct(productData);
-      // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
       setCommissionRate(productData.commissionRate || 0);
       setUnitPrice(productData.unitPrice || 0);
 
-      // Load certificates for this product
       try {
-        // Sử dụng API chính thức để lấy certificates theo productId
         let productCertificates = await getProductCertificatesByProductId(productId);
         
         if (productCertificates && productCertificates.length > 0) {
-          // Logic tương tự RegistrationManagementPage: Check và load files cho certificates nếu thiếu
           productCertificates = await Promise.all(
             productCertificates.map(async (cert) => {
               if (cert.files && cert.files.length > 0) {
-                return cert; // Đã có files
+                return cert;
               }
               
-              // Nếu files rỗng, fetch từ media links
               try {
                 const mediaLinks = await getMediaLinks('product_certificates', cert.id);
                 const certLinks = mediaLinks.filter(link => 
@@ -163,7 +156,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           
           setCertificates(productCertificates);
         } else {
-          // Fallback: Thử tìm từ ProductRegistration nếu không có certificates trực tiếp
           const registrations = await getProductRegistrations();
           const relatedRegistration = registrations.find(
             reg => reg.proposedProductCode === productData.productCode && 
@@ -172,11 +164,9 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           
           if (relatedRegistration) {
             try {
-              // Lấy chi tiết registration để có thông tin certificates đầy đủ nhất
               const detail = await getProductRegistrationById(relatedRegistration.id);
               let finalCertificates: Certificate[] = [];
 
-              // Logic giống RegistrationManagementPage
               if (detail.certificates && detail.certificates.length > 0) {
                 finalCertificates = await Promise.all(
                   detail.certificates.map(async (cert) => {
@@ -213,7 +203,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                   })
                 );
               } else {
-                // Fallback 1: Arrays
                 if (detail.certificationName && Array.isArray(detail.certificationName) && detail.certificationName.length > 0) {
                   const certNames = detail.certificationName;
                   const certCodes = detail.certificationCode && Array.isArray(detail.certificationCode) 
@@ -248,7 +237,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                     }));
                   }
                 }
-                // Fallback 2: certificateFiles only
                 else if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
                   finalCertificates = [{
                     id: 0,
@@ -263,7 +251,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                     files: detail.certificateFiles
                   }];
                 }
-                // Fallback 3: media links (như cũ)
                 else {
                   try {
                     const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
@@ -326,7 +313,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setLoadingReviews(true);
       const response = await getProductReviewsByProductId(productId, 1, 20);
       if (response.status && response.data) {
-        // Support both pagination structure (data.data) and simple array (data)
         const reviewsList = response.data.data || (Array.isArray(response.data) ? response.data : []);
         setReviews(reviewsList as ProductReviewWithReply[]);
       }
@@ -345,7 +331,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
     try {
       setUpdatingCommission(true);
-      // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
       await updateProductCommission(productId, { commissionRate: commissionRate });
       toast.success("Cập nhật hoa hồng thành công!");
       await loadProductDetails();
@@ -378,7 +363,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     }
   };
 
-
   const getProductImageUrl = (images: any): string | undefined => {
     if (!images) return undefined;
     if (Array.isArray(images)) {
@@ -392,15 +376,10 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
   if (!productId) return null;
 
-  // Wrapper để ngăn onOpenChange khi click vào bên trong dialog
   const handleOpenChange = (newOpen: boolean) => {
-    // Chỉ cho phép đóng dialog, không cho phép mở lại khi đã mở
-    // Nếu dialog đang mở và user click vào bên trong, không làm gì cả
     if (open && newOpen) {
-      // Dialog đã mở và đang cố mở lại -> bỏ qua (có thể do click vào tab)
       return;
     }
-    // Chỉ cho phép đóng dialog
     if (!newOpen) {
       onOpenChange(false);
     }
@@ -411,7 +390,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       <DialogContent 
         className="sm:max-w-6xl max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col"
         onInteractOutside={(e) => {
-          // Chỉ đóng dialog khi click vào overlay, không đóng khi click vào content bên trong
           const target = e.target as HTMLElement;
           const dialogContent = e.currentTarget as HTMLElement;
           if (target && dialogContent && dialogContent.contains(target)) {
@@ -419,27 +397,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           }
         }}
         onOpenAutoFocus={(e) => {
-          // Ngăn auto focus khi mở dialog
           e.preventDefault();
-        }}
-        onEscapeKeyDown={() => {
-          // Cho phép đóng bằng ESC
-        }}
-        onPointerDownOutside={(e) => {
-          // Ngăn đóng dialog khi click vào bên trong content
-          const target = e.target as HTMLElement;
-          const dialogContent = e.currentTarget as HTMLElement;
-          if (target && dialogContent && dialogContent.contains(target)) {
-            e.preventDefault();
-          }
-        }}
-        onPointerDown={(e) => {
-          // Ngăn event bubble
-          e.stopPropagation();
-        }}
-        onClick={(e) => {
-          // Ngăn event bubble
-          e.stopPropagation();
         }}
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
@@ -459,115 +417,21 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
             <p className="text-red-600">{error}</p>
           </div>
         ) : product ? (
-          <div 
-            className="overflow-y-auto px-6 py-4 flex-1 min-h-0"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-            >
+          <div className="overflow-y-auto px-6 py-4 flex-1 min-h-0">
+            <div>
               <Tabs 
                 value={activeTab} 
-                onValueChange={(value) => {
-                  setActiveTab(value);
-                }} 
+                onValueChange={setActiveTab} 
                 className="w-full"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
               >
-            <TabsList 
-              className="grid w-full grid-cols-3 mb-6 h-12"
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-            >
-              <TabsTrigger 
-                value="info" 
-                className="text-base font-semibold"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setActiveTab("info");
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+            <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
+              <TabsTrigger value="info" className="text-base font-semibold">
                 Thông tin
               </TabsTrigger>
-              <TabsTrigger 
-                value="certificates" 
-                className="text-base font-semibold"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setActiveTab("certificates");
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+              <TabsTrigger value="certificates" className="text-base font-semibold">
                 Chứng chỉ
               </TabsTrigger>
-              <TabsTrigger 
-                value="reviews" 
-                className="text-base font-semibold"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setActiveTab("reviews");
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+              <TabsTrigger value="reviews" className="text-base font-semibold">
                 Đánh giá
               </TabsTrigger>
             </TabsList>
@@ -967,4 +831,3 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     </Dialog>
   );
 };
-
