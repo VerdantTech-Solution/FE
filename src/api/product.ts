@@ -56,7 +56,7 @@ export interface Certificate {
   registrationId: number;
   certificationCode: string;
   certificationName: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Verified';
   rejectionReason?: string;
   uploadedAt: string;
   verifiedAt?: string;

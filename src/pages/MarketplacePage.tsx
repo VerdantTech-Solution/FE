@@ -15,7 +15,6 @@ import {
   Filter,
   Star,
   ShoppingCart,
-  Heart,
   ChevronDown,
   Menu,
   ChevronLeft,
@@ -936,13 +935,6 @@ export const MarketplacePage = () => {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                         >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 right-2 bg-white/80 hover:bg-white text-gray-600 rounded-full p-2"
-                          >
-                            <Heart className="w-4 h-4" />
-                          </Button>
                         </motion.div>
                       </div>
 

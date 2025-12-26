@@ -27,7 +27,8 @@ import {
   getMediaLinks,
   type Certificate,
   getProductRegistrations,
-  getProductCertificatesByProductId
+  getProductCertificatesByProductId,
+  getProductRegistrationById
 } from "@/api/product";
 import { 
   getProductReviewsByProductId, 
@@ -89,9 +90,8 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     if (open && productId) {
       loadProductDetails();
       loadReviews();
-      setActiveTab("info"); // Reset tab về "info" khi mở dialog
+      setActiveTab("info");
     } else {
-      // Reset state when dialog closes
       setProduct(null);
       setCertificates([]);
       setReviews([]);
@@ -109,21 +109,53 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setLoading(true);
       setError(null);
 
-      // Load product
       const productData = await getProductById(productId);
       setProduct(productData);
-      // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
       setCommissionRate(productData.commissionRate || 0);
       setUnitPrice(productData.unitPrice || 0);
 
-      // Load certificates for this product
       try {
-        // Sử dụng API chính thức để lấy certificates theo productId
-        const productCertificates = await getProductCertificatesByProductId(productId);
+        let productCertificates = await getProductCertificatesByProductId(productId);
+        
         if (productCertificates && productCertificates.length > 0) {
+          productCertificates = await Promise.all(
+            productCertificates.map(async (cert) => {
+              if (cert.files && cert.files.length > 0) {
+                return cert;
+              }
+              
+              try {
+                const mediaLinks = await getMediaLinks('product_certificates', cert.id);
+                const certLinks = mediaLinks.filter(link => 
+                  link.purpose === 'ProductCertificatePdf' ||
+                  link.purpose === 'productcertificatepdf' ||
+                  link.purpose === 'certificatepdf' ||
+                  link.purpose === 'certificate' ||
+                  link.purpose?.toLowerCase().includes('cert')
+                );
+                
+                if (certLinks.length > 0) {
+                  return {
+                    ...cert,
+                    files: certLinks.map(link => ({
+                      id: link.id,
+                      imagePublicId: link.imagePublicId,
+                      imageUrl: link.imageUrl,
+                      purpose: link.purpose || 'ProductCertificatePdf',
+                      sortOrder: link.sortOrder || 0
+                    }))
+                  };
+                }
+                return cert;
+              } catch (err) {
+                console.log(`Could not fetch files for certificate ${cert.id}:`, err);
+                return cert;
+              }
+            })
+          );
+          
           setCertificates(productCertificates);
         } else {
-          // Fallback: Thử tìm từ ProductRegistration nếu không có certificates trực tiếp
           const registrations = await getProductRegistrations();
           const relatedRegistration = registrations.find(
             reg => reg.proposedProductCode === productData.productCode && 
@@ -131,44 +163,134 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           );
           
           if (relatedRegistration) {
-            // Thử lấy từ media links với product_registrations
             try {
-              const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
-              const certLinks = mediaLinks.filter(link => 
-                link.purpose === 'ProductCertificatePdf' ||
-                link.purpose === 'productcertificatepdf' ||
-                link.purpose === 'certificatepdf' ||
-                link.purpose === 'certificate' || 
-                link.purpose?.toLowerCase().includes('cert')
-              );
-              
-              if (certLinks.length > 0) {
-                // Tạo certificates từ media links
-                const certNames = relatedRegistration.certificationName || [];
-                const certCodes = relatedRegistration.certificationCode || [];
-                setCertificates(certLinks.map((link, idx) => ({
-                  id: idx,
-                  productId: productId,
-                  registrationId: relatedRegistration.id,
-                  certificationCode: certCodes[idx] || '',
-                  certificationName: certNames[idx] || `Chứng chỉ ${idx + 1}`,
-                  status: 'Pending' as const,
-                  uploadedAt: new Date().toISOString(),
-                  verifiedAt: undefined,
-                  verifiedBy: undefined,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                  files: [{
-                    id: link.id,
-                    imagePublicId: link.imagePublicId,
-                    imageUrl: link.imageUrl,
-                    purpose: link.purpose || 'ProductCertificatePdf',
-                    sortOrder: link.sortOrder || 0
-                  }]
-                })));
+              const detail = await getProductRegistrationById(relatedRegistration.id);
+              let finalCertificates: Certificate[] = [];
+
+              if (detail.certificates && detail.certificates.length > 0) {
+                finalCertificates = await Promise.all(
+                  detail.certificates.map(async (cert) => {
+                    if (cert.files && cert.files.length > 0) {
+                      return cert;
+                    }
+                    try {
+                      const mediaLinks = await getMediaLinks('product_certificates', cert.id);
+                      const certLinks = mediaLinks.filter(link => 
+                        link.purpose === 'ProductCertificatePdf' ||
+                        link.purpose === 'productcertificatepdf' ||
+                        link.purpose === 'certificatepdf' ||
+                        link.purpose === 'certificate' || 
+                        link.purpose?.toLowerCase().includes('cert')
+                      );
+                      
+                      if (certLinks.length > 0) {
+                        return {
+                          ...cert,
+                          files: certLinks.map(link => ({
+                            id: link.id,
+                            imagePublicId: link.imagePublicId,
+                            imageUrl: link.imageUrl,
+                            purpose: link.purpose || 'ProductCertificatePdf',
+                            sortOrder: link.sortOrder || 0
+                          }))
+                        };
+                      }
+                      return cert;
+                    } catch (err) {
+                      console.log(`Could not fetch files for certificate ${cert.id}:`, err);
+                      return cert;
+                    }
+                  })
+                );
+              } else {
+                if (detail.certificationName && Array.isArray(detail.certificationName) && detail.certificationName.length > 0) {
+                  const certNames = detail.certificationName;
+                  const certCodes = detail.certificationCode && Array.isArray(detail.certificationCode) 
+                    ? detail.certificationCode 
+                    : [];
+                  
+                  if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
+                    finalCertificates = certNames.map((name, idx) => ({
+                      id: idx,
+                      productId: productId,
+                      registrationId: relatedRegistration.id,
+                      certificationCode: certCodes[idx] || '',
+                      certificationName: name,
+                      status: 'Pending' as const,
+                      uploadedAt: new Date().toISOString(),
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                      files: detail.certificateFiles ? detail.certificateFiles.filter((_, fileIdx) => fileIdx === idx) : []
+                    }));
+                  } else {
+                    finalCertificates = certNames.map((name, idx) => ({
+                      id: idx,
+                      productId: productId,
+                      registrationId: relatedRegistration.id,
+                      certificationCode: certCodes[idx] || '',
+                      certificationName: name,
+                      status: 'Pending' as const,
+                      uploadedAt: new Date().toISOString(),
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                      files: []
+                    }));
+                  }
+                }
+                else if (detail.certificateFiles && Array.isArray(detail.certificateFiles) && detail.certificateFiles.length > 0) {
+                  finalCertificates = [{
+                    id: 0,
+                    productId: productId,
+                    registrationId: relatedRegistration.id,
+                    certificationCode: '',
+                    certificationName: 'Chứng chỉ',
+                    status: 'Pending' as const,
+                    uploadedAt: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    files: detail.certificateFiles
+                  }];
+                }
+                else {
+                  try {
+                    const mediaLinks = await getMediaLinks('product_registrations', relatedRegistration.id);
+                    const certLinks = mediaLinks.filter(link => 
+                      link.purpose === 'ProductCertificatePdf' ||
+                      link.purpose === 'productcertificatepdf' ||
+                      link.purpose === 'certificatepdf' ||
+                      link.purpose === 'certificate' || 
+                      link.purpose?.toLowerCase().includes('cert')
+                    );
+                    
+                    if (certLinks.length > 0) {
+                      finalCertificates = [{
+                        id: 0,
+                        productId: productId,
+                        registrationId: relatedRegistration.id,
+                        certificationCode: '',
+                        certificationName: 'Chứng chỉ từ media links',
+                        status: 'Pending' as const,
+                        uploadedAt: new Date().toISOString(),
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        files: certLinks.map(link => ({
+                          id: link.id,
+                          imagePublicId: link.imagePublicId,
+                          imageUrl: link.imageUrl,
+                          purpose: link.purpose || 'ProductCertificatePdf',
+                          sortOrder: link.sortOrder || 0
+                        }))
+                      }];
+                    }
+                  } catch (mediaErr) {
+                    console.log('Could not fetch certificates from media links:', mediaErr);
+                  }
+                }
               }
+              
+              setCertificates(finalCertificates);
             } catch (err) {
-              console.log('Could not load certificates from media links:', err);
+              console.log('Could not load registration detail:', err);
             }
           }
         }
@@ -191,7 +313,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       setLoadingReviews(true);
       const response = await getProductReviewsByProductId(productId, 1, 20);
       if (response.status && response.data) {
-        // Support both pagination structure (data.data) and simple array (data)
         const reviewsList = response.data.data || (Array.isArray(response.data) ? response.data : []);
         setReviews(reviewsList as ProductReviewWithReply[]);
       }
@@ -210,7 +331,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
     try {
       setUpdatingCommission(true);
-      // CommissionRate trong database đã là % (10.00 = 10%), không cần convert
       await updateProductCommission(productId, { commissionRate: commissionRate });
       toast.success("Cập nhật hoa hồng thành công!");
       await loadProductDetails();
@@ -243,7 +363,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     }
   };
 
-
   const getProductImageUrl = (images: any): string | undefined => {
     if (!images) return undefined;
     if (Array.isArray(images)) {
@@ -257,15 +376,10 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
 
   if (!productId) return null;
 
-  // Wrapper để ngăn onOpenChange khi click vào bên trong dialog
   const handleOpenChange = (newOpen: boolean) => {
-    // Chỉ cho phép đóng dialog, không cho phép mở lại khi đã mở
-    // Nếu dialog đang mở và user click vào bên trong, không làm gì cả
     if (open && newOpen) {
-      // Dialog đã mở và đang cố mở lại -> bỏ qua (có thể do click vào tab)
       return;
     }
-    // Chỉ cho phép đóng dialog
     if (!newOpen) {
       onOpenChange(false);
     }
@@ -276,7 +390,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
       <DialogContent 
         className="sm:max-w-6xl max-w-[95vw] w-full max-h-[95vh] p-0 gap-0 overflow-hidden flex flex-col"
         onInteractOutside={(e) => {
-          // Chỉ đóng dialog khi click vào overlay, không đóng khi click vào content bên trong
           const target = e.target as HTMLElement;
           const dialogContent = e.currentTarget as HTMLElement;
           if (target && dialogContent && dialogContent.contains(target)) {
@@ -284,27 +397,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           }
         }}
         onOpenAutoFocus={(e) => {
-          // Ngăn auto focus khi mở dialog
           e.preventDefault();
-        }}
-        onEscapeKeyDown={() => {
-          // Cho phép đóng bằng ESC
-        }}
-        onPointerDownOutside={(e) => {
-          // Ngăn đóng dialog khi click vào bên trong content
-          const target = e.target as HTMLElement;
-          const dialogContent = e.currentTarget as HTMLElement;
-          if (target && dialogContent && dialogContent.contains(target)) {
-            e.preventDefault();
-          }
-        }}
-        onPointerDown={(e) => {
-          // Ngăn event bubble
-          e.stopPropagation();
-        }}
-        onClick={(e) => {
-          // Ngăn event bubble
-          e.stopPropagation();
         }}
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
@@ -324,115 +417,21 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
             <p className="text-red-600">{error}</p>
           </div>
         ) : product ? (
-          <div 
-            className="overflow-y-auto px-6 py-4 flex-1 min-h-0"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-            >
+          <div className="overflow-y-auto px-6 py-4 flex-1 min-h-0">
+            <div>
               <Tabs 
                 value={activeTab} 
-                onValueChange={(value) => {
-                  setActiveTab(value);
-                }} 
+                onValueChange={setActiveTab} 
                 className="w-full"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
               >
-            <TabsList 
-              className="grid w-full grid-cols-3 mb-6 h-12"
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-            >
-              <TabsTrigger 
-                value="info" 
-                className="text-base font-semibold"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setActiveTab("info");
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+            <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
+              <TabsTrigger value="info" className="text-base font-semibold">
                 Thông tin
               </TabsTrigger>
-              <TabsTrigger 
-                value="certificates" 
-                className="text-base font-semibold"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setActiveTab("certificates");
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+              <TabsTrigger value="certificates" className="text-base font-semibold">
                 Chứng chỉ
               </TabsTrigger>
-              <TabsTrigger 
-                value="reviews" 
-                className="text-base font-semibold"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setActiveTab("reviews");
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+              <TabsTrigger value="reviews" className="text-base font-semibold">
                 Đánh giá
               </TabsTrigger>
             </TabsList>
@@ -736,19 +735,19 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                                     <span className="font-medium">Mã:</span> {cert.certificationCode}
                                   </p>
                                 )}
-                                {(cert.status === 'Approved' || cert.status === 'Rejected') && (
+                                {(cert.status === 'Approved' || cert.status === 'Verified' || cert.status === 'Rejected') && (
                                   <div className="ml-7 mt-2">
                                     <Badge 
                                       variant={
-                                        cert.status === 'Approved' ? 'default' : 
+                                        cert.status === 'Approved' || cert.status === 'Verified' ? 'default' : 
                                         'destructive'
                                       }
                                       className={
-                                        cert.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                        cert.status === 'Approved' || cert.status === 'Verified' ? 'bg-green-100 text-green-800' :
                                         'bg-red-100 text-red-800'
                                       }
                                     >
-                                      {cert.status === 'Approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                                      {cert.status === 'Approved' || cert.status === 'Verified' ? 'Đã xác minh' : 'Đã từ chối'}
                                     </Badge>
                                   </div>
                                 )}
@@ -832,4 +831,3 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     </Dialog>
   );
 };
-
