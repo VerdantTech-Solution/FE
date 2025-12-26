@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/table";
 import {
   getVendorTransactions,
-  type VendorTransaction,
   type TransactionPaginatedData,
 } from "@/api/vendordashboard";
 import {
