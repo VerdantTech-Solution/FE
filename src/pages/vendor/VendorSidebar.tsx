@@ -175,7 +175,7 @@ const VendorSidebar = () => {
               <li key={item.id}>
                 <button
                   onClick={() => handleNavigation(item.path, item.id)}
-                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
                     isDisabled
                       ? "text-gray-400 cursor-not-allowed bg-gray-50"
                       : active
@@ -183,12 +183,17 @@ const VendorSidebar = () => {
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  {isDisabled ? <Lock size={20} /> : <Icon size={20} />}
-
-                  <span className="font-medium">{item.label}</span>
+                  <div className="flex items-center min-w-0">
+                    <span className="w-5 flex-shrink-0">
+                      {isDisabled ? <Lock size={20} /> : <Icon size={20} />}
+                    </span>
+                    <span className="font-medium ml-3 truncate">
+                      {item.label}
+                    </span>
+                  </div>
 
                   {isDisabled && (
-                    <span className="ml-auto text-xs text-orange-500 font-medium">
+                    <span className="text-xs text-orange-500 font-medium whitespace-nowrap ml-2">
                       Cần đăng ký
                     </span>
                   )}
