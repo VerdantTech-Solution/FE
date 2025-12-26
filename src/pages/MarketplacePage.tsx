@@ -948,7 +948,7 @@ export const MarketplacePage = () => {
 
                       {/* Content Section - Flexible height */}
                       <div className="flex-1 flex flex-col">
-                        <CardHeader className="pb-3 flex-1">
+                        <CardHeader className="pb-1 flex-1">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <CardTitle className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 min-h-[3.5rem]">
@@ -959,7 +959,7 @@ export const MarketplacePage = () => {
                               </p>
 
                               {/* Product Info Grid */}
-                              <div className="space-y-2 mb-3">
+                              <div className="space-y-2 mb-0">
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                   <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
                                   <span>
