@@ -15,7 +15,6 @@ import {
   Filter,
   Star,
   ShoppingCart,
-  Heart,
   ChevronDown,
   Menu,
   ChevronLeft,
