@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import VendorSidebar from './VendorSidebar';
-import VendorHeader from './VendorHeader';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import VendorSidebar from "./VendorSidebar";
+import VendorHeader from "./VendorHeader";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   History,
   Building2,
@@ -22,25 +22,29 @@ import {
   ArrowRight,
   AlertCircle,
   Calendar,
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+} from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   getVendorCashoutHistory,
   type CashoutRequestData,
   type CashoutRequestsPage,
-} from '@/api/wallet';
+} from "@/api/wallet";
+import {
+  getSupportedBanks,
+  type SupportedBank,
+} from "@/api/vendorbankaccounts";
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
     maximumFractionDigits: 0,
   }).format(amount);
 
 const formatDateTime = (value?: string) => {
-  if (!value) return '—';
+  if (!value) return "—";
   try {
-    return new Date(value).toLocaleString('vi-VN');
+    return new Date(value).toLocaleString("vi-VN");
   } catch {
     return value;
   }
@@ -48,33 +52,33 @@ const formatDateTime = (value?: string) => {
 
 const getStatusBadgeClass = (status?: string) => {
   switch (status) {
-    case 'Approved':
-      return 'bg-green-100 text-green-700';
-    case 'Rejected':
-      return 'bg-red-100 text-red-700';
-    case 'Processing':
-      return 'bg-blue-100 text-blue-700';
-    case 'Completed':
-      return 'bg-blue-100 text-blue-700';
+    case "Approved":
+      return "bg-green-100 text-green-700";
+    case "Rejected":
+      return "bg-red-100 text-red-700";
+    case "Processing":
+      return "bg-blue-100 text-blue-700";
+    case "Completed":
+      return "bg-blue-100 text-blue-700";
     default:
-      return 'bg-yellow-100 text-yellow-700';
+      return "bg-yellow-100 text-yellow-700";
   }
 };
 
 const getStatusLabel = (status?: string) => {
   switch (status) {
-    case 'Pending':
-      return 'Đang chờ';
-    case 'Processing':
-      return 'Đang xử lý';
-    case 'Approved':
-      return 'Đã duyệt';
-    case 'Rejected':
-      return 'Đã từ chối';
-    case 'Completed':
-      return 'Hoàn thành';
+    case "Pending":
+      return "Đang chờ";
+    case "Processing":
+      return "Đang xử lý";
+    case "Approved":
+      return "Đã duyệt";
+    case "Rejected":
+      return "Đã từ chối";
+    case "Completed":
+      return "Hoàn thành";
     default:
-      return status || 'Unknown';
+      return status || "Unknown";
   }
 };
 
@@ -98,6 +102,7 @@ const CashoutHistoryPage = () => {
   const [paginationMeta, setPaginationMeta] =
     useState<CashoutRequestsPage>(defaultPagination);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [banks, setBanks] = useState<SupportedBank[]>([]);
 
   const fetchCashoutHistory = useCallback(
     async (
@@ -106,7 +111,7 @@ const CashoutHistoryPage = () => {
       options?: { skipLoading?: boolean }
     ) => {
       if (!user?.id) {
-        setError('Không tìm thấy thông tin người dùng');
+        setError("Không tìm thấy thông tin người dùng");
         setLoading(false);
         return;
       }
@@ -144,15 +149,15 @@ const CashoutHistoryPage = () => {
 
           const errorMessage =
             response?.errors && response.errors.length > 0
-              ? response.errors.join(', ')
-              : 'Không có dữ liệu lịch sử rút tiền';
+              ? response.errors.join(", ")
+              : "Không có dữ liệu lịch sử rút tiền";
           setError(errorMessage);
         }
       } catch (err: any) {
         const errorMessage =
           err?.errors?.[0] ||
           err?.message ||
-          'Có lỗi xảy ra khi tải lịch sử rút tiền';
+          "Có lỗi xảy ra khi tải lịch sử rút tiền";
         setError(errorMessage);
         setRequests([]);
         setPaginationMeta((prev) => ({
@@ -171,12 +176,33 @@ const CashoutHistoryPage = () => {
   );
 
   useEffect(() => {
+    const fetchBanks = async () => {
+      try {
+        const bankList = await getSupportedBanks();
+        setBanks(bankList);
+      } catch (err) {
+        console.error("Failed to fetch banks:", err);
+      }
+    };
+    fetchBanks();
+  }, []);
+
+  useEffect(() => {
     fetchCashoutHistory(currentPage, pageSize);
   }, [currentPage, pageSize, fetchCashoutHistory]);
 
   const totalRequestedAmount = useMemo(
     () => requests.reduce((sum, item) => sum + (item.amount || 0), 0),
     [requests]
+  );
+
+  const getBankName = useCallback(
+    (bankCode?: string) => {
+      if (!bankCode) return "—";
+      const bank = banks.find((b) => b.bin === bankCode || b.code === bankCode);
+      return bank ? bank.shortName || bank.name : bankCode;
+    },
+    [banks]
   );
 
   const handleRefresh = async () => {
@@ -249,7 +275,11 @@ const CashoutHistoryPage = () => {
                   className="gap-2"
                 >
                   {isRefreshing || loading ? (
-                    <Spinner variant="circle-filled" size={16} className="animate-spin" />
+                    <Spinner
+                      variant="circle-filled"
+                      size={16}
+                      className="animate-spin"
+                    />
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
@@ -292,9 +322,12 @@ const CashoutHistoryPage = () => {
                   <div>
                     <p className="text-sm text-gray-500">Đang chờ xử lý</p>
                     <p className="text-3xl font-bold text-yellow-600">
-                      {requests.filter(
-                        (r) => r.status === 'Pending' || r.status === 'Processing'
-                      ).length}
+                      {
+                        requests.filter(
+                          (r) =>
+                            r.status === "Pending" || r.status === "Processing"
+                        ).length
+                      }
                     </p>
                   </div>
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100">
@@ -322,7 +355,11 @@ const CashoutHistoryPage = () => {
               <CardContent>
                 {loading && !isRefreshing ? (
                   <div className="flex items-center justify-center py-12 text-gray-500">
-                    <Spinner variant="circle-filled" size={20} className="mr-3 animate-spin" />
+                    <Spinner
+                      variant="circle-filled"
+                      size={20}
+                      className="mr-3 animate-spin"
+                    />
                     Đang tải dữ liệu...
                   </div>
                 ) : requests.length === 0 ? (
@@ -366,13 +403,13 @@ const CashoutHistoryPage = () => {
                             </td>
                             <td className="px-4 py-4 text-sm text-gray-700">
                               <div className="flex flex-col gap-1">
-                                <span className="flex items-center gap-2 text-gray-900">
+                                <span className="flex items-center gap-2 text-gray-900 font-medium">
                                   <Building2 className="h-4 w-4 text-gray-400" />
-                                  {request.bankAccount?.bankCode || '—'}
+                                  {getBankName(request.bankAccount?.bankCode)}
                                 </span>
                                 <span className="flex items-center gap-2 text-gray-600">
                                   <CreditCard className="h-4 w-4 text-gray-400" />
-                                  {request.bankAccount?.accountNumber || '—'}
+                                  {request.bankAccount?.accountNumber || "—"}
                                 </span>
                               </div>
                             </td>
@@ -380,17 +417,21 @@ const CashoutHistoryPage = () => {
                               <div className="space-y-1">
                                 {request.reason && (
                                   <p className="text-gray-700">
-                                    <span className="font-medium text-gray-900">Lý do:</span>{' '}
+                                    <span className="font-medium text-gray-900">
+                                      Lý do:
+                                    </span>{" "}
                                     {request.reason}
                                   </p>
                                 )}
                                 {request.notes && (
                                   <p className="text-gray-500">
-                                    <span className="font-medium text-gray-900">Ghi chú:</span>{' '}
+                                    <span className="font-medium text-gray-900">
+                                      Ghi chú:
+                                    </span>{" "}
                                     {request.notes}
                                   </p>
                                 )}
-                                {!request.reason && !request.notes && '—'}
+                                {!request.reason && !request.notes && "—"}
                               </div>
                             </td>
                             <td className="px-4 py-4 text-sm text-gray-700">
@@ -424,8 +465,9 @@ const CashoutHistoryPage = () => {
 
                 <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-4 text-sm text-gray-600 md:flex-row">
                   <div>
-                    Trang {paginationMeta.currentPage} / {paginationMeta.totalPages} •{' '}
-                    {paginationMeta.totalRecords} yêu cầu
+                    Trang {paginationMeta.currentPage} /{" "}
+                    {paginationMeta.totalPages} • {paginationMeta.totalRecords}{" "}
+                    yêu cầu
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -464,4 +506,3 @@ const CashoutHistoryPage = () => {
 };
 
 export default CashoutHistoryPage;
-

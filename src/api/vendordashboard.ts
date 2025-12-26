@@ -489,3 +489,110 @@ export const getVendorWalletStatistics = async (
   return response.data;
 };
 
+// Transaction types
+export interface VendorTransaction {
+  transactionId: number;
+  transactionType: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  description: string;
+  performer: string;
+  processor: string;
+}
+
+export interface TransactionPaginatedData {
+  data: VendorTransaction[];
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface TransactionResponse {
+  status: boolean;
+  statusCode: string;
+  data: TransactionPaginatedData | null;
+  errors: string[] | null;
+}
+
+/**
+ * Lấy danh sách giao dịch của vendor với phân trang
+ * GET /api/vendor-dashboard/transactions
+ */
+export const getVendorTransactions = async (
+  from: string,
+  to: string,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<TransactionPaginatedData> => {
+  const response = (await apiClient.get<TransactionResponse>(
+    "/api/vendor-dashboard/transactions",
+    {
+      params: {
+        from,
+        to,
+        page,
+        pageSize,
+      },
+      headers: {
+        accept: "text/plain",
+      },
+    }
+  )) as unknown as TransactionResponse;
+
+  if (!response) {
+    throw new Error("Không nhận được phản hồi từ máy chủ.");
+  }
+
+  if (response.status === false) {
+    const message =
+      response.errors?.join(", ") ||
+      response.statusCode ||
+      "Không thể tải danh sách giao dịch.";
+    throw new Error(message);
+  }
+
+  if (!response.data) {
+    throw new Error("Dữ liệu giao dịch rỗng.");
+  }
+
+  return response.data;
+};
+
+/**
+ * Xuất lịch sử giao dịch ra file Excel
+ * GET /api/vendor-dashboard/transactions/export
+ */
+export const exportVendorTransactions = async (
+  from: string,
+  to: string
+): Promise<Blob> => {
+  // Import axios directly to bypass interceptor
+  const axios = (await import("axios")).default;
+  const token = localStorage.getItem('authToken');
+  
+  const url = `${(await import("./apiClient")).API_BASE_URL}/api/vendor-dashboard/transactions/export`;
+  console.log('Export API URL:', url);
+  console.log('Export params:', { from, to });
+  
+  const response = await axios.get(
+    url,
+    {
+      params: {
+        from,
+        to,
+      },
+      responseType: "blob",
+      headers: {
+        accept: "*/*",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    }
+  );
+
+  console.log('Export response size:', response.data.size);
+  return response.data;
+};
