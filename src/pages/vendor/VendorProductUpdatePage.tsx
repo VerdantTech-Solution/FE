@@ -334,45 +334,6 @@ const VendorProductUpdatePage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Chiều rộng (cm)</label>
-                  <Input
-                    type="number"
-                    value={form.width}
-                    placeholder={product?.dimensionsCm?.width?.toString() || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, width: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Chiều cao (cm)</label>
-                  <Input
-                    type="number"
-                    value={form.height}
-                    placeholder={product?.dimensionsCm?.height?.toString() || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, height: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Chiều dài (cm)</label>
-                  <Input
-                    type="number"
-                    value={form.length}
-                    placeholder={product?.dimensionsCm?.length?.toString() || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, length: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Thông số kỹ thuật</label>
-                <Textarea
-                  value={form.specifications}
-                  placeholder='Ví dụ: {"Màu":"Vàng","Công suất":"100W"}'
-                  onChange={(e) => setForm((f) => ({ ...f, specifications: e.target.value }))}
-                />
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">File hướng dẫn sử dụng</label>
