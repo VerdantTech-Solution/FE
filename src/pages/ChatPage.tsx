@@ -62,6 +62,20 @@ const isValidDate = (date: any): date is Date => {
   return date instanceof Date && !isNaN(date.getTime());
 };
 
+// Sanitize user-typed text: if it is a JSON like {"text": "..."}, extract only the text
+const sanitizeUserText = (value: string): string => {
+  if (!value) return "";
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && typeof parsed.text === "string") {
+      return parsed.text;
+    }
+  } catch {
+    // Not JSON – return as-is
+  }
+  return value;
+};
+
 // Helper tạo key localStorage theo từng user
 const getStorageKeys = (userId?: number | string) => {
   const key = userId ?? "guest";
@@ -84,15 +98,15 @@ const loadConversations = (userId?: number | string): Conversation[] => {
         return {
           ...conv,
           messages: conv.messages.map((msg: any) => {
-            const timestamp = new Date(msg.timestamp);
-            return {
-              ...msg,
-              text: normalizeChatbotMessage(
-                msg.text || msg.messageText || msg.content || ""
-              ),
-              timestamp: isValidDate(timestamp) ? timestamp : new Date(),
-            };
-          }),
+                        const timestamp = new Date(msg.timestamp);
+                        const rawText = msg.text || msg.messageText || msg.content || "";
+                        const normalized = normalizeChatbotMessage(rawText);
+                        return {
+                          ...msg,
+                          text: msg.sender === "ai" ? normalized : sanitizeUserText(normalized),
+                          timestamp: isValidDate(timestamp) ? timestamp : new Date(),
+                        };
+                      }),
           createdAt: isValidDate(createdAt) ? createdAt : new Date(),
           updatedAt: isValidDate(updatedAt) ? updatedAt : new Date(),
         };
@@ -313,12 +327,14 @@ export const ChatPage = () => {
         const localMessages: Message[] = backendMessages.map(
           (msg: BackendMessage) => {
             const timestamp = new Date(msg.createdAt);
+            const raw = normalizeChatbotMessage(
+              msg.messageText || msg.content || ""
+            );
+            const isUser = msg.messageType?.toLowerCase() === "user";
             return {
               id: msg.id.toString(),
-              text: normalizeChatbotMessage(
-                msg.messageText || msg.content || ""
-              ),
-              sender: msg.messageType?.toLowerCase() === "user" ? "user" : "ai",
+              text: isUser ? sanitizeUserText(raw) : raw,
+              sender: isUser ? "user" : "ai",
               timestamp: isValidDate(timestamp) ? timestamp : new Date(),
             };
           }
@@ -326,10 +342,22 @@ export const ChatPage = () => {
 
         // Update conversation with messages from backend (if available)
         if (localMessages.length > 0) {
+          // If local cache has AI messages with product JSON but backend doesn't, prefer local
+          const backendHasProducts = localMessages.some(
+            (m) => m.sender === "ai" && /"products"\s*:\s*\[/i.test(m.text)
+          );
+          const localHasProducts = localConv?.messages?.some(
+            (m) => m.sender === "ai" && /"products"\s*:\s*\[/i.test(m.text)
+          );
+
+          const messagesToUse = !backendHasProducts && localHasProducts
+            ? localConv!.messages
+            : localMessages;
+
           setConversations((prev) => {
             const updated = prev.map((c) =>
               c.id === currentConversationId
-                ? { ...c, messages: localMessages }
+                ? { ...c, messages: messagesToUse }
                 : c
             );
             // Save to localStorage immediately
@@ -515,7 +543,7 @@ export const ChatPage = () => {
     const conversationId = currentConversationId;
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputValue.trim(),
+      text: sanitizeUserText(inputValue.trim()),
       sender: "user",
       timestamp: new Date(),
     };

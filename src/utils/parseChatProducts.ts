@@ -78,8 +78,13 @@ export const parseProductsFromMessage = (message: string): {
             }
           });
           
-          // Extract message text
-          textWithoutProducts = parsedMessage.message || parsedMessage.intro || parsedMessage.outro || '';
+          // Extract message text (support multiple field names)
+          textWithoutProducts =
+            parsedMessage.text ||
+            parsedMessage.message ||
+            parsedMessage.intro ||
+            parsedMessage.outro ||
+            '';
           
           console.log('[ChatProductParser] Parsed products:', products.length, products);
           console.log('[ChatProductParser] Text without products:', textWithoutProducts);
@@ -259,8 +264,8 @@ export const parseProductsFromMessage = (message: string): {
             });
           }
           
-          // Use message field as text content
-          const messageText = parsed.message || parsed.intro || '';
+          // Use text/message/intro/outro as text content
+          const messageText = parsed.text || parsed.message || parsed.intro || '';
           const outro = parsed.outro || '';
           const combinedText = [messageText, outro].filter(Boolean).join('\n\n').trim();
           
